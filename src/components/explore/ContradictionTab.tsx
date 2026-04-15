@@ -67,11 +67,12 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
     [contradictions]
   );
 
-  const { tcList, pcList, sfList } = useMemo(() => ({
-    tcList: topLevelContradictions.filter((c) => c.type === 'TC'),
-    pcList: topLevelContradictions.filter((c) => c.type === 'PC'),
-    sfList: topLevelContradictions.filter((c) => c.type === 'SF'),
-  }), [topLevelContradictions]);
+  // ADR-007: Explore 只識別 TC；PC/SF 在 Create 階段從 TC 派生
+  //   · tcList = 正式 TC + 尚未細化 (type=null) 的草稿
+  const tcList = useMemo(
+    () => topLevelContradictions.filter((c) => c.type === 'TC' || c.type == null),
+    [topLevelContradictions]
+  );
   const confirmedCount = useMemo(
     () => contradictions.filter((c) => c.status === 'confirmed').length,
     [contradictions]
@@ -255,13 +256,14 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
     invalidate();
   }, [childrenMap, invalidate]);
 
-  const handleAddManual = async (type: ContradictionType) => {
+  // ADR-007: 手動新增固定建立 TC；PC/SF 不在 Explore 階段手動建立
+  const handleAddManual = async () => {
     const now = new Date().toISOString();
     const { data, error } = await supabase
       .from('contradictions')
       .insert({
         project_id: projectId,
-        type,
+        type: 'TC',
         natural_description: '',
         severity: DEFAULT_SEVERITY,
         created_at: now,
@@ -368,13 +370,18 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
 
   // ── AI re-identify (per type) ─────────────────────────────────────────
 
-  const handleAiReidentify = (type: ContradictionType) => {
+  // ADR-007: AI 重識別只輸出 TC（不再依 type 分流）
+  const handleAiReidentify = () => {
+    const type: ContradictionType = 'TC';
     setAiLoadingType(type);
     runGuarded(async () => {
     try {
-      const subset = contradictions.filter((c) => c.type === type);
+      // 待形式化目標：TC 型或尚未細化 (null) 的 top-level row，且缺兩個 param
+      const subset = contradictions.filter(
+        (c) => !c.parentContradictionId && (c.type === 'TC' || c.type == null),
+      );
       const targets = subset.filter(
-        (c) => c.description && !c.improvingParam && !c.worseningParam && !c.pcAttributeA && !c.sfSubstance1
+        (c) => c.description && !c.improvingParam && !c.worseningParam
       );
 
       if (targets.length > 0) {
@@ -429,11 +436,10 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
           toast.success(`已自動深挖出 ${totalDecomposed} 個物理矛盾`);
         }
       } else {
-        // Create new contradiction of this specific type
-        const typeLabel = type === 'TC' ? 'technical' : type === 'PC' ? 'physical' : 'su-field';
+        // ADR-007: 新建矛盾永遠是 TC
         const desc = mission
-          ? `Based on mission "${mission}", identify a key ${typeLabel} contradiction.`
-          : `Identify a key ${typeLabel} design contradiction from the project context.`;
+          ? `Based on mission "${mission}", identify a key technical contradiction.`
+          : `Identify a key technical design contradiction from the project context.`;
 
         const now = new Date().toISOString();
         const { data: draft, error: insertErr } = await supabase
@@ -693,17 +699,13 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
     );
   };
 
-  // ── Render a type section (TC or PC) ──────────────────────────────────
+  // ── Render TC section (ADR-007: Explore 只渲染 TC 主視圖) ───────────────
 
-  const renderSection = (type: ContradictionType, list: ExploreContradiction[]) => {
-    const color = type === 'TC' ? '#3B82F6' : type === 'SF' ? '#10B981' : '#F59E0B';
-    const label = type === 'TC' ? '技術矛盾 (TC)' : type === 'SF' ? 'Su-Field 問題 (SF)' : '物理矛盾 (PC)';
-    const help = type === 'TC'
-      ? 'TC（技術矛盾）：改善參數 A 會惡化參數 B，Step 5a 路徑 → 矛盾矩陣 → 40 原理。'
-      : type === 'SF'
-      ? 'SF（Su-Field 問題）：物質-場交互作用不完整/有害/不足，Step 5a 路徑 → 76 標準解。'
-      : 'PC（物理矛盾）：同一物件需要同時滿足相反屬性，Step 5a 路徑 → 分離原則。';
-    const isLoading = aiLoadingType === type;
+  const renderTcSection = () => {
+    const list = tcList;
+    const color = '#3B82F6';
+    const help = 'TC（技術矛盾）：改善參數 A 會惡化參數 B，Step 5a 路徑 → 矛盾矩陣 → 40 原理。PC/SF 於 Create 階段從 TC 派生（ADR-007）。';
+    const isLoading = aiLoadingType === 'TC';
     const confirmed = list.filter((c) => c.status === 'confirmed').length;
 
     return (
@@ -712,7 +714,7 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="h-5 w-1 rounded-full" style={{ backgroundColor: color }} />
-            <h3 className="text-base font-semibold">{label}</h3>
+            <h3 className="text-base font-semibold">技術矛盾 (TC)</h3>
             <HelpTooltip text={help} />
             <Badge className="text-white text-[10px]" style={{ backgroundColor: color }}>{list.length}</Badge>
             {confirmed > 0 && (
@@ -720,11 +722,11 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
             )}
           </div>
           <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setAddingType(type)}>
-              <Plus className="h-3.5 w-3.5 mr-1" /> 新增
+            <Button variant="ghost" size="sm" onClick={() => setAddingType('TC')}>
+              <Plus className="h-3.5 w-3.5 mr-1" /> 新增矛盾（TC）
             </Button>
-            <AiButton size="sm" loading={isLoading} onClick={() => handleAiReidentify(type)}>
-              識別 {type}
+            <AiButton size="sm" loading={isLoading} onClick={() => handleAiReidentify()}>
+              識別 TC
             </AiButton>
           </div>
         </div>
@@ -735,7 +737,13 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
             {list.map((c) => (
               <div key={c.id}>
                 {renderCard(c)}
-                {/* 6.1 — Nested child PCs (from TC→multi-PC decomposition) */}
+                {/* null-type 草稿：formalize 未細化，標示「需細化」 */}
+                {c.type == null && (
+                  <div className="mt-1 ml-2 text-[11px] text-amber-600">
+                    ⚠ 尚未形式化為 TC — 請細化描述或答 Socratic 後點「識別 TC」
+                  </div>
+                )}
+                {/* 6.1 — Nested child PCs (from TC→multi-PC decomposition, Create 階段產物) */}
                 <DecomposedChildrenList
                   children={childrenMap.get(c.id) ?? []}
                   parentId={c.id}
@@ -750,7 +758,7 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
         ) : (
           <div className="text-center py-8 bg-muted/30 rounded-lg border border-dashed">
             <p className="text-sm text-muted-foreground">
-              尚無{type === 'TC' ? '技術矛盾' : type === 'SF' ? 'Su-Field 問題' : '物理矛盾'} — 點擊「AI 識別 {type}」讓 AI 分析，或手動新增
+              尚無技術矛盾 — 點擊「識別 TC」讓 AI 分析，或手動新增
             </p>
           </div>
         )}
@@ -764,16 +772,10 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
     return (
       <div className="text-center py-16 space-y-3">
         <p className="text-muted-foreground font-medium">尚無矛盾</p>
-        <p className="text-sm text-muted-foreground">請先完成蘇格拉底問答，AI 將自動識別矛盾</p>
+        <p className="text-sm text-muted-foreground">請先完成蘇格拉底問答，AI 將自動識別技術矛盾 (TC)</p>
         <div className="flex justify-center gap-3">
           <Button variant="ghost" onClick={() => setAddingType('TC')}>
-            <Plus className="h-4 w-4 mr-1" /> 新增 TC
-          </Button>
-          <Button variant="ghost" onClick={() => setAddingType('PC')}>
-            <Plus className="h-4 w-4 mr-1" /> 新增 PC
-          </Button>
-          <Button variant="ghost" onClick={() => setAddingType('SF')}>
-            <Plus className="h-4 w-4 mr-1" /> 新增 SF
+            <Plus className="h-4 w-4 mr-1" /> 新增矛盾（TC）
           </Button>
         </div>
       </div>
@@ -784,49 +786,31 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
 
   return (
     <div className="space-y-6">
-      {/* Purpose intro */}
-      <SectionIntro text="根據問答結果，AI 會自動識別三種問題類型：技術矛盾 (TC) — 改善一個參數會惡化另一個；物理矛盾 (PC) — 同一物件需要同時具備矛盾屬性；Su-Field 問題 (SF) — 物質-場交互作用不完整/有害/不足。每種類型在 Step 5a 走各自對應的解法路徑。" />
+      {/* Purpose intro — ADR-007: Explore 只識別 TC */}
+      <SectionIntro text="Explore 階段專注識別「技術矛盾 (TC)」：改善一個參數會惡化另一個。PC（物理矛盾）與 SF（Su-Field）於 Create 階段由 TC 自動派生，用於分層 TRIZ 解法（L1 矩陣/L2 分離原則/L3 標準解）。" />
 
       {/* Summary stats */}
       <div className="flex flex-wrap gap-2">
         <Badge className="bg-blue-500 text-white text-xs">TC: {tcList.length}</Badge>
-        <Badge className="bg-amber-500 text-white text-xs">PC: {pcList.length}</Badge>
-        <Badge className="bg-emerald-500 text-white text-xs">SF: {sfList.length}</Badge>
         <Badge variant="secondary" className="text-xs">總計: {contradictions.length}</Badge>
         <Badge className="bg-green-600 text-white text-xs">已確認: {confirmedCount}</Badge>
       </div>
 
-      {/* TC Section */}
-      {renderSection('TC', tcList)}
+      {/* TC Section — 主視圖 */}
+      {renderTcSection()}
 
-      {/* Divider */}
-      <div className="border-t" />
-
-      {/* PC Section */}
-      {renderSection('PC', pcList)}
-
-      {/* Divider */}
-      <div className="border-t" />
-
-      {/* SF Section */}
-      {renderSection('SF', sfList)}
-
-      {/* Add new — direct type (no type selection dialog needed) */}
+      {/* Add new — TC only (ADR-007) */}
       <Dialog open={!!addingType} onOpenChange={() => setAddingType(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>新增{addingType === 'TC' ? '技術矛盾' : addingType === 'SF' ? 'Su-Field 問題' : '物理矛盾'}</DialogTitle>
+            <DialogTitle>新增技術矛盾 (TC)</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            {addingType === 'TC'
-              ? '技術矛盾 (TC)：改善一個參數會導致另一個參數惡化。建立後可編輯改善/惡化參數。Step 5a → 矛盾矩陣 → 40 原理。'
-              : addingType === 'SF'
-              ? 'Su-Field 問題 (SF)：物質-場交互作用不完整、有害或不足。建立後可編輯 S1/S2/F。Step 5a → 76 標準解。'
-              : '物理矛盾 (PC)：同一屬性需要同時滿足相反需求。建立後可編輯屬性 A / 非 A。Step 5a → 分離原則。'}
+            技術矛盾 (TC)：改善一個參數會導致另一個參數惡化。建立後可編輯改善/惡化參數。Step 5a → 矛盾矩陣 → 40 原理。PC/SF 於 Create 階段從 TC 派生（ADR-007）。
           </p>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setAddingType(null)}>取消</Button>
-            <Button onClick={() => addingType && handleAddManual(addingType)}>建立</Button>
+            <Button onClick={() => handleAddManual()}>建立</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

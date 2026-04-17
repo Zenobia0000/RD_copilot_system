@@ -34,7 +34,7 @@ import { DEFAULT_MUST_CRITERIA, PRECAD_DIMENSIONS, SCAMPER_LABELS } from "@/type
 import type { MustCriterion } from "@/types/create";
 import type { InterfaceContractMap } from "@/types/generated/subsystem";
 import { EMPTY_INTERFACE_CONTRACT } from "@/types/generated/subsystem";
-
+import { useSocraticQuestions } from "@/hooks/api/useExplore";
 /**
  * Stage 4 of refactor/subsystem-interface-contracts: convert the manual-form
  * comma-separated "interfaces" text input into an InterfaceContractMap with
@@ -208,6 +208,9 @@ export default function Create() {
   const { data: briefConstraints = [] } = useConstraints(id);
   const { data: briefKpis = [] } = useKpis(id);
 
+  // Access Socratic Q&A materials
+  const { data: socraticQuestions = [] } = useSocraticQuestions(id);
+
   const briefMission = brief?.mission || '';
   const constraintStrings = useMemo(
     () => briefConstraints.map((c) => `[${c.constraintCode}] ${c.description} (${c.type})`),
@@ -220,6 +223,12 @@ export default function Create() {
   const contradictionDescs = useMemo(
     () => (contradictionsQuery.data || []).map((c) => c.engineeringStatement || c.naturalDescription || '').filter(Boolean),
     [contradictionsQuery.data],
+  );
+  const socraticQaStrings = useMemo(
+    () => socraticQuestions
+      .filter((q) => q.answer && q.answer.trim().length > 0)
+      .map((q) => `[${q.category}] Q: ${q.text} → A: ${q.answer}`),
+    [socraticQuestions],
   );
 
   // ── API Hooks: mutations ──
@@ -602,6 +611,7 @@ export default function Create() {
           ? constraintStrings
           : MOCK_MISSION.contradictions.map((c) => c.description),
         existing_alternatives: [],
+        socraticAnswers: socraticQaStrings,
       });
       // Optimistic: build display data from API result immediately
       const optimistic: AntiAnchorRoute[] = result.routes.map((route, i) => ({

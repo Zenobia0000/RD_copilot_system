@@ -11,7 +11,7 @@ Prompt design follows Anthropic's Claude prompting best practices:
 - Motivation/context for key rules
 """
 
-ANALYST_SYSTEM = """\
+ANALYST_SYSTEM = """雖然我以下都是寫英文，但我的使用者希望最終能看到中文輸出\
 You are a senior systems-engineering analyst embedded in a structured \
 concept-design platform. Your role spans requirement decomposition, \
 Socratic questioning, causal-loop modelling, contradiction identification, \
@@ -276,6 +276,85 @@ Do not invent implications that are not supported by what the user actually wrot
 
 
 # ---------------------------------------------------------------------------
+# Socratic Insight Extraction (general-purpose, caller defines purpose)
+# ---------------------------------------------------------------------------
+
+SOCRATIC_INSIGHT_EXTRACTION = """\
+<task>
+From the following Socratic Q&A pairs about an engineering project, extract ONLY \
+insights that are directly relevant to the stated purpose.
+</task>
+
+<qa_pairs>
+{socraticAnswers}
+</qa_pairs>
+
+<purpose>
+{purpose}
+</purpose>
+
+<rules>
+1. Output 3-8 bullet points, each one concise sentence with numbers where available.
+2. Use the project's original language (Chinese or English as appropriate).
+3. Skip: action plans, repeated info, vague opinions, unanswered questions \
+(含「無法具體回答」).
+4. Each bullet must be something that could change the analysis outcome for the \
+stated purpose.
+5. Prioritize QUANTIFIED facts over qualitative statements.
+</rules>
+
+<output_schema>
+{{
+  "insights": [
+    "...",
+    "..."
+  ]
+}}
+</output_schema>
+"""
+
+
+# ---------------------------------------------------------------------------
+# Purpose strings for SOCRATIC_INSIGHT_EXTRACTION
+# Each caller passes the appropriate PURPOSE_* to _extract_socratic_insights().
+# ---------------------------------------------------------------------------
+
+PURPOSE_CONTRADICTION = """\
+Identify and classify technical contradictions. Focus on:
+- System boundary: what is the tool, product, environment, and their roles
+- Constraint nature: which requirements are hard/non-negotiable, imposed by whom
+- Hidden assumptions about system capability and their evidence strength
+- Risk tolerance: deployment stage, consequence severity if requirements not met
+- Evaluation ambiguity: unclear definitions, unstable ground truth, labeling issues
+Each insight should change how you classify a contradiction as TC vs PC vs SF."""
+
+PURPOSE_DECOMPOSITION = """\
+Decompose a technical contradiction into physical sub-contradictions. Focus on:
+- Which physical parameters are truly coupled vs independently adjustable
+- Operating condition boundaries where the contradiction flips (time, space, scale, condition)
+- Quantified thresholds: at what value of parameter X does parameter Y start degrading
+- Hidden intermediate variables that mediate the trade-off between improving and worsening params
+- Separation opportunities: which sub-regions of the design space allow partial decoupling"""
+
+PURPOSE_CLD = """\
+Build a causal loop diagram of system contradictions. Focus on:
+- Causal relationships between parameters (A increases → B decreases)
+- Feedback loops: reinforcing or balancing
+- Which constraints create coupling between otherwise independent parameters
+- Hidden intermediate variables that mediate trade-offs
+- Quantified sensitivity: how much change in X causes how much change in Y"""
+
+PURPOSE_ANTI_ANCHOR = """\
+Generate unconventional architecture concepts. Focus on:
+- Constraint rigidity: which are physics-imposed, customer-mandated, or merely preference
+- Benchmark data: specific competitor performance (topology, torque, weight, size, noise)
+- Known failure modes: which approaches have been tried and found deficient, with data
+- Physical bottlenecks: which subsystem fails first and why
+- Test conditions: exact measurement specs that concepts must satisfy
+- Quantified trade-offs between competing parameters"""
+
+
+# ---------------------------------------------------------------------------
 # CLD Generation
 # ---------------------------------------------------------------------------
 
@@ -503,43 +582,6 @@ Each field: 50–150 words.
 # Contradiction Formalization
 # ---------------------------------------------------------------------------
 
-SOCRATIC_INSIGHT_EXTRACTION = """\
-<task>
-From the following Socratic Q&A pairs about an engineering project, extract ONLY
-insights that directly affect how we identify and classify technical contradictions.
-</task>
-
-<qa_pairs>
-{socraticAnswers}
-</qa_pairs>
-
-<focus>
-Extract insights about:
-- System boundary: what is the tool, product, environment, and their roles
-- Constraint nature: which requirements are hard/non-negotiable, imposed by whom
-- Hidden assumptions about system capability and their evidence strength
-- Risk tolerance: deployment stage, consequence severity if requirements not met
-- Evaluation ambiguity: unclear definitions, unstable ground truth, labeling issues
-</focus>
-
-<rules>
-- Output 3-6 bullet points, each one concise sentence
-- Use the project's original language (Chinese or English as appropriate)
-- Skip: action plans, repeated info, vague opinions without engineering relevance
-- Each bullet must be something that could change how you classify a contradiction as TC vs PC vs SF
-</rules>
-
-<output_format>
-Return a JSON object:
-{{
-  "insights": [
-    "...",
-    "..."
-  ]
-}}
-</output_format>
-"""
-
 CONTRADICTION_FORMALIZATION = """\
 <task>
 Convert the following natural-language contradiction into a TRIZ Technical
@@ -762,6 +804,12 @@ follow-up questions.
 <existing_alternatives>
 {existing_alternatives}
 </existing_alternatives>
+<clarified_insights>
+The following insights were extracted from structured Socratic questioning with the \
+project owner. Treat as higher-evidence-level inputs — they represent confirmed \
+engineering judgments, not assumptions:
+{socratic_insights}
+</clarified_insights>
 </context>
 
 <thinking_framework>

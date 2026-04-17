@@ -9,7 +9,7 @@ import time
 
 logger = logging.getLogger(__name__)
 
-from app.agents.base import call_llm_json
+from app.agents.base import call_llm_json, web_search_with_llm
 from pydantic import ValidationError
 
 from app.prompts.analyst import (
@@ -32,6 +32,10 @@ from app.prompts.analyst import (
     ASSUMPTION_EXTRACTION,
     UNKNOWN_FACTOR_DISCOVERY,
     TC_TO_MULTI_PC_DECOMPOSITION,
+    PURPOSE_CONTRADICTION,
+    PURPOSE_CLD,
+    PURPOSE_ANTI_ANCHOR,
+    PURPOSE_DECOMPOSITION,
 )
 from app.agents.triz_critic import should_trigger_pc_decomposition
 from app.tools.triz_kb import (
@@ -284,13 +288,14 @@ def auto_tag_socratic(req: SocraticAutoTagRequest) -> SocraticAutoTagResponse:
     return SocraticAutoTagResponse(**data)
 
 
-def _extract_socratic_insights(socraticAnswers: list[str]) -> str:
-    """Extract Socratic Q&A and return a bullet list string."""
+def _extract_socratic_insights(socraticAnswers: list[str], purpose: str) -> str:
+    """Extract Socratic Q&A filtered by a caller-defined purpose string."""
     if not socraticAnswers:
         return "No additional insights available."
 
     prompt = SOCRATIC_INSIGHT_EXTRACTION.format(
-        socraticAnswers="\n".join(f"- {a}" for a in socraticAnswers)
+        socraticAnswers="\n".join(f"- {a}" for a in socraticAnswers),
+        purpose=purpose,
     )
 
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
@@ -306,7 +311,8 @@ def _extract_socratic_insights(socraticAnswers: list[str]) -> str:
 def generate_cld(req: CldGenerationRequest) -> CldGenerationResponse:
     # Step 1: Refine Socratic Insights
     socratic_insights = _extract_socratic_insights(
-        getattr(req, "socraticAnswers", None) or []
+        getattr(req, "socraticAnswers", None) or [],
+        purpose=PURPOSE_CLD,
     )
 
     # Step 2: Assemble prompt
@@ -326,7 +332,8 @@ def generate_cld(req: CldGenerationRequest) -> CldGenerationResponse:
 def formalize_contradiction(req: ContradictionFormalizeRequest) -> ContradictionFormalizeResponse:
     # Step 1: Refine Socratic Insights
     socratic_insights = _extract_socratic_insights(
-        getattr(req, "socraticAnswers", None) or []
+        getattr(req, "socraticAnswers", None) or [],
+        purpose=PURPOSE_CONTRADICTION,
     )
 
     # Step 2: Assemble prompt
@@ -478,10 +485,15 @@ def generate_anti_anchor(req: AntiAnchorRequest) -> AntiAnchorResponse:
     # using get_contradiction_leaves() before building `current_constraints`
     # / `existing_alternatives`.  This avoids duplicate parent+child entries
     # when a TC has been decomposed into child PCs.
+    socratic_insights = _extract_socratic_insights(
+        getattr(req, "socraticAnswers", None) or [],
+        purpose=PURPOSE_ANTI_ANCHOR,
+    )
     prompt = ANTI_ANCHOR_GENERATION.format(
         mission=req.mission,
         current_constraints="\n".join(f"- {c}" for c in req.current_constraints),
         existing_alternatives="\n".join(f"- {a}" for a in req.existing_alternatives),
+        socratic_insights=socratic_insights,
     )
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
@@ -491,6 +503,7 @@ def generate_anti_anchor(req: AntiAnchorRequest) -> AntiAnchorResponse:
                      "potential_advantage", "cross_domain_source"):
             if key in alt and not isinstance(alt[key], str):
                 alt[key] = _flatten_to_str(alt[key])
+    
     return AntiAnchorResponse(**data)
 
 
@@ -556,7 +569,8 @@ def decompose_tc_to_pcs(req: ContradictionDecomposeRequest) -> ContradictionDeco
     # Step 2-6: run decomposition with error isolation
     try:
         socratic_insights = _extract_socratic_insights(
-            getattr(req, "socraticAnswers", None) or []
+            getattr(req, "socraticAnswers", None) or [],
+            purpose=PURPOSE_DECOMPOSITION,
         )
 
         prompt = TC_TO_MULTI_PC_DECOMPOSITION.format(

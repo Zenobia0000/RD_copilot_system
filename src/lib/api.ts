@@ -493,6 +493,7 @@ export interface AntiAnchorGenerateRequest {
   mission: string;
   current_constraints: string[];
   existing_alternatives?: string[];
+  socraticAnswers?: string[];
 }
 
 export interface AntiAnchorRouteResult {

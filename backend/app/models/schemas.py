@@ -371,6 +371,7 @@ class AntiAnchorRequest(BaseModel):
     mission: str
     current_constraints: list[str]
     existing_alternatives: list[str] = Field(default_factory=list)
+    socraticAnswers: list[str] = Field(default_factory=list)
 
 
 class AntiAnchorRoute(BaseModel):

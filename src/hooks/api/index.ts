@@ -48,6 +48,9 @@ export {
 // TRIZ Layered Drill-Down persistence (migration 010)
 export { useLayeredTrizSolutions } from './useLayeredTrizSolutions';
 
+// TRIZ Directed Solutions persistence (migration 011)
+export { useDirectedTrizSolutions } from './useDirectedTrizSolutions';
+
 // --- Sprint 1.2: Assumptions + CLD ---
 export {
   useAssumptions,

@@ -1461,3 +1461,107 @@ class ContradictionDecomposeResponse(BaseModel):
     trigger_reason: str = Field(..., description="觸發或未觸發的理由")
     decomposed_pcs: list[DecomposedPC] = Field(default_factory=list)
     reasoning: str = Field(default="", description="LLM 產出整體分解策略說明（若有）")
+
+
+# ---------------------------------------------------------------------------
+# Step 5a-D: Directed TRIZ Solver — Direction-centric flow
+#
+# Replaces the layered drill-down (L1/L2/L3) paradigm with a simpler
+# "solve all three tools → cluster by implementation direction → pick best"
+# approach. Ref: user flow specification §二–§四.
+# ---------------------------------------------------------------------------
+
+class DirectionSolution(BaseModel):
+    """一條從 TC/PC/SF 任一路徑產出的解法。"""
+    path: Literal["TC", "PC", "SF"]
+    principle_number: int | None = None
+    principle_name: str = ""
+    suggestion: str
+    separation_principle: str = ""
+    affected_modules: list[str] = Field(default_factory=list)
+    secondary_contradictions: list[str] = Field(default_factory=list)
+
+
+class DirectionGroup(BaseModel):
+    """一個實現方向（由多條解法歸群）。"""
+    direction_id: str = ""              # e.g. "DIR-1"
+    direction_name: str = ""            # e.g. "折疊/可變形"
+    direction_summary: str = ""         # LLM 產出的方向摘要
+    solutions: list[DirectionSolution] = Field(default_factory=list)
+    tc_count: int = 0
+    pc_count: int = 0
+    sf_count: int = 0
+
+
+class DirectionScore(BaseModel):
+    """一個方向的評分結果。"""
+    direction_id: str = ""
+    tool_support: int = 0               # TC票 + PC票 + SF票
+    feasibility: float = 0.0            # 0~10
+    cost_difficulty: float = 0.0        # 0~10
+    weighted_total: float = 0.0         # 加權總分
+    score_rationale: str = ""
+
+
+class ContradictionDirectionResult(BaseModel):
+    """單一矛盾的完整方向分析結果（§二 輸出）。"""
+    contradiction_id: str
+    natural_description: str = ""
+    severity: Literal["fatal", "major", "minor", "unknown"] = "unknown"
+    all_solutions: list[DirectionSolution] = Field(default_factory=list)
+    all_directions: list[DirectionGroup] = Field(default_factory=list)
+    scored_directions: list[DirectionScore] = Field(default_factory=list)
+    top1: DirectionGroup | None = None
+    top2: DirectionGroup | None = None
+    top1_score: DirectionScore | None = None
+    top2_score: DirectionScore | None = None
+
+
+class CompatibilityResult(BaseModel):
+    """兩個方向之間的相容性檢查結果。"""
+    direction_a: str = ""
+    direction_b: str = ""
+    contradiction_a_id: str = ""
+    contradiction_b_id: str = ""
+    compatible: bool = True
+    reason: str = ""
+
+
+class ConflictReport(BaseModel):
+    """衝突報告。"""
+    conflicting_pairs: list[CompatibilityResult] = Field(default_factory=list)
+    suggestions: list[str] = Field(default_factory=list)
+
+
+class ConsolidationResult(BaseModel):
+    """跨矛盾整併結果（§三 輸出）。"""
+    status: Literal["compatible", "resolved_with_swap", "conflict"] = "compatible"
+    adopted_directions: dict[str, DirectionGroup] = Field(default_factory=dict)
+    conflict_report: ConflictReport | None = None
+    integration_advice: str = ""
+
+
+class SolveDirectedRequest(BaseModel):
+    """POST /triz/solve-directed — 單一矛盾方向導向求解。"""
+    project_id: str
+    contradiction_id: str
+    natural_description: str
+    severity: Literal["fatal", "major", "minor", "unknown"] = "unknown"
+    improving_param: int | None = None
+    worsening_param: int | None = None
+
+
+class SolveDirectedResponse(BaseModel):
+    """POST /triz/solve-directed — 回傳。"""
+    result: ContradictionDirectionResult
+
+
+class ConsolidateRequest(BaseModel):
+    """POST /triz/consolidate — 跨矛盾整併。"""
+    project_id: str
+    results: list[ContradictionDirectionResult]
+
+
+class ConsolidateResponse(BaseModel):
+    """POST /triz/consolidate — 回傳。"""
+    consolidation: ConsolidationResult

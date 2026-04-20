@@ -638,3 +638,184 @@ two modules cannot coexist, surface that as a new contradiction in `secondary_co
 }}
 </output_schema>
 """
+
+
+# ---------------------------------------------------------------------------
+# Directed TRIZ — Direction Clustering (Step E)
+# ---------------------------------------------------------------------------
+
+DIRECTION_CLUSTER_PROMPT = """\
+<task>
+你是 TRIZ 方法論專家。以下是從同一個矛盾透過三種 TRIZ 工具（TC 技術矛盾矩陣、PC 物理矛盾分離原理、SF 物場模型 76 標準解）產出的所有解法。
+請將這些解法按照「實現方向」進行分群。
+
+「實現方向」= 具體的技術實現策略，例如：
+- 「折疊/可變形結構」
+- 「分割/模組化設計」
+- 「新材料替代」
+- 「局部加強/差異化處理」
+
+不同工具可能產出指向同一方向的解法——這正是我們要找的共識信號。
+</task>
+
+<context>
+<contradiction>{natural_description}</contradiction>
+<all_solutions>
+{solutions_block}
+</all_solutions>
+</context>
+
+<instructions>
+1. 閱讀所有解法，識別它們指向哪些不同的「實現方向」。
+2. 每個方向取一個簡短名稱（≤8 字）和一段摘要（1-2 句）。
+3. 將每條解法歸入最適合的方向。一條解法只能歸入一個方向。
+4. 計算每個方向中 TC/PC/SF 各有幾條解法。
+5. 至少產出 2 個方向，最多 6 個。
+</instructions>
+
+<output_schema>
+{{
+  "directions": [
+    {{
+      "direction_id": "DIR-1",
+      "direction_name": "折疊/可變形",
+      "direction_summary": "透過可摺疊或可變形的結構設計來同時滿足...",
+      "solutions": [
+        {{
+          "path": "TC",
+          "principle_number": 15,
+          "principle_name": "Dynamics",
+          "suggestion": "使齒輪組可動態調整嚙合角度...",
+          "separation_principle": "",
+          "affected_modules": ["齒輪組"],
+          "secondary_contradictions": []
+        }}
+      ],
+      "tc_count": 2,
+      "pc_count": 1,
+      "sf_count": 0
+    }}
+  ]
+}}
+</output_schema>
+"""
+
+
+# ---------------------------------------------------------------------------
+# Directed TRIZ — Direction Scoring (Step F)
+# ---------------------------------------------------------------------------
+
+DIRECTION_SCORE_PROMPT = """\
+<task>
+你是 TRIZ 方法論專家。請為以下矛盾的各個「實現方向」進行評分。
+</task>
+
+<context>
+<contradiction>{natural_description}</contradiction>
+<directions>
+{directions_block}
+</directions>
+</context>
+
+<instructions>
+每個方向評估三個維度：
+1. **tool_support**（工具支持度）= 該方向下 TC 解法數 + PC 解法數 + SF 解法數（已計算，直接帶入）
+2. **feasibility**（技術可行性）= 0~10 分，10=最容易實現。考慮現有技術成熟度、業界案例。
+3. **cost_difficulty**（成本/實作難度）= 0~10 分，10=成本最低、最容易做。考慮材料、製程、工時。
+
+每個方向提供 1-2 句評分理由。
+</instructions>
+
+<output_schema>
+{{
+  "scores": [
+    {{
+      "direction_id": "DIR-1",
+      "tool_support": 3,
+      "feasibility": 7.5,
+      "cost_difficulty": 6.0,
+      "weighted_total": 0,
+      "score_rationale": "折疊結構在消費電子有成熟案例，但機械傳動領域較少見..."
+    }}
+  ]
+}}
+</output_schema>
+"""
+
+
+# ---------------------------------------------------------------------------
+# Directed TRIZ — Compatibility Check (§三 跨矛盾整併)
+# ---------------------------------------------------------------------------
+
+COMPATIBILITY_CHECK_PROMPT = """\
+<task>
+你是 TRIZ 方法論專家。以下是多個矛盾各自選出的最佳實現方向（Top1）。
+請檢查這些方向之間是否相容——也就是它們能否在同一個產品中同時實現，不互相衝突。
+</task>
+
+<context>
+<top1_directions>
+{top1_block}
+</top1_directions>
+</context>
+
+<instructions>
+1. 兩兩比較每對方向，判斷是否相容。
+2. 「不相容」= 兩個方向在物理結構、製程、材料、或系統架構上互斥，無法同時存在。
+3. 「相容」= 可以同時實現，即使需要一些工程調和。
+4. 對每對不相容的方向，說明衝突原因。
+</instructions>
+
+<output_schema>
+{{
+  "pairs": [
+    {{
+      "direction_a": "折疊/可變形",
+      "direction_b": "分割/模組化",
+      "contradiction_a_id": "C-001",
+      "contradiction_b_id": "C-002",
+      "compatible": false,
+      "reason": "折疊結構需要連續一體的材料，但模組化需要標準介面分割..."
+    }}
+  ]
+}}
+</output_schema>
+"""
+
+
+# ---------------------------------------------------------------------------
+# Directed TRIZ — Conflict Report + Integration Advice
+# ---------------------------------------------------------------------------
+
+CONFLICT_REPORT_PROMPT = """\
+<task>
+你是 TRIZ 方法論專家。以下是跨矛盾方向整併中發現的衝突。
+請產出衝突報告和整合建議。
+</task>
+
+<context>
+<conflicts>
+{conflicts_block}
+</conflicts>
+<all_directions>
+{all_directions_block}
+</all_directions>
+</context>
+
+<instructions>
+1. 總結每組衝突的核心原因。
+2. 提出 2-3 條具體建議（如：放寬某矛盾約束、考慮混合方案、RD 手動選方向）。
+3. 若所有方向都相容，直接產出整合建議（如何讓多個方向協同落地）。
+</instructions>
+
+<output_schema>
+{{
+  "suggestions": [
+    "放寬矛盾 C-002 的約束，接受模組化的間隙...",
+    "考慮混合方案：外殼用折疊結構、內部用模組化...",
+    "RD 手動介入，根據產品定位選擇優先方向"
+  ],
+  "integration_advice": "三個矛盾的方向在結構層面互不衝突，建議..."
+}}
+</output_schema>
+"""

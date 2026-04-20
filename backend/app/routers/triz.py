@@ -1,14 +1,14 @@
 """Step 5a — TRIZ Solver: contradiction matrix lookup + principle instantiation + Su-Field.
 
-v7 (2026-04-09): Adds `POST /triz/solve-layered` — the ARIZ-style three-layer
-drill-down orchestrator (L1 TC / L2 PC / L3 SF) that returns a LayeredTrizSolution
-instead of a flat suggestion list. The legacy `/triz/solve` endpoint remains as
-the primitive API (used internally by the orchestrator and for back-compat with
-feature-flagged old UI).
+v8 (2026-04-20): Adds direction-centric endpoints:
+  - `POST /triz/solve-directed` — single-contradiction direction solver
+  - `POST /triz/consolidate` — cross-contradiction direction consolidation
+
+The legacy `/triz/solve-layered` endpoint is kept for back-compat but
+the primary flow is now `/triz/solve-directed` + `/triz/consolidate`.
 
 Ref:
-  - docs/e2e/TRIZ_Layered_DrillDown_Optimization.md §4–§8
-  - docs/e2e/module/TRIZ_Layered_Drilldown_Development_WBS.md §6
+  - User flow specification §二–§四
 """
 
 from fastapi import APIRouter
@@ -17,8 +17,13 @@ from app.models.schemas import (
     TrizLookupRequest, TrizLookupResponse,
     SuFieldRequest, SuFieldResponse,
     SolveTrizLayeredRequest, SolveTrizLayeredResponse,
+    SolveDirectedRequest, SolveDirectedResponse,
+    ConsolidateRequest, ConsolidateResponse,
 )
-from app.agents.triz_solver import solve_triz, analyze_sufield, solve_triz_layered
+from app.agents.triz_solver import (
+    solve_triz, analyze_sufield, solve_triz_layered,
+    solve_triz_directed, consolidate_solutions,
+)
 
 router = APIRouter()
 
@@ -27,10 +32,7 @@ router = APIRouter()
 def triz_solve(req: TrizLookupRequest):
     """TRIZ Solver Agent resolves a contradiction via a SINGLE TC / PC / SF path.
 
-    Kept as a primitive API — direct use by the UI is deprecated when the
-    `triz_layered_mode` feature flag is enabled. Prefer `/triz/solve-layered`
-    for new consumers so that RD sees L1 / L2 / L3 as a drill-down diagnosis
-    instead of three competing candidates.
+    Kept as a primitive API — direct use by the UI is deprecated.
     """
     return solve_triz(req)
 
@@ -43,17 +45,36 @@ def triz_sufield(req: SuFieldRequest):
 
 @router.post("/triz/solve-layered", response_model=SolveTrizLayeredResponse)
 def triz_solve_layered(req: SolveTrizLayeredRequest):
-    """v7 — Three-layer drill-down TRIZ solver.
+    """v7 — Three-layer drill-down TRIZ solver (LEGACY — kept for back-compat).
 
-    Returns a LayeredTrizSolution with:
-      - L1 TC surface (always runs)
-      - L2 PC root-cause (conditional, via ARIZ deepen_link)
-      - L3 SF structural lens (always runs, parallel)
-      - differential_analysis + recommended_route
-      - phase_b_directive (default: intra-LTS cross-layer SKIP)
-
-    Request flags:
-      - `quick_mode=true` + `severity=minor` → L2 is skipped to avoid over-deepening
-      - `force_l2=true` → RD forces L2 deepen regardless of critic/severity
+    Prefer `/triz/solve-directed` for new consumers.
     """
     return solve_triz_layered(req)
+
+
+@router.post("/triz/solve-directed", response_model=SolveDirectedResponse)
+def triz_solve_directed(req: SolveDirectedRequest):
+    """v8 — Direction-centric TRIZ solver for a single contradiction.
+
+    Pipeline per contradiction:
+      Step A: TC solve (matrix → 40 principles)
+      Step B: Derive PC + solve (separation principles)
+      Step C: Derive SF + solve (76 standard solutions)
+      Step D: Merge all solutions with path tags
+      Step E: LLM clusters solutions by implementation direction
+      Step F: LLM + rules score each direction
+      Step G: Pick Top1 + Top2
+
+    Returns ContradictionDirectionResult with all directions + scored + top picks.
+    """
+    return solve_triz_directed(req)
+
+
+@router.post("/triz/consolidate", response_model=ConsolidateResponse)
+def triz_consolidate(req: ConsolidateRequest):
+    """v8 — Cross-contradiction direction consolidation.
+
+    Takes N ContradictionDirectionResults, checks Top1 compatibility,
+    tries Top2 swap if conflicts, outputs final adopted plan or conflict report.
+    """
+    return consolidate_solutions(req)

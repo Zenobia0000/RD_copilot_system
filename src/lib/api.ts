@@ -571,6 +571,40 @@ export function trizSolveLayered(body: SolveTrizLayeredRequest) {
   });
 }
 
+// ─── TRIZ Directed (v8) — Direction-centric flow ────────────────────────────
+// POST /triz/solve-directed  — single contradiction direction solver
+// POST /triz/consolidate     — cross-contradiction consolidation
+
+import type {
+  SolveDirectedRequest,
+  SolveDirectedResponse,
+  ConsolidateRequest,
+  ConsolidateResponse,
+} from "@/types/directedTriz";
+
+export type { SolveDirectedRequest, SolveDirectedResponse, ConsolidateRequest, ConsolidateResponse };
+export type {
+  ContradictionDirectionResult,
+  DirectionGroup,
+  DirectionScore,
+  DirectionSolution,
+  ConsolidationResult,
+  ConflictReport,
+  CompatibilityResult,
+} from "@/types/directedTriz";
+
+export function trizSolveDirected(body: SolveDirectedRequest) {
+  return request<SolveDirectedResponse>("/triz/solve-directed", body, {
+    timeoutMs: 480_000,
+  });
+}
+
+export function trizConsolidate(body: ConsolidateRequest) {
+  return request<ConsolidateResponse>("/triz/consolidate", body, {
+    timeoutMs: 300_000,
+  });
+}
+
 // ─── Su-Field (76 Standard Solutions) ───────────────────────────────────────
 
 export interface SuFieldRequest {

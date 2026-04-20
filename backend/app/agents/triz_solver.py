@@ -5,6 +5,7 @@ Ref: AI_Agent_Architecture.md §1.1 TRIZ Solver Agent + §6.2 triz_solver_agent 
 
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -1204,6 +1205,552 @@ def _format_contracts_for_scamper_prompt(contracts: dict) -> str:
         lines.append(f"↔ {neighbour} ({' | '.join(parts)})")
     lines.append("</interface_contracts>")
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Directed TRIZ Solver — Direction-centric flow
+#
+# Replaces the layered drill-down (L1/L2/L3). For each contradiction:
+#   Step A: _solve_tc → TC solutions
+#   Step B: _derive_pc_from_tc + _solve_pc → PC solutions
+#   Step C: derive_su_field_from_tc + _solve_sf → SF solutions
+#   Step D: _merge_all_solutions → flat list tagged by path
+#   Step E: _cluster_directions → group by implementation direction (LLM)
+#   Step F: _score_directions → rate each direction (LLM + rules)
+#   Step G: _pick_top_directions → select Top1 + Top2
+# ---------------------------------------------------------------------------
+
+from app.prompts.triz_solver import (
+    DIRECTION_CLUSTER_PROMPT,
+    DIRECTION_SCORE_PROMPT,
+    COMPATIBILITY_CHECK_PROMPT,
+    CONFLICT_REPORT_PROMPT,
+)
+from app.models.schemas import (
+    DirectionSolution,
+    DirectionGroup,
+    DirectionScore,
+    ContradictionDirectionResult,
+    CompatibilityResult,
+    ConflictReport,
+    ConsolidationResult,
+    SolveDirectedRequest,
+    SolveDirectedResponse,
+    ConsolidateRequest,
+    ConsolidateResponse,
+)
+
+
+def _merge_all_solutions(
+    tc_resp: TrizLookupResponse,
+    pc_resp: TrizLookupResponse,
+    sf_resp: TrizLookupResponse,
+) -> list[DirectionSolution]:
+    """Step D: Merge TC + PC + SF suggestions into a flat list of DirectionSolution."""
+    merged: list[DirectionSolution] = []
+
+    for s in tc_resp.suggestions:
+        merged.append(DirectionSolution(
+            path="TC",
+            principle_number=s.principle_number,
+            principle_name=s.principle_name,
+            suggestion=s.suggestion,
+            separation_principle=s.separation_principle,
+            affected_modules=s.affected_modules,
+            secondary_contradictions=s.secondary_contradictions,
+        ))
+
+    for s in pc_resp.suggestions:
+        merged.append(DirectionSolution(
+            path="PC",
+            principle_number=s.principle_number,
+            principle_name=s.principle_name,
+            suggestion=s.suggestion,
+            separation_principle=s.separation_principle,
+            affected_modules=s.affected_modules,
+            secondary_contradictions=s.secondary_contradictions,
+        ))
+
+    for s in sf_resp.suggestions:
+        merged.append(DirectionSolution(
+            path="SF",
+            principle_number=s.principle_number,
+            principle_name=s.principle_name,
+            suggestion=s.suggestion,
+            separation_principle=s.separation_principle,
+            affected_modules=s.affected_modules,
+            secondary_contradictions=s.secondary_contradictions,
+        ))
+
+    return merged
+
+
+def _cluster_directions(
+    natural_description: str,
+    solutions: list[DirectionSolution],
+) -> list[DirectionGroup]:
+    """Step E: LLM clusters all solutions by implementation direction."""
+    if not solutions:
+        return []
+
+    solutions_block = "\n".join(
+        f"- [{s.path}] #{s.principle_number or '-'} {s.principle_name}: {s.suggestion}"
+        for s in solutions
+    )
+
+    prompt = DIRECTION_CLUSTER_PROMPT.format(
+        natural_description=natural_description,
+        solutions_block=solutions_block,
+    )
+
+    try:
+        raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt, model=settings.fast_model)
+        data = json.loads(raw) if raw and raw.strip() else {}
+    except (json.JSONDecodeError, Exception) as exc:
+        logger.warning("_cluster_directions LLM failed: %s", exc)
+        # Fallback: put everything in one direction
+        return [DirectionGroup(
+            direction_id="DIR-1",
+            direction_name="綜合方向",
+            direction_summary="所有解法歸為同一方向（LLM 分群失敗）",
+            solutions=solutions,
+            tc_count=sum(1 for s in solutions if s.path == "TC"),
+            pc_count=sum(1 for s in solutions if s.path == "PC"),
+            sf_count=sum(1 for s in solutions if s.path == "SF"),
+        )]
+
+    directions: list[DirectionGroup] = []
+    for d in data.get("directions", []):
+        try:
+            group = DirectionGroup.model_validate(d)
+            directions.append(group)
+        except Exception as exc:
+            logger.debug("Dropping malformed direction: %s (%s)", d, exc)
+
+    # If LLM returned empty, fallback
+    if not directions:
+        return [DirectionGroup(
+            direction_id="DIR-1",
+            direction_name="綜合方向",
+            direction_summary="所有解法歸為同一方向",
+            solutions=solutions,
+            tc_count=sum(1 for s in solutions if s.path == "TC"),
+            pc_count=sum(1 for s in solutions if s.path == "PC"),
+            sf_count=sum(1 for s in solutions if s.path == "SF"),
+        )]
+
+    return directions
+
+
+def _score_directions(
+    natural_description: str,
+    directions: list[DirectionGroup],
+) -> list[DirectionScore]:
+    """Step F: LLM + rules score each direction."""
+    if not directions:
+        return []
+
+    directions_block = "\n".join(
+        f"- {d.direction_id} 「{d.direction_name}」: {d.direction_summary} "
+        f"(TC={d.tc_count}, PC={d.pc_count}, SF={d.sf_count})"
+        for d in directions
+    )
+
+    prompt = DIRECTION_SCORE_PROMPT.format(
+        natural_description=natural_description,
+        directions_block=directions_block,
+    )
+
+    try:
+        raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt, model=settings.fast_model)
+        data = json.loads(raw) if raw and raw.strip() else {}
+    except (json.JSONDecodeError, Exception) as exc:
+        logger.warning("_score_directions LLM failed: %s — using rule-only fallback", exc)
+        data = {}
+
+    llm_scores = {s.get("direction_id"): s for s in data.get("scores", [])}
+
+    # Weight: tool_support * 2 + feasibility * 1.5 + cost_difficulty * 1
+    WEIGHT_TOOL = 2.0
+    WEIGHT_FEASIBILITY = 1.5
+    WEIGHT_COST = 1.0
+
+    scores: list[DirectionScore] = []
+    for d in directions:
+        tool_support = d.tc_count + d.pc_count + d.sf_count
+        llm = llm_scores.get(d.direction_id, {})
+        feasibility = float(llm.get("feasibility", 5.0))
+        cost_difficulty = float(llm.get("cost_difficulty", 5.0))
+        rationale = str(llm.get("score_rationale", ""))
+
+        weighted = (
+            tool_support * WEIGHT_TOOL
+            + feasibility * WEIGHT_FEASIBILITY
+            + cost_difficulty * WEIGHT_COST
+        )
+
+        scores.append(DirectionScore(
+            direction_id=d.direction_id,
+            tool_support=tool_support,
+            feasibility=feasibility,
+            cost_difficulty=cost_difficulty,
+            weighted_total=round(weighted, 2),
+            score_rationale=rationale,
+        ))
+
+    return scores
+
+
+def _pick_top_directions(
+    directions: list[DirectionGroup],
+    scores: list[DirectionScore],
+) -> tuple[DirectionGroup | None, DirectionGroup | None, DirectionScore | None, DirectionScore | None]:
+    """Step G: Pick Top1 + Top2 by weighted_total descending."""
+    if not scores or not directions:
+        return None, None, None, None
+
+    score_map = {s.direction_id: s for s in scores}
+    sorted_dirs = sorted(
+        directions,
+        key=lambda d: score_map.get(d.direction_id, DirectionScore()).weighted_total,
+        reverse=True,
+    )
+
+    top1 = sorted_dirs[0] if len(sorted_dirs) >= 1 else None
+    top2 = sorted_dirs[1] if len(sorted_dirs) >= 2 else None
+    top1_score = score_map.get(top1.direction_id) if top1 else None
+    top2_score = score_map.get(top2.direction_id) if top2 else None
+
+    return top1, top2, top1_score, top2_score
+
+
+def solve_triz_directed(req: SolveDirectedRequest) -> SolveDirectedResponse:
+    """Main entry: Direction-centric TRIZ solver for ONE contradiction.
+
+    Pipeline:
+        Step A (TC) ─┐
+        Step B (PC) ─┼─ parallel ─→ Step D (merge) → Step E (cluster)
+        Step C (SF) ─┘                → Step F (score) → Step G (top)
+    """
+    with phase_timer("solve_triz_directed"):
+        # --- Steps A/B/C: TC, PC, SF in parallel via ThreadPoolExecutor ---
+        def _do_tc() -> TrizLookupResponse:
+            tc_req = TrizLookupRequest(
+                project_id=req.project_id,
+                contradiction_id=req.contradiction_id,
+                natural_description=req.natural_description,
+                improving_param=req.improving_param,
+                worsening_param=req.worsening_param,
+                type="TC",
+            )
+            try:
+                return _solve_tc(tc_req) if (req.improving_param and req.worsening_param) else TrizLookupResponse(suggestions=[])
+            except Exception as exc:
+                logger.warning("solve_triz_directed: TC failed: %s", exc)
+                return TrizLookupResponse(suggestions=[])
+
+        def _do_pc() -> TrizLookupResponse:
+            try:
+                deepen = _derive_pc_from_tc(
+                    natural_description=req.natural_description,
+                    improving=req.improving_param,
+                    worsening=req.worsening_param,
+                )
+                pc_statement = deepen.contradiction_statement or req.natural_description
+                pc_req = TrizLookupRequest(
+                    project_id=req.project_id,
+                    contradiction_id=req.contradiction_id,
+                    natural_description=req.natural_description,
+                    physical_contradiction=pc_statement,
+                    type="PC",
+                )
+                return _solve_pc(pc_req)
+            except Exception as exc:
+                logger.warning("solve_triz_directed: PC failed: %s", exc)
+                return TrizLookupResponse(suggestions=[])
+
+        def _do_sf() -> TrizLookupResponse:
+            try:
+                from app.agents.analyst import derive_su_field_from_tc
+                derived_sf = None
+                if isinstance(req.improving_param, int) and isinstance(req.worsening_param, int):
+                    derived_sf = derive_su_field_from_tc(
+                        improving_param=req.improving_param,
+                        worsening_param=req.worsening_param,
+                        engineering_statement=req.natural_description,
+                        natural_description=req.natural_description,
+                    )
+                sf_req = TrizLookupRequest(
+                    project_id=req.project_id,
+                    contradiction_id=req.contradiction_id,
+                    natural_description=req.natural_description,
+                    sf_substance_1=derived_sf.S1 if derived_sf else None,
+                    sf_substance_2=derived_sf.S2 if derived_sf else None,
+                    sf_field=derived_sf.F if derived_sf else None,
+                    type="SF",
+                )
+                return _solve_sf(sf_req)
+            except Exception as exc:
+                logger.warning("solve_triz_directed: SF failed: %s", exc)
+                return TrizLookupResponse(suggestions=[])
+
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            fut_tc = pool.submit(_do_tc)
+            fut_pc = pool.submit(_do_pc)
+            fut_sf = pool.submit(_do_sf)
+            tc_resp = fut_tc.result()
+            pc_resp = fut_pc.result()
+            sf_resp = fut_sf.result()
+
+        # --- Step D: Merge ---
+        all_solutions = _merge_all_solutions(tc_resp, pc_resp, sf_resp)
+        logger.info(
+            "solve_triz_directed: merged %d solutions (TC=%d PC=%d SF=%d)",
+            len(all_solutions),
+            len(tc_resp.suggestions),
+            len(pc_resp.suggestions),
+            len(sf_resp.suggestions),
+        )
+
+        # --- Step E: Cluster ---
+        all_directions = _cluster_directions(req.natural_description, all_solutions)
+
+        # --- Step F: Score ---
+        scored_directions = _score_directions(req.natural_description, all_directions)
+
+        # --- Step G: Top1 + Top2 ---
+        top1, top2, top1_score, top2_score = _pick_top_directions(all_directions, scored_directions)
+
+        result = ContradictionDirectionResult(
+            contradiction_id=req.contradiction_id,
+            natural_description=req.natural_description,
+            severity=req.severity,
+            all_solutions=all_solutions,
+            all_directions=all_directions,
+            scored_directions=scored_directions,
+            top1=top1,
+            top2=top2,
+            top1_score=top1_score,
+            top2_score=top2_score,
+        )
+
+        # Persist to DB
+        _persist_directed_solution(req.project_id, result)
+
+        emit_counter("triz_directed_solved", severity=req.severity)
+        return SolveDirectedResponse(result=result)
+
+
+def _persist_directed_solution(project_id: str, result: ContradictionDirectionResult) -> None:
+    """Upsert directed solution into DB."""
+    from app.core.supabase import get_supabase
+    try:
+        sb = get_supabase()
+        dts_id = f"DTS-{result.contradiction_id.replace('C-', '').strip() or 'UNKNOWN'}"
+        payload = {
+            "id": dts_id,
+            "project_id": project_id,
+            "contradiction_id": result.contradiction_id,
+            "natural_description": result.natural_description,
+            "severity": result.severity,
+            "all_solutions": [s.model_dump(mode="json") for s in result.all_solutions],
+            "all_directions": [d.model_dump(mode="json") for d in result.all_directions],
+            "scored_directions": [s.model_dump(mode="json") for s in result.scored_directions],
+            "top1": result.top1.model_dump(mode="json") if result.top1 else None,
+            "top2": result.top2.model_dump(mode="json") if result.top2 else None,
+            "top1_score": result.top1_score.model_dump(mode="json") if result.top1_score else None,
+            "top2_score": result.top2_score.model_dump(mode="json") if result.top2_score else None,
+        }
+        sb.table("directed_triz_solutions").upsert(payload, on_conflict="id").execute()
+    except Exception as exc:
+        logger.warning("persist directed_triz_solution failed for %s: %s", result.contradiction_id, exc)
+
+
+# ---------------------------------------------------------------------------
+# Cross-contradiction consolidation (§三)
+# ---------------------------------------------------------------------------
+
+
+def _check_compatibility(
+    results: list[ContradictionDirectionResult],
+) -> list[CompatibilityResult]:
+    """LLM checks pairwise compatibility among Top1 directions."""
+    top1s = [(r.contradiction_id, r.top1) for r in results if r.top1]
+    if len(top1s) <= 1:
+        return []  # Single or no direction → always compatible
+
+    top1_block = "\n".join(
+        f"- 矛盾 {cid}: 方向「{d.direction_name}」— {d.direction_summary}"
+        for cid, d in top1s
+    )
+
+    prompt = COMPATIBILITY_CHECK_PROMPT.format(top1_block=top1_block)
+
+    try:
+        raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt, model=settings.fast_model)
+        data = json.loads(raw) if raw and raw.strip() else {}
+    except (json.JSONDecodeError, Exception) as exc:
+        logger.warning("_check_compatibility LLM failed: %s — assuming compatible", exc)
+        return []
+
+    pairs: list[CompatibilityResult] = []
+    for p in data.get("pairs", []):
+        try:
+            pairs.append(CompatibilityResult.model_validate(p))
+        except Exception:
+            continue
+
+    return pairs
+
+
+def _try_swap_top2(
+    results: list[ContradictionDirectionResult],
+    conflicts: list[CompatibilityResult],
+) -> tuple[dict[str, DirectionGroup], list[CompatibilityResult]]:
+    """Try swapping conflicting Top1 → Top2 and re-check.
+
+    Returns (adopted_map, remaining_conflicts).
+    """
+    adopted: dict[str, DirectionGroup] = {}
+    for r in results:
+        if r.top1:
+            adopted[r.contradiction_id] = r.top1
+
+    # Find contradiction IDs involved in conflicts
+    conflict_cids: set[str] = set()
+    for c in conflicts:
+        if not c.compatible:
+            conflict_cids.add(c.contradiction_b_id)  # swap the "B" side first
+
+    # Swap Top1 → Top2 for conflicted contradictions
+    result_map = {r.contradiction_id: r for r in results}
+    for cid in conflict_cids:
+        r = result_map.get(cid)
+        if r and r.top2:
+            adopted[cid] = r.top2
+            logger.info("consolidate: swapped %s Top1→Top2 (%s → %s)",
+                        cid, r.top1.direction_name if r.top1 else "?", r.top2.direction_name)
+
+    # Re-check compatibility with swapped directions
+    # Build a mini top1_block with swapped values
+    top1_block = "\n".join(
+        f"- 矛盾 {cid}: 方向「{d.direction_name}」— {d.direction_summary}"
+        for cid, d in adopted.items()
+    )
+
+    if len(adopted) <= 1:
+        return adopted, []
+
+    prompt = COMPATIBILITY_CHECK_PROMPT.format(top1_block=top1_block)
+    try:
+        raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt, model=settings.fast_model)
+        data = json.loads(raw) if raw and raw.strip() else {}
+    except (json.JSONDecodeError, Exception) as exc:
+        logger.warning("_try_swap_top2 re-check failed: %s", exc)
+        return adopted, conflicts  # assume still conflicting
+
+    remaining: list[CompatibilityResult] = []
+    for p in data.get("pairs", []):
+        try:
+            cr = CompatibilityResult.model_validate(p)
+            if not cr.compatible:
+                remaining.append(cr)
+        except Exception:
+            continue
+
+    return adopted, remaining
+
+
+def _generate_conflict_report(
+    conflicts: list[CompatibilityResult],
+    results: list[ContradictionDirectionResult],
+) -> tuple[ConflictReport, str]:
+    """Generate a structured conflict report + integration advice via LLM."""
+    conflicts_block = "\n".join(
+        f"- {c.direction_a} (矛盾 {c.contradiction_a_id}) vs {c.direction_b} (矛盾 {c.contradiction_b_id}): {c.reason}"
+        for c in conflicts
+    )
+
+    all_directions_block = "\n".join(
+        f"- 矛盾 {r.contradiction_id}: Top1={r.top1.direction_name if r.top1 else '?'}, Top2={r.top2.direction_name if r.top2 else '?'}"
+        for r in results
+    )
+
+    prompt = CONFLICT_REPORT_PROMPT.format(
+        conflicts_block=conflicts_block or "（無衝突）",
+        all_directions_block=all_directions_block,
+    )
+
+    try:
+        raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt, model=settings.fast_model)
+        data = json.loads(raw) if raw and raw.strip() else {}
+    except (json.JSONDecodeError, Exception) as exc:
+        logger.warning("_generate_conflict_report LLM failed: %s", exc)
+        data = {}
+
+    suggestions = data.get("suggestions", [])
+    integration_advice = str(data.get("integration_advice", ""))
+
+    report = ConflictReport(
+        conflicting_pairs=conflicts,
+        suggestions=suggestions,
+    )
+    return report, integration_advice
+
+
+def consolidate_solutions(req: ConsolidateRequest) -> ConsolidateResponse:
+    """Cross-contradiction consolidation (§三).
+
+    1. Collect Top1 from each contradiction.
+    2. Check pairwise compatibility.
+    3. If all compatible → output plan.
+    4. If conflict → swap Top1→Top2 for conflicting side, re-check.
+    5. If still conflict → output conflict report.
+    """
+    results = req.results
+
+    # Step 1: Check compatibility
+    compatibility = _check_compatibility(results)
+    incompatible = [c for c in compatibility if not c.compatible]
+
+    if not incompatible:
+        # All compatible — build adopted map + integration advice
+        adopted = {r.contradiction_id: r.top1 for r in results if r.top1}
+        _, integration_advice = _generate_conflict_report([], results)
+        return ConsolidateResponse(
+            consolidation=ConsolidationResult(
+                status="compatible",
+                adopted_directions=adopted,
+                conflict_report=None,
+                integration_advice=integration_advice,
+            )
+        )
+
+    # Step 2: Try swap
+    adopted, remaining = _try_swap_top2(results, incompatible)
+
+    if not remaining:
+        # Swap resolved the conflict
+        _, integration_advice = _generate_conflict_report([], results)
+        return ConsolidateResponse(
+            consolidation=ConsolidationResult(
+                status="resolved_with_swap",
+                adopted_directions=adopted,
+                conflict_report=None,
+                integration_advice=integration_advice,
+            )
+        )
+
+    # Step 3: Still conflicting — generate report
+    report, integration_advice = _generate_conflict_report(remaining, results)
+    return ConsolidateResponse(
+        consolidation=ConsolidationResult(
+            status="conflict",
+            adopted_directions=adopted,
+            conflict_report=report,
+            integration_advice=integration_advice,
+        )
+    )
 
 
 def scamper_transform(req: ScamperRequest) -> ScamperResponse:

@@ -13,7 +13,7 @@ import { AiButton } from "@/components/ui/ai-button";
 import { trizParameters } from "@/data/trizParameters";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/hooks/api/useQueryConfig";
-import { contradictionFormalize, contradictionDecompose } from "@/lib/api";
+import { contradictionFormalize, contradictionDecompose, contradictionDeriveSF } from "@/lib/api";
 import type { ContradictionFormalizeResponse } from "@/lib/api";
 import { DEFAULT_SEVERITY } from "@/types/contradiction";
 import type { ExploreContradiction, ContradictionType } from "@/types/explore";
@@ -67,7 +67,7 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
     [contradictions]
   );
 
-  // ADR-007: Explore 只識別 TC；PC/SF 在 Create 階段從 TC 派生
+  // TC / PC / SF 分類列表
   //   · tcList = 正式 TC + 尚未細化 (type=null) 的草稿
   const tcList = useMemo(
     () => topLevelContradictions.filter((c) => c.type === 'TC' || c.type == null),
@@ -246,7 +246,10 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
       sf_completeness: null,
       confidence: 1,
     };
-    await maybeAutoDecomposeTC(parentTc.id, fakeResult, true);
+    await Promise.all([
+      maybeAutoDecomposeTC(parentTc.id, fakeResult, true),
+      maybeAutoDeriveChildSF(parentTc.id, fakeResult),
+    ]);
     // 3. Clear stale flag
     setStaleParentIds(prev => {
       const next = new Set(prev);
@@ -256,14 +259,15 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
     invalidate();
   }, [childrenMap, invalidate]);
 
-  // ADR-007: 手動新增固定建立 TC；PC/SF 不在 Explore 階段手動建立
+  // 手動新增矛盾 — 使用 addingType 決定類型 (TC/PC/SF)
   const handleAddManual = async () => {
+    const typeToAdd = 'TC'; // Plan B: only TC at top level
     const now = new Date().toISOString();
     const { data, error } = await supabase
       .from('contradictions')
       .insert({
         project_id: projectId,
-        type: 'TC',
+        type: typeToAdd,
         natural_description: '',
         severity: DEFAULT_SEVERITY,
         created_at: now,
@@ -368,27 +372,69 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
     }
   };
 
-  // ── AI re-identify (per type) ─────────────────────────────────────────
+  // ── Auto SF derivation (Plan B hierarchical tree) ──────────────────────
+  // After a formalize call returns type === 'TC', auto-trigger the backend
+  // /contradictions/{cid}/derive-sf endpoint and insert a child SF row.
+  // Runs in parallel with maybeAutoDecomposeTC. Silent on failure.
 
-  // ADR-007: AI 重識別只輸出 TC（不再依 type 分流）
+  const maybeAutoDeriveChildSF = async (
+    parentRowId: string,
+    formalizeResponse: ContradictionFormalizeResponse,
+  ): Promise<void> => {
+    try {
+      if (formalizeResponse.type !== 'TC') return;
+      if (!formalizeResponse.engineering_statement) return;
+      if (!formalizeResponse.improving_param || !formalizeResponse.worsening_param) return;
+
+      const sfResp = await contradictionDeriveSF(parentRowId, {
+        project_id: projectId,
+        contradiction_id: parentRowId,
+        engineering_statement: formalizeResponse.engineering_statement,
+        improving_param: formalizeResponse.improving_param,
+        worsening_param: formalizeResponse.worsening_param,
+      });
+
+      if (!sfResp.derived) return;
+
+      const now = new Date().toISOString();
+      await supabase.from('contradictions').insert({
+        project_id: projectId,
+        parent_contradiction_id: parentRowId,
+        type: 'SF',
+        natural_description: `Su-Field: ${sfResp.sf_substance_1 ?? ''} ↔ ${sfResp.sf_substance_2 ?? ''} via ${sfResp.sf_field ?? ''}`,
+        sf_substance_1: sfResp.sf_substance_1 ?? null,
+        sf_substance_2: sfResp.sf_substance_2 ?? null,
+        sf_field: sfResp.sf_field ?? null,
+        sf_interaction: sfResp.sf_interaction ?? null,
+        sf_completeness: sfResp.sf_completeness ?? null,
+        severity: 'minor',
+        resolved: false,
+        created_at: now,
+        updated_at: now,
+      });
+    } catch (err) {
+      console.warn('[sf-derive] auto-derive SF failed:', err);
+    }
+  };
+
+  // ── AI 識別矛盾 (TC-only, Plan B) ─────────────────────────────────────
+
   const handleAiReidentify = () => {
-    const type: ContradictionType = 'TC';
-    setAiLoadingType(type);
+    setAiLoadingType('TC'); // reuse as generic loading indicator
     runGuarded(async () => {
     try {
-      // 待形式化目標：TC 型或尚未細化 (null) 的 top-level row，且缺兩個 param
-      const subset = contradictions.filter(
-        (c) => !c.parentContradictionId && (c.type === 'TC' || c.type == null),
-      );
-      const targets = subset.filter(
-        (c) => c.description && !c.improvingParam && !c.worseningParam
-      );
+      // 待形式化目標：所有 top-level row 中，缺少類型特定關鍵欄位的項目
+      const targets = topLevelContradictions.filter((c) => {
+        if (!c.description) return false;
+        if (c.type == null) return true;
+        if (c.type === 'TC') return !c.improvingParam && !c.worseningParam;
+        return false; // Plan B: only TC at top level
+      });
 
       if (targets.length > 0) {
         // Parallelize per-target formalize + update + decompose. Each target
         // is independent; failures are isolated via Promise.allSettled so one
-        // LLM error doesn't cancel siblings. Previous sequential loop made
-        // N targets pay N× the formalize latency.
+        // LLM error doesn't cancel siblings.
         const processOne = async (c: ExploreContradiction): Promise<number> => {
           const result = await contradictionFormalize({
             project_id: projectId,
@@ -396,10 +442,9 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
             natural_description: c.description,
             mission, constraints, kpis, socraticAnswers,
           });
-          // ADR-007: 若 LLM 無法映射到 TC 兩參數，回 type=null + rationale；不寫入 DB
           if (result.type === null) {
             const desc = (c.description || c.id).slice(0, 40);
-            toast.warning(`無法形式化「${desc}」為 TC`, {
+            toast.warning(`無法形式化「${desc}」`, {
               description: (result.rationale ?? '請細化描述或多答幾題 Socratic 後重試').slice(0, 160),
             });
             return 0;
@@ -407,22 +452,19 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
           await supabase
             .from('contradictions')
             .update({
-              type: result.type,
+              type: 'TC',
               improving_param: result.improving_param,
               worsening_param: result.worsening_param,
               engineering_statement: result.engineering_statement,
-              physical_contradiction: result.pc_attribute_a && result.pc_attribute_not_a
-                ? `${result.pc_attribute_a} | ${result.pc_attribute_not_a}`
-                : result.physical_contradiction,
-              sf_substance_1: result.sf_substance_1,
-              sf_substance_2: result.sf_substance_2,
-              sf_field: result.sf_field,
-              sf_interaction: result.sf_interaction,
-              sf_completeness: result.sf_completeness,
               updated_at: new Date().toISOString(),
             })
             .eq('id', c.id);
-          return await maybeAutoDecomposeTC(c.id, result);
+          // Parallel: decompose TC → child PCs + derive child SF
+          const [pcCount] = await Promise.all([
+            maybeAutoDecomposeTC(c.id, result),
+            maybeAutoDeriveChildSF(c.id, result),
+          ]);
+          return pcCount;
         };
         const results = await Promise.allSettled(targets.map(processOne));
         const count = results.filter((r) => r.status === 'fulfilled').length;
@@ -431,22 +473,22 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
           0,
         );
         invalidate();
-        toast.success(`AI 已形式化 ${count} 個 ${type} 矛盾`);
+        toast.success(`AI 已形式化 ${count} 個技術矛盾 (TC)`);
         if (totalDecomposed > 0) {
-          toast.success(`已自動深挖出 ${totalDecomposed} 個物理矛盾`);
+          toast.success(`已自動深挖出 ${totalDecomposed} 個子矛盾 (PC + SF)`);
         }
       } else {
-        // ADR-007: 新建矛盾永遠是 TC
+        // 無待形式化目標 → 新建 TC 矛盾 (Plan B: TC-only)
         const desc = mission
-          ? `Based on mission "${mission}", identify a key technical contradiction.`
-          : `Identify a key technical design contradiction from the project context.`;
+          ? `Based on mission "${mission}", identify a key technical contradiction (TC).`
+          : `Identify a key technical contradiction from the project context.`;
 
         const now = new Date().toISOString();
         const { data: draft, error: insertErr } = await supabase
           .from('contradictions')
           .insert({
             project_id: projectId,
-            type,
+            type: null,
             natural_description: desc,
             severity: DEFAULT_SEVERITY,
             created_at: now,
@@ -463,10 +505,9 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
           mission, constraints, kpis, socraticAnswers,
         });
 
-        // ADR-007: 若回 type=null，清掉 draft 並提示細化
         if (result.type === null) {
           await supabase.from('contradictions').delete().eq('id', draft.id);
-          toast.warning('AI 無法將此矛盾形式化為 TC', {
+          toast.warning('AI 無法形式化此矛盾', {
             description: (result.rationale ?? '請提供更具體的工程描述或先答 Socratic 題目').slice(0, 160),
           });
           invalidate();
@@ -476,28 +517,25 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
         await supabase
           .from('contradictions')
           .update({
-            type: result.type,
+            type: 'TC',
             improving_param: result.improving_param,
             worsening_param: result.worsening_param,
             engineering_statement: result.engineering_statement,
-            physical_contradiction: result.physical_contradiction,
-            sf_substance_1: result.sf_substance_1,
-            sf_substance_2: result.sf_substance_2,
-            sf_field: result.sf_field,
-            sf_interaction: result.sf_interaction,
-            sf_completeness: result.sf_completeness,
             natural_description: result.engineering_statement || desc,
             updated_at: new Date().toISOString(),
           })
           .eq('id', draft.id);
 
-        // L2 WBS 5.2-5.5 — auto PC decomposition for newly-created TC
-        const decomposedCount = await maybeAutoDecomposeTC(draft.id, result);
+        // Parallel: decompose TC → child PCs + derive child SF
+        const [decomposedCount] = await Promise.all([
+          maybeAutoDecomposeTC(draft.id, result),
+          maybeAutoDeriveChildSF(draft.id, result),
+        ]);
 
         invalidate();
-        toast.success(`AI 已識別新 ${type} 矛盾`);
+        toast.success('AI 已識別新技術矛盾 (TC)');
         if (decomposedCount > 0) {
-          toast.success(`已自動深挖出 ${decomposedCount} 個物理矛盾`);
+          toast.success(`已自動深挖出 ${decomposedCount} 個子矛盾 (PC + SF)`);
         }
       }
     } catch (err) {
@@ -699,13 +737,12 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
     );
   };
 
-  // ── Render TC section (ADR-007: Explore 只渲染 TC 主視圖) ───────────────
+  // ── Render TC section ─────────────────────────────────────────────────
 
   const renderTcSection = () => {
     const list = tcList;
     const color = '#3B82F6';
-    const help = 'TC（技術矛盾）：改善參數 A 會惡化參數 B，Step 5a 路徑 → 矛盾矩陣 → 40 原理。PC/SF 於 Create 階段從 TC 派生（ADR-007）。';
-    const isLoading = aiLoadingType === 'TC';
+    const help = 'TC（技術矛盾）：改善參數 A 會惡化參數 B → 矛盾矩陣 → 40 原理。AI 會自動衍生子 PC（物理矛盾）與 SF（Su-Field 問題）。';
     const confirmed = list.filter((c) => c.status === 'confirmed').length;
 
     return (
@@ -721,14 +758,9 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
               <Badge className="bg-green-600 text-white text-[10px]">已確認 {confirmed}</Badge>
             )}
           </div>
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setAddingType('TC')}>
-              <Plus className="h-3.5 w-3.5 mr-1" /> 新增矛盾（TC）
-            </Button>
-            <AiButton size="sm" loading={isLoading} onClick={() => handleAiReidentify()}>
-              識別 TC
-            </AiButton>
-          </div>
+          <Button variant="ghost" size="sm" onClick={() => setAddingType('TC')}>
+            <Plus className="h-3.5 w-3.5 mr-1" /> 手動新增 TC
+          </Button>
         </div>
 
         {/* Cards */}
@@ -758,7 +790,7 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
         ) : (
           <div className="text-center py-8 bg-muted/30 rounded-lg border border-dashed">
             <p className="text-sm text-muted-foreground">
-              尚無技術矛盾 — 點擊「識別 TC」讓 AI 分析，或手動新增
+              尚無技術矛盾 — 點擊上方「AI 識別矛盾」或手動新增
             </p>
           </div>
         )}
@@ -766,18 +798,17 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
     );
   };
 
+
   // ── Empty state ───────────────────────────────────────────────────────
 
   if (contradictions.length === 0 && !hasAnswers) {
     return (
       <div className="text-center py-16 space-y-3">
         <p className="text-muted-foreground font-medium">尚無矛盾</p>
-        <p className="text-sm text-muted-foreground">請先完成蘇格拉底問答，AI 將自動識別技術矛盾 (TC)</p>
-        <div className="flex justify-center gap-3">
-          <Button variant="ghost" onClick={() => setAddingType('TC')}>
-            <Plus className="h-4 w-4 mr-1" /> 新增矛盾（TC）
-          </Button>
-        </div>
+        <p className="text-sm text-muted-foreground">請先完成蘇格拉底問答，AI 將自動識別技術矛盾 (TC)，並衍生子 PC 與 SF</p>
+        <Button variant="ghost" onClick={() => setAddingType('TC')}>
+          <Plus className="h-4 w-4 mr-1" /> 手動新增 TC
+        </Button>
       </div>
     );
   }
@@ -786,27 +817,32 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
 
   return (
     <div className="space-y-6">
-      {/* Purpose intro — ADR-007: Explore 只識別 TC */}
-      <SectionIntro text="Explore 階段專注識別「技術矛盾 (TC)」：改善一個參數會惡化另一個。PC（物理矛盾）與 SF（Su-Field）於 Create 階段由 TC 自動派生，用於分層 TRIZ 解法（L1 矩陣/L2 分離原則/L3 標準解）。" />
+      {/* Purpose intro */}
+      <SectionIntro text="Explore 階段識別技術矛盾 (TC)。AI 會自動衍生子物理矛盾 (PC) 與 Su-Field 問題 (SF)，以階層樹狀結構呈現。確認後將用於 TRIZ 分層解法。" />
 
-      {/* Summary stats */}
-      <div className="flex flex-wrap gap-2">
+      {/* Summary stats + global AI button */}
+      <div className="flex flex-wrap items-center gap-2">
         <Badge className="bg-blue-500 text-white text-xs">TC: {tcList.length}</Badge>
         <Badge variant="secondary" className="text-xs">總計: {contradictions.length}</Badge>
         <Badge className="bg-green-600 text-white text-xs">已確認: {confirmedCount}</Badge>
+        <div className="ml-auto">
+          <AiButton size="sm" loading={!!aiLoadingType} onClick={() => handleAiReidentify()}>
+            AI 識別 TC
+          </AiButton>
+        </div>
       </div>
 
-      {/* TC Section — 主視圖 */}
+      {/* TC Section (hierarchical tree: TC → child PCs + child SF) */}
       {renderTcSection()}
 
-      {/* Add new — TC only (ADR-007) */}
+      {/* Add new dialog — type-aware */}
       <Dialog open={!!addingType} onOpenChange={() => setAddingType(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>新增技術矛盾 (TC)</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            技術矛盾 (TC)：改善一個參數會導致另一個參數惡化。建立後可編輯改善/惡化參數。Step 5a → 矛盾矩陣 → 40 原理。PC/SF 於 Create 階段從 TC 派生（ADR-007）。
+            TC（技術矛盾）：改善一個參數會導致另一個參數惡化。建立後可編輯改善 / 惡化參數。子 PC 和 SF 將由 AI 自動衍生。
           </p>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setAddingType(null)}>取消</Button>

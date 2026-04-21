@@ -9,7 +9,7 @@ import time
 
 logger = logging.getLogger(__name__)
 
-from app.agents.base import call_llm_json
+from app.agents.base import call_llm_json, web_search_with_llm
 from pydantic import ValidationError
 
 from app.prompts.analyst import (
@@ -32,6 +32,10 @@ from app.prompts.analyst import (
     ASSUMPTION_EXTRACTION,
     UNKNOWN_FACTOR_DISCOVERY,
     TC_TO_MULTI_PC_DECOMPOSITION,
+    PURPOSE_CONTRADICTION,
+    PURPOSE_CLD,
+    PURPOSE_ANTI_ANCHOR,
+    PURPOSE_DECOMPOSITION,
 )
 from app.agents.triz_critic import should_trigger_pc_decomposition
 from app.tools.triz_kb import (
@@ -284,13 +288,14 @@ def auto_tag_socratic(req: SocraticAutoTagRequest) -> SocraticAutoTagResponse:
     return SocraticAutoTagResponse(**data)
 
 
-def _extract_socratic_insights(socraticAnswers: list[str]) -> str:
-    """Extract Socratic Q&A and return a bullet list string."""
+def _extract_socratic_insights(socraticAnswers: list[str], purpose: str) -> str:
+    """Extract Socratic Q&A filtered by a caller-defined purpose string."""
     if not socraticAnswers:
         return "No additional insights available."
 
     prompt = SOCRATIC_INSIGHT_EXTRACTION.format(
-        socraticAnswers="\n".join(f"- {a}" for a in socraticAnswers)
+        socraticAnswers="\n".join(f"- {a}" for a in socraticAnswers),
+        purpose=purpose,
     )
 
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
@@ -306,7 +311,8 @@ def _extract_socratic_insights(socraticAnswers: list[str]) -> str:
 def generate_cld(req: CldGenerationRequest) -> CldGenerationResponse:
     # Step 1: Refine Socratic Insights
     socratic_insights = _extract_socratic_insights(
-        getattr(req, "socraticAnswers", None) or []
+        getattr(req, "socraticAnswers", None) or [],
+        purpose=PURPOSE_CLD,
     )
 
     # Step 2: Assemble prompt
@@ -326,7 +332,8 @@ def generate_cld(req: CldGenerationRequest) -> CldGenerationResponse:
 def formalize_contradiction(req: ContradictionFormalizeRequest) -> ContradictionFormalizeResponse:
     # Step 1: Refine Socratic Insights
     socratic_insights = _extract_socratic_insights(
-        getattr(req, "socraticAnswers", None) or []
+        getattr(req, "socraticAnswers", None) or [],
+        purpose=PURPOSE_CONTRADICTION,
     )
 
     # Step 2: Assemble prompt
@@ -340,35 +347,14 @@ def formalize_contradiction(req: ContradictionFormalizeRequest) -> Contradiction
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
 
-    # ADR-007: Explore stage emits TC-only. If LLM claims type="TC" but
-    # params are missing/invalid, treat as "cannot map" — surface type=null
-    # + rationale so the UI can drive a Socratic follow-up. Do NOT downgrade
-    # to PC/SF (those are derived at the Create stage from a valid TC).
+    # ADR-007: Explore stage always emits TC. Coerce any non-TC to null.
     raw_type = data.get("type")
     ip = data.get("improving_param")
     wp = data.get("worsening_param")
-    tc_params_valid = (
-        isinstance(ip, int) and isinstance(wp, int) and 1 <= ip <= 39 and 1 <= wp <= 39
-    )
 
-    if raw_type == "TC" and not tc_params_valid:
-        logger.warning(
-            "Formalize: type=TC but params invalid (ip=%s, wp=%s) — coercing to type=null",
-            ip, wp,
-        )
-        data["type"] = None
-        data["improving_param"] = None
-        data["worsening_param"] = None
-        if not data.get("rationale"):
-            data["rationale"] = (
-                "LLM returned type=TC but could not supply two valid TRIZ 39 "
-                "parameters (1–39). Please refine the contradiction description "
-                "or answer Socratic follow-ups to surface a measurable trade-off."
-            )
-    elif raw_type not in ("TC", None):
-        # ADR-007: PC/SF are no longer valid Explore outputs.
-        logger.warning(
-            "Formalize: LLM returned deprecated type=%r — coercing to type=null with rationale",
+    if raw_type != "TC" and raw_type is not None:
+        logger.info(
+            "Formalize: LLM returned type=%r — ADR-007 coerces to TC-only; setting type=null",
             raw_type,
         )
         data["type"] = None
@@ -376,26 +362,28 @@ def formalize_contradiction(req: ContradictionFormalizeRequest) -> Contradiction
         data["worsening_param"] = None
         if not data.get("rationale"):
             data["rationale"] = (
-                f"LLM attempted to classify as {raw_type}, but ADR-007 restricts "
-                "Explore output to Technical Contradictions (TC) only. Please "
-                "refine the description so two opposing TRIZ 39 parameters can "
-                "be identified; PC/SF views are derived automatically at the "
-                "Create stage."
+                f"LLM classified as '{raw_type}' but Explore stage requires TC "
+                "(ADR-007). PC/SF are derived automatically from TC. "
+                "Please refine the description to surface a measurable trade-off."
             )
-
-    # Always zero out deprecated PC/SF payload from Explore response
-    # (keep the field shape for schema compat, but never emit stale data).
-    for k in (
-        "physical_contradiction",
-        "pc_attribute_a",
-        "pc_attribute_not_a",
-        "sf_substance_1",
-        "sf_substance_2",
-        "sf_field",
-        "sf_interaction",
-        "sf_completeness",
-    ):
-        data[k] = None
+    elif raw_type == "TC":
+        tc_params_valid = (
+            isinstance(ip, int) and isinstance(wp, int) and 1 <= ip <= 39 and 1 <= wp <= 39
+        )
+        if not tc_params_valid:
+            logger.warning(
+                "Formalize: type=TC but params invalid (ip=%s, wp=%s) — coercing to type=null",
+                ip, wp,
+            )
+            data["type"] = None
+            data["improving_param"] = None
+            data["worsening_param"] = None
+            if not data.get("rationale"):
+                data["rationale"] = (
+                    "LLM returned type=TC but could not supply two valid TRIZ 39 "
+                    "parameters (1–39). Please refine the contradiction description "
+                    "or answer Socratic follow-ups to surface a measurable trade-off."
+                )
 
     return ContradictionFormalizeResponse(**data)
 
@@ -478,10 +466,15 @@ def generate_anti_anchor(req: AntiAnchorRequest) -> AntiAnchorResponse:
     # using get_contradiction_leaves() before building `current_constraints`
     # / `existing_alternatives`.  This avoids duplicate parent+child entries
     # when a TC has been decomposed into child PCs.
+    socratic_insights = _extract_socratic_insights(
+        getattr(req, "socraticAnswers", None) or [],
+        purpose=PURPOSE_ANTI_ANCHOR,
+    )
     prompt = ANTI_ANCHOR_GENERATION.format(
         mission=req.mission,
         current_constraints="\n".join(f"- {c}" for c in req.current_constraints),
         existing_alternatives="\n".join(f"- {a}" for a in req.existing_alternatives),
+        socratic_insights=socratic_insights,
     )
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
@@ -491,6 +484,7 @@ def generate_anti_anchor(req: AntiAnchorRequest) -> AntiAnchorResponse:
                      "potential_advantage", "cross_domain_source"):
             if key in alt and not isinstance(alt[key], str):
                 alt[key] = _flatten_to_str(alt[key])
+    
     return AntiAnchorResponse(**data)
 
 
@@ -556,7 +550,8 @@ def decompose_tc_to_pcs(req: ContradictionDecomposeRequest) -> ContradictionDeco
     # Step 2-6: run decomposition with error isolation
     try:
         socratic_insights = _extract_socratic_insights(
-            getattr(req, "socraticAnswers", None) or []
+            getattr(req, "socraticAnswers", None) or [],
+            purpose=PURPOSE_DECOMPOSITION,
         )
 
         prompt = TC_TO_MULTI_PC_DECOMPOSITION.format(

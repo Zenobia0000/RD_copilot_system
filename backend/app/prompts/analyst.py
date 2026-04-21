@@ -11,7 +11,7 @@ Prompt design follows Anthropic's Claude prompting best practices:
 - Motivation/context for key rules
 """
 
-ANALYST_SYSTEM = """\
+ANALYST_SYSTEM = """雖然我以下都是寫英文，但我的使用者希望最終能看到中文輸出\
 You are a senior systems-engineering analyst embedded in a structured \
 concept-design platform. Your role spans requirement decomposition, \
 Socratic questioning, causal-loop modelling, contradiction identification, \
@@ -276,6 +276,85 @@ Do not invent implications that are not supported by what the user actually wrot
 
 
 # ---------------------------------------------------------------------------
+# Socratic Insight Extraction (general-purpose, caller defines purpose)
+# ---------------------------------------------------------------------------
+
+SOCRATIC_INSIGHT_EXTRACTION = """\
+<task>
+From the following Socratic Q&A pairs about an engineering project, extract ONLY \
+insights that are directly relevant to the stated purpose.
+</task>
+
+<qa_pairs>
+{socraticAnswers}
+</qa_pairs>
+
+<purpose>
+{purpose}
+</purpose>
+
+<rules>
+1. Output 3-8 bullet points, each one concise sentence with numbers where available.
+2. Use the project's original language (Chinese or English as appropriate).
+3. Skip: action plans, repeated info, vague opinions, unanswered questions \
+(含「無法具體回答」).
+4. Each bullet must be something that could change the analysis outcome for the \
+stated purpose.
+5. Prioritize QUANTIFIED facts over qualitative statements.
+</rules>
+
+<output_schema>
+{{
+  "insights": [
+    "...",
+    "..."
+  ]
+}}
+</output_schema>
+"""
+
+
+# ---------------------------------------------------------------------------
+# Purpose strings for SOCRATIC_INSIGHT_EXTRACTION
+# Each caller passes the appropriate PURPOSE_* to _extract_socratic_insights().
+# ---------------------------------------------------------------------------
+
+PURPOSE_CONTRADICTION = """\
+Identify and classify technical contradictions. Focus on:
+- System boundary: what is the tool, product, environment, and their roles
+- Constraint nature: which requirements are hard/non-negotiable, imposed by whom
+- Hidden assumptions about system capability and their evidence strength
+- Risk tolerance: deployment stage, consequence severity if requirements not met
+- Evaluation ambiguity: unclear definitions, unstable ground truth, labeling issues
+Each insight should change how you classify a contradiction as TC vs PC vs SF."""
+
+PURPOSE_DECOMPOSITION = """\
+Decompose a technical contradiction into physical sub-contradictions. Focus on:
+- Which physical parameters are truly coupled vs independently adjustable
+- Operating condition boundaries where the contradiction flips (time, space, scale, condition)
+- Quantified thresholds: at what value of parameter X does parameter Y start degrading
+- Hidden intermediate variables that mediate the trade-off between improving and worsening params
+- Separation opportunities: which sub-regions of the design space allow partial decoupling"""
+
+PURPOSE_CLD = """\
+Build a causal loop diagram of system contradictions. Focus on:
+- Causal relationships between parameters (A increases → B decreases)
+- Feedback loops: reinforcing or balancing
+- Which constraints create coupling between otherwise independent parameters
+- Hidden intermediate variables that mediate trade-offs
+- Quantified sensitivity: how much change in X causes how much change in Y"""
+
+PURPOSE_ANTI_ANCHOR = """\
+Generate unconventional architecture concepts. Focus on:
+- Constraint rigidity: which are physics-imposed, customer-mandated, or merely preference
+- Benchmark data: specific competitor performance (topology, torque, weight, size, noise)
+- Known failure modes: which approaches have been tried and found deficient, with data
+- Physical bottlenecks: which subsystem fails first and why
+- Test conditions: exact measurement specs that concepts must satisfy
+- Quantified trade-offs between competing parameters"""
+
+
+# ---------------------------------------------------------------------------
 # CLD Generation
 # ---------------------------------------------------------------------------
 
@@ -503,50 +582,16 @@ Each field: 50–150 words.
 # Contradiction Formalization
 # ---------------------------------------------------------------------------
 
-SOCRATIC_INSIGHT_EXTRACTION = """\
-<task>
-From the following Socratic Q&A pairs about an engineering project, extract ONLY
-insights that directly affect how we identify and classify technical contradictions.
-</task>
-
-<qa_pairs>
-{socraticAnswers}
-</qa_pairs>
-
-<focus>
-Extract insights about:
-- System boundary: what is the tool, product, environment, and their roles
-- Constraint nature: which requirements are hard/non-negotiable, imposed by whom
-- Hidden assumptions about system capability and their evidence strength
-- Risk tolerance: deployment stage, consequence severity if requirements not met
-- Evaluation ambiguity: unclear definitions, unstable ground truth, labeling issues
-</focus>
-
-<rules>
-- Output 3-6 bullet points, each one concise sentence
-- Use the project's original language (Chinese or English as appropriate)
-- Skip: action plans, repeated info, vague opinions without engineering relevance
-- Each bullet must be something that could change how you classify a contradiction as TC vs PC vs SF
-</rules>
-
-<output_format>
-Return a JSON object:
-{{
-  "insights": [
-    "...",
-    "..."
-  ]
-}}
-</output_format>
-"""
-
 CONTRADICTION_FORMALIZATION = """\
 <task>
-Convert the following natural-language contradiction into a TRIZ Technical
-Contradiction (TC) — i.e. a pair of opposing TRIZ 39 engineering parameters.
-Per ADR-007, the Explore stage emits TC-only. PC (Physical Contradiction)
-and SF (Su-Field) representations are DERIVED from the TC at the Create stage,
-NOT classified here.
+Formalize the following natural-language contradiction as a TRIZ Technical
+Contradiction (TC). A TC means "improving one engineering parameter worsens
+another". You MUST map the description onto TWO distinct TRIZ 39 engineering
+parameters (integers 1–39).
+
+If you absolutely CANNOT identify two distinct parameters, set type = null
+and explain in `rationale`. Do NOT output PC or SF — those are derived
+separately from the TC in a later step.
 </task>
 
 <context>
@@ -572,34 +617,24 @@ and evaluation ambiguity.
 </input>
 
 <instructions>
-1. Produce a one-sentence `engineering_statement` describing the contradiction.
-2. Attempt to map the contradiction onto TWO distinct TRIZ 39 engineering
-   parameters (1–39):
-   - `improving_param` = the parameter the designer wants to improve.
-   - `worsening_param` = the parameter that degrades as a side-effect.
-3. Success path: set `type = "TC"`, fill both integers (1–39), assign
-   `confidence` ∈ [0,1], and leave `rationale` null.
-4. Failure path: if you CANNOT confidently identify two distinct TRIZ 39
-   parameters, set `type = null`, leave both params null, and write a
-   `rationale` explaining what is ambiguous or missing so the UI can
-   launch a Socratic follow-up. DO NOT fall back to PC or SF here —
-   those layers are derived downstream from a valid TC.
-5. Lower `confidence` if clarified insights reveal ambiguity in problem
-   definition or evaluation criteria.
-
-Note: `physical_contradiction`, `pc_attribute_a/not_a`, and `sf_*` fields
-in the output schema are DEPRECATED at this stage (kept only for
-backward-compat with legacy readers). Always return them as null.
+1. Produce a one-sentence `engineering_statement` describing the contradiction
+   as a trade-off between two engineering parameters.
+2. Map onto TWO distinct TRIZ 39 engineering parameters (1–39).
+   Set `improving_param` and `worsening_param` as integers.
+3. If you CANNOT confidently map to two parameters, set `type = null`,
+   leave params null, and write a `rationale` explaining why.
+4. Assign `confidence` ∈ [0,1]. Lower it if insights reveal ambiguity.
+5. Leave all PC and SF fields as null — they are derived in a later step.
 </instructions>
 
 <output_schema>
 {{
   "engineering_statement": "...",
-  "improving_param": 14,
-  "worsening_param": 1,
   "type": "TC",
   "confidence": 0.8,
   "rationale": null,
+  "improving_param": 14,
+  "worsening_param": 1,
   "physical_contradiction": null,
   "pc_attribute_a": null,
   "pc_attribute_not_a": null,
@@ -611,17 +646,30 @@ backward-compat with legacy readers). Always return them as null.
 }}
 </output_schema>
 
+<example_tc>
+{{
+  "engineering_statement": "Increasing motor torque (power) worsens heat dissipation (temperature)",
+  "type": "TC",
+  "confidence": 0.85,
+  "rationale": null,
+  "improving_param": 21,
+  "worsening_param": 17,
+  "physical_contradiction": null,
+  "pc_attribute_a": null, "pc_attribute_not_a": null,
+  "sf_substance_1": null, "sf_substance_2": null, "sf_field": null,
+  "sf_interaction": null, "sf_completeness": null
+}}
+</example_tc>
+
 <example_cannot_map>
 {{
   "engineering_statement": "The system must be both creative and reproducible during ideation workshops",
-  "improving_param": null,
-  "worsening_param": null,
   "type": null,
   "confidence": 0.25,
-  "rationale": "Cannot map 'creative' vs 'reproducible' onto two distinct TRIZ 39 engineering parameters — both sides describe team/process outcomes rather than quantifiable engineering attributes. Recommend Socratic follow-up to extract a measurable trade-off (e.g. idea novelty vs evaluation consistency).",
+  "rationale": "Cannot confidently map to two TRIZ 39 parameters — both sides describe team/process outcomes rather than quantifiable engineering attributes. Recommend Socratic follow-up to extract a measurable trade-off.",
+  "improving_param": null, "worsening_param": null,
   "physical_contradiction": null,
-  "pc_attribute_a": null,
-  "pc_attribute_not_a": null,
+  "pc_attribute_a": null, "pc_attribute_not_a": null,
   "sf_substance_1": null, "sf_substance_2": null, "sf_field": null,
   "sf_interaction": null, "sf_completeness": null
 }}
@@ -762,6 +810,12 @@ follow-up questions.
 <existing_alternatives>
 {existing_alternatives}
 </existing_alternatives>
+<clarified_insights>
+The following insights were extracted from structured Socratic questioning with the \
+project owner. Treat as higher-evidence-level inputs — they represent confirmed \
+engineering judgments, not assumptions:
+{socratic_insights}
+</clarified_insights>
 </context>
 
 <thinking_framework>

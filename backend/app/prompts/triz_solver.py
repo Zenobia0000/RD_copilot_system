@@ -4,7 +4,7 @@ Domain-agnostic — all product/industry context comes from user input.
 Follows Anthropic Claude prompting best practices: XML tags, strict schemas, examples.
 """
 
-TRIZ_SOLVER_SYSTEM = """\
+TRIZ_SOLVER_SYSTEM = """雖然我以下都是寫英文，但我的使用者希望最終能看到中文輸出\
 You are a TRIZ methodology expert integrated into a structured design platform.
 
 <capabilities>
@@ -635,6 +635,364 @@ two modules cannot coexist, surface that as a new contradiction in `secondary_co
       ]
     }}
   ]
+}}
+</output_schema>
+"""
+
+
+# ---------------------------------------------------------------------------
+# Directed TRIZ — Direction Clustering (Step E)
+# ---------------------------------------------------------------------------
+
+DIRECTION_CLUSTER_PROMPT = """\
+<task>
+You are a TRIZ methodology expert. Below are all candidate solutions produced by
+three TRIZ tools (TC contradiction matrix, PC separation principles, SF 76 standard
+solutions) for the SAME contradiction. Your job is to cluster them into distinct
+**implementation directions** so an R&D engineer can compare and pick one.
+
+IMPORTANT: Each solution has an index number (e.g. [0], [1], [2]). You MUST
+assign EVERY index to exactly one direction. Do NOT skip any solution.
+</task>
+
+<definition_of_direction>
+An "implementation direction" = (physical_mechanism) × (system_intervention_point).
+
+Two solutions belong to the SAME direction ONLY IF BOTH conditions hold:
+  1. They use the SAME underlying physical mechanism (same governing law /
+     same energy-transfer principle / same architectural change).
+  2. They intervene at the SAME or OVERLAPPING system layer
+     (e.g. both modify gear geometry, OR both add control-layer compensation,
+     OR both insert a damping interface at the same structural boundary).
+
+If EITHER condition fails, they MUST be in different directions — even if they
+"feel related" or both "improve NVH". Surface-level similarity is NOT consensus.
+</definition_of_direction>
+
+<good_direction_examples>
+Granularity reference (these are well-formed direction names):
+  - "Tooth micro-geometry reshaping (@gear mesh face)"
+  - "Dual-path torque split (@gear train topology)"
+  - "Constrained-layer damping insertion (@bearing seat / housing)"
+  - "Active current-harmonic cancellation (@inverter control)"
+  - "CTE-matched preload self-compensation (@bearing seat material stack)"
+  - "MR/piezo tunable damping (@secondary structural path)"
+  - "Non-linear stiffness threshold switching (@torsional coupling)"
+  - "EHL film optimization (@lubrication interface)"
+</good_direction_examples>
+
+<forbidden_direction_examples>
+These are NOT acceptable directions — they are too abstract and hide real
+engineering choices behind generic words:
+  - "Comprehensive optimization" / "綜合優化"
+  - "Structural and acoustic improvement"
+  - "NVH mitigation"
+  - "Multi-pronged approach"
+  - Any name that mixes ≥2 distinct physical mechanisms into one bucket.
+
+If your candidate direction name fits one of these patterns, you are
+over-clustering. Split it.
+</forbidden_direction_examples>
+
+<context>
+<contradiction>{natural_description}</contradiction>
+<all_solutions>
+{solutions_block}
+</all_solutions>
+</context>
+
+<instructions>
+1. Read every solution. For each one, identify in your head:
+   (a) its physical mechanism (one sentence, name the law / effect / architectural move)
+   (b) its system intervention point (which subsystem layer it touches)
+
+2. Group solutions ONLY when both (a) and (b) match. Default behaviour is to
+   SPLIT, not merge. When in doubt, create a new direction.
+
+3. Naming rule: each direction_name MUST follow the format
+       "<mechanism> (@<intervention_point>)"
+   maximum 25 characters total. Use English mechanism names; intervention
+   points may be technical shorthand.
+
+4. A solution that has no peer is a valid singleton direction. Innovation
+   signals often appear as singletons — do NOT force them into a larger group
+   just to inflate that group's tool_support.
+
+5. Output between 3 and 12 directions. If you produce fewer than 3 from a
+   ≥10-solution input, you are almost certainly over-clustering — re-examine
+   whether your "shared mechanism" claim actually holds at the physics level.
+
+6. For each direction:
+   - List `solution_indices`: the integer indices of the solutions that belong.
+   - Write a 1-2 sentence direction_summary that names the physical mechanism
+     AND the intervention point explicitly. Do NOT use vague phrases like
+     "improves NVH" — say HOW (e.g. "reduces mesh stiffness ripple by reshaping
+     tooth flank micro-geometry, leaving gear macro-geometry untouched").
+
+7. COMPLETENESS CHECK — before responding, verify:
+   - Collect all indices you assigned → they MUST equal {total_count} items.
+   - Every index from 0 to {max_index} must appear exactly once.
+   - If any index is missing, assign it to the best-fit direction or create a
+     new singleton direction for it.
+   - Does any direction contain solutions whose mechanisms differ? → split it.
+   - Does any direction_name match the forbidden examples? → rename or split.
+   - Did you produce only 1-2 directions for a 10+ solution input? → split more.
+</instructions>
+
+<output_schema>
+Return ONLY valid JSON. Do NOT include solution objects — only their indices.
+{{
+  "directions": [
+    {{
+      "direction_id": "DIR-1",
+      "direction_name": "Tooth reshaping (@gear mesh)",
+      "direction_summary": "透過齒面微觀修形降低負載傳遞誤差與嚙合剛度波動。",
+      "solution_indices": [0, 3, 7]
+    }},
+    {{
+      "direction_id": "DIR-2",
+      "direction_name": "CLD insertion (@housing)",
+      "direction_summary": "在軸承座與殼體間插入約束阻尼層吸收結構振動。",
+      "solution_indices": [1, 5]
+    }}
+  ]
+}}
+</output_schema>
+"""
+
+
+# ---------------------------------------------------------------------------
+# Directed TRIZ — Direction Scoring (Step F)
+# ---------------------------------------------------------------------------
+
+DIRECTION_SCORE_PROMPT = """\
+<task>
+You are a TRIZ methodology expert. Score each implementation direction so an
+R&D engineer can rank them.
+</task>
+
+<context>
+<contradiction>{natural_description}</contradiction>
+<directions>
+{directions_block}
+</directions>
+</context>
+
+<scoring_dimensions>
+Each direction is scored on three independent axes. tool_support is computed
+by the system from the cluster output — DO NOT estimate it yourself.
+
+1. **feasibility** (0-10, higher = easier to realise)
+   - 10 = mature off-the-shelf practice, multiple production references in
+          comparable industries, low integration risk.
+   -  7 = proven in adjacent industries, requires moderate adaptation.
+   -  4 = experimental, demonstrated in research but not production.
+   -  1 = speculative, no known working implementation.
+   Anchor your number to a SPECIFIC reference (e.g. "automotive e-axle
+   torque-split is mainstream; 7"). State the reference in score_rationale.
+
+2. **cost_difficulty** (0-10, higher = CHEAPER and EASIER to implement)
+   - 10 = software/firmware-only change, no BOM impact, low validation cost.
+   -  7 = single-component change, standard tooling, modest validation.
+   -  4 = multi-component redesign, new tooling, extensive validation.
+   -  1 = full architectural rework, new manufacturing line, multi-year program.
+   Note the SCALE: 10 = cheapest, 1 = most expensive. Easy to flip — double-check.
+
+3. **score_rationale** (1-3 sentences, English or 繁體中文)
+   - Cite the specific industry reference for feasibility.
+   - Cite the dominant cost driver for cost_difficulty.
+   - Do NOT restate the direction summary; explain the SCORE.
+</scoring_dimensions>
+
+<instructions>
+- Score each direction independently. Do not compare directions to each other.
+- weighted_total will be computed by the system; output 0 as a placeholder.
+- If a direction's mechanism is unfamiliar, give feasibility ≤ 5 and say so
+  in the rationale rather than guessing high.
+</instructions>
+
+<output_schema>
+{{
+  "scores": [
+    {{
+      "direction_id": "DIR-1",
+      "tool_support": 0,
+      "feasibility": 7.5,
+      "cost_difficulty": 6.0,
+      "weighted_total": 0,
+      "score_rationale": "Tooth micro-geometry reshaping is standard practice in automotive transmission NVH (ZF, GKN published case studies). Cost driver is grinding-process re-qualification on existing tooling, not new equipment."
+    }}
+  ]
+}}
+</output_schema>
+"""
+
+
+# ---------------------------------------------------------------------------
+# Directed TRIZ — Compatibility Check (§三 跨矛盾整併)
+# ---------------------------------------------------------------------------
+
+COMPATIBILITY_CHECK_PROMPT = """\
+<task>
+You are a TRIZ methodology expert. Each contradiction below has selected a
+Top-1 implementation direction. Decide whether these directions can COEXIST
+in the same product without physical, architectural, or process conflict.
+</task>
+
+<definition_of_incompatible>
+Two directions are INCOMPATIBLE if ANY of the following is true:
+  1. They demand mutually exclusive physical states of the SAME component
+     (e.g. "rigid one-piece housing" vs "split modular housing").
+  2. They intervene at the SAME system point with conflicting mechanisms
+     (e.g. both modify the bearing seat, one adds damping layer, the other
+     requires direct metal-to-metal preload contact).
+  3. They share an affected_module and their required modifications cannot
+     be superimposed (not just "both touch X", but "both touch X in ways
+     that cannot be combined").
+  4. They introduce secondary contradictions that directly undo each other.
+
+They are COMPATIBLE if:
+  - They intervene at DIFFERENT system layers (e.g. one at control firmware,
+    one at gear geometry) — default to compatible.
+  - They touch the same module but modify orthogonal properties
+    (e.g. one changes material, one changes geometry — usually compatible).
+  - Integration requires engineering effort but no physical contradiction.
+
+Default to COMPATIBLE when uncertain. Only flag incompatible when you can
+name the specific physical/architectural conflict in one sentence.
+</definition_of_incompatible>
+
+<context>
+<top1_directions>
+{top1_block}
+</top1_directions>
+</context>
+
+<instructions>
+1. For every unordered pair (A, B) of directions, evaluate compatibility.
+2. For each pair, output:
+   - compatible: true | false
+   - reason: one sentence. If incompatible, name the specific conflict
+     (which component, which physical property, why mutually exclusive).
+     If compatible, state the key reason (different layers / orthogonal /
+     superimposable).
+   - conflict_type: one of
+       "physical_state"     — same component, mutually exclusive states
+       "intervention_clash" — same point, conflicting mechanisms
+       "module_overlap"     — shared module, non-superimposable edits
+       "secondary_loop"     — their secondary contradictions cancel each other
+       "none"               — compatible
+3. Do NOT flag "requires coordination" or "adds complexity" as incompatible.
+   Those are integration costs, not conflicts.
+</instructions>
+
+<output_schema>
+{{
+  "pairs": [
+    {{
+      "direction_a": "Tooth micro-geometry reshaping (@gear mesh face)",
+      "direction_b": "Dual-path torque split (@gear train topology)",
+      "contradiction_a_id": "C-001",
+      "contradiction_b_id": "C-002",
+      "compatible": false,
+      "conflict_type": "module_overlap",
+      "reason": "Dual-path split introduces two separate gear meshes with different load-sharing phase; the single-mesh micro-geometry optimization from DIR-A does not transfer and must be redone per path, making the two directions non-superimposable as specified."
+    }},
+    {{
+      "direction_a": "Active current-harmonic cancellation (@inverter control)",
+      "direction_b": "Constrained-layer damping (@bearing seat)",
+      "contradiction_a_id": "C-003",
+      "contradiction_b_id": "C-004",
+      "compatible": true,
+      "conflict_type": "none",
+      "reason": "Different system layers (firmware vs mechanical damping); orthogonal intervention points; effects superimpose linearly."
+    }}
+  ]
+}}
+</output_schema>
+"""
+
+
+# ---------------------------------------------------------------------------
+# Directed TRIZ — Conflict Report + Integration Advice
+# ---------------------------------------------------------------------------
+
+CONFLICT_REPORT_PROMPT = """\
+<task>
+You are a TRIZ methodology expert. Produce (a) a structured report on the
+cross-contradiction consolidation outcome and (b) actionable guidance for the
+R&D engineer.
+</task>
+
+<context>
+<consolidation_status>{status}</consolidation_status>
+<conflicts>
+{conflicts_block}
+</conflicts>
+<all_directions>
+{all_directions_block}
+</all_directions>
+</context>
+
+<status_semantics>
+- "compatible":           all Top1 directions are mutually compatible.
+- "resolved_with_swap":   original Top1 set had conflicts, but swapping some
+                          contradictions to Top2 resolved them.
+- "conflict":             conflicts remain even after Top2 swap; RD must decide.
+
+Your output MUST match the current status. Do NOT suggest trade-offs when the
+status is "compatible". Do NOT write celebratory integration text when the
+status is "conflict".
+</status_semantics>
+
+<instructions>
+Behave according to status:
+
+IF status == "compatible":
+  - suggestions: output an empty list [].
+  - integration_advice: 2-3 sentences describing how the chosen directions
+    reinforce each other. Name the specific synergy (e.g. "DIR-A reduces the
+    excitation source while DIR-C reduces the transmission path; effects
+    multiply rather than add"). No caveats about conflicts.
+
+IF status == "resolved_with_swap":
+  - suggestions: output an empty list [].
+  - integration_advice: state which contradictions were swapped and why the
+    swapped set is coherent. One sentence acknowledging the Top1→Top2 trade-off
+    (typically some loss of score in exchange for compatibility).
+
+IF status == "conflict":
+  - suggestions: output 2-4 structured suggestions. Each MUST carry:
+      * type: one of
+          "relax_constraint"  — propose loosening one contradiction's requirement
+          "hybrid"            — propose combining parts of two conflicting directions
+          "rd_manual_choice"  — escalate: RD picks based on product priority
+          "architectural_reset" — the conflict signals a deeper architectural issue;
+                                  re-examine upstream decisions
+      * target_contradictions: list of contradiction_ids this suggestion addresses
+      * description: concrete, 1-2 sentences
+      * cost: "low" | "medium" | "high"
+  - integration_advice: 2-3 sentences framing the decision the RD must make.
+    State what is at stake in choosing one conflicting direction over another.
+</instructions>
+
+<output_schema>
+{{
+  "suggestions": [
+    {{
+      "type": "hybrid",
+      "target_contradictions": ["C-001", "C-002"],
+      "description": "Adopt tooth micro-geometry reshaping only on the primary torque path; apply dual-path split only above 100Nm so the secondary path engages solely at peak load.",
+      "cost": "medium"
+    }},
+    {{
+      "type": "relax_constraint",
+      "target_contradictions": ["C-002"],
+      "description": "Negotiate NVH spec on C-002 by 2 dB to allow the modular interface geometry; verify with marketing whether this falls inside product positioning tolerance.",
+      "cost": "low"
+    }}
+  ],
+  "integration_advice": "The remaining conflict is between gear-face optimization (C-001) and topology split (C-002); both touch the gear train as a shared module. RD must decide whether torque-density (favours split) or NVH-at-low-cost (favours micro-geometry) is the dominant product attribute."
 }}
 </output_schema>
 """

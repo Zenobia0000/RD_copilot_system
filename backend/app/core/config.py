@@ -115,6 +115,11 @@ class Settings(BaseSettings):
         return getattr(self, attr)
 
     # --- Web Search (optional — enables evidence grounding) ---
+    web_search_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("WEB_SEARCH_ENABLED"),
+        description="Enable web search tool for LLM calls. Requires provider support.",
+    )
     tavily_api_key: str = ""
 
     # --- TRIZ Knowledge Base ---

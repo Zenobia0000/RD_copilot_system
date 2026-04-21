@@ -1,9 +1,10 @@
-# ADR-007: Explore 階段矛盾識別限縮為 TC-only；PC/SF 於 Create 階段自 TC 派生
+# ADR-007: Explore 階段矛盾識別限縮為 TC-only；PC/SF 自 TC 派生為子項
 
-- **Status:** Accepted
-- **Date:** 2026-04-15
+- **Status:** Accepted → **Amended (Plan B)**
+- **Date:** 2026-04-15 (初版) · 2026-04-21 (Plan B 修訂)
 - **Deciders:** Sunny (PO) · Backend AI Agents Team
 - **Supersedes:** 部分 ADR-002（TC/PC/SF 三型並列識別）
+- **Amended by:** Plan B — 階層式 TC 樹狀結構 (`plans/plan-b-hierarchical-tc-tree.md`)
 
 ## Context
 
@@ -19,42 +20,57 @@
 
 ## Decision
 
+### 原始 Decision (v1)
+
+> PC/SF 派生產物不回寫 `contradictions` 表，僅在 Create 階段 solve response 帶回。
+
+### Plan B 修訂 (v2, 2026-04-21)
+
+使用者反饋扁平三區塊不符需求，要求改為**階層式 TC 樹狀結構**：
+
 1. **Explore 階段**：`formalize_contradiction` 強制輸出 `type="TC"`。若 LLM 無法映射到兩個 `improving/worsening_param`，拒絕並要求重述（不再 downgrade 至 PC/SF）。
-2. **Create 階段**：在 `solve_triz_layered` 入口，若 request 未帶 PC/SF 欄位，**就地派生**：
-   - PC ← `analyst.decompose_tc_to_pcs(tc)` 
-   - SF ← 新增 `analyst.derive_su_field_from_tc(tc)`（若 LLM 推不出有意義的 S1/S2/F 則 L3 以 warning 降級，不影響 L1/L2）
-3. **派生產物不回寫** `contradictions` 表（避免污染 Explore 的 source of truth）；僅在本次 solve response 帶回，供 UI 顯示分層結果。
-4. **前端 `Create.tsx`** 移除 `cType === 'TC' ? ... : undefined` 互斥閘門，`improving/worsening_param` 無條件傳出。
+2. **Explore 階段自動派生子項**：TC 識別成功後，**立即並行派生** PC 和 SF 子項：
+   - PC ← `POST /contradictions/{cid}/decompose`（多個 child PC rows，帶 `parent_contradiction_id`）
+   - SF ← `POST /contradictions/{cid}/derive-sf`（單個 child SF row，帶 `parent_contradiction_id`）
+3. **派生產物回寫** `contradictions` 表，以 `parent_contradiction_id` 連結至父 TC，形成樹狀結構。
+4. **前端 UI**：TC 為唯一頂層根節點，手動新增只能加 TC。PC/SF 以巢狀子卡片形式顯示在父 TC 下方，孤兒 PC/SF 忽略不顯示。
+5. **Create 階段**：`solve_triz_layered` 入口仍可就地派生缺失的 PC/SF。
 
 ## Consequences
 
 ### Positive
 - L1/L2/L3 三層在任一矛盾上皆可完整跑通
-- Explore UX 簡化（只列 TC、可排序可比較），吻合 5D 的 Diverge 定位
+- Explore UX 呈現清晰的 TC → PCs + SF 樹狀結構，符合 TRIZ 方法論層次
+- 使用者可在 Explore 階段直接看到完整矛盾分解，不必等到 Create 階段
 - Fix 根因而非症狀，與 E3 Appendix B（Forward TRIZ Solver）語意一致
 
 ### Negative / Trade-off
 - LLM 無法映射到 39 參數時，Explore 需回退到 Socratic 追問，延長 Diverge 時間
-- 新增 `derive_su_field_from_tc` 一次 LLM 呼叫（加約 2-4 秒/矛盾）
+- 每個 TC 識別後觸發兩次額外 LLM 呼叫（decompose + derive-sf），約增加 4-8 秒/矛盾
+- 派生產物回寫 DB，需管理父子一致性（父 TC 參數變更時子項標記為 stale）
 
 ### Neutral
-- 舊資料（DB 中 `type ∈ {PC, SF}` 的舊 row）仍可讀取；前端顯示加相容層，不強制 migration
-- Schema `sf_substance_1/2/field`、`physical_contradiction` 欄位保留（標 deprecated in Explore，仍用於 Create 派生結果快取於 memory）
+- 舊資料（DB 中無 `parent_contradiction_id` 的孤兒 PC/SF row）前端忽略不顯示，不強制 migration
+- Schema `sf_substance_1/2/field`、`physical_contradiction` 欄位保留，用於 SF 子項
 
 ## Implementation Plan
 
-| # | 模組 | 變更 |
-|---|---|---|
-| 1 | `backend/app/prompts/analyst.py` | 移除 TC/PC/SF 三選一分類段落；改為 TC-only prompt，若無法映射就回傳 `type=null + rationale` |
-| 2 | `backend/app/agents/analyst.py:formalize_contradiction` | 強制 `type="TC"` 或 reject；移除 PC downgrade 分支；新增 `derive_su_field_from_tc(TrizLookupRequest) -> SuFieldModel` |
-| 3 | `backend/app/agents/triz_solver.py:solve_triz_layered` | 入口加派生步驟：若 SF 欄位缺，呼叫 `derive_su_field_from_tc` 補上；若 PC 缺，L2 內呼 `decompose_tc_to_pcs` |
-| 4 | `backend/app/models/schemas.py` | `ContradictionFormalizeResponse.type: Literal["TC"]`；標註 `physical_contradiction/sf_*` 為 deprecated in Explore-output |
-| 5 | `src/pages/Create.tsx:287-292` | 移除 `cType === 'TC'/'SF'` 閘門，改為無條件傳 `improvingParam/worseningParam` |
-| 6 | Tests | 更新 `analyst` pilot + `triz-solver` pilot 測試情境；新增 TC→SF 派生 pilot |
-| 7 | Docs | E3 Appendix B 新增 "TC-Only Contract" 段；E5 API spec 更新 request schema；E3x interaction flow 更新 scenario 1 |
+| # | 模組 | 變更 | 狀態 |
+|---|---|---|---|
+| 1 | `backend/app/prompts/analyst.py` | 還原 TC-only prompt | ✅ Done |
+| 2 | `backend/app/agents/analyst.py` | 強制 `type="TC"` coercion；新增 `derive_su_field_from_tc()` | ✅ Done |
+| 3 | `backend/app/models/schemas.py` | 新增 `ContradictionDeriveSFRequest/Response` | ✅ Done |
+| 4 | `backend/app/routers/contradictions.py` | 新增 `POST /contradictions/{cid}/derive-sf` 端點 | ✅ Done |
+| 5 | `src/lib/api.ts` | 新增 `contradictionDeriveSF` API 函式 | ✅ Done |
+| 6 | `src/components/explore/ContradictionTab.tsx` | TC-only 頂層：移除扁平 PC/SF 區塊，新增 `maybeAutoDeriveChildSF`，`handleAiReidentify` 並行派生 PC+SF | ✅ Done |
+| 7 | `src/components/explore/DecomposedSFCard.tsx` | 新建 SF 子卡片元件（顯示 S1/S2/F/interaction/completeness） | ✅ Done |
+| 8 | `src/components/explore/DecomposedChildrenList.tsx` | 擴充支援 PC + SF 雙區塊顯示 | ✅ Done |
+| 9 | `src/pages/Create.tsx` | 移除 `cType` 互斥閘門，無條件傳 `improvingParam/worseningParam` | ✅ Done (prior) |
+| 10 | Tests | 更新相關測試情境 | Pending |
 
 ## Rollout
 
-- **Phase 1（即刻）**：前端 Fix 移除閘門 + 後端 formalize enforce TC-only
-- **Phase 2（同 PR）**：`derive_su_field_from_tc` + `solve_triz_layered` 入口派生
-- **Phase 3（次週）**：舊資料相容性驗證 + E3/E5 docs 更新
+- **Phase 1（已完成）**：前端 Fix 移除閘門 + 後端 formalize enforce TC-only
+- **Phase 2（已完成）**：`derive_su_field_from_tc` + `/derive-sf` 端點 + `decompose` 端點
+- **Phase 3（已完成）**：Plan B 前端重構 — 階層式 TC 樹狀結構 UI
+- **Phase 4（待辦）**：整合測試 + E3/E5 docs 更新

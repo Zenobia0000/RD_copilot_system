@@ -493,6 +493,7 @@ export interface AntiAnchorGenerateRequest {
   mission: string;
   current_constraints: string[];
   existing_alternatives?: string[];
+  socraticAnswers?: string[];
 }
 
 export interface AntiAnchorRouteResult {
@@ -567,6 +568,40 @@ export function trizSolve(body: TrizSolveRequest) {
 export function trizSolveLayered(body: SolveTrizLayeredRequest) {
   return request<SolveTrizLayeredResponse>("/triz/solve-layered", body, {
     timeoutMs: 480_000,
+  });
+}
+
+// ─── TRIZ Directed (v8) — Direction-centric flow ────────────────────────────
+// POST /triz/solve-directed  — single contradiction direction solver
+// POST /triz/consolidate     — cross-contradiction consolidation
+
+import type {
+  SolveDirectedRequest,
+  SolveDirectedResponse,
+  ConsolidateRequest,
+  ConsolidateResponse,
+} from "@/types/directedTriz";
+
+export type { SolveDirectedRequest, SolveDirectedResponse, ConsolidateRequest, ConsolidateResponse };
+export type {
+  ContradictionDirectionResult,
+  DirectionGroup,
+  DirectionScore,
+  DirectionSolution,
+  ConsolidationResult,
+  ConflictReport,
+  CompatibilityResult,
+} from "@/types/directedTriz";
+
+export function trizSolveDirected(body: SolveDirectedRequest) {
+  return request<SolveDirectedResponse>("/triz/solve-directed", body, {
+    timeoutMs: 480_000,
+  });
+}
+
+export function trizConsolidate(body: ConsolidateRequest) {
+  return request<ConsolidateResponse>("/triz/consolidate", body, {
+    timeoutMs: 300_000,
   });
 }
 
@@ -903,6 +938,33 @@ export function contradictionDecompose(
   body: ContradictionDecomposeRequest,
 ) {
   return request<ContradictionDecomposeResponse>(`/contradictions/${cid}/decompose`, body);
+}
+
+// ─── Contradiction SF Derivation (Plan B hierarchical tree) ────────────────
+
+export interface ContradictionDeriveSFRequest {
+  project_id: string;
+  contradiction_id: string;
+  engineering_statement: string;
+  improving_param: number;
+  worsening_param: number;
+  natural_description?: string;
+}
+
+export interface ContradictionDeriveSFResponse {
+  derived: boolean;
+  sf_substance_1?: string | null;
+  sf_substance_2?: string | null;
+  sf_field?: string | null;
+  sf_interaction?: string | null;
+  sf_completeness?: string | null;
+}
+
+export function contradictionDeriveSF(
+  cid: string,
+  body: ContradictionDeriveSFRequest,
+) {
+  return request<ContradictionDeriveSFResponse>(`/contradictions/${cid}/derive-sf`, body);
 }
 
 // ─── Assumption Extraction ─────────────────────────────────────────────────

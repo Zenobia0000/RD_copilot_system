@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft, Check, Plus, Sparkles, Loader2, AlertTriangle,
   ArrowRight, Flag, CheckCircle, XCircle, ChevronLeft, ChevronRight, Pencil, Trash2,
-  Shapes
+  Shapes, Clock, RefreshCw
 } from "lucide-react";
 import { AiButton } from "@/components/ui/ai-button";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
@@ -34,7 +34,7 @@ import { DEFAULT_MUST_CRITERIA, PRECAD_DIMENSIONS, SCAMPER_LABELS } from "@/type
 import type { MustCriterion } from "@/types/create";
 import type { InterfaceContractMap } from "@/types/generated/subsystem";
 import { EMPTY_INTERFACE_CONTRACT } from "@/types/generated/subsystem";
-
+import { useSocraticQuestions } from "@/hooks/api/useExplore";
 /**
  * Stage 4 of refactor/subsystem-interface-contracts: convert the manual-form
  * comma-separated "interfaces" text input into an InterfaceContractMap with
@@ -85,15 +85,19 @@ import {
 } from "@/hooks/api";
 import { useContradictions } from "@/hooks/api/useContradictions";
 import { useLayeredTrizSolutions } from "@/hooks/api/useLayeredTrizSolutions";
+import { useDirectedTrizSolutions } from "@/hooks/api/useDirectedTrizSolutions";
 import type { Contradiction } from "@/types/contradiction";
 import type { Json } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useTrackAssumptions } from "@/hooks/api/useTrack";
 import { useBrief, useConstraints, useKpis } from "@/hooks/api/useBrief";
-import { antiAnchorGenerate, trizSolveLayered, scamperTransform, riskAnalyze, mustEvaluate, validationPassportGenerate, scamperSpatialOverlay, spatialComponentOverride, spatialLearnedComponent } from "@/lib/api";
+import { antiAnchorGenerate, trizSolveLayered, trizSolveDirected, trizConsolidate, scamperTransform, riskAnalyze, mustEvaluate, validationPassportGenerate, scamperSpatialOverlay, spatialComponentOverride, spatialLearnedComponent } from "@/lib/api";
 import type { LayeredTrizSolution, TrizSeverity, AdoptedLayerId } from "@/types/layeredTriz";
+import type { ContradictionDirectionResult, ConsolidationResult } from "@/types/directedTriz";
 import { LayeredSolutionCard } from "@/components/create/LayeredSolutionCard";
 import type { AdoptionMode } from "@/components/create/LayeredSolutionCard";
+import { DirectionResultCard } from "@/components/create/DirectionResultCard";
+import { ConsolidationPanel } from "@/components/create/ConsolidationPanel";
 import type { LayeredConceptRouteMeta, LayeredLayerSnapshot } from "@/types/conceptRoute";
 import { hashContracts, isContractDriftedSinceConfirm } from "@/lib/subsystemHash";
 import { useQueryClient } from "@tanstack/react-query";
@@ -202,11 +206,18 @@ export default function Create() {
   // Supabase `layered_triz_solutions`. Hydrate on mount so page reload / tab
   // switch keeps the drill-down results instead of wiping in-memory state.
   const layeredQuery = useLayeredTrizSolutions(id);
+  // v8 persistence: directed solutions upserted by backend `/triz/solve-directed`
+  // live in Supabase `directed_triz_solutions`. Hydrate on mount so page reload
+  // keeps direction analysis results.
+  const directedQuery = useDirectedTrizSolutions(id);
 
   // ── Phase 1 context ──
   const { data: brief } = useBrief(id);
   const { data: briefConstraints = [] } = useConstraints(id);
   const { data: briefKpis = [] } = useKpis(id);
+
+  // Access Socratic Q&A materials
+  const { data: socraticQuestions = [] } = useSocraticQuestions(id);
 
   const briefMission = brief?.mission || '';
   const constraintStrings = useMemo(
@@ -220,6 +231,12 @@ export default function Create() {
   const contradictionDescs = useMemo(
     () => (contradictionsQuery.data || []).map((c) => c.engineeringStatement || c.naturalDescription || '').filter(Boolean),
     [contradictionsQuery.data],
+  );
+  const socraticQaStrings = useMemo(
+    () => socraticQuestions
+      .filter((q) => q.answer && q.answer.trim().length > 0)
+      .map((q) => `[${q.category}] Q: ${q.text} → A: ${q.answer}`),
+    [socraticQuestions],
   );
 
   // ── API Hooks: mutations ──
@@ -253,10 +270,146 @@ export default function Create() {
       setLayeredSolutions((prev) => ({ ...layeredQuery.data, ...prev }));
     }
   }, [layeredQuery.data]);
+  // v8: Hydrate directed TRIZ results from DB on mount / refetch.
+  // Local optimistic updates (from in-flight solve) win via `...prev` last.
+  useEffect(() => {
+    if (directedQuery.data && Object.keys(directedQuery.data).length > 0) {
+      setDirectedResults((prev) => ({ ...directedQuery.data, ...prev }));
+      // Mark DB-loaded results as 'done' in status map (don't overwrite in-flight states)
+      setDirectedStatusMap((prev) => {
+        const next = { ...prev };
+        for (const cid of Object.keys(directedQuery.data!)) {
+          if (!next[cid]) next[cid] = 'done';
+        }
+        return next;
+      });
+    }
+  }, [directedQuery.data]);
   // 9.2.4: Per-contradiction independent loading state
   const [solvingIds, setSolvingIds] = useState<Set<string>>(new Set());
   // WP 7.2: per-project quick_mode toggle. Defaults to false.
   const [trizQuickMode, setTrizQuickMode] = useState<boolean>(false);
+
+  // v8: Direction-centric TRIZ solver state
+  const [directedResults, setDirectedResults] = useState<Record<string, ContradictionDirectionResult>>({});
+  const [consolidationResult, setConsolidationResult] = useState<ConsolidationResult | null>(null);
+  const [directedStatusMap, setDirectedStatusMap] = useState<Record<string, 'pending' | 'solving' | 'done' | 'failed'>>({});
+  const [directedErrors, setDirectedErrors] = useState<Record<string, string>>({});
+  const [directedConsolidating, setDirectedConsolidating] = useState(false);
+
+  // v8: Directed TRIZ — solve only top-level TC contradictions
+  // PC and SF are derived internally by the backend from each TC
+  const handleDirectedSolveAll = async () => {
+    if (!id) return;
+    // Only process top-level TC contradictions (no parentContradictionId)
+    const contrs = (contradictionsQuery.data ?? []).filter(c => !c.parentContradictionId);
+    if (contrs.length === 0) {
+      toast.warning("尚未識別任何頂層 TC 矛盾，請先在「深度探索」階段完成矛盾識別");
+      return;
+    }
+    setAiLoading((p) => ({ ...p, directedTriz: true }));
+    // Initialize all as pending; clear previous results
+    const initStatus: Record<string, 'pending' | 'solving' | 'done' | 'failed'> = {};
+    contrs.forEach(c => { initStatus[c.id] = 'pending'; });
+    setDirectedStatusMap(initStatus);
+    setDirectedErrors({});
+    setDirectedResults({});
+    setConsolidationResult(null);
+
+    const results: ContradictionDirectionResult[] = [];
+    for (const c of contrs) {
+      try {
+        setDirectedStatusMap((prev) => ({ ...prev, [c.id]: 'solving' }));
+        const resp = await trizSolveDirected({
+          project_id: id,
+          contradiction_id: c.id,
+          natural_description: c.naturalDescription || c.engineeringStatement || '',
+          severity: (c.severity as 'fatal' | 'major' | 'minor' | 'unknown') || 'unknown',
+          improving_param: c.improvingParam ?? undefined,
+          worsening_param: c.worseningParam ?? undefined,
+        });
+        setDirectedResults((prev) => ({ ...prev, [c.id]: resp.result }));
+        setDirectedStatusMap((prev) => ({ ...prev, [c.id]: 'done' }));
+        results.push(resp.result);
+      } catch (err) {
+        console.error(`directed solve failed for ${c.id}:`, err);
+        const msg = err instanceof Error ? err.message : String(err);
+        setDirectedStatusMap((prev) => ({ ...prev, [c.id]: 'failed' }));
+        setDirectedErrors((prev) => ({ ...prev, [c.id]: msg.slice(0, 200) }));
+      }
+    }
+
+    // Auto-consolidate if we have ≥2 results
+    if (results.length >= 2) {
+      try {
+        setDirectedConsolidating(true);
+        const consResp = await trizConsolidate({ project_id: id, results });
+        setConsolidationResult(consResp.consolidation);
+        toast.success(`跨矛盾整併完成：${consResp.consolidation.status === 'compatible' ? '全部相容 ✓' : consResp.consolidation.status === 'resolved_with_swap' ? '替換後相容' : '存在衝突'}`);
+      } catch (err) {
+        console.error('consolidation failed:', err);
+        toast.error('跨矛盾整併失敗');
+      } finally {
+        setDirectedConsolidating(false);
+      }
+    } else if (results.length === 1) {
+      toast.success('已為 1 條矛盾產出方向分析');
+    } else {
+      toast.error('方向求解全部失敗');
+    }
+    setAiLoading((p) => ({ ...p, directedTriz: false }));
+  };
+
+  // v8: Per-contradiction retry for directed TRIZ solving
+  const handleDirectedSolveSingle = async (contradictionId: string) => {
+    if (!id) return;
+    const c = (contradictionsQuery.data ?? []).find(x => x.id === contradictionId);
+    if (!c) return;
+
+    setDirectedStatusMap((prev) => ({ ...prev, [c.id]: 'solving' }));
+    setDirectedErrors((prev) => { const n = { ...prev }; delete n[c.id]; return n; });
+
+    try {
+      const resp = await trizSolveDirected({
+        project_id: id,
+        contradiction_id: c.id,
+        natural_description: c.naturalDescription || c.engineeringStatement || '',
+        severity: (c.severity as 'fatal' | 'major' | 'minor' | 'unknown') || 'unknown',
+        improving_param: c.improvingParam ?? undefined,
+        worsening_param: c.worseningParam ?? undefined,
+      });
+
+      // Collect all done results for re-consolidation
+      let allResults: ContradictionDirectionResult[] = [];
+      setDirectedResults((prev) => {
+        const next = { ...prev, [c.id]: resp.result };
+        allResults = Object.values(next);
+        return next;
+      });
+      setDirectedStatusMap((prev) => ({ ...prev, [c.id]: 'done' }));
+      toast.success(`${(c.naturalDescription || c.id).slice(0, 30)} 重試成功`);
+
+      // Auto re-consolidate if ≥2 done results
+      if (allResults.length >= 2) {
+        try {
+          setDirectedConsolidating(true);
+          setConsolidationResult(null);
+          const consResp = await trizConsolidate({ project_id: id, results: allResults });
+          setConsolidationResult(consResp.consolidation);
+        } catch (err) {
+          console.error('re-consolidation failed:', err);
+        } finally {
+          setDirectedConsolidating(false);
+        }
+      }
+    } catch (err) {
+      console.error(`directed solve retry failed for ${c.id}:`, err);
+      const msg = err instanceof Error ? err.message : String(err);
+      setDirectedStatusMap((prev) => ({ ...prev, [c.id]: 'failed' }));
+      setDirectedErrors((prev) => ({ ...prev, [c.id]: msg.slice(0, 200) }));
+      toast.error(`${(c.naturalDescription || c.id).slice(0, 30)} 重試失敗`);
+    }
+  };
 
   // WBS 7.4: reusable per-contradiction lazy solve helper.
   const solveSingleContradiction = async (c: ExploreContradiction): Promise<[string, LayeredTrizSolution] | null> => {
@@ -331,7 +484,13 @@ export default function Create() {
   useEffect(() => { setLocalSubsystems(subsystemsQuery.data); }, [subsystemsQuery.data]);
   useEffect(() => { setLocalScamperVariants(scamperQuery.data); }, [scamperQuery.data]);
   useEffect(() => { setLocalAlternatives(alternativesQuery.data); }, [alternativesQuery.data]);
-  useEffect(() => {if (id) {contradictionsQuery.refetch(); }}, [id]);
+  // Refetch contradictions on mount AND when returning to this page
+  // (staleTime=30s means Explore deletions may not reflect immediately)
+  useEffect(() => {
+    if (id) {
+      contradictionsQuery.refetch();
+    }
+  }, [id, currentStep]);
 
   // Use local state as the working data (allows optimistic updates)
   const routes = localRoutes;
@@ -602,6 +761,7 @@ export default function Create() {
           ? constraintStrings
           : MOCK_MISSION.contradictions.map((c) => c.description),
         existing_alternatives: [],
+        socraticAnswers: socraticQaStrings,
       });
       // Optimistic: build display data from API result immediately
       const optimistic: AntiAnchorRoute[] = result.routes.map((route, i) => ({
@@ -1952,7 +2112,10 @@ export default function Create() {
     // v8: startPhaseA removed — L1 critic per-card replaces global Phase A scan
     const { state, confirmSeverity, forceContinue, retryBranch } = convergenceLoop;
     const contradictionsList = contradictionsQuery.data ?? [];
-    const canStart = !!id && contradictionsList.length > 0;
+    // v8: 方向導向分析只處理頂層 TC 矛盾，PC/SF 由後端內部從 TC 衍生
+    // 條件：無 parent + type 為 TC 或 null（舊資料可能沒設 type）
+    const topLevelTCs = contradictionsList.filter(c => !c.parentContradictionId && (!c.type || c.type === 'TC'));
+    const canStart = !!id && topLevelTCs.length > 0;
 
     const PATH_COLORS: Record<string, string> = { TC: 'bg-blue-100 text-blue-700', PC: 'bg-violet-100 text-violet-700', SF: 'bg-teal-100 text-teal-700' };
     const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
@@ -1973,158 +2136,101 @@ export default function Create() {
           />
         )}
 
-        {/* ── Section A: TRIZ candidate generation (v7/v8 layered drill-down) ── */}
-          <div className="space-y-3" data-testid="triz-layered-section">
-            {/* v8: ConvergenceDashboard removed from Tab ① — Phase A retired,
-                per-card L1 critic badge replaces global scan. Dashboard only
-                appears in Decision Hub after Phase B runs. */}
-
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <h3 className="text-sm font-semibold">分層 Drill-Down 診斷（L1 現象 / L2 根因 / L3 結構）</h3>
-                <p className="text-xs text-muted-foreground">
-                  對每條矛盾同時產出 L1 (TC) 表象解、L2 (PC) 根因解（條件觸發）與 L3 (SF) 結構旁路。
-                  差異面板建議採納路線，RD 選擇 `採納推薦` / `自訂組合` / `只採 L1`。
-                </p>
-              </div>
-              <label className="flex items-center gap-1.5 text-[11px] shrink-0">
-                <input
-                  type="checkbox"
-                  checked={trizQuickMode}
-                  onChange={(e) => setTrizQuickMode(e.target.checked)}
-                  className="h-3 w-3"
-                />
-                quick_mode（minor 跳 L2）
-              </label>
+        {/* ── v8 方向導向分析 (Direction-Centric Flow) ── */}
+        <div className="space-y-3" data-testid="triz-directed-section">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold">🎯 方向導向分析（TC → PC → SF → 方向分群 → 評分 → 整併）</h3>
+              <p className="text-xs text-muted-foreground">
+                對每條矛盾執行 TC/PC/SF 三路求解，合併所有解法後用 LLM 分群為「實現方向」，
+                評分選出 Top1/Top2，最後跨矛盾檢查方向相容性。
+              </p>
             </div>
-
-            {Object.keys(layeredSolutions).length === 0 ? (
-              <Card className="border-dashed border-2 border-primary/30">
-                <CardContent className="p-6 text-center space-y-3">
-                  <div className="mx-auto w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Sparkles className="h-5 w-5 text-primary" />
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {contradictionsList.length === 0
-                      ? '前置條件：需先完成矛盾識別'
-                      : `已識別 ${contradictionsList.length} 條矛盾，可產出分層 drill-down 診斷`}
-                  </p>
-                  <AiButton loading={!!aiLoading.trizGen} onClick={handleAiGenTriz} disabled={!canStart}>
-                    {aiLoading.trizGen ? '分層求解中...' : 'AI 產出分層 drill-down 診斷'}
-                  </AiButton>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {/* 9.2.3: Group results by parent TC with child PCs indented */}
-                {topLevelContradictions.map(tc => {
-                  const tcSolution = layeredSolutions[tc.id];
-                  const children = childrenMap.get(tc.id) ?? [];
-                  // Skip TCs that have no solution AND no child solutions
-                  // WBS 7.4: show all TCs (with lazy-solve buttons for unsolved ones)
-                  // Only skip if there's zero user interest and no results at all
-                  const hasAnySolution = tcSolution || children.some(ch => layeredSolutions[ch.id]);
-                  const hasAnySolving = solvingIds.has(tc.id) || children.some(ch => solvingIds.has(ch.id));
-                  void hasAnySolution; void hasAnySolving; // used below
-                  return (
-                    <div key={tc.id} className="space-y-2">
-                      {/* Parent TC header */}
-                      <p className="text-[11px] font-medium text-muted-foreground truncate" title={tc.engineeringStatement || tc.naturalDescription}>
-                        TC: {tc.engineeringStatement || tc.naturalDescription || tc.id.slice(0, 8)}
-                      </p>
-                      {/* TC loading indicator */}
-                      {solvingIds.has(tc.id) && !tcSolution && (
-                        <Card className="border-dashed border animate-pulse"><CardContent className="p-3 text-xs text-muted-foreground flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin" />求解中...</CardContent></Card>
-                      )}
-                      {/* WBS 7.4: per-row lazy solve button */}
-                      {!tcSolution && !solvingIds.has(tc.id) && (
-                        <Button size="sm" variant="outline" className="text-[11px] gap-1" onClick={() => handleSolveSingle(tc.id)}>
-                          <Sparkles className="h-3 w-3" />
-                          求解此矛盾
-                        </Button>
-                      )}
-                      {/* TC solve result */}
-                      {tcSolution && (
-                        <LayeredSolutionCard
-                          solution={tcSolution}
-                          onAdopt={(mode, layers) => handleLayeredAdopt(tcSolution, mode, layers)}
-                          onForceDeepenL2={() => handleForceDeepenL2(tc.id)}
-                          onEditDeepenLink={(edits) => {
-                            // WBS 8.7: re-solve with edited parameters
-                            console.log('editDeepenLink for', tc.id, edits);
-                            handleForceDeepenL2(tc.id);
-                          }}
-                        />
-                      )}
-                      {/* 9.2.3: Child PC results indented with category color bar */}
-                      {children.map(child => {
-                        const childSolution = layeredSolutions[child.id];
-                        const catColorMap: Record<string, string> = {
-                          time: 'border-l-blue-500',
-                          space: 'border-l-green-500',
-                          condition: 'border-l-orange-500',
-                          whole_part: 'border-l-purple-500',
-                        };
-                        const borderClass = catColorMap[child.separationCategory ?? ''] ?? 'border-l-gray-400';
-                        return (
-                          <div key={child.id} className={cn("ml-8 border-l-4 pl-4", borderClass)}>
-                            <p className="text-[10px] text-muted-foreground mb-1 truncate" title={child.derivedParameter ?? child.naturalDescription}>
-                              PC: {child.derivedParameter ?? child.naturalDescription}{child.separationCategory ? ` (${child.separationCategory})` : ''}
-                            </p>
-                            {solvingIds.has(child.id) && !childSolution && (
-                              <Card className="border-dashed border animate-pulse"><CardContent className="p-3 text-xs text-muted-foreground flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin" />求解中...</CardContent></Card>
-                            )}
-                            {/* WBS 7.4: per-child lazy solve */}
-                            {!childSolution && !solvingIds.has(child.id) && (
-                              <Button size="sm" variant="ghost" className="text-[10px] gap-1" onClick={() => handleSolveSingle(child.id)}>
-                                <Sparkles className="h-3 w-3" />
-                                求解此 PC
-                              </Button>
-                            )}
-                            {childSolution && (
-                              <LayeredSolutionCard
-                                solution={childSolution}
-                                onAdopt={(mode, layers) => handleLayeredAdopt(childSolution, mode, layers)}
-                                onForceDeepenL2={() => handleForceDeepenL2(child.id)}
-                                onEditDeepenLink={(edits) => {
-                                  console.log('editDeepenLink for', child.id, edits);
-                                  handleForceDeepenL2(child.id);
-                                }}
-                              />
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-                {/* Render standalone contradictions (no parent, not a parent themselves) that have solutions */}
-                {Object.entries(layeredSolutions)
-                  .filter(([cid]) => {
-                    const c = contradictionsList.find(x => x.id === cid);
-                    if (!c) return true; // unknown contradiction, show anyway
-                    // Already rendered as a top-level TC or as a child
-                    if (!c.parentContradictionId && topLevelContradictions.some(tc => tc.id === cid)) return false;
-                    if (c.parentContradictionId) return false;
-                    return true;
-                  })
-                  .map(([cid, lts]) => (
-                    <LayeredSolutionCard
-                      key={cid}
-                      solution={lts}
-                      onAdopt={(mode, layers) => handleLayeredAdopt(lts, mode, layers)}
-                      onForceDeepenL2={() => handleForceDeepenL2(cid)}
-                    />
-                  ))
-                }
-                <AiButton aiVariant="outline" size="sm" loading={!!aiLoading.trizGen} onClick={handleAiGenTriz} className="text-xs">
-                  重新產出分層診斷
-                </AiButton>
-              </div>
-            )}
           </div>
 
-        {/* v8: Phase A section retired — L1 critic per-card replaces global scan. */}
+          {Object.keys(directedStatusMap).length === 0 ? (
+            <Card className="border-dashed border-2 border-green-300">
+              <CardContent className="p-6 text-center space-y-3">
+                <div className="mx-auto w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                  <Sparkles className="h-5 w-5 text-green-600" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {topLevelTCs.length === 0
+                    ? '前置條件：需先在「深度探索」完成矛盾識別'
+                    : `已識別 ${topLevelTCs.length} 條頂層 TC 矛盾（共 ${contradictionsList.length} 條含衍生 PC/SF），可執行方向導向分析`}
+                </p>
+                <AiButton
+                  loading={!!aiLoading.directedTriz}
+                  onClick={handleDirectedSolveAll}
+                  disabled={!canStart}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {aiLoading.directedTriz ? '方向分析中...' : 'AI 方向導向分析（TC+PC+SF → 方向 → 整併）'}
+                </AiButton>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {/* Progressive Task List — 四態矛盾清單 */}
+              {topLevelTCs.map((c) => {
+                const status = directedStatusMap[c.id] || 'pending';
+                const result = directedResults[c.id];
+                const error = directedErrors[c.id];
+                const label = c.naturalDescription || c.engineeringStatement || c.id.slice(0, 12);
+                return (
+                  <div key={c.id} className="space-y-1">
+                    <div className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
+                      status === 'pending' && "bg-muted/50",
+                      status === 'solving' && "bg-blue-50 dark:bg-blue-950/30",
+                      status === 'done' && "bg-green-50/50 dark:bg-green-950/20",
+                      status === 'failed' && "bg-red-50 dark:bg-red-950/30",
+                    )}>
+                      {status === 'pending' && <Clock className="h-4 w-4 text-muted-foreground shrink-0" />}
+                      {status === 'solving' && <Loader2 className="h-4 w-4 animate-spin text-blue-600 shrink-0" />}
+                      {status === 'done' && <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />}
+                      {status === 'failed' && <XCircle className="h-4 w-4 text-red-500 shrink-0" />}
+                      <span className="flex-1 line-clamp-1">{label}</span>
+                      {status === 'failed' && (
+                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1" onClick={() => handleDirectedSolveSingle(c.id)}>
+                          <RefreshCw className="h-3 w-3" /> 重試
+                        </Button>
+                      )}
+                    </div>
+                    {status === 'done' && result && (
+                      <DirectionResultCard result={result} />
+                    )}
+                    {status === 'failed' && error && (
+                      <p className="text-xs text-red-500 px-3 pb-1">{error}</p>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Consolidation */}
+              {directedConsolidating && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-blue-50 dark:bg-blue-950/30 text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                  跨矛盾方向整併中...
+                </div>
+              )}
+              {consolidationResult && (
+                <ConsolidationPanel consolidation={consolidationResult} />
+              )}
+
+              <AiButton
+                aiVariant="outline"
+                size="sm"
+                loading={!!aiLoading.directedTriz}
+                onClick={handleDirectedSolveAll}
+                className="text-xs"
+              >
+                重新執行方向導向分析
+              </AiButton>
+            </div>
+          )}
+        </div>
+
         <KnowledgeRefsPanel refs={mockStepKnowledgeRefs[1] ?? []} />
       </div>
     );

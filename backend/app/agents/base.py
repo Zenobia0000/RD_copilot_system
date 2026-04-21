@@ -2,6 +2,15 @@
 
 Supports multiple LLM providers (Anthropic / OpenAI / Azure OpenAI / Gemini /
 Qwen) via config.llm_provider. LangGraph orchestration will be added in v0.2.
+
+This module provides two distinct call paths:
+1. Structured LLM calls (call_llm_structured, call_llm_json, call_llm_json_parsed)
+   — deterministic, JSON-safe, never touch web search.
+2. Web search calls (web_search_with_llm)
+   — free-form text + citations, provider-agnostic web search.
+
+The two paths share client singletons and retry logic but are otherwise
+completely independent to prevent web search from polluting JSON output.
 """
 
 from __future__ import annotations
@@ -11,6 +20,7 @@ import json
 import logging
 import re
 import time
+from dataclasses import dataclass, field
 from typing import Protocol, TypeVar
 
 from pydantic import BaseModel
@@ -222,6 +232,30 @@ def _get_openai_compat(provider: LLMProvider):
     return _openai_compat_clients[key]
 
 
+# ---------------------------------------------------------------------------
+# Provider routing helper — determines Anthropic vs OpenAI-compat
+# ---------------------------------------------------------------------------
+
+def _use_anthropic_path() -> bool:
+    """Check if the current provider config should route to Anthropic SDK.
+
+    Returns True for:
+    - LLM_PROVIDER=anthropic
+    - LLM_PROVIDER=azure_openai with base_url containing 'anthropic'
+    """
+    if settings.llm_provider == LLMProvider.ANTHROPIC:
+        return True
+    if settings.llm_provider == LLMProvider.AZURE_OPENAI:
+        base_url = (settings.azure_openai_base_url or "").lower()
+        if "anthropic" in base_url:
+            return True
+    return False
+
+
+# ---------------------------------------------------------------------------
+# Structured LLM calls (no web search — deterministic, JSON-safe)
+# ---------------------------------------------------------------------------
+
 def _call_anthropic(
     system: str,
     user_message: str,
@@ -238,6 +272,7 @@ def _call_anthropic(
         max_tokens=resolved,
         temperature=temperature,
         system=system,
+        cache_control={"type": "ephemeral"},
         messages=[{"role": "user", "content": user_message}],
     ) as stream:
         return stream.get_final_text()
@@ -284,21 +319,17 @@ def _call_provider(
     temperature: float = 0.3,
 ) -> str:
     """Route to the active LLM provider."""
-    use_anthropic = settings.llm_provider == LLMProvider.ANTHROPIC
-
-    # Azure OpenAI 但 base_url 指向 Anthropic → 走 Anthropic
-    if settings.llm_provider == LLMProvider.AZURE_OPENAI:
-        base_url = (settings.azure_openai_base_url or "").lower()
-        if "anthropic" in base_url:
-            use_anthropic = True
-
-    if use_anthropic:
-        return _call_anthropic(system, user_message, model=model, max_tokens=max_tokens, temperature=temperature)
+    if _use_anthropic_path():
+        return _call_anthropic(
+            system, user_message,
+            model=model, max_tokens=max_tokens, temperature=temperature,
+        )
     return _call_openai_compat(
         system, user_message,
         provider=settings.llm_provider,
         model=model, max_tokens=max_tokens, temperature=temperature,
     )
+
 
 # Keep backward-compatible accessor
 def get_llm():
@@ -307,7 +338,7 @@ def get_llm():
 
 
 # ---------------------------------------------------------------------------
-# LLM call functions
+# Structured LLM call functions (public API — never use web search)
 # ---------------------------------------------------------------------------
 
 
@@ -376,3 +407,423 @@ def call_llm_json_parsed(
     if isinstance(response_model, type) and issubclass(response_model, BaseModel):
         return response_model.model_validate(data)  # type: ignore[return-value]
     raise TypeError(f"response_model must be a Pydantic BaseModel subclass, got {response_model}")
+
+
+# ===========================================================================
+# Web Search — provider-agnostic web search with LLM synthesis
+# ===========================================================================
+#
+# Design: web search is intentionally separated from the structured LLM calls
+# above. The two paths share client singletons and retry logic, but:
+#
+# - Structured calls (call_llm_json, etc.) → deterministic, JSON-safe, no search
+# - Web search (web_search_with_llm) → free-form text + citations
+#
+# This prevents web search results from polluting JSON output. When you need
+# both search AND structured analysis, call them in sequence:
+#
+#   search = web_search_with_llm("market trends for X")
+#   analysis = call_llm_json(SYSTEM, f"Given: {search.text}\n\nAnalyze...")
+# ===========================================================================
+
+
+# ---------------------------------------------------------------------------
+# WebSearchResult — structured output for all web search calls
+# ---------------------------------------------------------------------------
+
+@dataclass
+class WebSearchResult:
+    """Result from a web-search-augmented LLM call.
+
+    Attributes:
+        text: LLM-synthesized answer (natural language, NOT JSON).
+        citations: De-duplicated list of source URLs with metadata.
+            Each citation dict has keys: url, title, cited_text.
+        search_queries_used: Number of web search queries the LLM made
+            (for cost/usage tracking).
+    """
+    text: str
+    citations: list[dict] = field(default_factory=list)
+    search_queries_used: int = 0
+
+    @property
+    def text_with_citations(self) -> str:
+        """Text with appended citation footnotes — ready for display."""
+        if not self.citations:
+            return self.text
+        parts = [self.text, "\n\n---\n**Sources:**"]
+        for i, cite in enumerate(self.citations, 1):
+            title = cite.get("title") or cite.get("url", "")
+            parts.append(f"{i}. [{title}]({cite['url']})")
+        return "\n".join(parts)
+
+    @property
+    def citation_urls(self) -> list[str]:
+        """Convenience: just the URLs for downstream processing."""
+        return [c["url"] for c in self.citations if c.get("url")]
+
+
+# ---------------------------------------------------------------------------
+# Anthropic web search helpers
+# ---------------------------------------------------------------------------
+
+def _extract_anthropic_text_blocks(content_blocks: list) -> str:
+    """Extract only TextBlock content from Anthropic response.
+
+    Skips ServerToolUseBlock, WebSearchToolResultBlock, etc. so the
+    returned string is clean LLM-generated text without tool artifacts.
+    """
+    parts = []
+    for block in content_blocks:
+        if getattr(block, "type", "") == "text" and hasattr(block, "text"):
+            parts.append(block.text)
+    return "".join(parts)
+
+
+def _extract_anthropic_citations(content_blocks: list) -> list[dict]:
+    """Extract citations from Anthropic response content blocks.
+
+    Two sources of citation data:
+    1. TextBlock.citations — inline citations the model placed within text
+    2. WebSearchToolResultBlock.content — raw search result URLs/titles
+    """
+    citations = []
+    seen_urls: set[str] = set()
+
+    for block in content_blocks:
+        # Source 1: TextBlock inline citations
+        if hasattr(block, "citations") and block.citations:
+            for cite in block.citations:
+                url = getattr(cite, "url", "")
+                if url and url not in seen_urls:
+                    seen_urls.add(url)
+                    citations.append({
+                        "url": url,
+                        "title": getattr(cite, "title", ""),
+                        "cited_text": getattr(cite, "cited_text", ""),
+                    })
+
+        # Source 2: WebSearchToolResultBlock search results
+        block_type = getattr(block, "type", "")
+        if block_type == "web_search_tool_result" and hasattr(block, "content"):
+            for result_block in (block.content or []):
+                url = getattr(result_block, "url", "")
+                if url and url not in seen_urls:
+                    seen_urls.add(url)
+                    citations.append({
+                        "url": url,
+                        "title": getattr(result_block, "title", ""),
+                        "cited_text": "",
+                    })
+
+    return citations
+
+
+def _get_anthropic_search_count(response) -> int:
+    """Extract the number of web search queries used from Anthropic usage metadata."""
+    if hasattr(response, "usage") and hasattr(response.usage, "server_tool_use"):
+        stu = response.usage.server_tool_use
+        return getattr(stu, "web_search_requests", 0)
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# OpenAI web search helpers
+# ---------------------------------------------------------------------------
+
+def _extract_openai_citations(response) -> list[dict]:
+    """Extract URL citations from OpenAI Responses API output.
+
+    The Responses API returns annotations with type="url_citation"
+    on output message content blocks.
+    """
+    citations = []
+    seen_urls: set[str] = set()
+    for item in response.output:
+        if not hasattr(item, "content"):
+            continue
+        for content_block in item.content:
+            if not hasattr(content_block, "annotations"):
+                continue
+            for ann in content_block.annotations:
+                if getattr(ann, "type", None) == "url_citation":
+                    url = getattr(ann, "url", "")
+                    if url and url not in seen_urls:
+                        seen_urls.add(url)
+                        citations.append({
+                            "url": url,
+                            "title": getattr(ann, "title", ""),
+                            "cited_text": "",
+                        })
+    return citations
+
+
+# ---------------------------------------------------------------------------
+# Provider-specific web search implementations
+# ---------------------------------------------------------------------------
+
+def _web_search_anthropic(
+    query: str,
+    *,
+    system: str,
+    model: str | None,
+    max_tokens: int | None,
+    temperature: float,
+    max_uses: int,
+) -> WebSearchResult:
+    """Web search via Anthropic's built-in web_search tool.
+
+    Uses messages.create (non-streaming) because streaming does not
+    support server-side tool use.
+    """
+    client = _get_anthropic()
+    resolved_model = model or settings.default_model
+    resolved_tokens = _resolve_anthropic_max_tokens(max_tokens)
+
+    logger.info(
+        "Anthropic web search: model=%s, max_uses=%d",
+        resolved_model, max_uses,
+    )
+
+    response = client.messages.create(
+        model=resolved_model,
+        max_tokens=resolved_tokens,
+        temperature=temperature,
+        system=system,
+        cache_control={"type": "ephemeral"},
+        messages=[{"role": "user", "content": query}],
+        tools=[{
+            "type": "web_search_20260209",
+            "name": "web_search",
+            "max_uses": max_uses,
+        }],
+    )
+
+    text = _extract_anthropic_text_blocks(response.content)
+    citations = _extract_anthropic_citations(response.content)
+    search_count = _get_anthropic_search_count(response)
+
+    logger.info(
+        "Anthropic web search complete: %d citations, %d searches used",
+        len(citations), search_count,
+    )
+
+    return WebSearchResult(
+        text=text,
+        citations=citations,
+        search_queries_used=search_count,
+    )
+
+
+def _web_search_openai(
+    query: str,
+    *,
+    system: str,
+    model: str | None,
+    provider: LLMProvider,
+) -> WebSearchResult:
+    """Web search via OpenAI Responses API (works for OpenAI and Azure OpenAI).
+
+    Uses the responses.create endpoint with tools=[{"type": "web_search"}].
+    """
+    client = _get_openai_compat(provider)
+    resolved_model = model or settings.default_model
+
+    logger.info(
+        "OpenAI web search: provider=%s, model=%s",
+        provider.value, resolved_model,
+    )
+
+    response = client.responses.create(
+        model=resolved_model,
+        tools=[{"type": "web_search"}],
+        instructions=system,
+        input=query,
+    )
+
+    text = response.output_text or ""
+    citations = _extract_openai_citations(response)
+
+    logger.info(
+        "OpenAI web search complete: %d citations", len(citations),
+    )
+
+    return WebSearchResult(
+        text=text,
+        citations=citations,
+        search_queries_used=1,  # Responses API doesn't expose exact count
+    )
+
+
+def _web_search_gemini(
+    query: str,
+    *,
+    system: str,
+    model: str | None,
+    max_tokens: int | None,
+    temperature: float,
+) -> WebSearchResult:
+    """Web search via Gemini's google_search grounding tool.
+
+    Uses the OpenAI-compatible chat completions endpoint with
+    a google_search function tool.
+    """
+    client = _get_openai_compat(LLMProvider.GEMINI)
+    resolved_model = model or settings.default_model
+
+    logger.info("Gemini web search (grounding): model=%s", resolved_model)
+
+    kwargs: dict = {
+        "model": resolved_model,
+        "temperature": temperature,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": query},
+        ],
+        "tools": [{"type": "function", "function": {"name": "google_search"}}],
+    }
+    if max_tokens is not None:
+        kwargs["max_tokens"] = max_tokens
+
+    response = client.chat.completions.create(**kwargs)
+    text = response.choices[0].message.content or ""
+
+    # Gemini doesn't return standardized citations in the OpenAI-compat format
+    return WebSearchResult(text=text, citations=[], search_queries_used=1)
+
+
+def _web_search_qwen(
+    query: str,
+    *,
+    system: str,
+    model: str | None,
+    max_tokens: int | None,
+    temperature: float,
+) -> WebSearchResult:
+    """Web search via Qwen's DashScope enable_search parameter.
+
+    Uses extra_body={"enable_search": True} on the OpenAI-compatible endpoint.
+    """
+    client = _get_openai_compat(LLMProvider.QWEN)
+    resolved_model = model or settings.default_model
+
+    logger.info("Qwen web search: model=%s", resolved_model)
+
+    kwargs: dict = {
+        "model": resolved_model,
+        "temperature": temperature,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": query},
+        ],
+        "extra_body": {"enable_search": True},
+    }
+    if max_tokens is not None:
+        kwargs["max_tokens"] = max_tokens
+
+    response = client.chat.completions.create(**kwargs)
+    text = response.choices[0].message.content or ""
+
+    # Qwen search results don't have standardized citation format
+    return WebSearchResult(text=text, citations=[], search_queries_used=1)
+
+
+# ---------------------------------------------------------------------------
+# Web search public API
+# ---------------------------------------------------------------------------
+
+_DEFAULT_SEARCH_SYSTEM = (
+    "You are a helpful research assistant. Provide accurate, "
+    "well-sourced answers based on web search results."
+)
+
+
+@retry_on_transient
+def web_search_with_llm(
+    query: str,
+    *,
+    system: str = _DEFAULT_SEARCH_SYSTEM,
+    model: str | None = None,
+    max_tokens: int | None = None,
+    temperature: float = 0.3,
+    max_search_uses: int = 3,
+) -> WebSearchResult:
+    """Perform a web search and return an LLM-synthesized answer with citations.
+
+    This is completely independent from the structured LLM calls above.
+    It automatically routes to the correct provider's web search API.
+
+    Args:
+        query: The user's question (sent as user message to the LLM).
+        system: System prompt guiding the LLM's synthesis of search results.
+        model: Override the default model. None = use settings.default_model.
+        max_tokens: Override max output tokens. None = provider default.
+        temperature: Sampling temperature. Default 0.3 for factual answers.
+        max_search_uses: Max number of web searches the LLM can perform
+            (Anthropic only; other providers ignore this).
+
+    Returns:
+        WebSearchResult with .text, .citations, and .search_queries_used.
+
+    Raises:
+        RuntimeError: If web search is disabled (WEB_SEARCH_ENABLED=false).
+        ValueError: If the current provider doesn't support web search.
+
+    Example:
+        # Simple search
+        result = web_search_with_llm("What did Trump say today?")
+        print(result.text)
+        for cite in result.citations:
+            print(f"  - {cite['title']}: {cite['url']}")
+
+        # Search + structured analysis (two-step pattern)
+        search = web_search_with_llm("2024 EV battery cost trends")
+        analysis = call_llm_json(SYSTEM, f"Given: {search.text}\\nAnalyze...")
+    """
+    if not settings.web_search_enabled:
+        raise RuntimeError(
+            "Web search is disabled. Set WEB_SEARCH_ENABLED=true in .env to enable."
+        )
+
+    provider = settings.llm_provider
+
+    if _use_anthropic_path():
+        return _web_search_anthropic(
+            query,
+            system=system,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            max_uses=max_search_uses,
+        )
+
+    if provider in (LLMProvider.OPENAI, LLMProvider.AZURE_OPENAI):
+        return _web_search_openai(
+            query,
+            system=system,
+            model=model,
+            provider=provider,
+        )
+
+    if provider == LLMProvider.GEMINI:
+        return _web_search_gemini(
+            query,
+            system=system,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+
+    if provider == LLMProvider.QWEN:
+        return _web_search_qwen(
+            query,
+            system=system,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+
+    raise ValueError(
+        f"Web search not supported for provider: {provider.value}. "
+        f"Supported: anthropic, openai, azure_openai, gemini, qwen."
+    )

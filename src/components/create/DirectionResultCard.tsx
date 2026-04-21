@@ -28,6 +28,7 @@ import type {
   ContradictionDirectionResult,
   DirectionGroup,
   DirectionScore,
+  DirectionSolution,
 } from '@/types/directedTriz';
 
 // ---------------------------------------------------------------------------
@@ -48,6 +49,51 @@ function PathIcon({ path }: { path: string }) {
     case 'SF': return <FlaskConical className="h-3 w-3 text-green-500" />;
     default: return <Zap className="h-3 w-3 text-muted-foreground" />;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Sub-component: expandable solution item
+// ---------------------------------------------------------------------------
+const SUGGESTION_TRUNCATE_LEN = 120;
+
+function SolutionItem({ sol }: { sol: DirectionSolution }) {
+  const long = sol.suggestion.length > SUGGESTION_TRUNCATE_LEN;
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="flex gap-1.5 items-start text-[11px] bg-muted/30 rounded p-1.5">
+      <PathIcon path={sol.path} />
+      <div className="flex-1 min-w-0">
+        <span className="font-medium">
+          {sol.principle_name || `#${sol.principle_number}`}
+        </span>
+        <p className={cn(
+          "text-muted-foreground whitespace-pre-wrap",
+          !expanded && long && "line-clamp-2",
+        )}>
+          {sol.suggestion}
+        </p>
+        {long && (
+          <button
+            type="button"
+            className="text-primary/70 hover:text-primary text-[10px] mt-0.5 cursor-pointer"
+            onClick={() => setExpanded((v) => !v)}
+          >
+            {expanded ? '收合 ▲' : '展開全文 ▼'}
+          </button>
+        )}
+        {sol.affected_modules.length > 0 && (
+          <div className="flex gap-1 mt-0.5 flex-wrap">
+            {sol.affected_modules.map((m) => (
+              <Badge key={m} variant="outline" className="text-[9px] px-1 py-0">
+                {m}
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -135,26 +181,11 @@ function DirectionBlock({
 
             {/* Solutions list */}
             <div className="space-y-1">
-              <div className="text-[11px] font-medium text-muted-foreground">解法清單</div>
+              <div className="text-[11px] font-medium text-muted-foreground">
+                解法清單（{direction.solutions.length}）
+              </div>
               {direction.solutions.map((sol, i) => (
-                <div key={i} className="flex gap-1.5 items-start text-[11px] bg-muted/30 rounded p-1.5">
-                  <PathIcon path={sol.path} />
-                  <div className="flex-1 min-w-0">
-                    <span className="font-medium">
-                      {sol.principle_name || `#${sol.principle_number}`}
-                    </span>
-                    <p className="text-muted-foreground line-clamp-2">{sol.suggestion}</p>
-                    {sol.affected_modules.length > 0 && (
-                      <div className="flex gap-1 mt-0.5 flex-wrap">
-                        {sol.affected_modules.map((m) => (
-                          <Badge key={m} variant="outline" className="text-[9px] px-1 py-0">
-                            {m}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <SolutionItem key={i} sol={sol} />
               ))}
             </div>
           </CardContent>

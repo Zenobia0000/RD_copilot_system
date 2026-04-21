@@ -347,35 +347,14 @@ def formalize_contradiction(req: ContradictionFormalizeRequest) -> Contradiction
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
 
-    # ADR-007: Explore stage emits TC-only. If LLM claims type="TC" but
-    # params are missing/invalid, treat as "cannot map" — surface type=null
-    # + rationale so the UI can drive a Socratic follow-up. Do NOT downgrade
-    # to PC/SF (those are derived at the Create stage from a valid TC).
+    # ADR-007: Explore stage always emits TC. Coerce any non-TC to null.
     raw_type = data.get("type")
     ip = data.get("improving_param")
     wp = data.get("worsening_param")
-    tc_params_valid = (
-        isinstance(ip, int) and isinstance(wp, int) and 1 <= ip <= 39 and 1 <= wp <= 39
-    )
 
-    if raw_type == "TC" and not tc_params_valid:
-        logger.warning(
-            "Formalize: type=TC but params invalid (ip=%s, wp=%s) — coercing to type=null",
-            ip, wp,
-        )
-        data["type"] = None
-        data["improving_param"] = None
-        data["worsening_param"] = None
-        if not data.get("rationale"):
-            data["rationale"] = (
-                "LLM returned type=TC but could not supply two valid TRIZ 39 "
-                "parameters (1–39). Please refine the contradiction description "
-                "or answer Socratic follow-ups to surface a measurable trade-off."
-            )
-    elif raw_type not in ("TC", None):
-        # ADR-007: PC/SF are no longer valid Explore outputs.
-        logger.warning(
-            "Formalize: LLM returned deprecated type=%r — coercing to type=null with rationale",
+    if raw_type != "TC" and raw_type is not None:
+        logger.info(
+            "Formalize: LLM returned type=%r — ADR-007 coerces to TC-only; setting type=null",
             raw_type,
         )
         data["type"] = None
@@ -383,26 +362,28 @@ def formalize_contradiction(req: ContradictionFormalizeRequest) -> Contradiction
         data["worsening_param"] = None
         if not data.get("rationale"):
             data["rationale"] = (
-                f"LLM attempted to classify as {raw_type}, but ADR-007 restricts "
-                "Explore output to Technical Contradictions (TC) only. Please "
-                "refine the description so two opposing TRIZ 39 parameters can "
-                "be identified; PC/SF views are derived automatically at the "
-                "Create stage."
+                f"LLM classified as '{raw_type}' but Explore stage requires TC "
+                "(ADR-007). PC/SF are derived automatically from TC. "
+                "Please refine the description to surface a measurable trade-off."
             )
-
-    # Always zero out deprecated PC/SF payload from Explore response
-    # (keep the field shape for schema compat, but never emit stale data).
-    for k in (
-        "physical_contradiction",
-        "pc_attribute_a",
-        "pc_attribute_not_a",
-        "sf_substance_1",
-        "sf_substance_2",
-        "sf_field",
-        "sf_interaction",
-        "sf_completeness",
-    ):
-        data[k] = None
+    elif raw_type == "TC":
+        tc_params_valid = (
+            isinstance(ip, int) and isinstance(wp, int) and 1 <= ip <= 39 and 1 <= wp <= 39
+        )
+        if not tc_params_valid:
+            logger.warning(
+                "Formalize: type=TC but params invalid (ip=%s, wp=%s) — coercing to type=null",
+                ip, wp,
+            )
+            data["type"] = None
+            data["improving_param"] = None
+            data["worsening_param"] = None
+            if not data.get("rationale"):
+                data["rationale"] = (
+                    "LLM returned type=TC but could not supply two valid TRIZ 39 "
+                    "parameters (1–39). Please refine the contradiction description "
+                    "or answer Socratic follow-ups to surface a measurable trade-off."
+                )
 
     return ContradictionFormalizeResponse(**data)
 

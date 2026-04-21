@@ -1370,28 +1370,51 @@ def _score_directions(
 
     llm_scores = {s.get("direction_id"): s for s in data.get("scores", [])}
 
-    # Weight: tool_support * 2 + feasibility * 1.5 + cost_difficulty * 1
-    WEIGHT_TOOL = 2.0
-    WEIGHT_FEASIBILITY = 1.5
-    WEIGHT_COST = 1.0
+    # Weights (revised):
+    #   - cross_tool_consensus rewards REAL cross-tool agreement (max 3),
+    #     not raw solution count, so over-clustering can no longer game the score.
+    #   - feasibility is the single most important practical signal.
+    #   - cost_difficulty is a tie-breaker.
+    #   - A small over-cluster penalty discourages mega-buckets without forbidding
+    #     legitimately rich directions.
+    WEIGHT_CONSENSUS = 3.0   # 0..3 → 0..9 contribution
+    WEIGHT_FEASIBILITY = 2.0  # 0..10 → 0..20 contribution
+    WEIGHT_COST = 1.0         # 0..10 → 0..10 contribution
+    OVER_CLUSTER_THRESHOLD = 6  # solutions per direction
+    OVER_CLUSTER_PENALTY = 1.5  # points deducted per solution above threshold
 
     scores: list[DirectionScore] = []
     for d in directions:
-        tool_support = d.tc_count + d.pc_count + d.sf_count
+        raw_count = d.tc_count + d.pc_count + d.sf_count
+        # Cross-tool consensus: how many of TC/PC/SF actually contributed?
+        # Caps at 3 so a direction with "5 TC + 0 PC + 0 SF" scores LOWER than
+        # one with "1 TC + 1 PC + 1 SF" — true triangulation beats stacking.
+        consensus = (
+            (1 if d.tc_count > 0 else 0)
+            + (1 if d.pc_count > 0 else 0)
+            + (1 if d.sf_count > 0 else 0)
+        )
+
         llm = llm_scores.get(d.direction_id, {})
         feasibility = float(llm.get("feasibility", 5.0))
         cost_difficulty = float(llm.get("cost_difficulty", 5.0))
         rationale = str(llm.get("score_rationale", ""))
 
+        over_cluster = max(0, raw_count - OVER_CLUSTER_THRESHOLD)
+        penalty = over_cluster * OVER_CLUSTER_PENALTY
+
         weighted = (
-            tool_support * WEIGHT_TOOL
+            consensus * WEIGHT_CONSENSUS
             + feasibility * WEIGHT_FEASIBILITY
             + cost_difficulty * WEIGHT_COST
+            - penalty
         )
 
+        # Keep `tool_support` field name for schema back-compat, but store
+        # the consensus value (0-3) — that's the meaningful signal now.
         scores.append(DirectionScore(
             direction_id=d.direction_id,
-            tool_support=tool_support,
+            tool_support=consensus,
             feasibility=feasibility,
             cost_difficulty=cost_difficulty,
             weighted_total=round(weighted, 2),
@@ -1574,16 +1597,42 @@ def _persist_directed_solution(project_id: str, result: ContradictionDirectionRe
 def _check_compatibility(
     results: list[ContradictionDirectionResult],
 ) -> list[CompatibilityResult]:
-    """LLM checks pairwise compatibility among Top1 directions."""
+    """LLM checks pairwise compatibility among Top1 directions.
+
+    Feeds the LLM structured engineering facts (affected modules, secondary
+    contradictions, solution count breakdown) so compatibility is judged on
+    concrete overlap, not on direction-name similarity.
+    """
     top1s = [(r.contradiction_id, r.top1) for r in results if r.top1]
     if len(top1s) <= 1:
-        return []  # Single or no direction → always compatible
+        return []
 
-    top1_block = "\n".join(
-        f"- 矛盾 {cid}: 方向「{d.direction_name}」— {d.direction_summary}"
-        for cid, d in top1s
-    )
+    def _format_direction(cid: str, d: DirectionGroup) -> str:
+        # Collect every affected module across the solutions inside this
+        # direction — this is the key "where does it touch" signal the LLM
+        # needs. Dedupe while preserving order.
+        modules: list[str] = []
+        for s in d.solutions:
+            for m in (s.affected_modules or []):
+                if m not in modules:
+                    modules.append(m)
+        secondary: list[str] = []
+        for s in d.solutions:
+            for c in (s.secondary_contradictions or []):
+                if c and c not in secondary:
+                    secondary.append(c)
+        modules_line = ", ".join(modules) if modules else "(none stated)"
+        secondary_line = "; ".join(secondary) if secondary else "(none stated)"
+        return (
+            f"- Contradiction {cid}\n"
+            f"    direction: {d.direction_name}\n"
+            f"    summary: {d.direction_summary}\n"
+            f"    affected_modules: {modules_line}\n"
+            f"    secondary_contradictions: {secondary_line}\n"
+            f"    tool_breakdown: TC={d.tc_count} PC={d.pc_count} SF={d.sf_count}"
+        )
 
+    top1_block = "\n".join(_format_direction(cid, d) for cid, d in top1s)
     prompt = COMPATIBILITY_CHECK_PROMPT.format(top1_block=top1_block)
 
     try:
@@ -1664,23 +1713,34 @@ def _try_swap_top2(
 def _generate_conflict_report(
     conflicts: list[CompatibilityResult],
     results: list[ContradictionDirectionResult],
+    status: str = "conflict",
 ) -> tuple[ConflictReport, str]:
-    """Generate a structured conflict report + integration advice via LLM."""
+    """Generate a structured conflict report + integration advice via LLM.
+
+    `status` is one of "compatible" | "resolved_with_swap" | "conflict" and
+    controls whether the LLM writes suggestions (conflict path) or purely
+    integrative text (compatible / swapped paths).
+    """
     conflicts_block = "\n".join(
-        f"- {c.direction_a} (矛盾 {c.contradiction_a_id}) vs {c.direction_b} (矛盾 {c.contradiction_b_id}): {c.reason}"
+        f"- {c.direction_a} (contradiction {c.contradiction_a_id}) "
+        f"vs {c.direction_b} (contradiction {c.contradiction_b_id}) "
+        f"[{c.conflict_type or 'unspecified'}]: {c.reason}"
         for c in conflicts
-    )
+    ) or "(none)"
 
     all_directions_block = "\n".join(
-        f"- 矛盾 {r.contradiction_id}: Top1={r.top1.direction_name if r.top1 else '?'}, Top2={r.top2.direction_name if r.top2 else '?'}"
+        f"- {r.contradiction_id}: "
+        f"Top1={r.top1.direction_name if r.top1 else '?'}, "
+        f"Top2={r.top2.direction_name if r.top2 else '?'}"
         for r in results
     )
 
     prompt = CONFLICT_REPORT_PROMPT.format(
-        conflicts_block=conflicts_block or "（無衝突）",
+        status=status,
+        conflicts_block=conflicts_block,
         all_directions_block=all_directions_block,
     )
-
+    
     try:
         raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt, model=settings.fast_model)
         data = json.loads(raw) if raw and raw.strip() else {}
@@ -1716,7 +1776,7 @@ def consolidate_solutions(req: ConsolidateRequest) -> ConsolidateResponse:
     if not incompatible:
         # All compatible — build adopted map + integration advice
         adopted = {r.contradiction_id: r.top1 for r in results if r.top1}
-        _, integration_advice = _generate_conflict_report([], results)
+        _, integration_advice = _generate_conflict_report([], results, status="compatible")
         return ConsolidateResponse(
             consolidation=ConsolidationResult(
                 status="compatible",
@@ -1731,7 +1791,7 @@ def consolidate_solutions(req: ConsolidateRequest) -> ConsolidateResponse:
 
     if not remaining:
         # Swap resolved the conflict
-        _, integration_advice = _generate_conflict_report([], results)
+        _, integration_advice = _generate_conflict_report([], results, status="resolved_with_swap")
         return ConsolidateResponse(
             consolidation=ConsolidationResult(
                 status="resolved_with_swap",
@@ -1742,7 +1802,7 @@ def consolidate_solutions(req: ConsolidateRequest) -> ConsolidateResponse:
         )
 
     # Step 3: Still conflicting — generate report
-    report, integration_advice = _generate_conflict_report(remaining, results)
+    report, integration_advice = _generate_conflict_report(remaining, results, status="conflict")
     return ConsolidateResponse(
         consolidation=ConsolidationResult(
             status="conflict",

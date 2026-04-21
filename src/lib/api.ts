@@ -940,6 +940,33 @@ export function contradictionDecompose(
   return request<ContradictionDecomposeResponse>(`/contradictions/${cid}/decompose`, body);
 }
 
+// ─── Contradiction SF Derivation (Plan B hierarchical tree) ────────────────
+
+export interface ContradictionDeriveSFRequest {
+  project_id: string;
+  contradiction_id: string;
+  engineering_statement: string;
+  improving_param: number;
+  worsening_param: number;
+  natural_description?: string;
+}
+
+export interface ContradictionDeriveSFResponse {
+  derived: boolean;
+  sf_substance_1?: string | null;
+  sf_substance_2?: string | null;
+  sf_field?: string | null;
+  sf_interaction?: string | null;
+  sf_completeness?: string | null;
+}
+
+export function contradictionDeriveSF(
+  cid: string,
+  body: ContradictionDeriveSFRequest,
+) {
+  return request<ContradictionDeriveSFResponse>(`/contradictions/${cid}/derive-sf`, body);
+}
+
 // ─── Assumption Extraction ─────────────────────────────────────────────────
 
 export interface AssumptionExtractRequest {

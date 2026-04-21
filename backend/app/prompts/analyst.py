@@ -584,11 +584,14 @@ Each field: 50–150 words.
 
 CONTRADICTION_FORMALIZATION = """\
 <task>
-Convert the following natural-language contradiction into a TRIZ Technical
-Contradiction (TC) — i.e. a pair of opposing TRIZ 39 engineering parameters.
-Per ADR-007, the Explore stage emits TC-only. PC (Physical Contradiction)
-and SF (Su-Field) representations are DERIVED from the TC at the Create stage,
-NOT classified here.
+Formalize the following natural-language contradiction as a TRIZ Technical
+Contradiction (TC). A TC means "improving one engineering parameter worsens
+another". You MUST map the description onto TWO distinct TRIZ 39 engineering
+parameters (integers 1–39).
+
+If you absolutely CANNOT identify two distinct parameters, set type = null
+and explain in `rationale`. Do NOT output PC or SF — those are derived
+separately from the TC in a later step.
 </task>
 
 <context>
@@ -614,34 +617,24 @@ and evaluation ambiguity.
 </input>
 
 <instructions>
-1. Produce a one-sentence `engineering_statement` describing the contradiction.
-2. Attempt to map the contradiction onto TWO distinct TRIZ 39 engineering
-   parameters (1–39):
-   - `improving_param` = the parameter the designer wants to improve.
-   - `worsening_param` = the parameter that degrades as a side-effect.
-3. Success path: set `type = "TC"`, fill both integers (1–39), assign
-   `confidence` ∈ [0,1], and leave `rationale` null.
-4. Failure path: if you CANNOT confidently identify two distinct TRIZ 39
-   parameters, set `type = null`, leave both params null, and write a
-   `rationale` explaining what is ambiguous or missing so the UI can
-   launch a Socratic follow-up. DO NOT fall back to PC or SF here —
-   those layers are derived downstream from a valid TC.
-5. Lower `confidence` if clarified insights reveal ambiguity in problem
-   definition or evaluation criteria.
-
-Note: `physical_contradiction`, `pc_attribute_a/not_a`, and `sf_*` fields
-in the output schema are DEPRECATED at this stage (kept only for
-backward-compat with legacy readers). Always return them as null.
+1. Produce a one-sentence `engineering_statement` describing the contradiction
+   as a trade-off between two engineering parameters.
+2. Map onto TWO distinct TRIZ 39 engineering parameters (1–39).
+   Set `improving_param` and `worsening_param` as integers.
+3. If you CANNOT confidently map to two parameters, set `type = null`,
+   leave params null, and write a `rationale` explaining why.
+4. Assign `confidence` ∈ [0,1]. Lower it if insights reveal ambiguity.
+5. Leave all PC and SF fields as null — they are derived in a later step.
 </instructions>
 
 <output_schema>
 {{
   "engineering_statement": "...",
-  "improving_param": 14,
-  "worsening_param": 1,
   "type": "TC",
   "confidence": 0.8,
   "rationale": null,
+  "improving_param": 14,
+  "worsening_param": 1,
   "physical_contradiction": null,
   "pc_attribute_a": null,
   "pc_attribute_not_a": null,
@@ -653,17 +646,30 @@ backward-compat with legacy readers). Always return them as null.
 }}
 </output_schema>
 
+<example_tc>
+{{
+  "engineering_statement": "Increasing motor torque (power) worsens heat dissipation (temperature)",
+  "type": "TC",
+  "confidence": 0.85,
+  "rationale": null,
+  "improving_param": 21,
+  "worsening_param": 17,
+  "physical_contradiction": null,
+  "pc_attribute_a": null, "pc_attribute_not_a": null,
+  "sf_substance_1": null, "sf_substance_2": null, "sf_field": null,
+  "sf_interaction": null, "sf_completeness": null
+}}
+</example_tc>
+
 <example_cannot_map>
 {{
   "engineering_statement": "The system must be both creative and reproducible during ideation workshops",
-  "improving_param": null,
-  "worsening_param": null,
   "type": null,
   "confidence": 0.25,
-  "rationale": "Cannot map 'creative' vs 'reproducible' onto two distinct TRIZ 39 engineering parameters — both sides describe team/process outcomes rather than quantifiable engineering attributes. Recommend Socratic follow-up to extract a measurable trade-off (e.g. idea novelty vs evaluation consistency).",
+  "rationale": "Cannot confidently map to two TRIZ 39 parameters — both sides describe team/process outcomes rather than quantifiable engineering attributes. Recommend Socratic follow-up to extract a measurable trade-off.",
+  "improving_param": null, "worsening_param": null,
   "physical_contradiction": null,
-  "pc_attribute_a": null,
-  "pc_attribute_not_a": null,
+  "pc_attribute_a": null, "pc_attribute_not_a": null,
   "sf_substance_1": null, "sf_substance_2": null, "sf_field": null,
   "sf_interaction": null, "sf_completeness": null
 }}

@@ -58,6 +58,31 @@ export interface ContradictionDirectionResult {
 
 // --- Cross-contradiction consolidation ---
 
+// ---- Conflict type enum (matches backend ConflictType literal) ----
+export type ConflictType =
+  | 'physical_state'
+  | 'intervention_clash'
+  | 'module_overlap'
+  | 'secondary_loop'
+  | 'none';
+
+// ---- Structured conflict-resolution suggestion types ----
+export type ConflictSuggestionType =
+  | 'relax_constraint'
+  | 'hybrid'
+  | 'rd_manual_choice'
+  | 'architectural_reset';
+
+export type ConflictSuggestionCost = 'low' | 'medium' | 'high';
+
+export interface ConflictSuggestion {
+  type: ConflictSuggestionType;
+  target_contradictions: string[];
+  description: string;
+  cost: ConflictSuggestionCost;
+}
+
+// ---- Updated interfaces ----
 export interface CompatibilityResult {
   direction_a: string;
   direction_b: string;
@@ -65,11 +90,12 @@ export interface CompatibilityResult {
   contradiction_b_id: string;
   compatible: boolean;
   reason: string;
+  conflict_type: ConflictType;        // 新增
 }
 
 export interface ConflictReport {
   conflicting_pairs: CompatibilityResult[];
-  suggestions: string[];
+  suggestions: ConflictSuggestion[];   // 從 string[] 升級
 }
 
 export type ConsolidationStatus = 'compatible' | 'resolved_with_swap' | 'conflict';

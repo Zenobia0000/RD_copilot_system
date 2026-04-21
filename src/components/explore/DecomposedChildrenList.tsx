@@ -1,11 +1,12 @@
 /**
- * DecomposedChildrenList — container for multiple child PCs under a parent TC.
+ * DecomposedChildrenList — container for child PCs + SFs under a parent TC.
  *
  * Refs:
+ *   - plans/plan-b-hierarchical-tc-tree.md §4.5
  *   - docs/e2e/module/Explore_TC_to_MultiPC_Decomposition_WBS.md §6.3
  *
- * Renders a collapsible, indented list of `DecomposedPCCard`s sorted by
- * separation category (time → space → condition → whole_part). This is a
+ * Renders a collapsible, indented list of `DecomposedPCCard`s (sorted by
+ * separation category) and `DecomposedSFCard`s under a parent TC. This is a
  * pure presentational container — no data fetching.
  */
 
@@ -15,18 +16,21 @@ import { cn } from '@/lib/utils';
 import type { ExploreContradiction } from '@/types/explore';
 import type { SeparationCategory } from '@/lib/triz/separationPrinciples';
 import { DecomposedPCCard } from './DecomposedPCCard';
+import { DecomposedSFCard } from './DecomposedSFCard';
 
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
 export interface DecomposedChildrenListProps {
-  /** All child PC rows (already filtered by parent_contradiction_id). */
+  /** All child rows (PC + SF, already filtered by parent_contradiction_id). */
   children: ExploreContradiction[];
   /** Parent TC id, for reference / empty-state labeling. */
   parentId: string;
   onEditPC?: (pc: ExploreContradiction) => void;
   onDeletePC?: (pcId: string) => void;
+  onEditSF?: (sf: ExploreContradiction) => void;
+  onDeleteSF?: (sfId: string) => void;
   /** Whether the list is expanded by default. Default true. */
   defaultExpanded?: boolean;
   /** When true, show a yellow banner indicating parent TC has changed. */
@@ -60,17 +64,23 @@ export function DecomposedChildrenList({
   parentId,
   onEditPC,
   onDeletePC,
+  onEditSF,
+  onDeleteSF,
   defaultExpanded = true,
   stale,
   onReDecompose,
 }: DecomposedChildrenListProps): JSX.Element | null {
-  const [expanded, setExpanded] = useState(defaultExpanded);
+  const [pcExpanded, setPcExpanded] = useState(defaultExpanded);
 
-  if (children.length === 0) {
+  // Separate PC and SF children
+  const pcChildren = children.filter((c) => c.type === 'PC');
+  const sfChildren = children.filter((c) => c.type === 'SF');
+
+  if (pcChildren.length === 0 && sfChildren.length === 0) {
     return null;
   }
 
-  const sorted = [...children].sort((a, b) => {
+  const sortedPCs = [...pcChildren].sort((a, b) => {
     const ra = categoryRank(a.separationCategory);
     const rb = categoryRank(b.separationCategory);
     if (ra !== rb) return ra - rb;
@@ -84,20 +94,6 @@ export function DecomposedChildrenList({
       data-parent-id={parentId}
       className="pl-8 border-l-2 border-dashed border-muted ml-2 space-y-2"
     >
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
-        aria-expanded={expanded}
-        data-testid="decomposed-children-toggle"
-      >
-        {expanded ? (
-          <ChevronUp className="h-3 w-3" />
-        ) : (
-          <ChevronDown className="h-3 w-3" />
-        )}
-        <span>已深挖 {sorted.length} 個物理矛盾</span>
-      </button>
       {stale && (
         <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-md bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-xs">
           <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
@@ -112,16 +108,58 @@ export function DecomposedChildrenList({
           )}
         </div>
       )}
-      <div className={cn('space-y-2', !expanded && 'hidden')}>
-        {sorted.map((child) => (
-          <DecomposedPCCard
-            key={child.id}
-            pc={child}
-            onEdit={onEditPC}
-            onDelete={onDeletePC}
-          />
-        ))}
-      </div>
+
+      {/* ── PC section ── */}
+      {sortedPCs.length > 0 && (
+        <>
+          <button
+            type="button"
+            onClick={() => setPcExpanded((v) => !v)}
+            className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+            aria-expanded={pcExpanded}
+            data-testid="decomposed-pc-toggle"
+          >
+            {pcExpanded ? (
+              <ChevronUp className="h-3 w-3" />
+            ) : (
+              <ChevronDown className="h-3 w-3" />
+            )}
+            <span>已深挖 {sortedPCs.length} 個物理矛盾</span>
+          </button>
+          <div className={cn('space-y-2', !pcExpanded && 'hidden')}>
+            {sortedPCs.map((child) => (
+              <DecomposedPCCard
+                key={child.id}
+                pc={child}
+                onEdit={onEditPC}
+                onDelete={onDeletePC}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ── SF section ── */}
+      {sfChildren.length > 0 && (
+        <>
+          <div
+            className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground"
+            data-testid="decomposed-sf-label"
+          >
+            <span>衍生 {sfChildren.length} 個 Su-Field 問題</span>
+          </div>
+          <div className="space-y-2">
+            {sfChildren.map((child) => (
+              <DecomposedSFCard
+                key={child.id}
+                sf={child}
+                onEdit={onEditSF}
+                onDelete={onDeleteSF}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

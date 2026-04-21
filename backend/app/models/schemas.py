@@ -950,7 +950,7 @@ class ContradictionFormalizeResponse(BaseModel):
     sf_field: str | None = None  # field type (mechanical/thermal/electrical/...)
     sf_interaction: str | None = None  # useful/harmful/insufficient/missing
     sf_completeness: str | None = None  # complete/incomplete/harmful_complete
-    # ADR-007: Explore output restricted to "TC"; null = cannot map.
+    # Explore stage always emits TC; null = cannot map to TC.
     type: Literal["TC"] | None = "TC"
     confidence: float = Field(ge=0, le=1, default=0.7)
     # LLM explanation when type is None (cannot map to TC).
@@ -1464,6 +1464,30 @@ class ContradictionDecomposeResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Su-Field derivation from a confirmed TC (Plan B — hierarchical TC tree)
+# ---------------------------------------------------------------------------
+
+class ContradictionDeriveSFRequest(BaseModel):
+    """Derive a child Su-Field model from a parent TC at Explore stage."""
+    project_id: str
+    contradiction_id: str
+    engineering_statement: str
+    improving_param: int = Field(..., ge=1, le=39)
+    worsening_param: int = Field(..., ge=1, le=39)
+    natural_description: str = ""
+
+
+class ContradictionDeriveSFResponse(BaseModel):
+    """Su-Field derivation result — None-safe fields for graceful degradation."""
+    derived: bool = Field(..., description="Whether SF derivation succeeded")
+    sf_substance_1: str | None = None
+    sf_substance_2: str | None = None
+    sf_field: str | None = None
+    sf_interaction: str | None = None
+    sf_completeness: str | None = None
+
+
+# ---------------------------------------------------------------------------
 # Step 5a-D: Directed TRIZ Solver — Direction-centric flow
 #
 # Replaces the layered drill-down (L1/L2/L3) paradigm with a simpler
@@ -1517,24 +1541,109 @@ class ContradictionDirectionResult(BaseModel):
     top2_score: DirectionScore | None = None
 
 
+# ---- Conflict type enum (locked vocabulary for compat check) ----
+# "none" is valid for the compatible case so every pair carries a tag,
+# which keeps FE rendering logic uniform (no null-branch).
+ConflictType = Literal[
+    "physical_state",
+    "intervention_clash",
+    "module_overlap",
+    "secondary_loop",
+    "none",
+]
+
+# ---- Structured conflict-resolution suggestion types ----
+ConflictSuggestionType = Literal[
+    "relax_constraint",
+    "hybrid",
+    "rd_manual_choice",
+    "architectural_reset",
+]
+ConflictSuggestionCost = Literal["low", "medium", "high"]
+
+
 class CompatibilityResult(BaseModel):
-    """兩個方向之間的相容性檢查結果。"""
+    """兩個方向之間的相容性檢查結果。
+
+    WBS v2: adds `conflict_type` so FE / reports can group and visualise
+    conflicts by kind. Default "none" keeps construction ergonomic for
+    the compatible path.
+    """
     direction_a: str = ""
     direction_b: str = ""
     contradiction_a_id: str = ""
     contradiction_b_id: str = ""
     compatible: bool = True
     reason: str = ""
+    conflict_type: ConflictType = "none"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_legacy(cls, values):
+        """Backfill `conflict_type` for rows persisted before this field existed.
+
+        Older `directed_triz_solutions` rows carry {compatible, reason} but no
+        conflict_type. Deriving on read keeps analytics clean without a DB
+        migration: compatible → "none", otherwise "intervention_clash" as a
+        neutral placeholder until RD re-runs the check.
+        """
+        if isinstance(values, dict) and "conflict_type" not in values:
+            values["conflict_type"] = (
+                "none" if values.get("compatible", True) else "intervention_clash"
+            )
+        return values
+
+
+class ConflictSuggestion(BaseModel):
+    """One structured suggestion the LLM emits when directions conflict.
+
+    Replaces the old `list[str]` shape. Each suggestion carries enough
+    metadata that FE can render decision-oriented UI (filter by type,
+    sort by cost, highlight which contradictions it targets).
+    """
+    type: ConflictSuggestionType = "rd_manual_choice"
+    target_contradictions: list[str] = Field(default_factory=list)
+    description: str = ""
+    cost: ConflictSuggestionCost = "medium"
 
 
 class ConflictReport(BaseModel):
-    """衝突報告。"""
+    """衝突報告。
+
+    WBS v2: `suggestions` upgraded from `list[str]` to `list[ConflictSuggestion]`.
+    A validator accepts both shapes so persisted rows / older clients do
+    not break — plain strings are coerced to a minimal ConflictSuggestion
+    with type="rd_manual_choice" and cost="medium".
+    """
     conflicting_pairs: list[CompatibilityResult] = Field(default_factory=list)
-    suggestions: list[str] = Field(default_factory=list)
+    suggestions: list[ConflictSuggestion] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_legacy_suggestions(cls, values):
+        """Back-compat for rows where suggestions was stored as list[str]."""
+        if not isinstance(values, dict):
+            return values
+        raw = values.get("suggestions")
+        if not isinstance(raw, list):
+            return values
+        coerced: list = []
+        for item in raw:
+            if isinstance(item, str):
+                coerced.append({
+                    "type": "rd_manual_choice",
+                    "target_contradictions": [],
+                    "description": item,
+                    "cost": "medium",
+                })
+            else:
+                coerced.append(item)
+        values["suggestions"] = coerced
+        return values
 
 
 class ConsolidationResult(BaseModel):
-    """跨矛盾整併結果（§三 輸出）。"""
+    """跨矛盾整併結果(§三 輸出)。"""
     status: Literal["compatible", "resolved_with_swap", "conflict"] = "compatible"
     adopted_directions: dict[str, DirectionGroup] = Field(default_factory=dict)
     conflict_report: ConflictReport | None = None

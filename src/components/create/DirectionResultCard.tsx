@@ -14,6 +14,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   ChevronDown,
   ChevronUp,
   Trophy,
@@ -22,6 +29,7 @@ import {
   Zap,
   Wrench,
   FlaskConical,
+  ArrowUpDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type {
@@ -40,6 +48,29 @@ const SEVERITY_BADGE: Record<string, { label: string; variant: 'destructive' | '
   minor: { label: '次要', variant: 'secondary' },
   unknown: { label: '未知', variant: 'outline' },
 };
+
+// ---------------------------------------------------------------------------
+// Sort mode config
+// ---------------------------------------------------------------------------
+type SortMode = 'weighted_total' | 'feasibility' | 'cost_difficulty' | 'tool_support';
+
+const SORT_OPTIONS: { value: SortMode; label: string }[] = [
+  { value: 'weighted_total', label: '加權總分' },
+  { value: 'feasibility', label: '可行性優先' },
+  { value: 'cost_difficulty', label: '成本難度優先' },
+  { value: 'tool_support', label: '工具共識優先' },
+];
+
+/** Return the score value for a given sort mode. cost_difficulty is ascending (lower = better). */
+function getSortValue(score: DirectionScore | undefined, mode: SortMode): number {
+  if (!score) return mode === 'cost_difficulty' ? Infinity : -Infinity;
+  switch (mode) {
+    case 'weighted_total': return score.weighted_total;
+    case 'feasibility': return score.feasibility;
+    case 'cost_difficulty': return -score.cost_difficulty; // negate so ascending sort = lower cost first
+    case 'tool_support': return score.tool_support;
+  }
+}
 
 // Path icon helper
 function PathIcon({ path }: { path: string }) {
@@ -200,10 +231,11 @@ function DirectionBlock({
 // ---------------------------------------------------------------------------
 export function DirectionResultCard({ result }: DirectionResultCardProps) {
   const [cardOpen, setCardOpen] = useState(true);
+  const [sortMode, setSortMode] = useState<SortMode>('weighted_total');
   const sev = SEVERITY_BADGE[result.severity] ?? SEVERITY_BADGE.unknown;
   const scoreMap = new Map(result.scored_directions.map((s) => [s.direction_id, s]));
 
-  // Determine rank for each direction
+  // Determine rank for each direction (system recommendation — stays constant)
   const top1Id = result.top1?.direction_id;
   const top2Id = result.top2?.direction_id;
   const getRank = (d: DirectionGroup): 'top1' | 'top2' | 'other' => {
@@ -212,15 +244,18 @@ export function DirectionResultCard({ result }: DirectionResultCardProps) {
     return 'other';
   };
 
-  // Sort: top1 first, top2 second, rest by score desc
+  // Sort: when default mode, keep top1 first → top2 second → rest by score desc.
+  // Otherwise sort purely by chosen metric (top1/top2 badges still shown but order follows metric).
   const sorted = [...result.all_directions].sort((a, b) => {
-    const ra = getRank(a);
-    const rb = getRank(b);
-    const order = { top1: 0, top2: 1, other: 2 };
-    if (order[ra] !== order[rb]) return order[ra] - order[rb];
-    const sa = scoreMap.get(a.direction_id)?.weighted_total ?? 0;
-    const sb = scoreMap.get(b.direction_id)?.weighted_total ?? 0;
-    return sb - sa;
+    if (sortMode === 'weighted_total') {
+      const ra = getRank(a);
+      const rb = getRank(b);
+      const order = { top1: 0, top2: 1, other: 2 };
+      if (order[ra] !== order[rb]) return order[ra] - order[rb];
+    }
+    const sa = getSortValue(scoreMap.get(a.direction_id), sortMode);
+    const sb = getSortValue(scoreMap.get(b.direction_id), sortMode);
+    return sb - sa; // descending (getSortValue already negates cost_difficulty)
   });
 
   return (
@@ -248,6 +283,23 @@ export function DirectionResultCard({ result }: DirectionResultCardProps) {
         </CollapsibleTrigger>
         <CollapsibleContent>
           <CardContent className="p-3 pt-0 space-y-2">
+            {/* Sort mode selector */}
+            <div className="flex items-center gap-2">
+              <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
+                <SelectTrigger className="h-7 w-[160px] text-[11px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SORT_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value} className="text-[11px]">
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {sorted.map((dir) => (
               <DirectionBlock
                 key={dir.direction_id}

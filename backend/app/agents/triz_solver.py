@@ -1289,18 +1289,27 @@ def _cluster_directions(
     natural_description: str,
     solutions: list[DirectionSolution],
 ) -> list[DirectionGroup]:
-    """Step E: LLM clusters all solutions by implementation direction."""
+    """Step E: LLM clusters all solutions by implementation direction.
+
+    Uses index-based clustering: the LLM only returns solution_indices per
+    direction, and the code rebuilds full DirectionGroup objects from the
+    original solutions list.  Includes orphan reconciliation so no solution
+    is ever silently dropped.
+    """
     if not solutions:
         return []
 
+    # --- Build numbered solutions block for the prompt ---
     solutions_block = "\n".join(
-        f"- [{s.path}] #{s.principle_number or '-'} {s.principle_name}: {s.suggestion}"
-        for s in solutions
+        f"[{i}] [{s.path}] #{s.principle_number or '-'} {s.principle_name}: {s.suggestion}"
+        for i, s in enumerate(solutions)
     )
 
     prompt = DIRECTION_CLUSTER_PROMPT.format(
         natural_description=natural_description,
         solutions_block=solutions_block,
+        total_count=len(solutions),
+        max_index=len(solutions) - 1,
     )
 
     try:
@@ -1308,38 +1317,78 @@ def _cluster_directions(
         data = json.loads(raw) if raw and raw.strip() else {}
     except (json.JSONDecodeError, Exception) as exc:
         logger.warning("_cluster_directions LLM failed: %s", exc)
-        # Fallback: put everything in one direction
-        return [DirectionGroup(
-            direction_id="DIR-1",
-            direction_name="綜合方向",
-            direction_summary="所有解法歸為同一方向（LLM 分群失敗）",
-            solutions=solutions,
-            tc_count=sum(1 for s in solutions if s.path == "TC"),
-            pc_count=sum(1 for s in solutions if s.path == "PC"),
-            sf_count=sum(1 for s in solutions if s.path == "SF"),
-        )]
+        return [_make_fallback_group(solutions, "所有解法歸為同一方向（LLM 分群失敗）")]
 
+    # --- Parse index-based directions from LLM response ---
     directions: list[DirectionGroup] = []
+    assigned_indices: set[int] = set()
+
     for d in data.get("directions", []):
         try:
-            group = DirectionGroup.model_validate(d)
+            indices = [int(idx) for idx in d.get("solution_indices", [])]
+            # Filter out-of-range indices
+            valid_indices = [i for i in indices if 0 <= i < len(solutions)]
+            if not valid_indices:
+                logger.debug("Direction %s has no valid indices, skipping", d.get("direction_id"))
+                continue
+
+            group_solutions = [solutions[i] for i in valid_indices]
+            assigned_indices.update(valid_indices)
+
+            group = DirectionGroup(
+                direction_id=d.get("direction_id", f"DIR-{len(directions)+1}"),
+                direction_name=d.get("direction_name", "未命名方向"),
+                direction_summary=d.get("direction_summary", ""),
+                solutions=group_solutions,
+                # Force-recompute counts from actual solutions — never trust LLM
+                tc_count=sum(1 for s in group_solutions if s.path == "TC"),
+                pc_count=sum(1 for s in group_solutions if s.path == "PC"),
+                sf_count=sum(1 for s in group_solutions if s.path == "SF"),
+            )
             directions.append(group)
         except Exception as exc:
             logger.debug("Dropping malformed direction: %s (%s)", d, exc)
 
+    # --- Orphan reconciliation: catch any solutions the LLM forgot ---
+    all_indices = set(range(len(solutions)))
+    orphan_indices = all_indices - assigned_indices
+
+    if orphan_indices:
+        orphan_solutions = [solutions[i] for i in sorted(orphan_indices)]
+        logger.warning(
+            "_cluster_directions: %d orphan solution(s) not assigned by LLM "
+            "(indices=%s). Creating fallback direction.",
+            len(orphan_solutions),
+            sorted(orphan_indices),
+        )
+        directions.append(DirectionGroup(
+            direction_id=f"DIR-{len(directions)+1}",
+            direction_name="Unclustered solutions",
+            direction_summary="LLM 分群未涵蓋的解法，系統自動收容。",
+            solutions=orphan_solutions,
+            tc_count=sum(1 for s in orphan_solutions if s.path == "TC"),
+            pc_count=sum(1 for s in orphan_solutions if s.path == "PC"),
+            sf_count=sum(1 for s in orphan_solutions if s.path == "SF"),
+        ))
+
     # If LLM returned empty, fallback
     if not directions:
-        return [DirectionGroup(
-            direction_id="DIR-1",
-            direction_name="綜合方向",
-            direction_summary="所有解法歸為同一方向",
-            solutions=solutions,
-            tc_count=sum(1 for s in solutions if s.path == "TC"),
-            pc_count=sum(1 for s in solutions if s.path == "PC"),
-            sf_count=sum(1 for s in solutions if s.path == "SF"),
-        )]
+        return [_make_fallback_group(solutions, "所有解法歸為同一方向")]
 
     return directions
+
+
+def _make_fallback_group(solutions: list[DirectionSolution], summary: str) -> DirectionGroup:
+    """Create a single fallback DirectionGroup containing all solutions."""
+    return DirectionGroup(
+        direction_id="DIR-1",
+        direction_name="綜合方向",
+        direction_summary=summary,
+        solutions=solutions,
+        tc_count=sum(1 for s in solutions if s.path == "TC"),
+        pc_count=sum(1 for s in solutions if s.path == "PC"),
+        sf_count=sum(1 for s in solutions if s.path == "SF"),
+    )
 
 
 def _score_directions(
@@ -1534,7 +1583,6 @@ def solve_triz_directed(req: SolveDirectedRequest) -> SolveDirectedResponse:
             len(pc_resp.suggestions),
             len(sf_resp.suggestions),
         )
-
         # --- Step E: Cluster ---
         all_directions = _cluster_directions(req.natural_description, all_solutions)
 

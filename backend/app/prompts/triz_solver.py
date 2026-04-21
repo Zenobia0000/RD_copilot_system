@@ -650,6 +650,9 @@ You are a TRIZ methodology expert. Below are all candidate solutions produced by
 three TRIZ tools (TC contradiction matrix, PC separation principles, SF 76 standard
 solutions) for the SAME contradiction. Your job is to cluster them into distinct
 **implementation directions** so an R&D engineer can compare and pick one.
+
+IMPORTANT: Each solution has an index number (e.g. [0], [1], [2]). You MUST
+assign EVERY index to exactly one direction. Do NOT skip any solution.
 </task>
 
 <definition_of_direction>
@@ -720,58 +723,37 @@ over-clustering. Split it.
    whether your "shared mechanism" claim actually holds at the physics level.
 
 6. For each direction:
-   - List every original solution that belongs to it (verbatim, do not rewrite).
-   - Count tc_count / pc_count / sf_count.
+   - List `solution_indices`: the integer indices of the solutions that belong.
    - Write a 1-2 sentence direction_summary that names the physical mechanism
      AND the intervention point explicitly. Do NOT use vague phrases like
      "improves NVH" — say HOW (e.g. "reduces mesh stiffness ripple by reshaping
      tooth flank micro-geometry, leaving gear macro-geometry untouched").
 
-7. Self-check before responding:
+7. COMPLETENESS CHECK — before responding, verify:
+   - Collect all indices you assigned → they MUST equal {total_count} items.
+   - Every index from 0 to {max_index} must appear exactly once.
+   - If any index is missing, assign it to the best-fit direction or create a
+     new singleton direction for it.
    - Does any direction contain solutions whose mechanisms differ? → split it.
    - Does any direction_name match the forbidden examples? → rename or split.
    - Did you produce only 1-2 directions for a 10+ solution input? → split more.
 </instructions>
 
 <output_schema>
+Return ONLY valid JSON. Do NOT include solution objects — only their indices.
 {{
   "directions": [
     {{
       "direction_id": "DIR-1",
-      "direction_name": "齒面微觀修形 (@齒輪嚙合面)",
-      "direction_summary": "透過齒面微觀修形（導程鼓形、齒頂/齒根修緣、齒形修整）降低負載傳遞誤差與嚙合剛度波動。齒輪宏觀幾何、材料與系統架構皆不變動。",
-      "solutions": [
-        {{
-          "path": "PC",
-          "principle_number": null,
-          "principle_name": "空間分離: 局部品質",
-          "suggestion": "<此處逐字複製原始建議文字，不得改寫>",
-          "separation_principle": "空間分離",
-          "affected_modules": ["齒輪對", "齒面微觀修形"],
-          "secondary_contradictions": []
-        }},
-        {{
-          "path": "PC",
-          "principle_number": null,
-          "principle_name": "整體與局部分離: 梯度漸變",
-          "suggestion": "<此處逐字複製原始建議文字，不得改寫>",
-          "separation_principle": "整體與局部分離",
-          "affected_modules": ["齒輪齒面工程", "熱處理"],
-          "secondary_contradictions": []
-        }},
-        {{
-          "path": "SF",
-          "principle_number": "1.2.2",
-          "principle_name": "Introduce Modified S1 or S2",
-          "suggestion": "<此處逐字複製原始建議文字，不得改寫>",
-          "separation_principle": null,
-          "affected_modules": ["gear pair", "manufacturing tolerance stack-up"],
-          "secondary_contradictions": []
-        }}
-      ],
-      "tc_count": 0,
-      "pc_count": 2,
-      "sf_count": 1
+      "direction_name": "Tooth reshaping (@gear mesh)",
+      "direction_summary": "透過齒面微觀修形降低負載傳遞誤差與嚙合剛度波動。",
+      "solution_indices": [0, 3, 7]
+    }},
+    {{
+      "direction_id": "DIR-2",
+      "direction_name": "CLD insertion (@housing)",
+      "direction_summary": "在軸承座與殼體間插入約束阻尼層吸收結構振動。",
+      "solution_indices": [1, 5]
     }}
   ]
 }}

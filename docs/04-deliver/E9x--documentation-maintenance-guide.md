@@ -64,7 +64,7 @@ OpenAPI 文件由 FastAPI runtime 自動產出，不再手寫 `openapi.yaml`。
 | `docs/02-design/_MOC.md` | MOC | Tech Lead | 2026-04-15 |
 | `docs/03-develop/_MOC.md` | MOC | Tech Lead | 2026-04-15 |
 | `docs/04-deliver/_MOC.md` | MOC | DevOps TBD | 2026-04-15 |
-| `docs/_domain-knowledge/_MOC.md` | MOC | Tech Lead | 2026-04-15 |
+| `docs/_domain-knowledge/DK-00--index.md` | MOC | Tech Lead | 2026-04-21 |
 
 ### 00-discover
 
@@ -86,9 +86,9 @@ OpenAPI 文件由 FastAPI runtime 自動產出，不再手寫 `openapi.yaml`。
 |------|------|-------|----------|
 | `docs/01-define/E2--statement-of-work.md` | Essential | Tech Lead | 2026-04-15 |
 | `docs/01-define/E3--architecture-and-design.md` | Essential | Tech Lead | 2026-04-15 |
-| `docs/01-define/E3x--wbs-development-plan.md` | Supplement | Tech Lead | 2026-04-15 |
-| `docs/01-define/E3x--wbs-development-plan-addendum.md` | Supplement | Tech Lead | 2026-04-15 |
-| `docs/01-define/E3x--system-interaction-flow.md` | Supplement | Backend | 2026-04-15 |
+| `docs/01-define/E3--wbs-development-plan.md` | WBS Primary | Tech Lead | 2026-04-21 |
+| `docs/01-define/wbs-workstreams/README.md` | WBS Index | Tech Lead | 2026-04-21 |
+| `docs/01-define/E3--system-interaction-flow.md` | Flow | Backend | 2026-04-15 |
 | `docs/01-define/adrs/ADR-001-baas-first-architecture.md` | ADR | Tech Lead | 2026-04-15 |
 | `docs/01-define/adrs/ADR-002-server-side-business-logic.md` | ADR | Tech Lead | 2026-04-15 |
 | `docs/01-define/adrs/ADR-003-llm-service-hardening.md` | ADR | Backend | 2026-04-15 |
@@ -149,13 +149,13 @@ OpenAPI 文件由 FastAPI runtime 自動產出，不再手寫 `openapi.yaml`。
 
 | 路徑 | 類型 | Owner | 上次審查 |
 |------|------|-------|----------|
-| `docs/_domain-knowledge/SCAMPER_TRIZ.md` | Methodology | Tech Lead | 2026-04-15 |
-| `docs/_domain-knowledge/KT_Robust_決策框架.md` | Methodology | Tech Lead | 2026-04-15 |
-| `docs/_domain-knowledge/E3x--methodology-overview.md` | Methodology | Tech Lead | 2026-04-15 |
-| `docs/_domain-knowledge/VC00--workflow-manual.md` | Methodology | Tech Lead | 2026-04-15 |
-| `docs/_domain-knowledge/VC01--development-workflow-cookbook.md` | Methodology | Tech Lead | 2026-04-15 |
-| `docs/_domain-knowledge/系統規格定義書.md` | Methodology | Tech Lead | 2026-04-15 |
-| `docs/_domain-knowledge/系統性決策流程.md` | Methodology | Tech Lead | 2026-04-15 |
+| `docs/_domain-knowledge/DK-01--design-philosophy-and-process.md` | Methodology | Tech Lead | 2026-04-21 |
+| `docs/_domain-knowledge/DK-02--triz-scamper-divergence-engine.md` | Methodology | Tech Lead | 2026-04-21 |
+| `docs/_domain-knowledge/DK-03--kt-decision-framework.md` | Methodology | Tech Lead | 2026-04-21 |
+| `docs/_domain-knowledge/DK-04--data-model-and-gate-reference.md` | Methodology | Tech Lead | 2026-04-21 |
+| `docs/01-define/VC00--workflow-manual.md` | Process | Tech Lead | 2026-04-15 |
+| `docs/01-define/VC01--development-workflow-cookbook.md` | Process | Tech Lead | 2026-04-15 |
+| `docs/02-design/specs/E5x--system-spec.md` | Spec | Tech Lead | 2026-04-15 |
 
 **總計**：約 60+ 份（不計 `_superseded/`）。Ownership 盤點 TBD — Tech Writer TBD by 2026-Q3 TBD。
 
@@ -194,7 +194,7 @@ docs/
 ├── 02-design/                   # WHAT TO BUILD — E5, E6x, E7x
 ├── 03-develop/                  # DOES CODE WORK — GR6x, migrations
 ├── 04-deliver/                  # SHIP & OPERATE — E8, E9, E9x, operations
-├── _domain-knowledge/           # SCAMPER / TRIZ / KT 方法論
+├── _domain-knowledge/           # DK-01~04 MECE 方法論知識庫
 ├── _gap-analysis/
 ├── _meeting-minutes/
 └── _superseded/

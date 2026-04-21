@@ -21,7 +21,7 @@
 
 **進入條件 / Entry Criteria**：
 
-- [ ] 所有 WBS workstream（WS-A…WS-H）狀態 = Done 或有明確 Waiver（見 [E3x WBS](../01-define/E3x--wbs-development-plan.md) + [addendum](../01-define/E3x--wbs-development-plan-addendum.md)）
+- [ ] 所有 WBS workstream（WS-A…WS-H）狀態 = Done 或有明確 Waiver（見 [E3 WBS](../01-define/E3--wbs-development-plan.md) + [workstreams](../01-define/wbs-workstreams/README.md)）
 - [ ] main 分支 CI 最近 3 次 build 連續綠燈
 - [ ] 所有已標為 P0 的 assumption 皆有 verification_stage ≠ 'unplanned'
 - [ ] Code freeze 公告已發佈（日期 TBD — PM TBD by TBD）

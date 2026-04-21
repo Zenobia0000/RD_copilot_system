@@ -84,7 +84,7 @@
   - [`01-define/E2--statement-of-work.md`](../01-define/E2--statement-of-work.md)（Approved, TR2 passed）
   - [`01-define/E3--architecture-and-design.md`](../01-define/E3--architecture-and-design.md)（Approved, TR3 passed；含 Appendix A–E：Forward Subsystem Discovery / Forward TRIZ Solver / Reverse Anti-Anchor / State Machine / TRIZ→SCAMPER Flow）
   - ADR-001..005 見 [`01-define/adrs/`](../01-define/adrs/)
-- 相關互動流：[`E3x--system-interaction-flow`](../01-define/E3x--system-interaction-flow.md)
+- 相關互動流：[`E3x--system-interaction-flow`](../01-define/E3--system-interaction-flow.md)
 - Gate：**已通過 TR2、TR3**
 - 待補：E4 ERD（Planned — [`01-define/diagrams/E4--06_erd`](../01-define/) TBD — <owner TBD> by <YYYY-MM-DD TBD>）
 
@@ -100,8 +100,8 @@
 
 ### A4 開發與驗證（Build & Verify）— 對應 DEVELOP TR6/TR7
 - WBS：
-  - 主 WBS（release 軸）[`E3x--wbs-development-plan`](../01-define/E3x--wbs-development-plan.md) — WS-A API 對齊 / WS-B E2E 差距 / WS-C Mock→Live
-  - Addendum（feature 軸）[`E3x--wbs-development-plan-addendum`](../01-define/E3x--wbs-development-plan-addendum.md) — WS-D..H
+  - 主 WBS（release 軸）[`E3--wbs-development-plan`](../01-define/E3--wbs-development-plan.md)
+  - Feature workstreams：[`wbs-workstreams/`](../01-define/wbs-workstreams/README.md) — WS-D..H
 - Migrations：[`03-develop/migrations/`](../03-develop/) (001 MUST criteria, 002 KPI current value, 003 evidence entries)
 - Gate：**TR6 / TR7 尚未啟動（`.`）**；GR6 / GR7 模板待填
 - RACI：DEV R、TL/QA A

@@ -26,7 +26,7 @@
 
 ### 2.1 Manual E2E
 - [ ] **E2E-01** `explore_pc_decomposition.md` 完整腳本通過
-- [ ] **E2E-02** Forward TRIZ 流程（Brief → Contradictions → Layered drill-down → Solutions）（[E3x system-interaction-flow](../01-define/E3x--system-interaction-flow.md) Scenario 1）
+- [ ] **E2E-02** Forward TRIZ 流程（Brief → Contradictions → Layered drill-down → Solutions）（[E3x system-interaction-flow](../01-define/E3--system-interaction-flow.md) Scenario 1）
 - [ ] **E2E-03** Reverse Anti-Anchor 流程（Scenario 2）
 - [ ] **E2E-04** Pre-CAD 審查流程（Scenario 3，含 six-dim scoring + citations + signatures）
 
@@ -51,7 +51,7 @@
 
 ## §4 Cross-Module Integration
 
-參考 [E3x--system-interaction-flow.md](../01-define/E3x--system-interaction-flow.md)。
+參考 [E3x--system-interaction-flow.md](../01-define/E3--system-interaction-flow.md)。
 
 - [ ] **Agent 協作**：Subsystem Discovery → TRIZ Solver → Anti-Anchor → Pre-CAD 評分 四個 agent 串接驗證
 - [ ] **State Machine**：[E3 Appendix D](../01-define/E3--architecture-and-design.md#appendix-d-state-machine) 所有 transition 可觀察 + 可逆

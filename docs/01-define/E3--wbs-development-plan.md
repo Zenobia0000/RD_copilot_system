@@ -8,7 +8,7 @@
 **審核者 (Reviewers):** TL, ARCH, PO, QA Lead, DevOps Lead
 **狀態 (Status):** Approved
 **模板對應:** VibeCoding 16 (WBS Development Plan)
-**取代對象:** [`E3x--wbs-development-plan.md`](./E3x--wbs-development-plan.md) (v1.0，workstream 組織法；保留作歷史追溯)
+**取代對象:** [`E3x--wbs-development-plan v1.0`](../_superseded/E3x--wbs-development-plan-v1.md) (workstream 組織法；已歸檔 _superseded/)
 
 ---
 
@@ -284,9 +284,9 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 | 3.4.5 | `/export` Markdown/JSON/PDF | BE | 8 | ✅ | 2026-04-03 | 3.4.4 | WS-A A-4.5, B-6.7.2 |
 | 3.4.6 | `/health` + Tavily web search service | BE | 6 | ✅ | 2026-04-03 | 3.1.1 | WS-A A-4.6 |
 | 3.4.7 | Socratic prompt injection for contradiction/CLD（**目前 FE 4.2.8 Explore 以 stub prompt 上線；此為補強非阻塞**） | BE | 16 | 🔄 | 2026-W17 | 3.2.3 | WS-B B-6.6.4 |
-| 3.4.8 | `projects.phase` state machine trigger (Supabase BEFORE UPDATE) — **需 ADR-006 (待撰)** | Data | 8 | ⏳ | 2026-W18 | 2.2.3 | WS-A A-6.1 **P0** |
+| 3.4.8 | `projects.phase` state machine trigger (Supabase BEFORE UPDATE) — **需獨立 ADR (待撰)** | Data | 8 | ⏳ | 2026-W18 | 2.2.3 | WS-A A-6.1 **P0** |
 | 3.4.9 | `POST /assumptions/{aid}/disprove` 反證工作流 | BE | 8 | ⏳ | Backlog v1.1 | 3.2.6 | WS-A A-6.2 **P1** |
-| 3.4.10 | `GET /knowledge/rag/search` RAG pipeline — **需 ADR-007 (待撰：embedding/chunking/retrieval contract)** | BE | 12 | ⏳ | Backlog v1.1 | 3.4.4 | WS-A A-6.3 **P1** |
+| 3.4.10 | `GET /knowledge/rag/search` RAG pipeline — **需獨立 ADR (待撰：embedding/chunking/retrieval contract)** | BE | 12 | ⏳ | Backlog v1.1 | 3.4.4 | WS-A A-6.3 **P1** |
 | 3.4.11 | OpenAPI → TS 型別自動同步腳本（**P1 tech debt，消除前後端手動型別漂移**） | BE / FE | 8 | ⏳ | 2026-W18 | 3.1.10 | - |
 
 **3.0 小計**：416h / 380h 已完成（91%，含新增 3.2.8/3.4.11 兩項） ⚡
@@ -503,7 +503,7 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 
 | 風險項目 | 影響度 | 可能性 | 緩解措施 | 負責人 |
 |---------|--------|--------|----------|--------|
-| `projects.phase` state machine trigger 缺失（P0） | 中 | 中 | 3.4.8 Supabase BEFORE UPDATE trigger @ Week 18 + ADR-006 | Data |
+| `projects.phase` state machine trigger 缺失（P0） | 中 | 中 | 3.4.8 Supabase BEFORE UPDATE trigger @ Week 18 + ADR-008 | Data |
 | Mock 殘留 7 檔延遲清除影響 E2E | 中 | 中 | 4.3.4 優先處理為 release 障礙項 | FE |
 | Socratic 問答 prompt 注入設計未定 | 中 | 中 | 3.4.7 2026-W17 完成設計 spike | BE |
 | **LLM vendor lock-in + pricing 波動**（Anthropic API 若配額/價格變動） | 中 | 低 | 2.1.5 multi-provider 抽象已存在；6.3.4 cost dashboard 早期警示 | BE / DevOps |
@@ -517,7 +517,7 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 |---------|--------|--------|----------|--------|
 | 後端型別漂移（OpenAPI→TS 手動同步） | 低 | 中 | **升級為 P1**：3.4.11 W18 前導入 `openapi-typescript` 生成腳本 | BE |
 | `/assumptions/{aid}/disprove` 反證端點缺失（P1） | 低 | 低 | 目前以 status='refuted' 替代；3.4.9 v1.1 補齊 | BE |
-| `/knowledge/rag/search` RAG 未實作（P1） | 低 | 低 | 3.4.10 v1.1 版本排入 + ADR-007 | BE |
+| `/knowledge/rag/search` RAG 未實作（P1） | 低 | 低 | 3.4.10 v1.1 版本排入 + ADR-009 | BE |
 | Compliance / data privacy（PII in prompts） | 低 | 低 | Socratic prompt 目前無 PII 欄位；後續 review 加入 policy 檢查 | Security |
 
 ### 📋 議題追蹤清單
@@ -530,7 +530,7 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 | ISS-004 | Playwright E2E 未啟動 | 高 | Open | QA | 2026-W17 |
 | ISS-005 | RACI 所有角色名字待指派 | 中 | Open | PM | M4 前 |
 | ISS-006 | M6 Rollback playbook 缺失 | 高 | Open | DevOps | 2026-W18 |
-| ISS-007 | ADR-006 (phase trigger) / ADR-007 (RAG) 待撰 | 中 | Open | ARCH | M5 前 |
+| ISS-007 | ADR-008 (phase trigger) / ADR-009 (RAG) 待撰 | 中 | Open | ARCH | M5 前 |
 
 ---
 
@@ -598,9 +598,11 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 - [ADR-003](adrs/ADR-003-llm-service-hardening.md) — LLM Service Hardening (3.1.5–3.1.9 closure)
 - [ADR-004](adrs/ADR-004-qa-devops-infrastructure.md) — QA/DevOps Infrastructure
 - [ADR-005](adrs/ADR-005-scope-expansion.md) — Scope Expansion (Evidence retrieval + multi-solution MUST)
-- **ADR-006**（待撰 @ M5）— `projects.phase` state machine trigger contract（3.4.8）
-- **ADR-007**（待撰 @ v1.1）— RAG pipeline（embedding model, chunking strategy, retrieval API）（3.4.10）
-- **ADR-008**（建議）— Effort baselining methodology（精實基線 vs 4-FTE 標準）
+- [ADR-006](adrs/ADR-006-harness-architecture.md) — Backend Harness 架構 (Pydantic AI + MCP + Skills)
+- [ADR-007](adrs/ADR-007-tc-only-explore-pc-sf-derivation-in-create.md) — Explore TC-only；PC/SF 於 Create 派生
+- **ADR-008**（待撰）— `projects.phase` state machine trigger contract（3.4.8）
+- **ADR-009**（待撰 @ v1.1）— RAG pipeline（embedding model, chunking strategy, retrieval API）（3.4.10）
+- **ADR-010**（建議）— Effort baselining methodology（精實基線 vs 4-FTE 標準）
 
 ### ⚖️ 資源分配原則
 - **關鍵路徑優先**：5.3 Playwright E2E > 4.3.4 Mock 清除 > 3.4.7 Socratic injection > 3.4.8 P0 trigger
@@ -609,7 +611,7 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 
 ### 歷史版本
 
-- [`E3x--wbs-development-plan.md`](./E3x--wbs-development-plan.md) — v1.0 Workstream 組織法（WS-A/B/C），保留作交叉驗證用
+- [`E3x--wbs-development-plan v1.0`](../_superseded/E3x--wbs-development-plan-v1.md) — Workstream 組織法（WS-A/B/C），已歸檔
 - Superseded 獨立 WBS 留於 [`docs/_superseded/`](../_superseded/)
 
 ---

@@ -38,7 +38,7 @@
 
 **品質內建原則**：Pre-CAD Gate、MUST Rulebook、Evidence Matrix 三層 review，見 [`02-design/specs/review-templates/`](../02-design/_MOC.md)。
 
-**AI 輔助就緒**：_domain-knowledge/ 驅動 AI Agent（[SCAMPER_TRIZ](SCAMPER_TRIZ.md)、[KT_Robust_決策框架](KT_Robust_決策框架.md)、[系統性決策流程](系統性決策流程.md)、[系統規格定義書](系統規格定義書.md)）。
+**AI 輔助就緒**：_domain-knowledge/ 驅動 AI Agent（[DK-01 流程](../_domain-knowledge/DK-01--design-philosophy-and-process.md)、[DK-02 TRIZ/SCAMPER](../_domain-knowledge/DK-02--triz-scamper-divergence-engine.md)、[DK-03 KT 決策](../_domain-knowledge/DK-03--kt-decision-framework.md)、[DK-04 資料模型](../_domain-knowledge/DK-04--data-model-and-gate-reference.md)）。
 
 ---
 
@@ -130,7 +130,7 @@
     *   [`02-design/_MOC.md`](../02-design/_MOC.md)
     *   [`03-develop/_MOC.md`](../03-develop/_MOC.md)
     *   [`04-deliver/_MOC.md`](../04-deliver/_MOC.md)
-*   **Domain Knowledge**（驅動 AI Agent）：[`_domain-knowledge/_MOC.md`](_MOC.md)
+*   **Domain Knowledge**（驅動 AI Agent）：[`_domain-knowledge/DK-00--index.md`](../_domain-knowledge/DK-00--index.md)
 *   **Gap / Meeting / Superseded**：[`_gap-analysis/`](../_gap-analysis/)、[`_meeting-minutes/`](../_meeting-minutes/)、[`_superseded/_MOC.md`](../_superseded/_MOC.md)
 *   **配套工作流手冊**：[`VC00--workflow-manual.md`](VC00--workflow-manual.md)
 

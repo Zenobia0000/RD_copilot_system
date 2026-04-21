@@ -1,7 +1,9 @@
 # Statement of Work (SOW)
 # RD Design Copilot v1.0 開發說明書
 
-> **版本**: v1.1 | **日期**: 2026-03-13 | **依據**: docs/e2e 全套設計文件 | **狀態**: 開發中
+> **版本**: v1.2 | **日期**: 2026-04-21 | **依據**: docs/e2e 全套設計文件 | **狀態**: 開發中（~92% 完成）
+>
+> ⚠️ **本文件為規格基線**；動態進度追蹤請見 [`E3--wbs-development-plan.md`](E3--wbs-development-plan.md) v2.1。
 
 ---
 
@@ -42,10 +44,10 @@ RD Design Copilot v1.0 — AI 驅動的早期概念設計決策平台
 
 | 層級 | 技術 | 說明 |
 |------|------|------|
-| 後端框架 | FastAPI (Python 3.12) | 非同步 REST API + 多 Agent 編排 |
+| 後端框架 | FastAPI (Python 3.12) | 非同步 REST API + 7 Agent 編排 (20 routers) |
 | 資料庫 | Supabase (PostgreSQL) | Auth + DB + RLS + Realtime |
 | 前端 ORM | supabase-js v2 | 前端直連 Supabase（CRUD 層） |
-| LLM | Claude API (claude-sonnet-4-6) | 5 類 Agent 呼叫 |
+| LLM | Claude API (claude-sonnet-4-6) | 7 類 Agent 呼叫 |
 | 前端 | React 18 + TypeScript + Vite | 6+1 頁架構 (Apple 設計哲學) |
 | UI 元件庫 | shadcn/ui + Tailwind CSS | Delta 品牌設計系統 |
 | 驗證 | Pydantic 2.0+ / Zod | 後端/前端雙重 Schema 驗證 |
@@ -53,14 +55,19 @@ RD Design Copilot v1.0 — AI 驅動的早期概念設計決策平台
 | 測試 | pytest (後端) + vitest (前端) | 單元 + API 整合測試 |
 | 容器 | Docker + docker-compose + nginx | 多階段建置一鍵部署 |
 
-### 2.2 四層 Agent 架構
+### 2.2 七層 Agent 架構
+
+> v1.2 更新：實際倉儲計數為 7 agents（原 v1.1 列 4 為初期規劃）。
 
 | Agent | 職責 | LLM 呼叫 | 規則引擎 |
 |-------|------|----------|---------|
 | **Analyst Agent** | 問題定義、蘇格拉底提問、假設萃取 | ✓ | — |
 | **TRIZ Solver Agent** | TRIZ 三路徑求解、Anti-Anchor | ✓ | ✓ (矩陣查表) |
+| **TRIZ Critic Agent** | TC→PC drill-down 觸發、矛盾收斂圖 Phase B | ✓ | ✓ |
 | **Evaluator Agent** | MUST 篩選、Pre-CAD 評分、KT 計算 | ✓ (深度分析) | ✓ (規則判定) |
-| **Knowledge Agent** | RAG 知識檢索、Web 搜尋、知識沉澱 | ✓ | — |
+| **Knowledge Agent** | RAG 知識檢索、Web 搜尋 | ✓ | — |
+| **Knowledge WB Agent** | 知識沉澱（6 類資產自動回寫） | ✓ | — |
+| **SCAMPER Feedback Agent** | SCAMPER→矛盾回饋迴路、去重 | ✓ | ✓ (SequenceMatcher) |
 
 ### 2.3 8-Gate 系統
 
@@ -146,17 +153,19 @@ RD Design Copilot v1.0                              狀態     完成日
 
 ### 3.1 完成度統計
 
-| 工作包群組 | 完成 / 總計 | 完成率 |
-|-----------|------------|--------|
-| WP-1 基礎設施 | 5/5 | 100% |
-| WP-2 Phase 1 | 5/5 | 100% |
-| WP-3 Phase 2 | 9/9 | 100% |
-| WP-4 Phase 3 | 7/7 | 100% |
-| WP-5 前端 UI | 7/7 | 100% |
-| WP-6 品質保證 | 2/4 | 50% |
-| WP-EV Evidence | 4/4 | 100% |
-| WP-7 部署文件 | 1.5/3 | 50% |
-| **整體** | **40.5/44** | **~92%** |
+> v1.2：此表為 SOW 粒度快照。詳細工時追蹤見 [E3 WBS §4](E3--wbs-development-plan.md#4-專案進度摘要-project-progress-summary)（1,172h/1,280h = ~92%）。
+
+| 工作包群組 | 完成 / 總計 | 完成率 | 備註 (v1.2) |
+|-----------|------------|--------|-------------|
+| WP-1 基礎設施 | 5/5 | 100% | |
+| WP-2 Phase 1 | 5/5 | 100% | |
+| WP-3 Phase 2 | 9/9 | 100% | |
+| WP-4 Phase 3 | 7/7 | 100% | |
+| WP-5 前端 UI | 7/7 | 100% | |
+| WP-6 品質保證 | 2/4 | 50% | Playwright E2E + Prompt 調優待完成 |
+| WP-EV Evidence | 4/4 | 100% | |
+| WP-7 部署文件 | 1.5/3 | 50% | Rollback playbook + 使用手冊待完成 |
+| **整體** | **40.5/44** | **~92%** | 對齊 E3 WBS v2.1 |
 
 ---
 
@@ -205,7 +214,7 @@ RD Design Copilot v1.0                              狀態     完成日
 | 4.1 | 證據矩陣 (DR EM) | `GET /experiments/evidence-matrix` + Assumption × Evidence 聚合 + E0-E4 分級 | BE | 3d | 3.9 | ✓ 可與 4.2 並行 |
 | 4.2 | 風險登錄 (FMEA-like) | Risk CRUD + P×S 計算 + L/M/H/H* 分級 + 歷史失效比對 | BE | 3d | 3.9 | ✓ 可與 4.1 並行 |
 | 4.3 | 最小實驗設計 + 證據閉環 | Experiment CRUD + evidence_level 更新 + 閉環迴圈邏輯 | BE | 3d | 4.1 | |
-| 4.4 | WANT 標準模板 + KT 評分 | `POST /want/criteria/seed` W1-W6 + weighted_score 計算 | BE | 3d | 4.1, 4.2 | |
+| 4.4 | WANT 標準模板 + KT 評分 | `POST /want/criteria/seed` W1-W7 + weighted_score 計算 | BE | 3d | 4.1, 4.2 | |
 | 4.5 | KT 決策記錄 | Decision CRUD + MUST/WANT/Risk 彙總 + 簽核邏輯 | BE | 3d | 4.4 | |
 | 4.6 | Gate 3.2 / Phase Gate 3 | Gate checker (2 個) + Phase 轉換 | BE | 2d | 4.5 | |
 | 4.7 | 知識沉澱 (自動回寫) | `POST /knowledge/writeback` + 6 類資產自動沉澱 | BE | 3d | 4.6 | |
@@ -389,7 +398,7 @@ WP-1.1 → WP-1.2 → WP-2.2 → WP-2.3 → WP-2.4 → WP-3.3 (TRIZ) → WP-3.4 
 
 ---
 
-## 9. 資料模型摘要 (28 Entity)
+## 9. 資料模型摘要 (29 Entity)
 
 ### 9.1 核心實體
 
@@ -425,7 +434,7 @@ WP-1.1 → WP-1.2 → WP-2.2 → WP-2.3 → WP-2.4 → WP-3.3 (TRIZ) → WP-3.4 
 | 4 分離原理 | 靜態 KB | 4 |
 | 76 標準解 | 靜態 KB | 76 |
 | MUST 規則 M1-M6 | 可配置規則 | 6 |
-| WANT 標準 W1-W6 | 種子模板 | 6 |
+| WANT 標準 W1-W7 | 種子模板 | 7 |
 
 ---
 
@@ -529,9 +538,11 @@ Day 3 (03-13) ████████████████████  M6: 
 
 ---
 
-## 15. 開發狀態摘要 (截至 2026-03-13)
+## 15. 開發狀態摘要 (截至 2026-04-21)
 
-### 15.1 後端測試覆蓋 (74 tests, 0.38s)
+### 15.1 後端測試覆蓋
+
+> v1.2 更新：測試規模已從初期 74 tests 擴展為 34 test modules / ~9,000 lines。以下為初期基線快照（完整追蹤見 E3 WBS §5.1）。
 
 | 測試檔案 | 測試數 | 涵蓋範圍 |
 |---------|--------|---------|
@@ -545,9 +556,12 @@ Day 3 (03-13) ████████████████████  M6: 
 | `test_triz_solver.py` | 9 | TC/PC path, empty matrix, malformed JSON, router endpoints |
 | `test_brief_api.py` | 9 | Brief extraction, suggest-constraints, suggest-kpis, edge cases |
 | `test_api_integration.py` | 7 | Phase 1 full chain, Phase 2 full chain, cross-phase edge cases |
-| **總計** | **74** | **全部通過** |
+| **初期基線** | **74** | *(2026-03-13 快照)* |
+| **當前規模** | **34 modules / ~9,000 lines** | 21 router 全覆蓋 + TRIZ layered + vitest 12 FE tests |
 
 ### 15.2 架構決策紀錄 (ADR)
+
+> 完整 ADR 清單見 [`E3--wbs-development-plan.md` §7](E3--wbs-development-plan.md#7-專案管控機制)（ADR-001~010）。
 
 | 決策 | 原因 | 影響 |
 |------|------|------|
@@ -556,15 +570,20 @@ Day 3 (03-13) ████████████████████  M6: 
 | React Query v5 快取策略 | 避免重複 fetch，樂觀更新 UX | 所有 CRUD hooks 統一 queryKey 管理 |
 | Evidence Entry 自動傳播 | 量測值 → KPI → 假設 → MUST 一鍵更新 | 減少手動同步，Dashboard 即時反映最新數據 |
 | Docker multi-stage build | 前端 nginx SPA + 後端 uvicorn 分離 | 生產部署一鍵 `docker-compose up` |
+| TC-Only Explore (ADR-007) | PC/SF 於 Create Tab 內派生，Explore 僅處理 TC | 降低 Explore 頁複雜度，Create layered drill-down 承接 |
+| Backend Harness (ADR-006) | Pydantic AI + MCP + Skills 統一 agent 編排 | 7 agents 共用 base.py，prompt/schema 解耦 |
 
-### 15.3 待完成項目
+### 15.3 待完成項目 (v1.2 更新)
 
-| 項目 | 優先級 | 備註 |
-|------|--------|------|
-| WP-6.3 E2E 場景測試 | P1 | 用 eBike 真實案例跑通全流程 |
-| WP-6.4 Prompt 品質調優 | P2 | 7 個 prompt 模板迭代 |
-| WP-7.2 API 文件補充 | P2 | FastAPI 自動生成已有，需補充使用範例 |
-| WP-7.3 使用手冊 | P2 | 安裝/啟動/操作流程/FAQ |
+| 項目 | 優先級 | 對應 E3 WBS 任務 | 備註 |
+|------|--------|-----------------|------|
+| Playwright E2E 3 smoke flows | P0 (M6 blocking) | 5.3.1 / 5.3.2 | Release-blocking critical path |
+| Mock 殘留清除 (7 檔) | P0 | 4.3.4 | Explore/Track/Create/KnowledgeBase |
+| Phase state machine trigger | P0 | 3.4.8 | Supabase BEFORE UPDATE，需 ADR-008 |
+| Socratic prompt injection 補強 | P1 | 3.4.7 | FE 已 stub 上線，非阻塞 |
+| Rollback playbook | P1 | 6.2.4 | RTO ≤30min / RPO ≤15min |
+| 使用者手冊 | P2 | 7.2.1 | 安裝/啟動/操作流程/FAQ |
+| RAG pipeline | Backlog v1.1 | 3.4.10 | 待 ADR-009 |
 
 ---
 
@@ -578,7 +597,7 @@ Day 3 (03-13) ████████████████████  M6: 
 | Gate | 階段檢查點，滿足 checklist 才進入下一階段 (共 8 個) |
 | KT | Kepner-Tregoe 決策分析框架 |
 | MUST | 不可妥協的硬約束，Pass/Fail (M1-M6) |
-| WANT | 希望有但可妥協的目標，加權評分 (W1-W6) |
+| WANT | 希望有但可妥協的目標，加權評分 (W1-W7) |
 | AC | Adverse Consequences，風險矩陣評估 |
 | TRIZ | 發明問題解決理論 (TC: 技術矛盾 / PC: 物理矛盾 / SF: 物質場) |
 | SCAMPER | 創意發散七動作 (Substitute/Combine/Adapt/Modify/Put/Eliminate/Rearrange) |

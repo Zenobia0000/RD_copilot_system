@@ -7,7 +7,7 @@
 **主要作者 (Lead Author):** `UX / Frontend Lead`
 **狀態 (Status):** `Active`
 **對應 VibeCoding 模板:** `17_frontend_information_architecture_template.md`
-**上游:** [`specs/ux/E5x--create-ux-spec.md`](specs/ux/E5x--create-ux-spec.md) · [`01-define/E3x--system-interaction-flow.md`](../01-define/E3x--system-interaction-flow.md)
+**上游:** [`specs/ux/E5x--create-ux-spec.md`](specs/ux/E5x--create-ux-spec.md) · [`01-define/E3x--system-interaction-flow.md`](../01-define/E3--system-interaction-flow.md)
 
 > **說明**：本檔為 IA 骨架；各頁面細節（尤其 Create）在 [`specs/ux/E5x--create-ux-spec.md`](specs/ux/E5x--create-ux-spec.md) 已充分覆蓋。
 
@@ -331,7 +331,7 @@ RD Design Copilot
 - Create 頁完整 UX → [`specs/ux/E5x--create-ux-spec.md`](specs/ux/E5x--create-ux-spec.md)
 - 前端架構 → [`E5x--frontend-architecture.md`](E5x--frontend-architecture.md)
 - BDD scenarios → [`E5x--bdd-scenarios.md`](E5x--bdd-scenarios.md)
-- E3x 三大 scenario → [`../01-define/E3x--system-interaction-flow.md`](../01-define/E3x--system-interaction-flow.md)
+- E3x 三大 scenario → [`../01-define/E3--system-interaction-flow.md`](../01-define/E3--system-interaction-flow.md)
 
 ### B. TBD 清單
 - 各頁面（除 Create）完整 wireframe · command menu · breadcrumb meta · Zustand store 劃分

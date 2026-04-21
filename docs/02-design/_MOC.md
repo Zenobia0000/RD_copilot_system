@@ -54,8 +54,8 @@
 ## 其他位置 (交叉引用)
 
 **WBS 任務分解** 已統一歸檔至 DEFINE 階段：
-- [01-define/E3x--wbs-development-plan](../01-define/E3x--wbs-development-plan.md) — 主 WBS (WS-A/B/C release axis)
-- [01-define/E3x--wbs-development-plan-addendum](../01-define/E3x--wbs-development-plan-addendum.md) — Addendum (WS-D..H feature axis)
+- [01-define/E3--wbs-development-plan](../01-define/E3--wbs-development-plan.md) — 主 WBS v2.1 (module axis)
+- [01-define/wbs-workstreams/](../01-define/wbs-workstreams/README.md) — Feature workstreams (WS-D..H)
 
 ## VibeCoding 模板對齊總表
 

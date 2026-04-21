@@ -27,7 +27,7 @@
 
 ## Moved to Other Phases
 
-> - methodology-overview → [_domain-knowledge/E3x--methodology-overview](../_domain-knowledge/E3x--methodology-overview.md)
+> - methodology-overview → [_domain-knowledge/DK-01](../_domain-knowledge/DK-01--design-philosophy-and-process.md) (拆分為 DK-01~04 MECE 文件)
 > - user-manual → [04-deliver/E9x--user-manual-v0.1](../04-deliver/E9x--user-manual-v0.1.md)
 > - functional-specification (與 E1 PRD §5-§12 重複) → [_superseded/](../_superseded/E3x--functional-specification.md)
 > - customer-promise-and-principles (與 E1 PRD §1.2 + §5 重複) → [_superseded/](../_superseded/E1x--customer-promise-and-principles.md)

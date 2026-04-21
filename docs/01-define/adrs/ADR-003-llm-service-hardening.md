@@ -1,8 +1,16 @@
 # ADR-003: LLM 服務層強化 — Retry、驗證、Token 管理、Prompt 版控
 
-- **Status**: Proposed
-- **Date**: 2026-03-13
+- **Status**: Accepted (Phase 1 implemented; Phase 2-3 deferred to post-MVP)
+- **Date**: 2026-03-13 (proposed) → 2026-04-21 (status updated)
 - **Deciders**: Development Team
+
+> **Implementation Note (2026-04-21)**:
+> - ✅ Phase 1 — Retry: `backend/app/agents/base.py` (`retry_on_transient` decorator, exponential backoff)
+> - ✅ Phase 1 — Output validation: `call_llm_structured()` with Pydantic model validation
+> - ✅ Phase 1 — Prompt separation: `backend/app/prompts/` (4 files: analyst, triz_solver, evaluator, knowledge)
+> - ⏳ Phase 2 — Token budget tracking: Not implemented
+> - ⏳ Phase 2 — External `.md` prompt files (currently Python string constants): Deferred per ADR-006
+> - ⏳ Phase 3 — Model routing / A-B testing: Not implemented
 
 ## Context
 

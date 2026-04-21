@@ -25,7 +25,7 @@
 **不在範圍內**（屬於 01-define 或 03-develop）：
 
 - 系統層架構圖 / ADR（→ `01-define/E3--architecture-and-design.md`）
-- WBS 任務分解（→ `01-define/E3x--wbs-development-plan.md` + Addendum）
+- WBS 任務分解（→ `01-define/E3--wbs-development-plan.md` + wbs-workstreams/）
 - 實作細節與單元測試（→ 03-develop）
 
 ---
@@ -120,8 +120,8 @@
 | §Appendix E — Subsystem Discovery | `specs/explore/*` + `specs/ux/E5x--create-ux-spec.md` Tab ② |
 
 對應的 **WBS 任務分解** 已歸檔至 DEFINE：
-- 主軸 (release): [`01-define/E3x--wbs-development-plan.md`](../01-define/E3x--wbs-development-plan.md)
-- 功能軸 (feature): [`01-define/E3x--wbs-development-plan-addendum.md`](../01-define/E3x--wbs-development-plan-addendum.md) → WS-D..H
+- 主軸 (release): [`01-define/E3--wbs-development-plan.md`](../01-define/E3--wbs-development-plan.md)
+- 功能軸 (feature): [`01-define/wbs-workstreams/`](../01-define/wbs-workstreams/README.md) → WS-D..H
 
 ---
 

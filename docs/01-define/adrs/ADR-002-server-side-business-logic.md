@@ -1,8 +1,18 @@
 # ADR-002: 缺失的伺服器端業務邏輯 — 狀態機、Gate、Workflow
 
-- **Status**: Proposed
-- **Date**: 2026-03-13
+- **Status**: Accepted (Implemented via FastAPI, not Supabase triggers as originally proposed)
+- **Date**: 2026-03-13 (proposed) → 2026-04-21 (status updated)
 - **Deciders**: Development Team
+
+> **Implementation Note (2026-04-21)**:
+> Items implemented differently from proposal — via FastAPI endpoints instead of Supabase DB Functions:
+> - ✅ #1 State machine: `backend/app/core/gate_registry.py` (declarative, not Supabase trigger)
+> - ✅ #2 Gate checks: `backend/app/routers/gates.py` + `core/gate_checks.py`
+> - ✅ #3 Export: `backend/app/routers/exports.py`
+> - ✅ #4 Knowledge Writeback: `backend/app/routers/knowledge_wb.py`
+> - ✅ #5 unknown_factors: `backend/app/routers/unknown_factors.py`
+> - ⏳ #6 Assumption disprove with impact analysis: Not yet implemented
+> - ⏳ #7 WANT criteria auto-seed: Not yet implemented
 
 ## Context
 

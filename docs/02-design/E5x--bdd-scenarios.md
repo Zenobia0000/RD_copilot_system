@@ -7,7 +7,7 @@
 **主要作者 (Lead Author):** `RD Design Copilot Team`
 **狀態 (Status):** `Active`
 **對應 VibeCoding 模板:** `03_behavior_driven_development_guide.md`
-**上游依據:** [`01-define/E3x--system-interaction-flow.md`](../01-define/E3x--system-interaction-flow.md) (3 scenarios) · [`specs/ux/E5x--create-ux-spec.md`](specs/ux/E5x--create-ux-spec.md)
+**上游依據:** [`01-define/E3x--system-interaction-flow.md`](../01-define/E3--system-interaction-flow.md) (3 scenarios) · [`specs/ux/E5x--create-ux-spec.md`](specs/ux/E5x--create-ux-spec.md)
 
 ---
 
@@ -198,6 +198,6 @@ Feature: Pre-CAD Gate six-dimension review
 ---
 
 **延伸閱讀**:
-- E3x 完整 scenario 敘述 → [`01-define/E3x--system-interaction-flow.md`](../01-define/E3x--system-interaction-flow.md)
+- E3x 完整 scenario 敘述 → [`01-define/E3x--system-interaction-flow.md`](../01-define/E3--system-interaction-flow.md)
 - 對應手測腳本 → [`E7x--e2e-manual-scripts/`](E7x--e2e-manual-scripts/)
-- WBS WS-H Playwright 自動化 → [`01-define/E3x--wbs-development-plan-addendum.md`](../01-define/E3x--wbs-development-plan-addendum.md)
+- WBS WS-H Playwright 自動化 → [`01-define/wbs-workstreams/WS-H`](../01-define/wbs-workstreams/WS-H--playwright-e2e-followup.md)

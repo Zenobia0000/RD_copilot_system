@@ -4,7 +4,7 @@ Domain-agnostic — all product/industry context comes from user input.
 Follows Anthropic Claude prompting best practices: XML tags, strict schemas, examples.
 """
 
-TRIZ_SOLVER_SYSTEM = """\
+TRIZ_SOLVER_SYSTEM = """雖然我以下都是寫英文，但我的使用者希望最終能看到中文輸出\
 You are a TRIZ methodology expert integrated into a structured design platform.
 
 <capabilities>
@@ -738,21 +738,39 @@ over-clustering. Split it.
   "directions": [
     {{
       "direction_id": "DIR-1",
-      "direction_name": "Tooth micro-geometry reshaping (@gear mesh face)",
-      "direction_summary": "Reshape tooth flank micro-geometry (lead crowning, tip/root relief, profile relief) to reduce loaded transmission error and mesh stiffness ripple. Macro geometry, materials, and architecture unchanged.",
+      "direction_name": "齒面微觀修形 (@齒輪嚙合面)",
+      "direction_summary": "透過齒面微觀修形（導程鼓形、齒頂/齒根修緣、齒形修整）降低負載傳遞誤差與嚙合剛度波動。齒輪宏觀幾何、材料與系統架構皆不變動。",
       "solutions": [
         {{
           "path": "PC",
           "principle_number": null,
           "principle_name": "空間分離: 局部品質",
-          "suggestion": "<verbatim copy of original suggestion text>",
+          "suggestion": "<此處逐字複製原始建議文字，不得改寫>",
           "separation_principle": "空間分離",
           "affected_modules": ["齒輪對", "齒面微觀修形"],
+          "secondary_contradictions": []
+        }},
+        {{
+          "path": "PC",
+          "principle_number": null,
+          "principle_name": "整體與局部分離: 梯度漸變",
+          "suggestion": "<此處逐字複製原始建議文字，不得改寫>",
+          "separation_principle": "整體與局部分離",
+          "affected_modules": ["齒輪齒面工程", "熱處理"],
+          "secondary_contradictions": []
+        }},
+        {{
+          "path": "SF",
+          "principle_number": "1.2.2",
+          "principle_name": "Introduce Modified S1 or S2",
+          "suggestion": "<此處逐字複製原始建議文字，不得改寫>",
+          "separation_principle": null,
+          "affected_modules": ["gear pair", "manufacturing tolerance stack-up"],
           "secondary_contradictions": []
         }}
       ],
       "tc_count": 0,
-      "pc_count": 3,
+      "pc_count": 2,
       "sf_count": 1
     }}
   ]

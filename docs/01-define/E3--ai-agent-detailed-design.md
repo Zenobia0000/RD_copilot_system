@@ -1,8 +1,8 @@
 ---
 doc_id: E3-part2
 title: RD Design Copilot — AI Agent Detailed Design
-version: v2.0
-last_updated: 2026-04-21
+version: v2.1
+last_updated: 2026-04-22
 status: Active
 parent: E3--architecture-and-design.md
 ---
@@ -37,6 +37,13 @@ parent: E3--architecture-and-design.md
 
 ### 1.1 Agent 角色定義
 
+> **⚠️ 實作說明 (2026-04-22)**：下表中的 Agent 為邏輯角色劃分。當前實作中，每個 Agent 對應一個 Python 模組（非 class），包含一組 plain functions：
+> - **Analyst Agent** → `backend/app/agents/analyst.py`（含 Anti-Anchor 功能，無獨立 AntiAnchorAgent 模組）
+> - **TRIZ Solver Agent** → `backend/app/agents/triz_solver.py`（含 SCAMPER 和 Subsystem 功能）
+> - **Evaluator Agent** → `backend/app/agents/evaluator.py`
+> - **Knowledge Agent** → `backend/app/agents/knowledge.py`（action suggestions）+ `backend/app/agents/knowledge_wb.py`（6-asset writeback）
+> - **Sub-agents**: `triz_critic.py`（PC 分解門控）、`scamper_feedback.py`（回饋矛盾）
+
 | Agent | 職責 | 核心能力 | 綁定工具 |
 |-------|------|---------|---------|
 | **Analyst Agent** | 需求解構、蘇格拉底問答（含第七類「重構」提問）、**蘇格拉底追問（回答深度分析 + 後續追問生成）**、**Brief 變更影響評估**、因果迴路建模、矛盾識別、假設質疑、**約束可行性驗證 (Constraint Feasibility Check)**、**問題框架挑戰 (Problem Reframing)**、**第一性原理 Anti-Anchor（物理原則、因果鏈量化預期、邊界條件、邏輯謬誤守衛）**、**矛盾收斂圖管理 (Phase A/B) + 架構健康度監控**：Phase A（Step 2 起，矛盾空間健康度，含語意去重 is_confirmatory）僅在 TRIZ step 執行、Phase B（Decision Hub 手動觸發，方案交叉檢查）、掃描二次矛盾、分級 (Fatal/Major/Minor)、追蹤收斂、節點 > 5 強制暫停 | 語意理解、結構化拆解、隱含假設偵測、**物理可行性分析、問題重構、解法-模組耦合影響分析、矛盾分級判定、回答深度分析、Brief 變更追蹤** | LLM、Prompt Template、Functional Model Generator |
@@ -46,8 +53,11 @@ parent: E3--architecture-and-design.md
 
 ### 1.2 Orchestrator（編排器）
 
-- 負責 Step 流轉、Gate 判定、Agent 調度
-- 維護 Process State Machine（對接現有雙層狀態機）
+> **⚠️ 實作差異 (2026-04-22)**：文件描述的 server-side Orchestrator 目前 **未實作**。當前採用 **client-driven 模式**：前端按步驟依序呼叫後端 API endpoints，流程編排由前端路由 + React Query 驅動，後端僅提供獨立的 AI 計算端點。Gate 判定由 `backend/app/core/gate_registry.py` + `gate_checks.py` 實作（宣告式規則引擎），但不由 Orchestrator 驅動，而是由 `GET /gates/{gate_id}/check` 端點按需呼叫。
+
+**設計意圖**（保留供未來參考）：
+- 負責 Step ���轉、Gate 判定、Agent 調度
+- 維護 Process State Machine（對接現有雙層��態機）
 - 管理 Artifact 版本狀態（Draft → Reviewed → Verified → Baselined → Released）
 
 ### 1.3 架構圖
@@ -457,15 +467,47 @@ AI介入: ◐    ●    ●    ◐    ●    ●    ●    ●    ●    ●    
 
 ## §11.5 技術實作建議
 
-### 11.5.1 框架選型：Pydantic AI (per ADR-006)
+### 11.5.1 框架選型
 
-> **歷史更新**：原設計使用 LangGraph StateGraph，ADR-006 (2026-04-15) 決議改為 Pydantic AI spine + hand-written linear pipeline。LangGraph 保留於 pyproject.toml 作為備選但目前未使用。
+> **⚠️ 實作狀態 (2026-04-22)**：ADR-006 規劃的 Pydantic AI spine **尚未實作**（ADR-006 狀態已更正為 Deferred）。當前實際架構如下：
 
-選擇理由（Pydantic AI）：
+**當前實作（v1.0）：FastAPI + Module-level Plain Functions**
+- Agent 模組（`agents/analyst.py`, `agents/triz_solver.py`, `agents/evaluator.py` 等）皆為 **module-level plain functions**，無 class-based agent
+- LLM 呼叫集中於 `agents/base.py`（`call_llm_json` / `call_llm_structured` / `call_llm_json_parsed` / `web_search_with_llm`）
+- 支援 5 種 LLM provider：Anthropic（預設 `claude-sonnet-4-6`）、OpenAI、Azure OpenAI、Gemini、Qwen
+- Retry 邏輯內建於 `base.py`（3 次指數退避重試）
+- 呼叫路徑：Router → agent function → `base.py` → LLM API → Pydantic v2 驗證 → Response
+
+**目標架構（ADR-006，Deferred）：Pydantic AI spine + Skills + MCP**
 - Typed `Agent[Deps, Output]`，與 FastAPI + Pydantic 生態一致
 - DI (Dependency Injection) 原生支援
 - 手寫線性管線（5 nodes: TRIZ L1→L2→L3）比 Graph 更易 debug
 - 未來擴展：Skills directory (`backend/app/skills/*/SKILL.md`) + MCP 雙向
+- 詳見 [ADR-006](adrs/ADR-006-harness-architecture.md)
+
+### 11.5.1b Multi-Provider LLM 支援（當前實作）
+
+> 程式碼位置：`backend/app/core/config.py` (`LLMProvider` enum) + `backend/app/agents/base.py` (`_call_provider`)
+
+| Provider | 預設模型 | 快速模型 | 環境變數 |
+|----------|---------|---------|---------|
+| **Anthropic** (預設) | `claude-sonnet-4-6` | `claude-haiku-4-5` | `ANTHROPIC_API_KEY` |
+| OpenAI | `gpt-4o` | `gpt-4o-mini` | `OPENAI_API_KEY` |
+| Azure OpenAI | 可設定 deployment name | 可設定 | `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT` |
+| Gemini | `gemini-2.5-flash` | `gemini-2.0-flash-lite` | `GEMINI_API_KEY` |
+| Qwen | `qwen-plus` | `qwen-turbo` | `QWEN_API_KEY` |
+
+切換方式：設定環境變數 `LLM_PROVIDER`（預設 `anthropic`）。
+
+### 11.5.1c 後端基礎設施模組（當前實作）
+
+| 模組 | 路徑 | 說明 |
+|------|------|------|
+| Auth Middleware | `backend/app/middleware/auth.py` | Supabase JWT 驗證，注入 `user_id`；Dev bypass token 支援 |
+| Error Handler | `backend/app/middleware/error_handler.py` | 統一 JSON 錯誤封裝（`{"error": {"code", "message", "detail"}}` 格式） |
+| Request ID | `backend/app/middleware/request_id.py` | 自動生成 `X-Request-ID` header |
+| Prompts | `backend/app/prompts/*.py` | 系統 prompt 模板（analyst, evaluator, triz_solver, knowledge），與 agent 邏輯分離 |
+| Observability | `backend/app/observability/metrics.py` | `emit_counter`, `phase_timer`；`POST /observability/web-vitals` beacon（無 auth） |
 
 ### 11.5.2 Agent-Tool 綁定
 

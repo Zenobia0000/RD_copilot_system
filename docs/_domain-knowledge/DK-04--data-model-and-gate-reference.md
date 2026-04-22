@@ -15,8 +15,9 @@
 | phase | Enum | DRAFT → PHASE_I → PHASE_II → PHASE_III → COMPLETED |
 
 ```
-DRAFT ──Gate 1──▶ PHASE_I ──Gate 3──▶ PHASE_II ──Gate P──▶ PHASE_III ──Gate 8──▶ COMPLETED
+DRAFT ──Gate 1 (1.1)──▶ PHASE_I ──Gate 3 (PG1)──▶ PHASE_II ──Gate P (PG2)──▶ PHASE_III ──Gate 8 (PG3)──▶ COMPLETED
 ```
+> 括號內為程式碼 `gate_id`，對應 `backend/app/core/gate_registry.py`
 
 ---
 
@@ -175,16 +176,35 @@ DRAFT ──Gate 1──▶ PHASE_I ──Gate 3──▶ PHASE_II ──Gate P�
 
 ## 4. Gate 條件一覽表
 
-| Gate | 位置 | 關鍵通過條件 | Phase 轉換 |
-|------|------|------------|-----------|
-| **Gate 1** | Step 1 完成 | `critical_metrics` ≥ 3，每個有 target + method | DRAFT → PHASE_I |
-| **Gate 2** | Step 2 完成 | 假設 ≥ 10 條，Top 3 已標記；核心矛盾 ≥ 3 | — |
-| **Gate 3** | Step 3 完成 | 斷路點 ≥ 3，每條矛盾有 TRIZ 正式句 + 類型標註；FM 已建構 | PHASE_I → PHASE_II |
-| **Gate 4** | Step 4 完成 | Top 3 假設各有 1-2 週可完成的驗證設計 | — |
-| **Gate P** | Step 5 完成 | ≥ 3 條架構路線 (含 ≥1 Anti-Anchor)；Pre-CAD Confidence = 100% | PHASE_II → PHASE_III |
-| **Gate C** | Step 6 完成 | 北極星 KPI 證據 ≥ E2；Evidence Matrix 所有 row 達標 | — (→ KT 決策) |
-| **Gate 7** | Step 7 完成 | WANT 評分有 Artifact ID (≠E0)；H 風險有緩解(≥E1)；KT 記錄已簽核 | — |
-| **Gate 8** | Step 8 完成 | 新人/老闆/工程師都看得懂；所有工件 Baselined → Released | PHASE_III → COMPLETED |
+### 4.1 文件名稱 ↔ 程式碼 gate_id 對照表
+
+> **⚠️ 重要 (2026-04-22)**：文件使用 Step-based 編號（Gate 1, Gate 2...），程式碼使用 Phase-dot-sequence 編號（1.1, 1.2, PG1...）。以下為明確對照：
+
+| 文件名稱 | 程式碼 `gate_id` | 位置 | Phase 轉換 | 程式碼位置 |
+|----------|-----------------|------|-----------|-----------|
+| **Gate 1** | `1.1` | Step 1 完成 | DRAFT → PHASE_I | `gate_registry.py` |
+| **Gate 2** | `1.2` | Step 2 完成 | — | `gate_registry.py` |
+| **Gate 3** | `PG1` | Step 3 完成 | PHASE_I → PHASE_II | `gate_registry.py` |
+| **Gate 4** | `2.1` | Step 4 完成 | — | `gate_registry.py` |
+| *(MUST 快篩)* | `2.2` | Step 5e 完成 | — | `gate_registry.py` |
+| **Gate P** | `PG2` | Step P 完成 | PHASE_II → PHASE_III | `gate_registry.py` |
+| *(Decision 簽核)* | `3.2` | Step 7 完成 | — | `gate_registry.py` |
+| **Gate 8** | `PG3` | Step 8 完成 | PHASE_III → COMPLETED | `gate_registry.py` |
+
+> **Note**: Gate C（Step 6 證據審查）和 Anti-Anchor Gate 在文件中有描述，但目前 **未註冊** 在 `gate_registry.py` 中。
+
+### 4.2 Gate 通過條件
+
+| Gate (文件) | gate_id (程式碼) | 關鍵通過條件 |
+|-------------|-----------------|------------|
+| **Gate 1** | `1.1` | `critical_metrics` ≥ 3，每個有 target + method |
+| **Gate 2** | `1.2` | 假設 ≥ 10 條，Top 3 已標記；核心矛盾 ≥ 3 |
+| **Gate 3** | `PG1` | 斷路點 ≥ 3，每條矛盾有 TRIZ 正式句 + 類型標註；FM 已建構 |
+| **Gate 4** | `2.1` | Top 3 假設各有 1-2 週可完成的驗證設計 |
+| *(MUST)* | `2.2` | ≥ 1 alternative 的 `overall_pass: True` |
+| **Gate P** | `PG2` | ≥ 3 條架構路線 (含 ≥1 Anti-Anchor)；Pre-CAD Confidence = 100% |
+| *(Decision)* | `3.2` | WANT 評分有 Artifact ID (≠E0)；H 風險有緩解(≥E1)；KT 記錄已簽核 |
+| **Gate 8** | `PG3` | 新人/老闆/工程師都看得懂；所有工件 Baselined → Released |
 
 ---
 
@@ -227,6 +247,8 @@ DRAFT ──Gate 1──▶ PHASE_I ──Gate 3──▶ PHASE_II ──Gate P�
 
 ---
 
-**版本**: v2.0
-**最後更新**: 2026-04-21
-**變更紀錄**: 從系統規格定義書提取核心 data model 與 gate 條件；API 端點細節保留在 02-design/specs
+**版本**: v2.1
+**最後更新**: 2026-04-22
+**變更紀錄**:
+- v2.1 (2026-04-22): 新增 Gate 文件名稱↔程式碼 gate_id 對照表（§4.1）；更新狀態機圖加入 gate_id
+- v2.0 (2026-04-21): 從系統規格定義書提取核心 data model 與 gate 條件；API 端點細節保留在 02-design/specs

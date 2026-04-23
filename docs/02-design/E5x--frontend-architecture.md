@@ -2,8 +2,8 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.0`
-**最後更新 (Last Updated):** `2026-04-15`
+**文件版本 (Document Version):** `v1.1`
+**最後更新 (Last Updated):** `2026-04-23`
 **主要作者 (Lead Author):** `Frontend Lead`
 **狀態 (Status):** `Active`
 **對應 VibeCoding 模板:** `12_frontend_architecture_specification.md`
@@ -32,27 +32,43 @@
 ## 第一部分：前端架構的第一性原理
 
 1. **User-centric**：所有 UI 決策回答「RD 要解什麼問題？」（參 00-discover 痛點 → E3x Scenario 1/2/3）。
-2. **Single source of truth**：型別來自 `backend/app/models/schemas.py`（透過 pydantic2ts 同步至 `src/types/generated/`）。
+2. **Single source of truth**：型別來自 `backend/app/models/schemas.py`（透過 pydantic2ts 同步至 `src/types/generated/`）；手寫 UI 型別在 `src/types/`。
 3. **Feature-first organization**：`src/components/{create,explore,review,...}` 按頁面功能切分，避免 MVC 按類型切分。
-4. **Progressive disclosure**：複雜流程（TRIZ L1→L2→L3）採分層 drill-down，不一次全展開。
-5. **Observable state**：所有跨組件狀態走 React Query（server）+ Zustand/Context（local UI）；避免 prop drilling。
+4. **Progressive disclosure**：複雜流程（TRIZ L1→L2→L3）採分層 drill-down，不一次全展開；Create 頁以 7-step accordion stepper 逐步展開。
+5. **Observable state**：所有跨組件狀態走 React Query（server）+ Context（local UI）；避免 prop drilling。
 
 ## 第二部分：前端架構的系統化分層
 
 ```
-┌──────── Pages (src/pages/) ────────┐
-│  Route 宣告、高階 layout            │
-├──────── Features (src/components/{create,explore,...}/) ──┤
-│  Feature 組件；呼叫 hooks            │
-├──────── Hooks (src/hooks/) ────────┤
-│  useLayeredTrizSolve / useSubsystemSuggestion / ...        │
-├──────── Integrations (src/integrations/) ────────┤
-│  fetch + auth + adapter (snake↔camel) + error normalize    │
-├──────── Types (src/types/ + types/generated/) ────────┤
-│  手寫 UI 型別 + codegen 後端契約                          │
-├──────── UI primitives (src/components/ui/) ────────┤
-│  shadcn/ui + radix-ui                                      │
-└────────────────────────────────────┘
+┌──────── Pages (src/pages/) ─────────────────────────────────┐
+│  18 個路由頁面：Auth / ProjectList / ProjectDashboard /     │
+│  TaskDefinition / Explore / Track / Create / PreCadReview / │
+│  CadInProgress / DesignReview / DecisionRecord / Feynman /  │
+│  KnowledgeBase / ConstraintLabelDictionary / Settings /     │
+│  DevSeed / ResetPassword / NotFound                         │
+├──────── Features (src/components/{create,explore,...}/) ─────┤
+│  Feature 組件 (80+)：per-page 組件（assumption / brief /   │
+│  contradiction / create / dashboard / evidence / explore /  │
+│  layouts / precad / projects / review / solution /          │
+│  task-definition / track）                                  │
+├──────── Hooks (src/hooks/) ──────────────────────────────────┤
+│  API hooks (25+): useLayeredTrizSolutions /                 │
+│  useDirectedTrizSolutions / useSubsystemSuggestion /        │
+│  useConvergenceLoop / useAiOperationGuard / ...             │
+├──────── Lib (src/lib/) ─────────────────────────────────────┤
+│  api.ts (FastAPI client + ApiError + timeout) /             │
+│  utils.ts (cn()) / triz/ / constraintLabeling /             │
+│  subsystemHash / webVitals                                  │
+├──────── Integrations (src/integrations/) ────────────────────┤
+│  Supabase client + auto-generated types                     │
+├──────── Types (src/types/ + types/generated/) ───────────────┤
+│  手寫 UI 型別 (21 files) + codegen 後端契約                 │
+├──────── Config (src/config/) ────────────────────────────────┤
+│  featureFlags.ts (runtime toggles) /                        │
+│  navigationSteps.ts (phase/step 定義)                       │
+├──────── UI primitives (src/components/ui/) ──────────────────┤
+│  shadcn/ui (50+) + radix-ui                                │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 **分層規則**：
@@ -92,43 +108,21 @@ const onSubmit = form.handleSubmit(async (values) => {
 
 Source: `src/components/task-definition/` + `src/hooks/api/useBrief.ts`（詳見 hook 內 `useSupabaseMutation`）
 
-#### (c) 狀態層 (Client state — Zustand) — **提議劃分**
+#### (c) 狀態層 (Client state — Context API)
 
-目前專案 client UI state 以 React `useState` + Context 為主 (`src/contexts/ArtifactContext.tsx`, `ProjectDataContext.tsx`)，**尚未引入 Zustand**。
+目前專案 client UI state 以 React `useState` + Context 為主，共 3 個 Context：
 
-提議（P0 實施）：
-
-```ts
-// TBD — src/stores/createStore.ts by 2026-05-31 TBD
-import { create } from "zustand";
-
-interface CreateStoreState {
-  activeTab: "triz" | "subsystem" | "decision" | "tree";
-  drillDownLayer: 1 | 2 | 3;
-  selectedContradictionId: string | null;
-  setTab: (t: CreateStoreState["activeTab"]) => void;
-  setLayer: (l: CreateStoreState["drillDownLayer"]) => void;
-}
-
-export const useCreateStore = create<CreateStoreState>((set) => ({
-  activeTab: "triz",
-  drillDownLayer: 1,
-  selectedContradictionId: null,
-  setTab: (t) => set({ activeTab: t }),
-  setLayer: (l) => set({ drillDownLayer: l }),
-}));
-```
-
-**建議 store 劃分（per-feature）**：
-| Store | 負責狀態 | 取代現有 |
+| Context | 檔案 | 負責狀態 |
 |---|---|---|
-| `useCreateStore` | Create 頁 Tab / drill-down / 選中 contradiction | `Create.tsx` 內散落 useState |
-| `useExploreStore` | Explore Tab（Socratic/Contradiction/CLD）切換 | 同上 |
-| `useReviewStore` | Pre-CAD / Design Review gate dialog 狀態 | 同上 |
-| `useProjectStore` | 當前 project scope + 篩選 | `ProjectDataContext` 精簡 |
+| `AuthContext` | `src/contexts/AuthContext.tsx` | `user`, `session`, `isLoading`, `signOut()`；整合 Supabase Auth + `DEV_BYPASS_AUTH` 開發模式 |
+| `ArtifactContext` | `src/contexts/ArtifactContext.tsx` | 6 種 artifact 型別的狀態機（Draft → Reviewed → Verified → Baselined → Released）；提供 `addArtifact`, `updateArtifact`, `transitionState`, `applyGateTransition` |
+| `ProjectDataContext` | `src/contexts/ProjectDataContext.tsx` | 跨步驟資料共享（questions, contradictions, CLD, assumptions, alternatives） |
 
-Source: `TBD — target: src/stores/*.ts by <fe-lead TBD> 2026-05-31 TBD`
-現況: `src/contexts/ArtifactContext.tsx`, `src/contexts/ProjectDataContext.tsx`
+**頁面內 UI 狀態**：各頁面以 `useState` 管理局部 UI 狀態（如 Create 頁的 `currentStep`、`activeTrack`；Explore 頁的 `activeTab`）。
+
+**Zustand** 尚未引入（`package.json` 無此依賴）。若未來需精簡跨組件 prop 傳遞，可考慮 per-feature store — `TBD`。
+
+Source: `src/contexts/AuthContext.tsx`, `src/contexts/ArtifactContext.tsx`, `src/contexts/ProjectDataContext.tsx`
 
 #### (d) 通訊層 (API adapter) — `src/hooks/api/useSupabaseQuery.ts`
 
@@ -159,21 +153,44 @@ Source: `src/hooks/api/useSupabaseQuery.ts`（L204–L315）
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const apiBaseUrl = env.VITE_API_BASE_URL || "http://localhost:8000";
+  const proxyTarget = apiBaseUrl.replace(/\/+$/, "").replace(/\/api\/v1$/i, "");
   return {
     server: {
+      host: "::",
       port: 5173,
       strictPort: true,
+      hmr: { overlay: false },
       proxy: {
-        "/api/v1": { target: proxyTarget, changeOrigin: true },
+        "/api/v1": { target: proxyTarget || "http://localhost:8000", changeOrigin: true },
       },
     },
     plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
-    resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
+    resolve: {
+      alias: { "@": path.resolve(__dirname, "./src") },
+      dedupe: ["react", "react-dom", "react/jsx-runtime"],
+    },
+    optimizeDeps: {
+      include: ["react", "react-dom", "react/jsx-runtime", "@tanstack/react-query"],
+    },
+    build: {
+      target: "es2020",
+      sourcemap: mode !== "production",
+      cssCodeSplit: true,
+      chunkSizeWarningLimit: 600,
+      rollupOptions: {
+        output: {
+          manualChunks: (id) => {
+            // vendor-react / vendor-radix / vendor-charts / vendor-query
+            // vendor-supabase / vendor-icons / vendor-dates / vendor (其餘)
+          },
+        },
+      },
+    },
   };
 });
 ```
 
-Source: `vite.config.ts`（完整檔案 L1–L39）
+Source: `vite.config.ts`（完整檔案 L1–L61）
 
 ## 第三部分：前端設計系統
 
@@ -185,25 +202,30 @@ Source: `vite.config.ts`（完整檔案 L1–L39）
 
 ## 第四部分：技術選型與架構決策
 
-| 決策 | 選擇 | 備選 | 理由 | ADR |
-|---|---|---|---|---|
-| Framework | React 19 | Vue 3, Svelte | 團隊熟悉、生態系 | TBD |
-| Build tool | Vite | Next.js, Webpack | SPA 需求，啟動快 | TBD |
-| Routing | react-router v6 | tanstack router | 成熟、路徑配置集中 | TBD |
-| Server state | `@tanstack/react-query` | SWR | cache/invalidation 完整 | TBD |
-| Client state | Zustand / Context | Redux | 輕量、React 19 相容 | TBD |
-| Form | react-hook-form + zod | Formik | 效能 + 型別 | TBD |
-| Styling | Tailwind + shadcn/ui | CSS Modules, Emotion | utility-first、可客製 | TBD |
-| Type system | TypeScript strict + codegen | — | 與 backend schema 零漂移 | ADR-003 schema codegen |
-| Test | Vitest + React Testing Library + Playwright (E2E) | Jest, Cypress | 與 Vite 原生整合 | TBD |
+| 決策 | 選擇 | 版本 | 備選 | 理由 | ADR |
+|---|---|---|---|---|---|
+| Framework | React | 18.3.1 | Vue 3, Svelte | 團隊熟悉、生態系 | TBD |
+| Build tool | Vite | 5.4.19 | Next.js, Webpack | SPA 需求，啟動快 | TBD |
+| Routing | react-router-dom | 6.30.1 | tanstack router | 成熟、路徑配置集中 | TBD |
+| Server state | `@tanstack/react-query` | 5.83.0 | SWR | cache/invalidation 完整 | TBD |
+| Client state | React Context API | — | Redux, Zustand | 輕量、原生 React 支援 | TBD |
+| Form | react-hook-form + zod | 7.61.1 / 3.25.76 | Formik | 效能 + 型別 | TBD |
+| Styling | Tailwind + shadcn/ui | 3.4.17 | CSS Modules, Emotion | utility-first、可客製 | TBD |
+| DB Client | Supabase JS | 2.97.0 | — | Auth + RLS + realtime | TBD |
+| Graph | @xyflow/react (React Flow) | 12.10.1 | — | 收斂圖 / CLD 視覺化 | TBD |
+| Charts | Recharts | 2.15.4 | — | Dashboard 雷達圖、Pre-CAD 六維圖 | TBD |
+| Type system | TypeScript strict + codegen | 5.8.3 | — | 與 backend schema 零漂移 | ADR-003 schema codegen |
+| Test | Vitest + React Testing Library | 3.2.4 / 16.0.0 | Jest, Cypress | 與 Vite 原生整合 | TBD |
 
 ## 第五部分：效能與優化策略
 
-- **Code splitting**：react-router route-level lazy import（`Create`, `Explore`, `PreCadReview` 等大頁）。
-- **React Query**：`staleTime` 預設較長、結合 `invalidateQueries` 精準失效。
+- **Code splitting**：react-router route-level `lazy()` import（`Create`, `Explore`, `PreCadReview`, `Track`, `DesignReview`, `DecisionRecord`, `Feynman`, `KnowledgeBase`, `ConstraintLabelDictionary`, `Settings`, `DevSeed`）；關鍵路徑頁面（`Auth`, `ProjectList`, `ProjectDashboard`, `NotFound`）採 eager import。
+- **Manual chunks**（`vite.config.ts`）：`vendor-react` / `vendor-radix` / `vendor-charts` / `vendor-query` / `vendor-supabase` / `vendor-icons` / `vendor-dates` / `vendor`（其餘 node_modules）。
+- **React Query**：`staleTime: 30s`、`gcTime: 5min`、4xx 不 retry、5xx retry ≤ 2 次；結合 `invalidateQueries` 精準失效。
 - **Memoization**：`React.memo` + `useMemo` 僅對明確瓶頸使用。
-- **Bundle budget**：主 bundle < 300KB gz — `TBD — <fe-lead TBD>`。
-- **LLM latency 緩解**：Create Tab ① 採 streaming UI（skeleton + 分層逐步顯示）；對應 `specs/triz/E5x--triz-layered-drilldown-optimization.md`。
+- **Bundle budget**：`chunkSizeWarningLimit: 600KB` — `TBD — 正式 budget 定案`。
+- **LLM latency 緩解**：Create 正向分析步驟 採 streaming UI（skeleton + 分層逐步顯示）；對應 `specs/triz/E5x--triz-layered-drilldown-optimization.md`。
+- **Feature flags**（`src/config/featureFlags.ts`）：`trizLayeredMode` 控制 TRIZ 分層模式啟停（透過 `VITE_TRIZ_LAYERED_MODE` env var，預設 `true`）。
 
 ## 第六部分：可用性與無障礙設計
 

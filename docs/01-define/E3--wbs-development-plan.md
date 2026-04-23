@@ -2,8 +2,8 @@
 
 ---
 
-**文件版本 (Document Version):** `v2.1` (2026-04-15 PM/ARCH/QA 三方 reviewer 交互評估修訂版)
-**最後更新 (Last Updated):** `2026-04-15`
+**文件版本 (Document Version):** `v2.2` (2026-04-23 納入 Module 8.0 Auto-TRIZ v2 Integration)
+**最後更新 (Last Updated):** `2026-04-23`
 **主要作者 (Lead Author):** PM / TaskMaster Hub
 **審核者 (Reviewers):** TL, ARCH, PO, QA Lead, DevOps Lead
 **狀態 (Status):** Approved
@@ -23,7 +23,7 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 
 ### ⚠️ Effort Envelope Baseline
 
-本版規劃工時 **1,280h ≈ 2 FTE × 16 週**，對應本專案「小型 AI 產品快速原型」的實際人力配置。若對齊大型團隊敏捷標準（4 FTE），建議外掛 **+30% 緩衝（~1,660h）** 吸收 spike / rework / PM overhead。本文件採「精實基線」記帳，92% 完成代表 **實際交付 vs 精實基線**。ADR-008（effort baselining）待補。
+本版規劃工時 **1,473h**（原 1,280h + Module 8.0 Auto-TRIZ v2 Integration 193h），對應本專案「小型 AI 產品快速原型」的實際人力配置。v2.2 新增 Module 8.0 由 [ADR-008](adrs/ADR-008-auto-triz-v2-integration.md) 觸發，將 Auto-TRIZ v2 方法論（FA / OZ-OT / SIM / CCI / Evidence Registry）注入現有自動化架構。詳見 [WS-I](wbs-workstreams/WS-I--auto-triz-v2-integration.md)。
 
 ### 🔒 Critical Path (M6 Release v1.0)
 
@@ -132,6 +132,15 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 ├── 7.1 技術文檔 (ADRs + API Spec + DB Schema)
 ├── 7.2 使用者手冊
 └── 7.3 維護手冊
+
+8.0 Auto-TRIZ v2 方法論整合 (ADR-008)                         [193h]
+├── 8.1 資料庫遷移 (function_models + evidence_claims + sim_matrices)
+├── 8.2 AnalystAgent 擴充 (5Why / KT / FA / OZ-OT / EntryGrading)
+├── 8.3 TrizSolverAgent 擴充 (SIM Matrix / CCI)
+├── 8.4 Evidence Registry Service
+├── 8.5 前端 Explore 擴充 (#problem-scoping + #function-analysis)
+├── 8.6 前端 Create 擴充 (OZ-OT + SIM + CCI + Evidence)
+└── 8.7 文件 Phase 2-3 + BDD + 驗收
 ```
 
 ### 📈 工作包統計概覽
@@ -145,9 +154,12 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 | 5.0 測試品保 | 160h | 130h | 81% | 🔄 |
 | 6.0 部署上線 | 100h | 72h | 72% | 🔄 |
 | 7.0 文檔培訓 | 40h | 35h | 88% | 🔄 |
-| **總計** | **1,296h** | **1,172h** | **~90%** | **🔄** |
+| 8.0 Auto-TRIZ v2 | 193h | 0h | 0% | ⏳ |
+| **總計** | **1,489h** | **1,172h** | **~79%** | **🔄** |
 
 **狀態圖示**：✅ 已完成 / ⚡ 接近完成 / 🔄 進行中 / ⏳ 計劃中 / ⬜ 未開始 / ⏸ 暫停（降級 / v1.0.1 後補）
+
+> **Note (v2.2)**：Module 8.0 新增 193h 使整體進度從 ~90% 回落至 ~79%。8.0 為 v1.0 之後的**方法論強化**，不影響 M6 Release v1.0 的交付範圍。
 
 ---
 
@@ -446,6 +458,88 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 
 ---
 
+### 8.0 Auto-TRIZ v2 方法論整合 (ADR-008)
+
+> **觸發**：[ADR-008](adrs/ADR-008-auto-triz-v2-integration.md) — 將 `docs_harness/auto_triz_strategy.md` 的方法論嚴謹度注入現有自動化架構
+> **詳細 WBS**：[WS-I--auto-triz-v2-integration.md](wbs-workstreams/WS-I--auto-triz-v2-integration.md)
+> **前置依賴**：WS-D (TRIZ Layered, 88.6%) + Tavily API (existing)
+
+#### 8.1 資料庫遷移
+
+| 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | ADR |
+|---------|---------|--------|---------|------|----------|------|-----|
+| 8.1.1 | 新增 `function_models` 表 (project_id, component_interactions, sf_diagnosis, subsystem_boundary) | Data | 2 | ⏳ | — | 2.2.3 | ADR-008 |
+| 8.1.2 | 新增 `evidence_claims` 表 (claim_id, status, verification_sources) + RLS | Data | 3 | ⏳ | — | 2.2.3 | ADR-008 |
+| 8.1.3 | 新增 `sim_matrices` 表 (contradiction_ids, matrix, optimal_combination) | Data | 2 | ⏳ | — | 2.2.3 | ADR-008 |
+| 8.1.4 | `contradictions` 表新增 `oz_zone`, `ot_time`, `px_variable` (nullable) | Data | 1 | ⏳ | — | 2.2.3 | ADR-008 |
+
+#### 8.2 AnalystAgent 擴充
+
+| 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | 優先級 |
+|---------|---------|--------|---------|------|----------|------|--------|
+| 8.2.1 | `five_why()` 實作 + prompt + schema | BE | 6 | ⏳ | — | 3.1.5 | P1 |
+| 8.2.2 | `kt_is_is_not()` 實作 + prompt + schema | BE | 6 | ⏳ | — | 3.1.5 | P1 |
+| 8.2.3 | `function_analysis()` 實作 + prompt + schema | BE | 8 | ⏳ | — | 3.1.5 | **P0** |
+| 8.2.4 | `oz_ot_analysis()` 實作 + prompt + schema | BE | 8 | ⏳ | — | 3.1.5 | **P0** |
+| 8.2.5 | `entry_grading()` 實作 + prompt + schema | BE | 4 | ⏳ | — | 3.1.5 | P2 |
+| 8.2.6 | Router endpoints (5 POST) + integration tests | BE | 6 | ⏳ | — | 8.2.1-5 | P0 |
+| 8.2.7 | Pilot tests (TC-Analyst-008 ~ 011) | QA | 4 | ⏳ | — | 8.2.6 | P0 |
+
+#### 8.3 TrizSolverAgent 擴充
+
+| 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | 優先級 |
+|---------|---------|--------|---------|------|----------|------|--------|
+| 8.3.1 | `sim_matrix()` 實作 + prompt + schema | BE | 10 | ⏳ | — | 3.3.1 | P1 |
+| 8.3.2 | `complexity_check()` (CCI) 實作 + prompt + schema | BE | 8 | ⏳ | — | 3.3.1 | P1 |
+| 8.3.3 | `solve_layered()` 擴充 — 接收 FA + OZ-OT context | BE | 4 | ⏳ | — | 8.2.3, 8.2.4 | **P0** |
+| 8.3.4 | Router endpoints (2 POST) + integration tests | BE | 4 | ⏳ | — | 8.3.1-2 | P1 |
+| 8.3.5 | Pilot tests (TC-TrizSolve-008 ~ 011) | QA | 4 | ⏳ | — | 8.3.4 | P1 |
+
+#### 8.4 Evidence Registry Service
+
+| 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | 優先級 |
+|---------|---------|--------|---------|------|----------|------|--------|
+| 8.4.1 | `evidence_registry.py` service (register + verify + coverage) | BE | 10 | ⏳ | — | 8.1.2 | **P0** |
+| 8.4.2 | Router endpoints (2 POST + 1 GET) | BE | 3 | ⏳ | — | 8.4.1 | P0 |
+| 8.4.3 | Integration with existing agents — inject `register_claim` | BE | 6 | ⏳ | — | 8.4.1 | P1 |
+| 8.4.4 | Gate check 擴充 — coverage threshold | BE | 3 | ⏳ | — | 8.4.1 | P1 |
+| 8.4.5 | Pilot tests (TC-Evidence-001 ~ 005) | QA | 3 | ⏳ | — | 8.4.2 | P0 |
+
+#### 8.5 前端 Explore 擴充
+
+| 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | 優先級 |
+|---------|---------|--------|---------|------|----------|------|--------|
+| 8.5.1 | `useFiveWhy` + `useKtAnalysis` hooks | FE | 4 | ⏳ | — | 8.2.6 | P2 |
+| 8.5.2 | `useFunctionAnalysis` hook | FE | 3 | ⏳ | — | 8.2.6 | P2 |
+| 8.5.3 | Explore `#problem-scoping` tab (5 Why + KT UI) | FE | 8 | ⏳ | — | 8.5.1 | P2 |
+| 8.5.4 | Explore `#function-analysis` tab (FA 組件交互視覺化) | FE | 10 | ⏳ | — | 8.5.2 | P2 |
+| 8.5.5 | Entry Grading UI (入口分級) | FE | 4 | ⏳ | — | 8.2.5 | P2 |
+
+#### 8.6 前端 Create 擴充
+
+| 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | 優先級 |
+|---------|---------|--------|---------|------|----------|------|--------|
+| 8.6.1 | `useOzOtAnalysis` hook | FE | 3 | ⏳ | — | 8.2.6 | P2 |
+| 8.6.2 | OZ-OT 分析面板 (TRIZ step 前置) | FE | 6 | ⏳ | — | 8.6.1 | P2 |
+| 8.6.3 | `useSimMatrix` hook + SimMatrixView component | FE | 8 | ⏳ | — | 8.3.4 | P2 |
+| 8.6.4 | CCI badge (Evolution / Weak Evolution / Patch) | FE | 4 | ⏳ | — | 8.3.4 | P2 |
+| 8.6.5 | `useEvidenceRegistry` hook + EvidenceCoverageGauge | FE | 6 | ⏳ | — | 8.4.2 | P2 |
+
+#### 8.7 文件 Phase 2-3 + 驗收
+
+| 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | 優先級 |
+|---------|---------|--------|---------|------|----------|------|--------|
+| 8.7.1 | Phase 2 文件更新 (11 份 P1 文件) | Doc | 16 | ⏳ | — | 8.2-8.4 | P1 |
+| 8.7.2 | Phase 3 文件更新 (5 份 P2 文件) | Doc | 8 | ⏳ | — | 8.5-8.6 | P2 |
+| 8.7.3 | BDD 新增 Feature 4-8 場景 | QA | 4 | ⏳ | — | 8.2-8.4 | P1 |
+| 8.7.4 | E2E 手測腳本 (FA → OZ-OT → SIM → CCI 完整路徑) | QA | 4 | ⏳ | — | 8.5-8.6 | P1 |
+
+**8.0 小計**：193h / 0h 已完成（0%） ⏳
+
+**P0 關鍵路徑**：8.1 (8h) → 8.2.3+8.2.4 FA+OZ-OT (16h) → 8.3.3 solve_layered 擴充 (4h) → 8.4 Evidence Registry (25h) → 8.2.6+8.2.7 tests (10h) ≈ **63h**
+
+---
+
 ## 4. 專案進度摘要 (Project Progress Summary)
 
 ### 🎯 整體進度統計
@@ -459,7 +553,8 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 | 5.0 測試品保 | 180h | 130h | 72% | 🔄 |
 | 6.0 部署上線 | 80h | 72h | 90% | ⚡ |
 | 7.0 文檔培訓 | 40h | 35h | 88% | 🔄 |
-| **總計** | **1,280h** | **1,172h** | **~92%** | **🔄** |
+| 8.0 Auto-TRIZ v2 | 193h | 0h | 0% | ⏳ |
+| **總計** | **1,473h** | **1,172h** | **~80%** | **🔄** |
 
 ### 📅 週度進度分析（16 週 sprint summary）
 
@@ -483,9 +578,14 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 - 完成：Evidence/Risks/Decision hooks、Sprint 3 審查決策 live、migrations 005–010
 - 成就：M2 API 對齊 + M3 Sprint 3 live
 
-#### 🔄 Week 16 (2026-04-08 → 2026-04-17)：Release Prep (current)
+#### 🔄 Week 16 (2026-04-08 → 2026-04-17)：Release Prep
 - 進行：移除 7 mock 殘留、Playwright E2E、Socratic prompt injection、phase state machine trigger、使用者手冊
 - 目標：M4 Sprint 4 closure + M5 P0 closure + M6 Release v1.0
+
+#### ⏳ Week 17+ (2026-04-23 →)：Auto-TRIZ v2 Integration (Module 8.0)
+- 啟動：ADR-008 已建立、Phase 1 文件（10 份）已完成
+- 目標：P0 關鍵路徑 63h — DB migration → FA + OZ-OT agents → solve_layered 擴充 → Evidence Registry
+- 里程碑：M7 Auto-TRIZ v2 Phase 1 Backend
 
 ---
 
@@ -510,6 +610,16 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 | **Token cost overrun**（無明確 $ budget 對照） | 中 | 中 | 6.3.4 daily cost alert + 5.4.1 cost 基準；月預算 TBD by PO | DevOps / PO |
 | **Key-person bus factor**（單一 owner 角色） | 中 | 中 | 1.1.4 假設登記 + 7.3.1 維護手冊；後續 onboarding pairing | PM |
 | **RACI 所有角色 owner 為 "—"**（名字未指派） | 中 | 高 | M4 前補齊實名，加設 backup owner | PM |
+
+### 🟡 中風險項目 — Auto-TRIZ v2 (Module 8.0)
+
+| 風險項目 | 影響度 | 可能性 | 緩解措施 | 負責人 |
+|---------|--------|--------|----------|--------|
+| FA prompt 品質不足 → 組件交互圖粒度錯誤 | 高 | 中 | 先用 e-bike 案例驗證 prompt，逐步調教 | BE |
+| OZ-OT Px 鎖定失敗率高 → L2 深挖降級 | 中 | 中 | 提供 3 種 fallback (broaden_oz, split_tc, reframe) | BE |
+| SIM 矩陣 LLM 評分不穩定 | 中 | 低 | temperature=0.2 + 固定 prompt 結構 | BE |
+| 流程步驟增加 → RD 覺得繁瑣 | 高 | 中 | 入口分級自動跳步 + progressive disclosure | FE / PO |
+| Evidence Registry 增加 API latency | 低 | 低 | register_claim 非同步，不阻塞主流程 | BE |
 
 ### 🟢 低風險項目
 
@@ -546,6 +656,8 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 | **M4**: Sprint 4 知識 + Mock 清零 | 2026-W17 | 🔄 | 7 殘留 mock 全清、Playwright 3 smoke flows CI 綠燈、0 P0 issues（簽核：QA Lead + FE Lead） |
 | **M5**: P0 closure（phase trigger + Socratic injection） | 2026-W18 | ⏳ | 3.4.7 + 3.4.8 上線 + ADR-006 merged + phase trigger 負面測試通過（簽核：ARCH + Data Lead） |
 | **M6**: Release v1.0 | 2026-04-17 | ⏳ | (a) 0 P0 issues；(b) Playwright smoke CI 綠；(c) LLM failure rate <2% 測 50 calls；(d) rollback drill 實際演練；(e) security hardening 6.1.5 完成（簽核：PM + TL + QA Lead + DevOps Lead） |
+| **M7**: Auto-TRIZ v2 Phase 1 Backend | 2026-W26 | ⏳ | (a) 8.1 DB migration 完成；(b) 8.2.3+8.2.4 FA+OZ-OT agents 上線；(c) 8.4 Evidence Registry 上線；(d) 8.3.3 solve_layered 接收 FA+OZ-OT context；(e) pilot tests 全通過（簽核：BE Lead + QA Lead） |
+| **M8**: Auto-TRIZ v2 Full Stack | 2026-W30 | ⏳ | (a) 8.5+8.6 前端擴充完成；(b) 8.3.1+8.3.2 SIM+CCI 上線；(c) 8.7 文件 Phase 2-3 完成；(d) BDD Feature 4-8 全通過；(e) E2E 手測腳本走查通過（簽核：PM + TL + FE Lead） |
 
 ### 📈 品質指標監控
 
@@ -600,9 +712,10 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 - [ADR-005](adrs/ADR-005-scope-expansion.md) — Scope Expansion (Evidence retrieval + multi-solution MUST)
 - [ADR-006](adrs/ADR-006-harness-architecture.md) — Backend Harness 架構 (Pydantic AI + MCP + Skills)
 - [ADR-007](adrs/ADR-007-tc-only-explore-pc-sf-derivation-in-create.md) — Explore TC-only；PC/SF 於 Create 派生
-- **ADR-008**（待撰）— `projects.phase` state machine trigger contract（3.4.8）
+- [ADR-008](adrs/ADR-008-auto-triz-v2-integration.md) — ✅ Auto-TRIZ v2 Integration（FA / OZ-OT / SIM / CCI / Evidence Registry）— 觸發 Module 8.0
 - **ADR-009**（待撰 @ v1.1）— RAG pipeline（embedding model, chunking strategy, retrieval API）（3.4.10）
-- **ADR-010**（建議）— Effort baselining methodology（精實基線 vs 4-FTE 標準）
+- **ADR-010**（待撰）— `projects.phase` state machine trigger contract（3.4.8）
+- **ADR-011**（建議）— Effort baselining methodology（精實基線 vs 4-FTE 標準）
 
 ### ⚖️ 資源分配原則
 - **關鍵路徑優先**：5.3 Playwright E2E > 4.3.4 Mock 清除 > 3.4.7 Socratic injection > 3.4.8 P0 trigger
@@ -616,8 +729,8 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 
 ---
 
-**專案管理總結**：專案整體 ~92%，核心 API（2.0 / 3.0）與前端（4.0）均已 ⚡ 接近完成；關鍵收尾集中於 Week 17–18 的 Playwright E2E、Mock 清除、Socratic prompt injection 與 Phase state machine trigger，目標 2026-04-17 Release v1.0。
+**專案管理總結**：v1.0 範圍（Module 1.0–7.0）整體 ~92%，核心 API 與前端均已接近完成。v2.2 新增 Module 8.0 Auto-TRIZ v2 Integration（193h），為 v1.0 之後的方法論強化，不影響 M6 Release v1.0 交付。8.0 關鍵路徑（DB → FA+OZ-OT → Evidence Registry）約 63h，目標 M7 (W26) 後端上線、M8 (W30) 全棧完成。
 
 **專案經理**：TaskMaster Hub
-**最後更新**：2026-04-15
-**下次檢討**：Week 17 Sprint 站立會
+**最後更新**：2026-04-23
+**下次檢討**：Week 17 Sprint 站立會（v1.0 收尾）→ Week 18+ 轉入 Module 8.0

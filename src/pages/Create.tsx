@@ -86,6 +86,7 @@ import {
 import { useContradictions } from "@/hooks/api/useContradictions";
 import { useLayeredTrizSolutions } from "@/hooks/api/useLayeredTrizSolutions";
 import { useDirectedTrizSolutions } from "@/hooks/api/useDirectedTrizSolutions";
+import { useTrizConsolidationResult, upsertConsolidationResult } from "@/hooks/api/useTrizConsolidationResult";
 import type { Contradiction } from "@/types/contradiction";
 import type { Json } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
@@ -210,6 +211,8 @@ export default function Create() {
   // live in Supabase `directed_triz_solutions`. Hydrate on mount so page reload
   // keeps direction analysis results.
   const directedQuery = useDirectedTrizSolutions(id);
+  // v8 persistence: consolidation result (migration 012).
+  const consolidationQuery = useTrizConsolidationResult(id);
 
   // ── Phase 1 context ──
   const { data: brief } = useBrief(id);
@@ -285,6 +288,12 @@ export default function Create() {
       });
     }
   }, [directedQuery.data]);
+  // v8: Hydrate consolidation result from DB on mount / refetch.
+  useEffect(() => {
+    if (consolidationQuery.data) {
+      setConsolidationResult((prev) => prev ?? consolidationQuery.data);
+    }
+  }, [consolidationQuery.data]);
   // 9.2.4: Per-contradiction independent loading state
   const [solvingIds, setSolvingIds] = useState<Set<string>>(new Set());
   // WP 7.2: per-project quick_mode toggle. Defaults to false.
@@ -353,6 +362,23 @@ export default function Create() {
         setDirectedConsolidating(false);
       }
     } else if (results.length === 1) {
+      // Single contradiction: build a local ConsolidationResult so the panel renders
+      const singleResult = results[0];
+      const singleConsolidation: ConsolidationResult = {
+        status: 'compatible',
+        adopted_directions: singleResult.top1
+          ? { [singleResult.contradiction_id]: singleResult.top1 }
+          : {},
+        conflict_report: null,
+        integration_advice: singleResult.top1
+          ? `唯一矛盾「${singleResult.natural_description}」的首選方向：${singleResult.top1.direction_name}。`
+          : '',
+      };
+      setConsolidationResult(singleConsolidation);
+      // Persist to DB so page reload also shows the panel
+      upsertConsolidationResult(id, singleConsolidation).catch((err) =>
+        console.warn('persist single-contradiction consolidation failed:', err),
+      );
       toast.success('已為 1 條矛盾產出方向分析');
     } else {
       toast.error('方向求解全部失敗');

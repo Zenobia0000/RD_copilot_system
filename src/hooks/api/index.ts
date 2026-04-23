@@ -51,6 +51,9 @@ export { useLayeredTrizSolutions } from './useLayeredTrizSolutions';
 // TRIZ Directed Solutions persistence (migration 011)
 export { useDirectedTrizSolutions } from './useDirectedTrizSolutions';
 
+// TRIZ Consolidation Result persistence (migration 012)
+export { useTrizConsolidationResult, upsertConsolidationResult } from './useTrizConsolidationResult';
+
 // --- Sprint 1.2: Assumptions + CLD ---
 export {
   useAssumptions,

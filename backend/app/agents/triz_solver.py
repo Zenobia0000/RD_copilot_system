@@ -1637,6 +1637,30 @@ def _persist_directed_solution(project_id: str, result: ContradictionDirectionRe
         logger.warning("persist directed_triz_solution failed for %s: %s", result.contradiction_id, exc)
 
 
+def _persist_consolidation_result(project_id: str, result: ConsolidationResult) -> None:
+    """Upsert consolidation result into triz_consolidation_results (migration 012)."""
+    from app.core.supabase import get_supabase
+    try:
+        sb = get_supabase()
+        tcr_id = f"TCR-{project_id[:8]}"
+        payload = {
+            "id": tcr_id,
+            "project_id": project_id,
+            "status": result.status,
+            "adopted_directions": {
+                cid: d.model_dump(mode="json")
+                for cid, d in result.adopted_directions.items()
+            },
+            "conflict_report": result.conflict_report.model_dump(mode="json")
+                               if result.conflict_report else None,
+            "integration_advice": result.integration_advice or "",
+        }
+        sb.table("triz_consolidation_results").upsert(payload, on_conflict="id").execute()
+        logger.info("persisted consolidation result for project %s (status=%s)", project_id, result.status)
+    except Exception as exc:
+        logger.warning("persist consolidation_result failed for project %s: %s", project_id, exc)
+
+
 # ---------------------------------------------------------------------------
 # Cross-contradiction consolidation (§三)
 # ---------------------------------------------------------------------------
@@ -1825,14 +1849,14 @@ def consolidate_solutions(req: ConsolidateRequest) -> ConsolidateResponse:
         # All compatible — build adopted map + integration advice
         adopted = {r.contradiction_id: r.top1 for r in results if r.top1}
         _, integration_advice = _generate_conflict_report([], results, status="compatible")
-        return ConsolidateResponse(
-            consolidation=ConsolidationResult(
-                status="compatible",
-                adopted_directions=adopted,
-                conflict_report=None,
-                integration_advice=integration_advice,
-            )
+        consolidation = ConsolidationResult(
+            status="compatible",
+            adopted_directions=adopted,
+            conflict_report=None,
+            integration_advice=integration_advice,
         )
+        _persist_consolidation_result(req.project_id, consolidation)
+        return ConsolidateResponse(consolidation=consolidation)
 
     # Step 2: Try swap
     adopted, remaining = _try_swap_top2(results, incompatible)
@@ -1840,25 +1864,25 @@ def consolidate_solutions(req: ConsolidateRequest) -> ConsolidateResponse:
     if not remaining:
         # Swap resolved the conflict
         _, integration_advice = _generate_conflict_report([], results, status="resolved_with_swap")
-        return ConsolidateResponse(
-            consolidation=ConsolidationResult(
-                status="resolved_with_swap",
-                adopted_directions=adopted,
-                conflict_report=None,
-                integration_advice=integration_advice,
-            )
+        consolidation = ConsolidationResult(
+            status="resolved_with_swap",
+            adopted_directions=adopted,
+            conflict_report=None,
+            integration_advice=integration_advice,
         )
+        _persist_consolidation_result(req.project_id, consolidation)
+        return ConsolidateResponse(consolidation=consolidation)
 
     # Step 3: Still conflicting — generate report
     report, integration_advice = _generate_conflict_report(remaining, results, status="conflict")
-    return ConsolidateResponse(
-        consolidation=ConsolidationResult(
-            status="conflict",
-            adopted_directions=adopted,
-            conflict_report=report,
-            integration_advice=integration_advice,
-        )
+    consolidation = ConsolidationResult(
+        status="conflict",
+        adopted_directions=adopted,
+        conflict_report=report,
+        integration_advice=integration_advice,
     )
+    _persist_consolidation_result(req.project_id, consolidation)
+    return ConsolidateResponse(consolidation=consolidation)
 
 
 def scamper_transform(req: ScamperRequest) -> ScamperResponse:

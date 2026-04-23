@@ -998,6 +998,11 @@ class SubsystemSuggestRequest(BaseModel):
     scanning a flat contradiction list. The legacy `contradictions` field is
     kept for back-compat so existing consumers compile unchanged.
 
+    v9: enriched with Brief context (constraints / kpis) and the full
+    ConsolidationResult from cross-contradiction direction consolidation,
+    so the LLM has access to complete concrete solutions — not just
+    direction titles / summaries.
+
     Ref: docs/e2e/TRIZ_Layered_DrillDown_Optimization.md §8.1 / §8.1.1 and
          docs/e2e/module/Forward_Subsystem_Discovery_Architecture.md §3.1
     """
@@ -1010,6 +1015,13 @@ class SubsystemSuggestRequest(BaseModel):
     # `related_contradictions` primary binding; when empty, fall back to the
     # flat `contradictions` list above.
     layered_triz_solutions: list[LayeredTrizSolution] = Field(default_factory=list)
+    # v9: Brief context — constraints and KPIs for richer subsystem decomposition.
+    constraints: list[str] = Field(default_factory=list)
+    kpis: list[str] = Field(default_factory=list)
+    # v9: Full consolidation result from cross-contradiction direction
+    # consolidation (§三).  Contains adopted_directions with complete
+    # DirectionGroup → DirectionSolution.suggestion concrete text.
+    consolidation_result: "ConsolidationResult | None" = None
 
 
 # ---- Spatial Grounding (Discovery Mode) ----------------------------------

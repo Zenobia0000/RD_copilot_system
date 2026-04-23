@@ -59,6 +59,10 @@ from app.models.schemas import (
     SolveTrizLayeredRequest,
     SolveTrizLayeredResponse,
     TrizSuggestion,
+    # v9: Consolidation types for F2 subsystem enrichment
+    ConsolidationResult,
+    DirectionGroup,
+    DirectionSolution,
 )
 from app.services import reference_library  # legacy direct access (kept for back-compat)
 from app.services.spatial_lookup import LookupQuery, default_resolver
@@ -1034,6 +1038,49 @@ def _serialize_layered_triz_for_f2_prompt(
     return lines
 
 
+def _serialize_consolidation_for_f2_prompt(
+    consolidation: ConsolidationResult,
+) -> str:
+    """v9: Serialize the full consolidation result into a prompt-ready block.
+
+    For each adopted direction we emit:
+      - direction name + summary
+      - every concrete solution with its full suggestion text, TRIZ path,
+        principle name, and the contradiction-id it resolves
+
+    This gives the subsystem-decomposition LLM access to the **complete
+    concrete engineering decisions** (not just titles/summaries) so that
+    subsystem boundaries can be drawn around real mechanisms.
+    """
+    if not consolidation or not consolidation.adopted_directions:
+        return "（無整併結果）"
+
+    blocks: list[str] = []
+    for contradiction_id, group in consolidation.adopted_directions.items():
+        header = (
+            f"[矛盾 {contradiction_id}] 方向: {group.direction_name}"
+        )
+        if group.direction_summary:
+            header += f"\n  摘要: {group.direction_summary}"
+
+        solution_lines: list[str] = []
+        for idx, sol in enumerate(group.solutions, 1):
+            parts = [f"  解法 {idx} ({sol.path})"]
+            if sol.principle_name:
+                parts.append(f"原理: {sol.principle_name}")
+            if sol.separation_principle:
+                parts.append(f"分離原則: {sol.separation_principle}")
+            parts_str = " | ".join(parts)
+            # The full suggestion text — this is what the user explicitly
+            # requested: "完整具體的解法不要只有方向標題跟摘要"
+            suggestion_text = f"    {sol.suggestion}"
+            solution_lines.append(f"{parts_str}\n{suggestion_text}")
+
+        blocks.append(header + "\n" + "\n".join(solution_lines))
+
+    return "\n\n".join(blocks)
+
+
 def suggest_subsystems(req: SubsystemSuggestRequest) -> SubsystemSuggestResponse:
     # TODO(L3 WBS §6.1): When L3 WBS ships, this function's input should
     # switch from flat contradictions to LayeredTrizSolution[]. The subsystem_hint
@@ -1066,8 +1113,20 @@ def suggest_subsystems(req: SubsystemSuggestRequest) -> SubsystemSuggestResponse
     )
     contradictions_block += subsystem_hint_instruction
 
+    # v9: Serialize Brief context + consolidation adopted solutions
+    constraints_block = "\n".join(f"- {c}" for c in req.constraints) if req.constraints else "（無）"
+    kpis_block = "\n".join(f"- {k}" for k in req.kpis) if req.kpis else "（無）"
+    adopted_solutions_block = (
+        _serialize_consolidation_for_f2_prompt(req.consolidation_result)
+        if req.consolidation_result
+        else "（無整併結果）"
+    )
+
     base_prompt = SUBSYSTEM_SUGGESTION.format(
         mission=req.mission,
+        constraints=constraints_block,
+        kpis=kpis_block,
+        adopted_solutions=adopted_solutions_block,
         contradictions=contradictions_block,
         existing_subsystems="\n".join(f"- {s}" for s in req.existing_subsystems) or "（無）",
         reference_library=library_summary,

@@ -1272,7 +1272,13 @@ export default function Create() {
     // The query invalidation on success will refetch and replace this.
     setLocalSubsystems(prev => prev.filter(s => s.source !== "ai"));
     suggestSubsystems.mutate(
-      { mission: briefMission || "", contradictions: contradictionDescs },
+      {
+        mission: briefMission || "",
+        contradictions: contradictionDescs,
+        constraints: constraintStrings,
+        kpis: kpiStrings,
+        consolidation_result: consolidationQuery.data ?? null,
+      },
       {
         onSuccess: ({ created, packageMap: pm }) => {
           setPackageMap(pm ?? null);

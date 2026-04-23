@@ -171,6 +171,9 @@ class TestSubsystemSuggestionsContract:
         "contradictions": ["weight vs range"],
         "existing_subsystems": ["Motor"],
         "layered_triz_solutions": [],
+        "constraints": [],
+        "kpis": [],
+        "consolidation_result": None,
     }
 
     def test_request_schema_is_frozen(self):
@@ -184,6 +187,9 @@ class TestSubsystemSuggestionsContract:
             "contradictions": [],
             "existing_subsystems": [],
             "layered_triz_solutions": [],
+            "constraints": [],
+            "kpis": [],
+            "consolidation_result": None,
         }
 
     def test_response_schema_top_level_keys(self):

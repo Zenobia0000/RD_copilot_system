@@ -1000,6 +1000,10 @@ export interface SubsystemSuggestRequest {
   mission: string;
   contradictions?: string[];
   existing_subsystems?: string[];
+  // v9: Brief context + consolidation enrichment
+  constraints?: string[];
+  kpis?: string[];
+  consolidation_result?: import('@/types/directedTriz').ConsolidationResult | null;
 }
 
 // Subsystem suggestion types are imported from the single source of truth

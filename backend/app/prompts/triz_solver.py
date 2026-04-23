@@ -535,9 +535,18 @@ grounded spatial estimate (bbox + mass) for each module.
 
 <context>
 <mission>{mission}</mission>
+<constraints>
+{constraints}
+</constraints>
+<kpis>
+{kpis}
+</kpis>
 <contradictions>
 {contradictions}
 </contradictions>
+<adopted_solutions>
+{adopted_solutions}
+</adopted_solutions>
 <existing_subsystems>
 {existing_subsystems}
 </existing_subsystems>
@@ -558,6 +567,17 @@ grounded spatial estimate (bbox + mass) for each module.
 </context>
 
 <instructions>
+0. Study the <constraints>, <kpis>, and <adopted_solutions> blocks carefully.
+   - Constraints define hard boundaries; subsystems must satisfy them.
+   - KPIs define measurable targets; decomposition should allow each KPI to
+     be traceable to at least one module.
+   - Adopted solutions are **concrete, already-committed engineering decisions**
+     from the cross-contradiction consolidation stage. Each solution's full
+     suggestion text, the TRIZ path (TC/PC/SF), the principle used, and the
+     contradiction it resolves are listed. When a solution implies a physical
+     mechanism, material, or topology, the subsystem tree MUST incorporate a
+     module / component that realises it. Do NOT summarise — reference the
+     exact mechanism described in the suggestion text.
 1. Identify 2–4 **system-level** subsystems (e.g., Power, Control, Structure).
 2. Break each system into 2–4 **modules** (e.g., Power → Motor, Gearbox, Inverter).
 3. For each module, list 2–5 **components** (e.g., Motor → Stator, Rotor, Bearing).

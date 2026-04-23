@@ -13,6 +13,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { scamperSubsystemSuggest } from '@/lib/api';
 import type { SuggestedSubsystem, PackageMap, SubsystemLevel } from '@/types/generated/subsystem';
+import type { ConsolidationResult } from '@/types/directedTriz';
 import { queryKeys } from './useQueryConfig';
 
 const VALID_LEVELS: ReadonlySet<SubsystemLevel> = new Set(['system', 'module', 'component']);
@@ -20,6 +21,10 @@ const VALID_LEVELS: ReadonlySet<SubsystemLevel> = new Set(['system', 'module', '
 export interface SubsystemSuggestionVariables {
   mission: string;
   contradictions: string[];
+  // v9: Brief context + consolidation enrichment
+  constraints?: string[];
+  kpis?: string[];
+  consolidation_result?: ConsolidationResult | null;
 }
 
 export interface SubsystemSuggestionResult {
@@ -31,7 +36,7 @@ export function useSubsystemSuggestion(projectId: string | undefined) {
   const queryClient = useQueryClient();
 
   return useMutation<SubsystemSuggestionResult, Error, SubsystemSuggestionVariables>({
-    mutationFn: async ({ mission, contradictions }) => {
+    mutationFn: async ({ mission, contradictions, constraints, kpis, consolidation_result }) => {
       if (!projectId) throw new Error('projectId is required');
 
       // 1) Clear existing AI-produced subsystems (preserve manual ones).
@@ -48,6 +53,9 @@ export function useSubsystemSuggestion(projectId: string | undefined) {
         mission,
         contradictions,
         existing_subsystems: [],
+        constraints,
+        kpis,
+        consolidation_result: consolidation_result ?? undefined,
       });
 
       // 3) Flatten tree → sequential inserts preserving parent chain.

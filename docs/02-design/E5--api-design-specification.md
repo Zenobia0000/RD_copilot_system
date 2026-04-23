@@ -2,8 +2,8 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.1`
-**最後更新 (Last Updated):** `2026-04-22`
+**文件版本 (Document Version):** `v1.2`
+**最後更新 (Last Updated):** `2026-04-23`
 **主要作者/設計師 (Lead Author/Designer):** `RD Design Copilot Backend Team`
 **審核者 (Reviewers):** `架構團隊、前端團隊、QA`
 **狀態 (Status):** `Active`
@@ -210,6 +210,8 @@ ISO 8601 + UTC（e.g. `2026-04-15T10:00:00Z`）。
 | POST | `/triz/solve-layered` | `SolveTrizLayeredResponse` | **Legacy** — v7 三層鑽降，保留向後相容 |
 | POST | `/triz/solve-directed` | `SolveDirectedResponse` | **GA (v8)** — 方向導向求解（主力流程） |
 | POST | `/triz/consolidate` | `ConsolidateResponse` | **GA (v8)** — 跨矛盾方向整合 |
+| POST | `/triz/sim-matrix` | `SimMatrixResponse` | **(v1.2 ADR-008)** — 多 TC SIM 交互矩陣 |
+| POST | `/triz/complexity-check` | `ComplexityCheckResponse` | **(v1.2 ADR-008)** — CCI 複雜度判定 |
 
 > **v8 Direction-Centric Flow (2026-04-20)**:
 > 新主力流程為 `/triz/solve-directed` + `/triz/consolidate`，取代 `/triz/solve-layered`。
@@ -276,6 +278,26 @@ ISO 8601 + UTC（e.g. `2026-04-15T10:00:00Z`）。
 |---|---|---|
 | POST | `/knowledge/writeback` | `KnowledgeWritebackResponse` |
 | POST | `/export` | `ExportResponse` |
+
+### 7.13 (v1.2) 資源：Analyst — Auto-TRIZ v2 擴充 (`analyst.py`)
+| Method | Path | Response | 說明 |
+|---|---|---|---|
+| POST | `/analyst/five-why` | `FiveWhyResponse` | 5 Why 根因分析 — 從症狀挖掘可操作因果節點 |
+| POST | `/analyst/kt-analysis` | `KtAnalysisResponse` | KT Is/Is Not 差異分析 — 有對照組時鎖定 Px 候選 |
+| POST | `/analyst/function-analysis` | `FunctionAnalysisResponse` | FA 功能建模 — 組件交互圖 + SF 診斷 + 子系統邊界 |
+| POST | `/analyst/oz-ot-analysis` | `OzOtResponse` | OZ-OT 分析 — 鎖定 Px 物理變數，TC→PC 橋樑 |
+| POST | `/analyst/entry-grading` | `EntryGradingResponse` | 入口成熟度分級 — Level A/B/C 路由判定 |
+
+> **ADR-008 (2026-04-23)**：以上 5 個端點由 Auto-TRIZ v2 整合引入。`five_why` + `kt_is_is_not` 為問題定向工具（Step 0），與現有 Socratic Q&A **並存**；`function_analysis` 為功能建模（Step 1），確保矛盾定義在正確系統粒度；`oz_ot_analysis` 為 OZ-OT 分析（Step 3a），為 TC→PC 轉換提供 Px 錨點；`entry_grading` 為入口分級，識別 TRIZ 不適用的情境。
+
+### 7.14 (v1.2) 資源：Evidence Registry (`evidence.py`)
+| Method | Path | Response | 說明 |
+|---|---|---|---|
+| POST | `/evidence/register-claim` | `RegisterClaimResponse` | 註冊數值聲明 — 含 Claim ID、來源 agent/step |
+| POST | `/evidence/verify` | `VerifyClaimResponse` | 驗證 claim — WebSearch (Tavily) 外部驗證 |
+| GET | `/evidence/coverage` | `CoverageResponse` | Evidence Coverage 統計 — Gate 退出條件用 |
+
+> **ADR-008 (2026-04-23)**：Evidence Registry 為 cross-cutting 數據驗證層。所有 LLM agent 產出的數值聲明經此服務註冊 + 驗證。Gate 退出條件新增 `Evidence Coverage ≥ 40%`（可配置）。詳見 [evidence-registry.md](specs/modules/evidence-registry.md)。
 
 > **未列出端點**：`TBD — <be-lead TBD> by <2026-05-01 TBD>`（若有 router 漏掃請於 PR 補）
 

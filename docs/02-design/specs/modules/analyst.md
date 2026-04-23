@@ -2,8 +2,8 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.0`
-**最後更新 (Last Updated):** `2026-04-15`
+**文件版本 (Document Version):** `v1.1`
+**最後更新 (Last Updated):** `2026-04-23`
 **主要作者 (Lead Author):** `Backend AI Agents Team`
 **審核者 (Reviewers):** `Tech Lead, QA Lead, RD Reviewer Lead`
 **狀態 (Status):** `Active (Pilot)`
@@ -151,6 +151,114 @@ Analyst Agent 是 Discover/Define 階段的主要 LLM actor，負責把自然語
 
 ---
 
+### 規格 14 (v2.2): `five_why(req: FiveWhyRequest) -> FiveWhyResponse`
+
+**描述**: 從症狀出發，執行 5 Why 根因分析。5 分鐘內從症狀挖到可操作的因果節點，判斷要分析哪個子系統。產出 TC 初步假設。對應 Auto-TRIZ v2 Step 0a。
+
+**契約式設計 (DbC)**:
+* **前置條件**:
+  1. `req.project_id` 非空且使用者有權限。
+  2. `req.symptom_description` 非空（症狀描述）。
+  3. `req.brief_context` 可選（已有的 mission / constraints / kpis 作為上下文）。
+* **後置條件**:
+  1. `result.why_chain` 為 list，長度 3-7（每層 why + answer）。
+  2. `result.root_cause_hypothesis` 非空（可操作的根因假設）。
+  3. `result.target_subsystem` 非空（要分析的子系統名稱）。
+  4. `result.tc_hypothesis` 可選 — 若根因已是兩參數 trade-off，直接產出 TC 候選（`improving_desc` + `worsening_desc`）。
+* **不變性**:
+  1. 5 Why 僅做定向，不定義矛盾。TC 假設需經 `formalize_contradiction` 正式化。
+  2. Agent 不落資料庫。
+
+---
+
+### 規格 15 (v2.2): `kt_is_is_not(req: KtAnalysisRequest) -> KtAnalysisResponse`
+
+**描述**: 當有對照組（好的 vs 壞的、有問題的 vs 沒問題的）時，執行 KT Is/Is Not 差異分析。用差異比較縮小搜索空間，產出 Px 候選清單 + OZ/OT 初步鎖定。對應 Auto-TRIZ v2 Step 0b。
+
+**契約式設計 (DbC)**:
+* **前置條件**:
+  1. `req.project_id` 非空。
+  2. `req.is_description` 非空（有問題的情境描述）。
+  3. `req.is_not_description` 非空（沒問題的對照情境描述）。
+  4. `req.five_why_result` 可選（若已做 5 Why，帶入根因假設作為上下文）。
+* **後置條件**:
+  1. `result.analysis_matrix` 為 4 維矩陣（What / Where / When / Extent），每維含 IS / IS_NOT / unique_difference。
+  2. `result.px_candidates` 為 list（1-5 個 Px 候選物理變數），每個含 `variable_name` + `rationale`。
+  3. `result.oz_hint` 可選（Where IS vs IS NOT 差異 → 操作空間初步鎖定）。
+  4. `result.ot_hint` 可選（When IS vs IS NOT 差異 → 操作時間初步鎖定）。
+* **不變性**:
+  1. 無對照組時不應呼叫此方法（前端 UI 提供「是否有對照組」判斷）。
+  2. Agent 不落資料庫。
+
+---
+
+### 規格 16 (v2.2): `function_analysis(req: FunctionAnalysisRequest) -> FunctionAnalysisResponse`
+
+**描述**: 繪製組件交互圖（有效/有害/不足/過度/缺失功能）+ 建立 Substance-Field 模型 + 定義子系統邊界。確保矛盾定義在正確系統粒度。對應 Auto-TRIZ v2 Step 1。
+
+**契約式設計 (DbC)**:
+* **前置條件**:
+  1. `req.project_id` 非空。
+  2. `req.brief_context` 非空（mission + constraints + kpis）。
+  3. `req.five_why_result` 可選（若已做 5 Why，帶入子系統假設）。
+  4. `req.bom_components` 可選（若有 BOM，加速建模；否則從功能反推）。
+* **後置條件**:
+  1. `result.component_interactions[]` 非空，每項含 `source_component`, `target_component`, `function_type` ∈ {"useful", "harmful", "insufficient", "excessive", "missing"}, `description`。
+  2. `result.sf_diagnosis` 含 `substance_1`, `substance_2`, `field`, `status` ∈ {"effective", "harmful", "insufficient", "missing"}。
+  3. `result.subsystem_boundary` 含 `name`, `included_components[]`, `boundary_rationale`。
+  4. `result.improvement_description` 非空（「改善什麼」自然語言）。
+  5. `result.worsening_description` 非空（「惡化什麼」自然語言）。
+* **不變性**:
+  1. 子系統邊界圍繞 OZ（操作空間）建立，非按 BOM 零件劃分。
+  2. `improvement_description` + `worsening_description` 為 Step 2 TC 參數映射的直接輸入。
+  3. Agent 不落資料庫；結果由前端持有或經 `function_models` 表持久化（TBD）。
+
+---
+
+### 規格 17 (v2.2): `oz_ot_analysis(req: OzOtRequest) -> OzOtResponse`
+
+**描述**: 鎖定操作空間 (Operational Zone) + 操作時間 (Operational Time)，萃取核心物理變數 Px。Px 是 TC→PC 轉換的橋樑 — 「P1 和 P2 共同受什麼物理量控制？」。對應 Auto-TRIZ v2 Step 3a。
+
+**契約式設計 (DbC)**:
+* **前置條件**:
+  1. `req.contradiction_id` 對應存在的 TC row（`type="TC"`, `improving_param` + `worsening_param` 非空）。
+  2. `req.function_analysis_result` 可選（若已做 FA，帶入組件交互 + SF 狀態）。
+  3. `req.kt_result` 可選（若已做 KT，帶入 Px 候選 + OZ/OT hint）。
+* **後置條件**:
+  1. `result.oz` 含 `zone_description`（操作空間自然語言）+ `physical_location`（具體位置）。
+  2. `result.ot` 含 `time_description`（操作時間自然語言）+ `time_window`（具體時間範圍）。
+  3. `result.px` 含 `variable_name`（物理變數名稱）+ `rationale`（為何此變數同時控制 P1 和 P2）+ `sensitivity`（`[dP1/dPx, dP2/dPx]` 方向性描述）。
+  4. `result.pc_sentence` 含 `state_a`（Px 需為 [State A] 以改善 P1）+ `state_not_a`（Px 需為 [NOT A] 以改善 P2）→ 即 PC 造句。
+  5. `result.px_found` 為 boolean：
+     - `true`：Px 鎖定成功，可進入 Step 3b PC 驗證。
+     - `false`：Px 鎖定失敗，附 `fallback_strategy` ∈ {"broaden_oz", "split_tc", "reframe_problem"}。
+* **不變性**:
+  1. OZ-OT 結果不回寫 `contradictions` 表（與 ADR-007 一致）；可暫存於 solve response 或新表。
+  2. Px 為 TC→PC 的唯一橋樑；若 Px 找不到，TC 仍可用 L1 表面解，但 L2 深挖會降級。
+
+---
+
+### 規格 18 (v2.2): `entry_grading(req: EntryGradingRequest) -> EntryGradingResponse`
+
+**描述**: 判定問題成熟度等級（Level A / B / C），路由至合適的分析框架。對應 Auto-TRIZ v2 §1.1 入口判定。
+
+**契約式設計 (DbC)**:
+* **前置條件**:
+  1. `req.project_id` 非空。
+  2. `req.problem_description` 非空（使用者對問題的自然語言描述）。
+* **後置條件**:
+  1. `result.level` ∈ {"A", "B", "C"}：
+     - **C**：連系統都描述不了 → 回傳 `recommended_framework` ∈ {"design_thinking", "axiomatic_design", "evolution_trends"}。
+     - **A**：能描述系統但說不出 trade-off → 回傳 `recommended_entry = "step_0"`（必做 5 Why）。
+     - **B**：能填完「在 [系統] 中，為了 [改善 A]，會導致 [B 惡化]」→ 回傳 `recommended_entry = "step_1"`（可跳 Step 0）。
+  2. `result.verification_sentence` 可選 — Level B 時附完整造句供 RD 確認。
+  3. `result.rationale` 非空。
+* **不變性**:
+  1. Level C 不進入 TRIZ 流程。前端顯示替代框架建議後停止。
+  2. Level 判定為建議性質，RD 可覆寫。
+
+---
+
 ## 測試情境與案例
 
 #### 情境 1: Happy Path — Brief 抽取
@@ -235,6 +343,40 @@ Analyst Agent 是 Discover/Define 階段的主要 LLM actor，負責把自然語
 * **描述**: LLM 返回 2 個 PC 皆 `derived_parameter="重量"`。
 * **Assert**:
   - `len(result.decomposed_pcs) == 1`（第 2 個被 dedup 丟棄 + logger.warning）
+
+#### 情境 8 (v2.2): Five-Why — 根因假設含 TC 候選
+* **測試案例 ID**: `TC-Analyst-008`
+* **描述**: 症狀「馬達在爬坡時異音」，LLM 產出 5 層 why chain 並鎖定根因「為了減重選用了輕量化軸承 → 剛性不足」。
+* **Assert**:
+  - `len(result.why_chain) >= 3 and len(result.why_chain) <= 7`
+  - `result.root_cause_hypothesis` 含「軸承」或「剛性」
+  - `result.tc_hypothesis` 非 None，含 `improving_desc` 和 `worsening_desc`
+
+#### 情境 9 (v2.2): Function Analysis — 產出完整 SF 診斷
+* **測試案例 ID**: `TC-Analyst-009`
+* **描述**: Brief 上下文為 e-bike 馬達散熱，期望產出馬達→殼體的有害熱交互 + SF 效能不足診斷。
+* **Assert**:
+  - `len(result.component_interactions) >= 2`
+  - 至少一項 `function_type` 為 "harmful" 或 "insufficient"
+  - `result.sf_diagnosis.status` ∈ {"harmful", "insufficient", "missing"}
+  - `result.improvement_description` 和 `result.worsening_description` 皆非空
+
+#### 情境 10 (v2.2): OZ-OT — Px 鎖定成功
+* **測試案例 ID**: `TC-Analyst-010`
+* **描述**: TC (improving=19 溫度, worsening=1 重量)，期望 Px 鎖定為散熱路徑相關物理量。
+* **Assert**:
+  - `result.px_found == True`
+  - `result.px.variable_name` 非空
+  - `result.pc_sentence.state_a` 和 `result.pc_sentence.state_not_a` 皆非空
+  - `result.oz.zone_description` 和 `result.ot.time_description` 皆非空
+
+#### 情境 11 (v2.2): Entry Grading — Level C 導向替代框架
+* **測試案例 ID**: `TC-Analyst-011`
+* **描述**: 問題描述「我們想做一個新產品但不知道做什麼」，應判定 Level C。
+* **Assert**:
+  - `result.level == "C"`
+  - `result.recommended_framework` ∈ {"design_thinking", "axiomatic_design", "evolution_trends"}
+  - `result.rationale` 非空
 
 ---
 

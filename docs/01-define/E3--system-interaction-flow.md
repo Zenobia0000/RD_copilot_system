@@ -1,6 +1,6 @@
 # E3 — 系統互動流程 (System Interaction Flow)
 
-> **版本**: v1.0 | **日期**: 2026-04-15
+> **版本**: v1.1 | **日期**: 2026-04-23
 > **定位**: 本文檔是 [E3 架構](E3--architecture-and-design.md) 的 **user-facing 視角**，對照 [00-discover/E1x--user-journey-map](../00-discover/E1x--user-journey-map.md)（現狀痛點）描繪 **設計後的目標體驗流**。
 > **範疇**: 從使用者動作 → 跨子系統互動 → State Machine 狀態轉換的 end-to-end 任務流程。
 > **來源**: 從 `../00-discover/E1--project-brief-and-prd.md` §2.4 Day-in-the-Life 與 `E3--architecture-and-design.md` Appendix A–E 推導，不引入新流程設計。
@@ -27,16 +27,23 @@
 
 ```mermaid
 graph LR
-    S1["Step 1<br/>問題界定<br/>Constraint"] --> S2["Step 2-3<br/>理解全貌+建模<br/>Contradiction"]
-    S2 --> S4["Step 4<br/>假設驗證規劃<br/>Assumption"]
-    S4 --> S5["Step 5<br/>雙軌分析<br/>Anti-Anchor ∥ TRIZ"]
+    S0["(v1.1) Entry<br/>入口分級<br/>Level A/B/C"] --> S1["Step 1<br/>問題界定<br/>Constraint"]
+    S1 --> S2["Step 2<br/>理解全貌<br/>Socratic + 5Why/KT"]
+    S2 --> S2c["(v1.1) Step 2c<br/>功能建模 FA<br/>FunctionModel"]
+    S2c --> S3["Step 3<br/>系統建模<br/>Contradiction"]
+    S3 --> S4["Step 4<br/>假設驗證規劃<br/>Assumption"]
+    S4 --> S5a0["(v1.1) Step 5a-0<br/>OZ-OT 分析<br/>Px 鎖定"]
+    S5a0 --> S5["Step 5<br/>雙軌分析<br/>Anti-Anchor ∥ TRIZ"]
     S5 --> S5d["Step 5d<br/>Decision Hub<br/>候選池匯流"]
     S5d --> SP["Step P<br/>Pre-CAD 審查<br/>Concept Route"]
     SP --> S6["Step 6<br/>CAD 審查<br/>Evidence Matrix"]
     S6 --> S7["Step 7<br/>KT 決策<br/>Decision Record"]
     S7 --> S8["Step 8<br/>費曼內化<br/>Asset"]
 
+    style S0 fill:#F3E8FF
     style S1 fill:#E0F2FE
+    style S2c fill:#E0F2FE
+    style S5a0 fill:#FEF3C7
     style S5 fill:#FEF3C7
     style S5d fill:#FEF3C7
     style SP fill:#DCFCE7
@@ -78,17 +85,34 @@ sequenceDiagram
 
     UI->>AA: 啟動蘇格拉底七類提問 (Step 2)
     AA-->>RD: 揭露 10 條隱含假設 + 3 條矛盾
+
+    Note over UI: (v1.1) Step 2b — 問題定向
+    UI->>AA: five_why(symptom)
+    AA-->>RD: 5 Why chain → 根因假設 + TC 候選
+    opt 有對照組
+        UI->>AA: kt_is_is_not(is_desc, is_not_desc)
+        AA-->>RD: 4 維差異矩陣 → Px 候選 + OZ/OT hint
+    end
+
+    Note over UI: (v1.1) Step 2c — 功能建模
+    UI->>AA: function_analysis(brief_context)
+    AA-->>RD: 組件交互圖 + SF 診斷 + 子系統邊界
+
     RD->>UI: 校準矛盾句 (Gate 3)
     UI->>AA: formalize_contradiction (TC-only, ADR-007)
     AA-->>UI: type="TC" + improving/worsening_param + rationale
     Note over UI: Contradiction: Reviewed → Verified (僅 TC)
 
+    Note over UI: (v1.1) Step 5a-0 — OZ-OT 分析
+    UI->>AA: oz_ot_analysis(contradiction_id, fa_result)
+    AA-->>UI: OZ + OT + Px + PC 造句
+
     RD->>UI: 點擊「正向分析」卡片 (Step 5a)
-    UI->>TS: solve_triz_layered(C-001, TC-only payload)
+    UI->>TS: solve_triz_layered(C-001, TC + OZ-OT context)
     TS->>AA: derive PC (decompose_tc_to_pcs) + SF (derive_su_field_from_tc)
-    AA-->>TS: PC[] + SuFieldModel (ADR-007 入口派生)
+    AA-->>TS: PC[] + SuFieldModel (ADR-007 入口派生, 以 OZ-OT Px 輔助)
     TS->>TS: L1 TC 查矛盾矩陣
-    TS->>TS: L2 PC 深挖物理根因 (ARIZ)
+    TS->>TS: L2 PC 深挖物理根因 (ARIZ, 以 Px 為錨)
     TS->>TS: L3 SF 結構旁路
     TS-->>UI: LayeredTrizSolution (L1/L2/L3)
     UI-->>RD: 分層 drill-down 卡片 + critic badge
@@ -108,11 +132,16 @@ sequenceDiagram
 |-----------|---------------------|----------------------------|
 | 上傳 Brief | Knowledge Agent (E3--architecture-and-design.md §11.5.2) | DRAFT → PHASE_I |
 | 確認約束 | Analyst Agent | Constraint: Draft → Reviewed (Gate 1) |
+| **(v1.1) 執行 5 Why / KT** | Analyst Agent | — (中間產物，不觸發狀態轉換) |
+| **(v1.1) 執行 FA 功能建模** | Analyst Agent | FunctionModel: — → Generated |
 | 校準矛盾 | Analyst + TRIZ Solver | Contradiction: Reviewed → Verified (Gate 3) |
+| **(v1.1) 執行 OZ-OT 分析** | Analyst Agent | OzOtResult: — → Px Locked / Px Not Found |
 | 啟動 TRIZ | Forward TRIZ Solver (Appendix B) | TrizSuggestion: pending → generated |
 | 採納 L2 路線 | Evaluator (VP 生成) | Concept Route: — → Draft |
+| **(v1.1) CCI 複雜度檢查** | TRIZ Solver | ComplexityCheck: — → Evolution / Weak Evolution / Patch |
 | 觸發 Phase B | Decision Hub | Convergence Phase B 執行 |
 | 通過 MUST | Evaluator | Concept Route: Draft → Reviewed (Gate P 前置) |
+| **(v1.1) Evidence Coverage 檢查** | EvidenceRegistry | Gate 退出：coverage ≥ 40% |
 
 ---
 

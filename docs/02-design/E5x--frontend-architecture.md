@@ -34,20 +34,17 @@
 1. **User-centric**：所有 UI 決策回答「RD 要解什麼問題？」（參 00-discover 痛點 → E3x Scenario 1/2/3）。
 2. **Single source of truth**：型別來自 `backend/app/models/schemas.py`（透過 pydantic2ts 同步至 `src/types/generated/`）；手寫 UI 型別在 `src/types/`。
 3. **Feature-first organization**：`src/components/{create,explore,review,...}` 按頁面功能切分，避免 MVC 按類型切分。
-4. **Progressive disclosure**：複雜流程（TRIZ L1→L2→L3）採分層 drill-down，不一次全展開；Create 頁以 7-step accordion stepper 逐步展開。
+4. **Progressive disclosure**：複雜流程（TRIZ L1→L2→L3）採分層 drill-down，不一次全展開；Create 頁以 7-step accordion stepper 逐步展開；Explore 頁以 Conditional Stepper 依問題成熟度（Level A/B/C）自動切換引導流/快速通道（ADR-008 §D6）。
 5. **Observable state**：所有跨組件狀態走 React Query（server）+ Context（local UI）；避免 prop drilling。
 
 ## 第二部分：前端架構的系統化分層
 
 ```
 ┌──────── Pages (src/pages/) ─────────────────────────────────┐
-│  18 個路由頁面：Auth / ProjectList / ProjectDashboard /     │
-│  TaskDefinition / Explore / Track / Create / PreCadReview / │
-│  CadInProgress / DesignReview / DecisionRecord / Feynman /  │
-│  KnowledgeBase / ConstraintLabelDictionary / Settings /     │
-│  DevSeed / ResetPassword / NotFound                         │
+│  18 個路由頁面 — 完整路由樹見                                │
+│  E5x--frontend-information-architecture.md §3               │
 ├──────── Features (src/components/{create,explore,...}/) ─────┤
-│  Feature 組件 (80+)：per-page 組件（assumption / brief /   │
+│  Feature 組件 (90+)：per-page 組件（assumption / brief /   │
 │  contradiction / create / dashboard / evidence / explore /  │
 │  layouts / precad / projects / review / solution /          │
 │  task-definition / track）                                  │
@@ -244,6 +241,8 @@ Source: `vite.config.ts`（完整檔案 L1–L61）
 
 ## 第八部分：前後端協作契約
 
+> **前後端共用契約**：所有端點定義、Request/Response schema、錯誤格式、版本策略，以 [`E5--api-design-specification.md`](E5--api-design-specification.md) 為唯一權威來源。Schema 同步機制見 [`E6x--schema-codegen-workflow.md`](E6x--schema-codegen-workflow.md)。後端開發人員無需閱讀本文件的其他章節。
+
 - **API 契約**：見 [`E5--api-design-specification.md`](E5--api-design-specification.md)。
 - **Schema codegen**：Pydantic → TS 一鍵同步，見 [`E6x--schema-codegen-workflow.md`](E6x--schema-codegen-workflow.md)。
 - **命名轉換**：前端 camelCase、後端 snake_case；`src/integrations/` 擔任 adapter。參 [`specs/explore/E5x--tc-to-multipc-type-alignment.md`](specs/explore/E5x--tc-to-multipc-type-alignment.md)。
@@ -260,11 +259,24 @@ Source: `vite.config.ts`（完整檔案 L1–L61）
 
 ## 第十部分：前端開發檢查清單
 
+### 架構層
+
 - [ ] 新頁面/組件放對 `src/components/{feature}/`？
 - [ ] 型別來自 `src/types/generated/` 還是手寫 `src/types/`（分清邊界）？
 - [ ] 有 hook 隔離 API 呼叫？避免組件內直接 fetch？
 - [ ] 無障礙：focus / aria / keyboard？
 - [ ] Error boundary / loading skeleton / empty state 三態齊備？
+
+### IA / 導航層
+
+- [ ] 每個 Route 有對應 page 元件？
+- [ ] 所有 `/projects/:id/*` 受 auth guard？
+- [ ] Breadcrumb 可還原層級？
+- [ ] 關鍵 state 可由 URL 重建（深連結測試）？
+- [ ] 側欄 active 狀態準確？
+
+### 驗收
+
 - [ ] BDD scenario（`E5x--bdd-scenarios.md`）有對應？
 - [ ] E7x 手測腳本有覆蓋關鍵路徑？
 

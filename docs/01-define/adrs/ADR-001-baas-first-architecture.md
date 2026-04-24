@@ -8,25 +8,29 @@
 
 SOW v1.0 規劃的後端架構為：
 
-| 層級 | SOW 規格 |
-|------|----------|
-| Framework | FastAPI (Python 3.11+) |
-| ORM | SQLAlchemy 2.0+ |
-| Database | SQLite (MVP) → PostgreSQL (v1.1) |
-| Auth | 自訂 JWT (`POST /auth/login`, `GET /user/profile`) |
-| API 端點 | 35+ REST CRUD 端點，涵蓋所有 27 個實體 |
-| 資料存取 | 後端為唯一資料存取層，前端僅透過 REST API 操作資料 |
+
+| 層級        | SOW 規格                                           |
+| --------- | ------------------------------------------------ |
+| Framework | FastAPI (Python 3.11+)                           |
+| ORM       | SQLAlchemy 2.0+                                  |
+| Database  | SQLite (MVP) → PostgreSQL (v1.1)                 |
+| Auth      | 自訂 JWT (`POST /auth/login`, `GET /user/profile`) |
+| API 端點    | 35+ REST CRUD 端點，涵蓋所有 27 個實體                     |
+| 資料存取      | 後端為唯一資料存取層，前端僅透過 REST API 操作資料                   |
+
 
 實際開發選擇了 **Supabase BaaS** 架構：
 
-| 層級 | 實際實作 |
-|------|----------|
-| Framework | FastAPI（僅 AI 編排層） |
-| ORM | 無 — 前端用 Supabase JS Client，後端用 supabase-py (service-role) |
-| Database | Supabase PostgreSQL（Day-one 即為 PostgreSQL） |
-| Auth | Supabase Auth（email/password, OAuth, 密碼重設） |
-| API 端點 | 16 個 AI 端點（10 routers），CRUD 由前端直接操作 Supabase |
-| 資料存取 | 雙路徑 — 前端 Supabase JS + 後端 supabase-py |
+
+| 層級        | 實際實作                                                      |
+| --------- | --------------------------------------------------------- |
+| Framework | FastAPI（僅 AI 編排層）                                         |
+| ORM       | 無 — 前端用 Supabase JS Client，後端用 supabase-py (service-role) |
+| Database  | Supabase PostgreSQL（Day-one 即為 PostgreSQL）                |
+| Auth      | Supabase Auth（email/password, OAuth, 密碼重設）                |
+| API 端點    | 16 個 AI 端點（10 routers），CRUD 由前端直接操作 Supabase              |
+| 資料存取      | 雙路徑 — 前端 Supabase JS + 後端 supabase-py                     |
+
 
 此偏差的根因是開發效率考量：前端可直接 CRUD 不需等待後端 API，且 Supabase 提供 RLS、Auth、Realtime 等開箱即用功能。
 
@@ -65,3 +69,4 @@ SOW v1.0 規劃的後端架構為：
 - `supabase/migrations/002_rls_policies.sql`: RLS 策略定義
 - `src/hooks/api/useSupabaseQuery.ts`: 前端通用 CRUD hooks
 - `backend/app/main.py`: 後端 16 AI 端點的 router 註冊
+

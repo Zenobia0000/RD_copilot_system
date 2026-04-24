@@ -1,0 +1,79 @@
+{
+  "project_id": "ebike-drive-unit-v2",
+  "triz_session_ref": "2026-04-21-ebike-drive-unit-v2",
+  "created_at": "2026-04-22T00:00:00+08:00",
+  "subsystem_tr": {
+    "motor": {
+      "current": "TR0",
+      "target": "TR1",
+      "blockers": ["WI-01 FEA 未執行：Bg、扭矩、軸向力"],
+      "responsible_wi": ["WI-01"]
+    },
+    "gearbox": {
+      "current": "TR0.5",
+      "target": "TR1",
+      "blockers": ["WI-02 FEA 未執行：柔輪應力、齒根應力"],
+      "responsible_wi": ["WI-02"]
+    },
+    "pcm": {
+      "current": "TR0",
+      "target": "TR1",
+      "blockers": ["WI-03 熱模擬未執行：殼溫、恢復時間", "WI-01 loss map 未交付"],
+      "responsible_wi": ["WI-03"]
+    },
+    "shell": {
+      "current": "TR0.5",
+      "target": "TR2",
+      "blockers": [],
+      "responsible_wi": ["WI-04", "WI-08"]
+    },
+    "pcb": {
+      "current": "TR0.5",
+      "target": "TR2",
+      "blockers": [],
+      "responsible_wi": ["WI-05"]
+    },
+    "sensor": {
+      "current": "TR1",
+      "target": "TR2",
+      "blockers": [],
+      "responsible_wi": ["WI-05"]
+    }
+  },
+  "wi_status": {
+    "WI-01": { "status": "not_started", "steps_completed": [], "deliverables": {} },
+    "WI-02": { "status": "not_started", "steps_completed": [], "deliverables": {} },
+    "WI-03": { "status": "not_started", "steps_completed": [], "deliverables": {} },
+    "WI-04": { "status": "not_started", "steps_completed": [], "deliverables": {} },
+    "WI-05": { "status": "not_started", "steps_completed": [], "deliverables": {} },
+    "WI-06": { "status": "not_started", "steps_completed": [], "deliverables": {} },
+    "WI-07": { "status": "not_started", "steps_completed": [], "deliverables": {} },
+    "WI-08": { "status": "not_started", "steps_completed": [], "deliverables": {} }
+  },
+  "gate_reviews": [],
+  "v_tests": {
+    "V1":  { "status": "not_tested", "result": null, "phase": "A", "subsystem": "motor" },
+    "V2":  { "status": "not_tested", "result": null, "phase": "A", "subsystem": "motor" },
+    "V3":  { "status": "not_tested", "result": null, "phase": "A", "subsystem": "motor" },
+    "V4":  { "status": "not_tested", "result": null, "phase": "A", "subsystem": "motor" },
+    "V5":  { "status": "not_tested", "result": null, "phase": "B", "subsystem": "gearbox" },
+    "V6":  { "status": "not_tested", "result": null, "phase": "B", "subsystem": "gearbox" },
+    "V7":  { "status": "not_tested", "result": null, "phase": "B", "subsystem": "gearbox" },
+    "V8":  { "status": "not_tested", "result": null, "phase": "B", "subsystem": "gearbox" },
+    "V9":  { "status": "not_tested", "result": null, "phase": "D", "subsystem": "system" },
+    "V10": { "status": "not_tested", "result": null, "phase": "C", "subsystem": "thermal" },
+    "V11": { "status": "not_tested", "result": null, "phase": "D", "subsystem": "system" },
+    "V12": { "status": "not_tested", "result": null, "phase": "D", "subsystem": "system" },
+    "V13": { "status": "not_tested", "result": null, "phase": "C", "subsystem": "thermal" },
+    "V14": { "status": "not_tested", "result": null, "phase": "D", "subsystem": "system" }
+  },
+  "risk_status": {
+    "R-001": "open",
+    "R-002": "open",
+    "R-003": "open",
+    "R-004": "open",
+    "R-005": "open",
+    "R-006": "open",
+    "R-007": "open"
+  }
+}

@@ -254,6 +254,9 @@
 | `AIExtractionResults` | task-definition | AI 提取結果 | 05 |
 | `FeasibilityValidation` | task-definition | 可行性驗證 | 05 |
 | `MultiItemInput` | task-definition | 多項目輸入（軟目標 / 非目標） | 05 |
+| `EntryGradingModal` | explore | （ADR-008）入口分級 Modal，判定 Level A/B/C | 06 |
+| `ProblemScopingStep` | explore | （ADR-008）Level A Step 0：5Why + KT Is/Is Not | 06 |
+| `FunctionAnalysisStep` | explore | （ADR-008）Level A Step 1：FA 組件交互圖 + SF 診斷 | 06 |
 | `SocraticTab` | explore | Socratic 問答 Tab | 06 |
 | `ContradictionDisplayCard` | explore | 矛盾展示卡片 | 06 |
 | `DecomposedPCCard` | explore | 分解 PC 卡片 | 06 |
@@ -265,6 +268,10 @@
 | `TrackGate` | track | Track Gate 檢查 | 07 |
 | `CreateStepper` | create | 7-step 步進器 | 08 |
 | `MissionContext` | create | 任務脈絡面板 | 08 |
+| `OzOtPanel` | create | （ADR-008）OZ-OT 前置分析面板，鎖定 Px | 08 |
+| `SimMatrixView` | create | （ADR-008）多 TC SIM 交互矩陣（+1/0/-1） | 08 |
+| `CciBadge` | create | （ADR-008）CCI 複雜度判定 Badge（Evolution/Patch） | 08 |
+| `EvidenceCoverageGauge` | create | （ADR-008）Evidence Registry 覆蓋率儀表 | 08, 11 |
 | `LayeredSolutionCard` | create | 分層 TRIZ 解法卡片 | 08 |
 | `SubsystemHierarchyView` | create | 子系統層次圖 | 08 |
 | `PackageMapPanel` | create | 封裝映射面板 | 08 |
@@ -347,18 +354,18 @@
 
 ### 7.2 ADR-008 新增端點（Module 8.0 Auto-TRIZ v2）
 
-| 端點 | 說明 | 未來消費 Spec |
-|:-----|:-----|:--------------|
-| `POST /analyst/five-why` | 5 Why 根因分析 | 06 (Explore 擴充 #problem-scoping) |
-| `POST /analyst/kt-analysis` | KT Is/Is Not | 06 (Explore 擴充 #problem-scoping) |
-| `POST /analyst/function-analysis` | FA 功能建模 | 06 (Explore 擴充 #function-analysis) |
-| `POST /analyst/oz-ot-analysis` | OZ-OT 分析 | 08 (Create TRIZ 前置) |
-| `POST /analyst/entry-grading` | 入口成熟度分級 | 06 (Explore 入口分級) |
-| `POST /triz/sim-matrix` | 多 TC SIM 交互矩陣 | 08 (Create SIM 面板) |
-| `POST /triz/complexity-check` | CCI 複雜度判定 | 08 (Create CCI badge) |
-| `POST /evidence/register-claim` | 數值聲明註冊 | 08, 11 (Evidence Registry) |
-| `POST /evidence/verify` | Claim 驗證 | 08, 11 |
-| `GET /evidence/coverage` | 覆蓋率統計 | 08, 11 |
+| 端點 | 說明 | 消費 Spec | 觸發元件 |
+|:-----|:-----|:----------|:---------|
+| `POST /analyst/entry-grading` | 入口成熟度分級（Level A/B/C） | **06** (Explore EntryGradingModal) | `EntryGradingModal` |
+| `POST /analyst/five-why` | 5 Why 根因分析 | **06** (Explore Level A Step 0) | `ProblemScopingStep` |
+| `POST /analyst/kt-analysis` | KT Is/Is Not | **06** (Explore Level A Step 0) | `ProblemScopingStep` |
+| `POST /analyst/function-analysis` | FA 功能建模 | **06** (Explore Level A Step 1 + Level B 側面板) | `FunctionAnalysisStep` |
+| `POST /analyst/oz-ot-analysis` | OZ-OT 分析，鎖定 Px | **08** (Create Step 1 OZ-OT accordion) | `OzOtPanel` |
+| `POST /triz/sim-matrix` | 多 TC SIM 交互矩陣 | **08** (Create Step 1 SIM view) | `SimMatrixView` |
+| `POST /triz/complexity-check` | CCI 複雜度判定 | **08** (Create Step 4 方案卡) | `CciBadge` |
+| `POST /evidence/register-claim` | 數值聲明註冊 | **08, 11** (cross-cutting) | Agent 內部呼叫 |
+| `POST /evidence/verify` | Claim 驗證 | **08, 11** | Agent 內部呼叫 |
+| `GET /evidence/coverage` | 覆蓋率統計 | **08** (Create Step 4), **11** (DesignReview) | `EvidenceCoverageGauge` |
 
 ---
 
@@ -451,7 +458,7 @@
 - [x] Context / Hook → Spec 反向索引建立
 - [x] Code splitting 策略對齊 App.tsx 實際配置
 - [x] 業務元件清單對齊 `src/components/` 實際結構
-- [ ] （待辦）Module 8.0 Auto-TRIZ v2 前端頁面擴充時，同步更新 Spec 06/08 + 本表
+- [x] Module 8.0 Auto-TRIZ v2 前端頁面擴充：已更新 Spec 06 (Conditional Stepper) + Spec 08 (OZ-OT/SIM/CCI/Evidence) + 本表 §6.1 業���元件 + §7.2 端點對照
 
 ---
 

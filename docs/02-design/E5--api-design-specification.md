@@ -9,6 +9,7 @@
 **狀態 (Status):** `Active`
 **相關 SD 文檔:** [`01-define/E3--architecture-and-design.md`](../01-define/E3--architecture-and-design.md) (Appendix A–E)
 **OpenAPI 定義文件:** `backend/app/main.py` (FastAPI 自動生成 `/openapi.json` · Schema 源 → `backend/app/models/schemas.py`)
+**Machine-readable Specs:** [`specs/api/openapi.yaml`](specs/api/openapi.yaml) (REST design-first) · [`specs/api/asyncapi.yaml`](specs/api/asyncapi.yaml) (Supabase Realtime 頻道契約)
 **對應 VibeCoding 模板:** `06_api_design_specification.md`
 
 ---

@@ -1,0 +1,331 @@
+asyncapi: 3.0.0
+info:
+  title: Design Copilot — Async Event Channels
+  version: 0.1.0
+  description: |
+    RD Design Copilot 的非同步事件通道規格。
+
+    ## 架構決策
+
+    本系統後端 (FastAPI) **不含 WebSocket 端點**。所有即時通訊均透過
+    **Supabase Realtime** 處理 — 前端直接訂閱 Supabase Postgres Changes
+    頻道，後端僅負責寫入資料庫觸發事件。
+
+    此 AsyncAPI 文件記錄前端訂閱的 Supabase Realtime 頻道，作為前後端
+    即時同步的契約補充（搭配 `openapi.yaml` 的 REST 契約）。
+
+    ## 傳輸機制
+
+    ```
+    Frontend (React)
+      │
+      ├── supabase.channel('channel-name')
+      │     .on('postgres_changes', { event, schema, table, filter }, callback)
+      │     .subscribe()
+      │
+      └── Supabase Realtime (WebSocket wss://xxx.supabase.co/realtime/v1)
+            │
+            └── PostgreSQL NOTIFY (triggered by INSERT/UPDATE/DELETE)
+    ```
+
+    前端使用 `@supabase/supabase-js` SDK 的 Realtime 功能，
+    後端透過 Supabase client 寫入資料表時自動觸發 Postgres Changes。
+
+  contact:
+    name: RD Design Copilot Team
+  license:
+    name: Proprietary
+
+defaultContentType: application/json
+
+servers:
+  supabaseRealtime:
+    host: "{SUPABASE_PROJECT_REF}.supabase.co"
+    protocol: wss
+    pathname: /realtime/v1/websocket
+    description: Supabase Realtime WebSocket endpoint (managed by Supabase)
+    variables:
+      SUPABASE_PROJECT_REF:
+        description: Supabase project reference ID
+    security:
+      - $ref: "#/components/securitySchemes/supabaseAnonKey"
+
+channels:
+  # ---------------------------------------------------------------------------
+  # Project-scoped channels — filtered by project_id via RLS + Realtime filter
+  # ---------------------------------------------------------------------------
+
+  projectContradictions:
+    address: "realtime:public:contradictions:project_id=eq.{project_id}"
+    description: |
+      矛盾管理即時同步。當任何使用者（或 AI agent）新增、修改、刪除矛盾時，
+      同一專案的其他前端實例即時收到更新。
+      觸發場景：
+        - POST /contradictions/{cid}/formalize → INSERT/UPDATE
+        - POST /contradictions/{cid}/decompose → INSERT (child PCs)
+        - POST /scamper/feedback-contradictions → INSERT (SCAMPER-derived)
+        - POST /convergence/scan → INSERT (secondary contradictions)
+    messages:
+      contradictionChanged:
+        $ref: "#/components/messages/PostgresChangeEvent"
+    parameters:
+      project_id:
+        description: UUID of the project
+        schema:
+          type: string
+          format: uuid
+
+  projectAlternatives:
+    address: "realtime:public:alternatives:project_id=eq.{project_id}"
+    description: |
+      方案管理即時同步。新增/修改/刪除方案時觸發。
+      觸發場景：
+        - POST /alternatives/anti-anchor → INSERT
+        - TRIZ/SCAMPER solve results persisted → INSERT/UPDATE
+        - RD 手動新增方案 → INSERT
+    messages:
+      alternativeChanged:
+        $ref: "#/components/messages/PostgresChangeEvent"
+    parameters:
+      project_id:
+        description: UUID of the project
+        schema:
+          type: string
+          format: uuid
+
+  projectAssumptions:
+    address: "realtime:public:assumptions:project_id=eq.{project_id}"
+    description: |
+      假設台帳即時同步。
+      觸發場景：
+        - POST /assumptions/extract → INSERT
+        - POST /questions/auto-tag (assumption tag) → INSERT
+    messages:
+      assumptionChanged:
+        $ref: "#/components/messages/PostgresChangeEvent"
+    parameters:
+      project_id:
+        description: UUID of the project
+        schema:
+          type: string
+          format: uuid
+
+  projectTrizSolutions:
+    address: "realtime:public:triz_solutions:project_id=eq.{project_id}"
+    description: |
+      TRIZ 求解結果即時同步。
+      觸發場景：
+        - POST /triz/solve-directed → INSERT/UPDATE
+        - POST /triz/consolidate → UPDATE (adopted_directions)
+        - POST /triz/solve-layered (legacy) → INSERT
+    messages:
+      trizSolutionChanged:
+        $ref: "#/components/messages/PostgresChangeEvent"
+    parameters:
+      project_id:
+        description: UUID of the project
+        schema:
+          type: string
+          format: uuid
+
+  projectDirectedTrizSolutions:
+    address: "realtime:public:directed_triz_solutions:project_id=eq.{project_id}"
+    description: |
+      v8 方向導向 TRIZ 解法結果即時同步。
+      觸發場景：
+        - POST /triz/solve-directed → INSERT
+        - POST /triz/consolidate → UPDATE
+    messages:
+      directedTrizChanged:
+        $ref: "#/components/messages/PostgresChangeEvent"
+    parameters:
+      project_id:
+        description: UUID of the project
+        schema:
+          type: string
+          format: uuid
+
+  projectScamperVariants:
+    address: "realtime:public:scamper_variants:project_id=eq.{project_id}"
+    description: |
+      SCAMPER 變體即時同步。
+      觸發場景：
+        - POST /scamper/perform → INSERT
+    messages:
+      scamperVariantChanged:
+        $ref: "#/components/messages/PostgresChangeEvent"
+    parameters:
+      project_id:
+        description: UUID of the project
+        schema:
+          type: string
+          format: uuid
+
+  projectGateResults:
+    address: "realtime:public:gate_results:project_id=eq.{project_id}"
+    description: |
+      Gate 檢查結果即時同步。
+      觸發場景：
+        - GET /gates/{gate_id}/check (when result is persisted) → INSERT/UPDATE
+    messages:
+      gateResultChanged:
+        $ref: "#/components/messages/PostgresChangeEvent"
+    parameters:
+      project_id:
+        description: UUID of the project
+        schema:
+          type: string
+          format: uuid
+
+  projectRisks:
+    address: "realtime:public:risks:project_id=eq.{project_id}"
+    description: |
+      風險登錄即時同步。
+      觸發場景：
+        - POST /risks/analyze → INSERT
+    messages:
+      riskChanged:
+        $ref: "#/components/messages/PostgresChangeEvent"
+    parameters:
+      project_id:
+        description: UUID of the project
+        schema:
+          type: string
+          format: uuid
+
+  projectSubsystems:
+    address: "realtime:public:subsystems:project_id=eq.{project_id}"
+    description: |
+      子系統樹結構即時同步。
+      觸發場景：
+        - POST /scamper/subsystem-suggestions → INSERT/UPDATE
+        - RD 手動調整子系統 → UPDATE
+    messages:
+      subsystemChanged:
+        $ref: "#/components/messages/PostgresChangeEvent"
+    parameters:
+      project_id:
+        description: UUID of the project
+        schema:
+          type: string
+          format: uuid
+
+  projectComponentOverrides:
+    address: "realtime:public:project_component_overrides:project_id=eq.{project_id}"
+    description: |
+      RD 空間覆寫即時同步。
+      觸發場景：
+        - POST /spatial/component-overrides → INSERT
+        - DELETE /spatial/component-overrides → DELETE
+    messages:
+      overrideChanged:
+        $ref: "#/components/messages/PostgresChangeEvent"
+    parameters:
+      project_id:
+        description: UUID of the project
+        schema:
+          type: string
+          format: uuid
+
+operations:
+  onContradictionChange:
+    action: receive
+    channel:
+      $ref: "#/channels/projectContradictions"
+    summary: React to contradiction changes in real time
+
+  onAlternativeChange:
+    action: receive
+    channel:
+      $ref: "#/channels/projectAlternatives"
+    summary: React to alternative changes in real time
+
+  onAssumptionChange:
+    action: receive
+    channel:
+      $ref: "#/channels/projectAssumptions"
+    summary: React to assumption changes in real time
+
+  onTrizSolutionChange:
+    action: receive
+    channel:
+      $ref: "#/channels/projectTrizSolutions"
+    summary: React to TRIZ solution changes in real time
+
+  onDirectedTrizChange:
+    action: receive
+    channel:
+      $ref: "#/channels/projectDirectedTrizSolutions"
+    summary: React to directed TRIZ result changes
+
+  onScamperVariantChange:
+    action: receive
+    channel:
+      $ref: "#/channels/projectScamperVariants"
+    summary: React to SCAMPER variant changes
+
+  onGateResultChange:
+    action: receive
+    channel:
+      $ref: "#/channels/projectGateResults"
+    summary: React to gate check result changes
+
+  onRiskChange:
+    action: receive
+    channel:
+      $ref: "#/channels/projectRisks"
+    summary: React to risk changes
+
+  onSubsystemChange:
+    action: receive
+    channel:
+      $ref: "#/channels/projectSubsystems"
+    summary: React to subsystem tree changes
+
+  onComponentOverrideChange:
+    action: receive
+    channel:
+      $ref: "#/channels/projectComponentOverrides"
+    summary: React to spatial component override changes
+
+components:
+  securitySchemes:
+    supabaseAnonKey:
+      type: httpApiKey
+      name: apikey
+      in: query
+      description: Supabase anon/public key for Realtime connection
+
+  messages:
+    PostgresChangeEvent:
+      name: PostgresChangeEvent
+      title: Supabase Postgres Change Event
+      summary: Standard Supabase Realtime postgres_changes payload
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          schema:
+            type: string
+            const: public
+          table:
+            type: string
+            description: Source table name
+          commit_timestamp:
+            type: string
+            format: date-time
+          eventType:
+            type: string
+            enum: [INSERT, UPDATE, DELETE]
+          new:
+            type: object
+            description: New row data (present on INSERT and UPDATE)
+          old:
+            type: object
+            description: Old row data (present on UPDATE and DELETE, requires replica identity FULL)
+          errors:
+            type: array
+            items:
+              type: string
+            nullable: true
+        required: [schema, table, commit_timestamp, eventType]

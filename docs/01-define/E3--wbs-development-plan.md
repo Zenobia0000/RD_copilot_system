@@ -138,8 +138,8 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 ├── 8.2 AnalystAgent 擴充 (5Why / KT / FA / OZ-OT / EntryGrading)
 ├── 8.3 TrizSolverAgent 擴充 (SIM Matrix / CCI)
 ├── 8.4 Evidence Registry Service
-├── 8.5 前端 Explore 擴充 (#problem-scoping + #function-analysis)
-├── 8.6 前端 Create 擴充 (OZ-OT + SIM + CCI + Evidence)
+├── 8.5 前端 Explore 擴充 (Conditional Stepper: Entry Grading + Level A 5-step / Level B 3-tab)
+├── 8.6 前端 Create 擴充 (OZ-OT + SIM + CCI + Evidence — Step 1/4 內嵌)
 └── 8.7 文件 Phase 2-3 + BDD + 驗收
 ```
 
@@ -505,25 +505,30 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 | 8.4.4 | Gate check 擴充 — coverage threshold | BE | 3 | ⏳ | — | 8.4.1 | P1 |
 | 8.4.5 | Pilot tests (TC-Evidence-001 ~ 005) | QA | 3 | ⏳ | — | 8.4.2 | P0 |
 
-#### 8.5 前端 Explore 擴充
+#### 8.5 前端 Explore 擴充（Conditional Stepper）
+
+> **設計變更**：原方案為新增 2 個 Tab（#problem-scoping / #function-analysis），經 UX 分析後改為 **Conditional Stepper**（Entry Grading 驅動 Level A 5-step stepper / Level B 原 3-tab）。詳見 ADR-008 §D6。
 
 | 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | 優先級 |
 |---------|---------|--------|---------|------|----------|------|--------|
-| 8.5.1 | `useFiveWhy` + `useKtAnalysis` hooks | FE | 4 | ⏳ | — | 8.2.6 | P2 |
-| 8.5.2 | `useFunctionAnalysis` hook | FE | 3 | ⏳ | — | 8.2.6 | P2 |
-| 8.5.3 | Explore `#problem-scoping` tab (5 Why + KT UI) | FE | 8 | ⏳ | — | 8.5.1 | P2 |
-| 8.5.4 | Explore `#function-analysis` tab (FA 組件交互視覺化) | FE | 10 | ⏳ | — | 8.5.2 | P2 |
-| 8.5.5 | Entry Grading UI (入口分級) | FE | 4 | ⏳ | — | 8.2.5 | P2 |
+| 8.5.1 | `useEntryGrading` + `useFiveWhy` + `useKtAnalysis` + `useFunctionAnalysis` hooks | FE | 6 | ⏳ | — | 8.2.6 | P2 |
+| 8.5.2 | `EntryGradingModal` 元件（Level A/B/C 判定 + 持久化） | FE | 4 | ⏳ | — | 8.5.1, 8.2.5 | P2 |
+| 8.5.3 | Explore Conditional Stepper 骨架（Level A stepper / Level B tabs 分支渲染 + Level 切換） | FE | 6 | ⏳ | — | 8.5.2 | P2 |
+| 8.5.4 | Level A Step 0: `ProblemScopingStep`（5 Why chain + KT Is/Is Not 矩陣） | FE | 8 | ⏳ | — | 8.5.1, 8.5.3 | P2 |
+| 8.5.5 | Level A Step 1: `FunctionAnalysisStep`（組件交互圖 + SF 診斷）+ Level B FA 側面板 | FE | 10 | ⏳ | — | 8.5.1, 8.5.3 | P2 |
+| 8.5.6 | Gate 1.2 條件擴充（Level A 額外條件：5Why + FA）+ skip 機制 | FE | 3 | ⏳ | — | 8.5.4, 8.5.5 | P2 |
 
-#### 8.6 前端 Create 擴充
+#### 8.6 前端 Create 擴充（Step 1/4 內嵌）
+
+> **設計原則**：Create 維持 7 steps 不變。OZ-OT/SIM 作為 Step 1 TRIZ 內部的 progressive disclosure；CCI/Evidence 作為 Step 4 Decision Hub 的輕量增強。
 
 | 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | 優先級 |
 |---------|---------|--------|---------|------|----------|------|--------|
-| 8.6.1 | `useOzOtAnalysis` hook | FE | 3 | ⏳ | — | 8.2.6 | P2 |
-| 8.6.2 | OZ-OT 分析面板 (TRIZ step 前置) | FE | 6 | ⏳ | — | 8.6.1 | P2 |
-| 8.6.3 | `useSimMatrix` hook + SimMatrixView component | FE | 8 | ⏳ | — | 8.3.4 | P2 |
-| 8.6.4 | CCI badge (Evolution / Weak Evolution / Patch) | FE | 4 | ⏳ | — | 8.3.4 | P2 |
-| 8.6.5 | `useEvidenceRegistry` hook + EvidenceCoverageGauge | FE | 6 | ⏳ | — | 8.4.2 | P2 |
+| 8.6.1 | `useOzOtAnalysis` + `useSimMatrix` + `useComplexityCheck` + `useEvidenceCoverage` hooks | FE | 5 | ⏳ | — | 8.2.6, 8.3.4, 8.4.2 | P2 |
+| 8.6.2 | `OzOtPanel` accordion section（Step 1 TRIZ 內部，矩陣查表前） | FE | 6 | ⏳ | — | 8.6.1 | P2 |
+| 8.6.3 | `SimMatrixView` conditional view（Step 1 TRIZ 內部，≥2 TC 觸發） | FE | 8 | ⏳ | — | 8.6.1 | P2 |
+| 8.6.4 | `CciBadge`（Step 4 方案卡右上角，Evolution/Weak Evolution/Patch） | FE | 4 | ⏳ | — | 8.6.1 | P2 |
+| 8.6.5 | `EvidenceCoverageGauge`（Step 4 Decision Hub 頂部，覆蓋率 ≥40% 閾值） | FE | 4 | ⏳ | — | 8.6.1 | P2 |
 
 #### 8.7 文件 Phase 2-3 + 驗收
 

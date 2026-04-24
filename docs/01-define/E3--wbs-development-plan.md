@@ -575,68 +575,68 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 
 | 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | ADR |
 |---------|---------|--------|---------|------|----------|------|-----|
-| 9.2.1 | `harness/tool_registry.py` — `@register_tool` decorator + `ToolDefinition` + JSON Schema 自動產生 | BE | 8 | ⏳ | — | 9.1.2 | ADR-006 |
-| 9.2.2 | `harness/mcp_server.py` — stdio MCP server, 列出/呼叫 registered tools | BE | 8 | ⏳ | — | 9.2.1 | ADR-006 |
-| 9.2.3 | `tools/triz_kb.py` 標記 `@register_tool`（lookup_matrix, load_40_principles, build_triz_tc_context） | BE | 4 | ⏳ | — | 9.2.1 | ADR-006 |
-| 9.2.4 | `tests/harness/test_tool_registry.py` + MCP server E2E 驗證 | QA | 4 | ⏳ | — | 9.2.2, 9.2.3 | — |
+| 9.2.1 | `harness/tool_registry.py` — `@register_tool` decorator + `ToolDefinition` + JSON Schema 自動產生 | BE | 8 | ✅ | 2026-04-24 | 9.1.2 | ADR-006 |
+| 9.2.2 | `harness/mcp_server.py` — stdio MCP server, 列出/呼叫 registered tools | BE | 8 | ✅ | 2026-04-24 | 9.2.1 | ADR-006 |
+| 9.2.3 | `tools/triz_kb_tools.py` 標記 `@register_tool`（10 個 TRIZ KB tools） | BE | 4 | ✅ | 2026-04-24 | 9.2.1 | ADR-006 |
+| 9.2.4 | `tests/harness/test_tool_registry.py` (11 tests) + MCP server 驗證 | QA | 4 | ✅ | 2026-04-24 | 9.2.2, 9.2.3 | — |
 
 #### 9.3 Phase 2a: Model Adapter + Prompt Assembler + Token 監控
 
 | 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | ADR |
 |---------|---------|--------|---------|------|----------|------|-----|
-| 9.3.1 | `harness/model_adapter.py` — Pydantic AI `Model` protocol 包裝 `_call_provider` + cache 分離 | BE | 10 | ⏳ | — | 9.2.1, 3.1.5 | ADR-006 |
-| 9.3.2 | `harness/prompt_assembler.py` — assemble_prompt(template, skills, context, budget) + token budget 截斷 | BE | 6 | ⏳ | — | 9.3.1 | ADR-006 |
-| 9.3.3 | Token 監控骨架 — emit_token_usage(agent_name, input_tokens, output_tokens, cost) | BE | 4 | ⏳ | — | 9.3.1, 3.1.9 | ADR-006 |
+| 9.3.1 | `harness/model_adapter.py` — Pydantic AI `Model` protocol 包裝 `_call_provider` + cache 分離 | BE | 10 | ✅ | 2026-04-24 | 9.2.1, 3.1.5 | ADR-006 |
+| 9.3.2 | `harness/prompt_assembler.py` — assemble_prompt(template, skills, context, budget) + token budget 截斷 | BE | 6 | ✅ | 2026-04-24 | 9.3.1 | ADR-006 |
+| 9.3.3 | Token 監控骨架 — emit_token_usage(agent_name, input_tokens, output_tokens, cost) | BE | 4 | ✅ | 2026-04-24 | 9.3.1, 3.1.9 | ADR-006 |
 
 #### 9.4 Phase 2b: HarnessAgent Base + TRIZ Solver 試刀
 
 | 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | ADR |
 |---------|---------|--------|---------|------|----------|------|-----|
-| 9.4.1 | `harness/agent_base.py` — `HarnessAgent[DepsT, OutputT]` 泛型 class + context 隔離 | BE | 8 | ⏳ | — | 9.3.1 | ADR-006 |
-| 9.4.2 | `core/config.py` 加 `USE_HARNESS_AGENTS` feature flag | BE | 1 | ⏳ | — | 9.4.1 | ADR-006 |
-| 9.4.3 | `agents/triz_solver.py::_solve_tc()` 雙路徑轉換（harness vs legacy） | BE | 12 | ⏳ | — | 9.4.1, 9.4.2 | ADR-006 |
+| 9.4.1 | `harness/agent_base.py` — `HarnessAgent[DepsT, OutputT]` 泛型 class + context 隔離 | BE | 8 | ✅ | 2026-04-24 | 9.3.1 | ADR-006 |
+| 9.4.2 | `core/config.py` 加 `USE_HARNESS_AGENTS` feature flag | BE | 1 | ✅ | 2026-04-24 | 9.4.1 | ADR-006 |
+| 9.4.3 | `agents/triz_solver.py::_solve_tc()` 雙路徑轉換（harness vs legacy） | BE | 12 | ✅ | 2026-04-24 | 9.4.1, 9.4.2 | ADR-006 |
 | 9.4.4 | A/B 比對驗證（同矛盾 harness vs legacy token/latency <5%） | QA | 3 | ⏳ | — | 9.4.3 | — |
 
 #### 9.5 Phase 2c: 全 Agent 轉換
 
 | 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | ADR |
 |---------|---------|--------|---------|------|----------|------|-----|
-| 9.5.1 | `knowledge.py` + `knowledge_wb.py` 轉換 (2 fns) | BE | 4 | ⏳ | — | 9.4.3 | ADR-006 |
-| 9.5.2 | `triz_critic.py` 轉換 (helper fns) | BE | 4 | ⏳ | — | 9.4.3 | ADR-006 |
-| 9.5.3 | `evaluator.py` 轉換 (6 fns) | BE | 8 | ⏳ | — | 9.4.3 | ADR-006 |
-| 9.5.4 | `scamper_feedback.py` 轉換 (1 fn) | BE | 4 | ⏳ | — | 9.4.3 | ADR-006 |
-| 9.5.5 | `analyst.py` 轉換 (~20 fns) | BE | 16 | ⏳ | — | 9.4.3 | ADR-006 |
-| 9.5.6 | 全 agent 轉換後迴歸測試 | QA | 4 | ⏳ | — | 9.5.1-5 | — |
+| 9.5.1 | `knowledge.py` + `knowledge_wb.py` 轉換 (2 fns) | BE | 4 | ✅ | 2026-04-24 | 9.4.3 | ADR-006 |
+| 9.5.2 | `triz_critic.py` 轉換 (helper fns) | BE | 4 | ✅ | 2026-04-24 | 9.4.3 | ADR-006 |
+| 9.5.3 | `evaluator.py` 轉換 (9 fns) | BE | 8 | ✅ | 2026-04-24 | 9.4.3 | ADR-006 |
+| 9.5.4 | `scamper_feedback.py` — 無 LLM 呼叫，不需轉換 | BE | 0 | N/A | — | 9.4.3 | ADR-006 |
+| 9.5.5 | `analyst.py` 轉換 (23 fns) | BE | 16 | ✅ | 2026-04-24 | 9.4.3 | ADR-006 |
+| 9.5.6 | 全 agent 轉換後迴歸測試（67 harness tests 全綠） | QA | 4 | ✅ | 2026-04-24 | 9.5.1-5 | — |
 
 #### 9.6 Phase 3: Orchestrator + Solver Registry
 
 | 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | ADR |
 |---------|---------|--------|---------|------|----------|------|-----|
-| 9.6.1 | `harness/solver_registry.py` — `@register_solver` decorator | BE | 4 | ⏳ | — | 9.5.6 | ADR-006 |
-| 9.6.2 | `harness/orchestrator.py` — 萃取 L1→critic→L2→L3 管線 + context 隔離 + token 累計 | BE | 10 | ⏳ | — | 9.6.1, 9.4.3 | ADR-006 |
-| 9.6.3 | `routers/triz.py` 改走 `solver_registry.dispatch()` | BE | 2 | ⏳ | — | 9.6.2 | ADR-006 |
+| 9.6.1 | `harness/solver_registry.py` — `@register_solver` decorator | BE | 4 | ✅ | 2026-04-24 | 9.5.6 | ADR-006 |
+| 9.6.2 | `harness/orchestrator.py` — 萃取 L1→critic→L2→L3 管線 + context 隔離 + token 累計 | BE | 10 | ✅ | 2026-04-24 | 9.6.1, 9.4.3 | ADR-006 |
+| 9.6.3 | `routers/triz.py` 改走 `solver_registry.dispatch()` | BE | 2 | ✅ | 2026-04-24 | 9.6.2 | ADR-006 |
 | 9.6.4 | Orchestrator E2E 驗證（3 RD flag 行為不變） | QA | 4 | ⏳ | — | 9.6.3 | — |
 
 #### 9.7 Phase 4: Skill Loader + 知識型 Prompt Skill 化
 
 | 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | ADR |
 |---------|---------|--------|---------|------|----------|------|-----|
-| 9.7.1 | `harness/skill_loader.py` — 掃 `skills/*/SKILL.md`, YAML frontmatter, 註冊 tool + prompt content | BE | 8 | ⏳ | — | 9.2.1 | ADR-006 |
-| 9.7.2 | `skills/triz_39_parameters/SKILL.md` + `triz_76_standards/SKILL.md` + `separation_principles/SKILL.md` 知識型 Skill 化 | BE | 6 | ⏳ | — | 9.7.1 | ADR-006 |
+| 9.7.1 | `harness/skill_loader.py` — 掃 `skills/*/SKILL.md`, YAML frontmatter, 註冊 tool + prompt content | BE | 8 | ✅ | 2026-04-24 | 9.2.1 | ADR-006 |
+| 9.7.2 | `skills/triz_39_parameters/SKILL.md` + `triz_76_standards/SKILL.md` + `separation_principles/SKILL.md` 知識型 Skill 化 | BE | 6 | ✅ | 2026-04-24 | 9.7.1 | ADR-006 |
 | 9.7.3 | `skills/ebike_reference_library/` 範例 Skill（handler + data） | BE | 4 | ⏳ | — | 9.7.1 | ADR-006 |
-| 9.7.4 | `main.py` lifespan 加 `skill_loader.load_all()` + hot-reload 驗證 | BE | 2 | ⏳ | — | 9.7.1 | ADR-006 |
-| 9.7.5 | Skill loader 測試（放入 test skill → 重啟 → 可見） | QA | 4 | ⏳ | — | 9.7.4 | — |
+| 9.7.4 | `main.py` lifespan 加 `skill_loader.load_all()` + hot-reload 驗證 | BE | 2 | ✅ | 2026-04-24 | 9.7.1 | ADR-006 |
+| 9.7.5 | Skill loader 測試（13 tests 全綠） | QA | 4 | ✅ | 2026-04-24 | 9.7.4 | — |
 
 #### 9.8 Phase 5: MCP Client + 清理 + 文件
 
 | 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | ADR |
 |---------|---------|--------|---------|------|----------|------|-----|
-| 9.8.1 | `harness/mcp_client.py` — 讀 `.mcp.json`, 掛載外部 MCP tools | BE | 6 | ⏳ | — | 9.2.2 | ADR-006 |
+| 9.8.1 | `harness/mcp_client.py` — 讀 `.mcp.json`, 掛載外部 MCP tools | BE | 6 | ✅ | 2026-04-24 | 9.2.2 | ADR-006 |
 | 9.8.2 | 移除 `USE_HARNESS_AGENTS` feature flag（全面切換） | BE | 2 | ⏳ | — | 9.5.6, 9.6.4 | ADR-006 |
 | 9.8.3 | Token 監控儀表板規劃（per-agent breakdown + provider cost comparison） | BE / DevOps | 4 | ⏳ | — | 9.3.3 | — |
 | 9.8.4 | 文件更新（architecture doc + README + API reference） | Doc | 4 | ⏳ | — | 9.8.1 | — |
 
-**9.0 小計**：176h / 8h 已完成（5%） 🔄
+**9.0 小計**：176h / 152h 已完成（86%） ⚡
 
 **關鍵路徑**：9.1 (8h) → 9.2 (24h) → 9.3 (20h) → 9.4 (24h) → 9.5 (40h) → 9.6 (20h) → 9.8.2 (2h) ≈ **138h**
 
@@ -658,8 +658,8 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 | 6.0 部署上線 | 80h | 72h | 90% | ⚡ |
 | 7.0 文檔培訓 | 40h | 35h | 88% | 🔄 |
 | 8.0 Auto-TRIZ v2 | 193h | 0h | 0% | ⏳ |
-| 9.0 Harness 重構 | 176h | 8h | 5% | 🔄 |
-| **總計** | **1,649h** | **1,180h** | **~72%** | **🔄** |
+| 9.0 Harness 重構 | 176h | 152h | 86% | ⚡ |
+| **總計** | **1,649h** | **1,324h** | **~80%** | **🔄** |
 
 ### 📅 週度進度分析（16 週 sprint summary）
 
@@ -691,9 +691,9 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 - 啟動：ADR-008 已建立、Phase 1 文件（10 份）已完成
 - 目標：8.0 P0 關鍵路徑 63h — DB migration → FA + OZ-OT agents → solve_layered 擴充 → Evidence Registry
 - 里程碑：M7 Auto-TRIZ v2 Phase 1 Backend
-- 啟動：ADR-006 Phase 0 已完成（8h）— `pydantic-ai` + `mcp` 依賴、`harness/` 骨架建立
-- 目標：9.0 關鍵路徑 138h — Tool Registry → Model Adapter → HarnessAgent → 全 Agent 轉換 → Orchestrator
-- 里程碑：M9 Harness Phase 1 (Tool Registry + MCP)、M10 Harness Full Migration
+- 完成：ADR-006 Phase 0-5 實作（152h / 176h = 86%）— Tool Registry + MCP Server + Model Adapter + HarnessAgent + 全 Agent 轉換 + Orchestrator + Skill Loader + MCP Client
+- 待完成：9.4.4 A/B 驗證、9.6.4 E2E 驗證、9.7.3 ebike skill、9.8.2-4 清理+文件
+- 里程碑：M9 ✅ 完成、M10 🔄 剩餘清理項
 
 ---
 
@@ -776,8 +776,8 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 | **M6**: Release v1.0 | 2026-04-17 | ⏳ | (a) 0 P0 issues；(b) Playwright smoke CI 綠；(c) LLM failure rate <2% 測 50 calls；(d) rollback drill 實際演練；(e) security hardening 6.1.5 完成（簽核：PM + TL + QA Lead + DevOps Lead） |
 | **M7**: Auto-TRIZ v2 Phase 1 Backend | 2026-W26 | ⏳ | (a) 8.1 DB migration 完成；(b) 8.2.3+8.2.4 FA+OZ-OT agents 上線；(c) 8.4 Evidence Registry 上線；(d) 8.3.3 solve_layered 接收 FA+OZ-OT context；(e) pilot tests 全通過（簽核：BE Lead + QA Lead） |
 | **M8**: Auto-TRIZ v2 Full Stack | 2026-W30 | ⏳ | (a) 8.5+8.6 前端擴充完成；(b) 8.3.1+8.3.2 SIM+CCI 上線；(c) 8.7 文件 Phase 2-3 完成；(d) BDD Feature 4-8 全通過；(e) E2E 手測腳本走查通過（簽核：PM + TL + FE Lead） |
-| **M9**: Harness Phase 1 (Tool Registry + MCP) | 2026-W28 | 🔄 | (a) 9.1 Phase 0 完成 ✅；(b) 9.2 Tool Registry + MCP Server 上線；(c) Claude Code 可呼叫 `lookup_matrix`；(d) 9.3 Model Adapter + Token 監控骨架上線（簽核：BE Lead + ARCH） |
-| **M10**: Harness Full Migration | 2026-W34 | ⏳ | (a) 全 agent 轉換完成 (9.5)；(b) Orchestrator + Solver Registry 上線 (9.6)；(c) Skill Loader + 知識型 Skill 上線 (9.7)；(d) MCP Client 可消費外部 tools (9.8)；(e) Feature flag 移除；(f) token/latency <5% 回歸（簽核：PM + TL + ARCH） |
+| **M9**: Harness Phase 1 (Tool Registry + MCP) | 2026-W28 | ✅ 2026-04-24 | (a) 9.1 Phase 0 完成 ✅；(b) 9.2 Tool Registry + MCP Server 上線 ✅；(c) Claude Code 可呼叫 `lookup_matrix` ✅；(d) 9.3 Model Adapter + Token 監控骨架上線 ✅（簽核：BE Lead + ARCH） |
+| **M10**: Harness Full Migration | 2026-W34 | 🔄 | (a) 全 agent 轉換完成 (9.5) ✅；(b) Orchestrator + Solver Registry 上線 (9.6) ✅；(c) Skill Loader + 知識型 Skill 上線 (9.7) ✅；(d) MCP Client 可消費外部 tools (9.8) ✅；(e) Feature flag 移除 ⏳；(f) token/latency <5% A/B 回歸 ⏳（簽核：PM + TL + ARCH） |
 
 ### 📈 品質指標監控
 

@@ -1,7 +1,7 @@
 # Statement of Work (SOW)
 # RD Design Copilot v1.0 開發說明書
 
-> **版本**: v1.1 | **日期**: 2026-03-13 | **依據**: docs/e2e 全套設計文件 | **狀態**: 開發中
+> **版本**: v1.2 | **日期**: 2026-04-24 | **依據**: docs/e2e 全套設計文件 | **狀態**: 開發中
 
 ---
 
@@ -57,8 +57,8 @@ RD Design Copilot v1.0 — AI 驅動的早期概念設計決策平台
 
 | Agent | 職責 | LLM 呼叫 | 規則引擎 |
 |-------|------|----------|---------|
-| **Analyst Agent** | 問題定義、蘇格拉底提問、假設萃取 | ✓ | — |
-| **TRIZ Solver Agent** | TRIZ 三路徑求解、Anti-Anchor | ✓ | ✓ (矩陣查表) |
+| **Analyst Agent** | 問題定義、蘇格拉底提問、假設萃取、5Why/KT 根因分析、FA 功能建模、OZ-OT 時空分析、入口分級 (Auto-TRIZ v2) | ✓ | — |
+| **TRIZ Solver Agent** | TRIZ 三路徑求解、Anti-Anchor、SIM 交互矩陣、CCI 複雜度判定 (Auto-TRIZ v2) | ✓ | ✓ (矩陣查表) |
 | **Evaluator Agent** | MUST 篩選、Pre-CAD 評分、KT 計算 | ✓ (深度分析) | ✓ (規則判定) |
 | **Knowledge Agent** | RAG 知識檢索、Web 搜尋、知識沉澱 | ✓ | — |
 
@@ -371,7 +371,15 @@ WP-1.1 → WP-1.2 → WP-2.2 → WP-2.3 → WP-2.4 → WP-3.3 (TRIZ) → WP-3.4 
 | 匯出 | 1 | `POST /export` |
 | 知識回寫 | 1 | `POST /knowledge/writeback` |
 
-### 8.2 Evidence Entry API (v1.0 新增)
+### 8.2 Auto-TRIZ v2 API (v2.0 新增)
+
+| 模組 | 端點數 | 關鍵端點 |
+|------|--------|---------|
+| Analyst v2 | 5 | `POST /analyst/five-why`, `POST /analyst/kt-analysis`, `POST /analyst/function-analysis`, `POST /analyst/oz-ot-analysis`, `POST /analyst/entry-grading` |
+| TRIZ v2 | 2 | `POST /triz/sim-matrix`, `POST /triz/complexity-check` |
+| Evidence Registry | 3 | `POST /evidence/claims`, `POST /evidence/claims/{id}/verify`, `GET /evidence/coverage/{project_id}` |
+
+### 8.3 Evidence Entry API (v1.0 新增)
 
 | 模組 | 端點數 | 關鍵端點 |
 |------|--------|---------|
@@ -414,6 +422,9 @@ WP-1.1 → WP-1.2 → WP-2.2 → WP-2.3 → WP-2.4 → WP-3.3 (TRIZ) → WP-3.4 
 | Decision | 12 | Draft→Reviewed | selected_route_id, signed_by |
 | EvidenceEntry | 17 | — | measured_value, evidence_level (E1-E4), kpi_id, linked_assumption_codes, linked_must_ids |
 | Gate | 6 | — | gate_id, check_result, failed_reason |
+| FunctionModel (v2.0) | 8 | — | project_id, components, interactions, sf_diagnosis |
+| EvidenceClaim (v2.0) | 10 | Draft→Verified/Approximate/Unverified | claim_text, source_agent, verification_status |
+| SimMatrix (v2.0) | 6 | — | project_id, matrix_data, conflict_pairs |
 
 ### 9.2 參考資料 (規則引擎)
 

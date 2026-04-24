@@ -25,6 +25,7 @@
 | **WS-F** | Explore TC→多 PC 分解 | [`wbs-workstreams/WS-F--tc-to-multipc-decomposition.md`](wbs-workstreams/WS-F--tc-to-multipc-decomposition.md) | Active | 見檔案內 dashboard |
 | **WS-G** | Explore L3 Su-Field 平行旁路 | [`wbs-workstreams/WS-G--l3-sf-parallel-check.md`](wbs-workstreams/WS-G--l3-sf-parallel-check.md) | Skeleton | 待排程 |
 | **WS-H** | Playwright E2E 補測 | [`wbs-workstreams/WS-H--playwright-e2e-followup.md`](wbs-workstreams/WS-H--playwright-e2e-followup.md) | Skeleton | 待排程 |
+| **Module 8.0** | Auto-TRIZ v2 Integration | 主 WBS [`E3x--wbs-development-plan.md`](E3x--wbs-development-plan.md) §Module 8.0 | Done | 100% (25/25) |
 
 ---
 

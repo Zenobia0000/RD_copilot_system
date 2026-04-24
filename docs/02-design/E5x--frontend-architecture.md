@@ -2,8 +2,8 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.0`
-**最後更新 (Last Updated):** `2026-04-15`
+**文件版本 (Document Version):** `v1.1`
+**最後更新 (Last Updated):** `2026-04-24`
 **主要作者 (Lead Author):** `Frontend Lead`
 **狀態 (Status):** `Active`
 **對應 VibeCoding 模板:** `12_frontend_architecture_specification.md`
@@ -152,6 +152,28 @@ export function useSupabaseMutation<TData, TVariables>(options) {
 Source: `src/hooks/api/useSupabaseQuery.ts`（L204–L315）
 
 > **Backend API (FastAPI) 路徑**：透過 Vite proxy `/api/v1/*` → `http://localhost:8000`；非 Supabase 的自訂端點 wrapper 位於 `src/hooks/api/useCreate.ts` / `useExplore.ts` 等 per-feature hook。
+
+#### (d-2) Auto-TRIZ v2 Hooks (v2.0 新增)
+
+> ADR-008 新增的 API hooks，分為 Analyst v2（Explore 頁使用）與 Create v2（Create 頁使用）兩組。
+
+**useAnalystV2 Hooks**（`src/hooks/api/useAnalystV2.ts`）：
+
+| Hook | 端點 | 用途 | 消費頁面 |
+|---|---|---|---|
+| `useEntryGrading(projectId)` | `POST /analyst/entry-grading` | 入口分級 Level A/B/C | Explore (EntryGradingModal) |
+| `useFiveWhy(projectId)` | `POST /analyst/five-why` | 5Why 根因分析 | Explore (ProblemScopingStep) |
+| `useKtAnalysis(projectId)` | `POST /analyst/kt-analysis` | KT Is/Is Not 分析 | Explore (ProblemScopingStep) |
+| `useFunctionAnalysis(projectId)` | `POST /analyst/function-analysis` | FA 功能建模 | Explore (FunctionAnalysisStep) |
+
+**useCreateV2 Hooks**（`src/hooks/api/useCreateV2.ts`）：
+
+| Hook | 端點 | 用途 | 消費頁面 |
+|---|---|---|---|
+| `useOzOtAnalysis(projectId)` | `POST /analyst/oz-ot-analysis` | OZ-OT 時空分析 | Create (OzOtPanel) |
+| `useSimMatrix(projectId)` | `POST /triz/sim-matrix` | SIM 交互矩陣 | Create (SimMatrixView) |
+| `useComplexityCheck(alternativeId)` | `POST /triz/complexity-check` | CCI 複雜度判定 | Create (CciBadge) |
+| `useEvidenceCoverage(projectId)` | `GET /evidence/coverage` | Evidence 覆蓋率 | Create (EvidenceCoverageGauge) |
 
 #### (e) 基礎設施層 (Vite / Build) — `vite.config.ts`
 

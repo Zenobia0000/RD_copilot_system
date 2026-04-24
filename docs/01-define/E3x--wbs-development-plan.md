@@ -3,7 +3,7 @@
 ---
 
 **文件版本 (Document Version):** `v1.0`
-**最後更新 (Last Updated):** `2026-04-15`
+**最後更新 (Last Updated):** `2026-04-24`
 **主要作者 (Lead Author):** PM / TaskMaster Hub
 **審核者 (Reviewers):** TL / ARCH / PO
 **狀態 (Status):** Approved
@@ -374,6 +374,75 @@ WS-C: Mock → Live 遷移 (Supabase 即時 API)         [🟡 ~85% · Sprint 4 
 
 ---
 
+### Module 8.0 · Auto-TRIZ v2 Integration (v2.0 新增)
+
+> **來源**：[ADR-008](adrs/ADR-008-auto-triz-v2-integration.md)（2026-04-23）
+> **目的**：整合 Auto-TRIZ v2 閉環流程（FA / OZ-OT / SIM / CCI / Evidence Registry），補齊 TRIZ 方法論結構性缺口。
+> **規劃工時**：193h（後端 73h + 前端 80h + 文件 40h）
+
+#### 8.1 後端 — Analyst v2 Agents
+
+| 任務編號 | 任務名稱 | Owner | 工時 | 狀態 |
+|---------|---------|-------|------|------|
+| 8.1.1 | `analyst.five_why()` agent + prompt | BE | 8h | ✅ Done |
+| 8.1.2 | `analyst.kt_is_is_not()` agent + prompt | BE | 8h | ✅ Done |
+| 8.1.3 | `analyst.function_analysis()` agent + prompt | BE | 12h | ✅ Done |
+| 8.1.4 | `analyst.oz_ot_analysis()` agent + prompt | BE | 8h | ✅ Done |
+| 8.1.5 | `analyst.entry_grading()` agent + prompt | BE | 5h | ✅ Done |
+
+#### 8.2 後端 — TRIZ v2 Extensions
+
+| 任務編號 | 任務名稱 | Owner | 工時 | 狀態 |
+|---------|---------|-------|------|------|
+| 8.2.1 | `triz_solver.sim_matrix()` — 多 TC SIM 交互矩陣 | BE | 10h | ✅ Done |
+| 8.2.2 | `triz_solver.complexity_check()` — CCI 複雜度指標 | BE | 8h | ✅ Done |
+| 8.2.3 | `solve_layered()` 擴充：接收 FA + OZ-OT context | BE | 6h | ✅ Done |
+
+#### 8.3 後端 — Evidence Registry Service
+
+| 任務編號 | 任務名稱 | Owner | 工時 | 狀態 |
+|---------|---------|-------|------|------|
+| 8.3.1 | `EvidenceRegistryService` — register/verify/coverage | BE | 12h | ✅ Done |
+| 8.3.2 | Evidence API 端點（3 endpoints） | BE | 6h | ✅ Done |
+
+#### 8.4 DB Migrations
+
+| 任務編號 | 任務名稱 | Owner | 工時 | 狀態 |
+|---------|---------|-------|------|------|
+| 8.4.1 | `function_models` 表 | Data | 2h | ✅ Done |
+| 8.4.2 | `evidence_claims` 表 | Data | 2h | ✅ Done |
+| 8.4.3 | `sim_matrices` 表 | Data | 2h | ✅ Done |
+| 8.4.4 | `contradictions` 新增 oz_zone/ot_time/px_variable 欄位 | Data | 1h | ✅ Done |
+
+#### 8.5 前端 — Explore Conditional Stepper
+
+| 任務編號 | 任務名稱 | Owner | 工時 | 狀態 |
+|---------|---------|-------|------|------|
+| 8.5.1 | `EntryGradingModal` 組件 | FE | 8h | ✅ Done |
+| 8.5.2 | `ConditionalStepper` 框架（Level A/B/C 路由） | FE | 12h | ✅ Done |
+| 8.5.3 | `ProblemScopingStep`（5Why + KT UI） | FE | 10h | ✅ Done |
+| 8.5.4 | `FunctionAnalysisStep`（FA 組件交互圖 UI） | FE | 12h | ✅ Done |
+| 8.5.5 | `useAnalystV2` hooks（4 hooks） | FE | 6h | ✅ Done |
+
+#### 8.6 前端 — Create v2 Enhancements
+
+| 任務編號 | 任務名稱 | Owner | 工時 | 狀態 |
+|---------|---------|-------|------|------|
+| 8.6.1 | `OzOtPanel` 組件 | FE | 8h | ✅ Done |
+| 8.6.2 | `CciBadge` 組件 | FE | 4h | ✅ Done |
+| 8.6.3 | `EvidenceCoverageGauge` 組件 | FE | 6h | ✅ Done |
+| 8.6.4 | `useCreateV2` hooks（2 hooks） | FE | 4h | ✅ Done |
+| 8.6.5 | Gate PG2 evidence coverage ≥40% 檢查 | FE | 4h | ✅ Done |
+
+#### 8.7 文件更新
+
+| 任務編號 | 任務名稱 | Owner | 工時 | 狀態 |
+|---------|---------|-------|------|------|
+| 8.7.1 | P1 文件更新（API spec / IA / 前端架構 / WBS / MOC / ADR-008 / SOW） | Doc | 24h | ✅ Done |
+| 8.7.2 | P2 文件更新（Page-Level Spec: 06_explore / 08_create / MAPPING） | Doc | 16h | ✅ Done |
+
+---
+
 ## 4. 專案進度摘要 (Project Progress Summary)
 
 ### 整體進度統計
@@ -383,13 +452,15 @@ WS-C: Mock → Live 遷移 (Supabase 即時 API)         [🟡 ~85% · Sprint 4 
 | WS-A API 對齊 | 35 | 32 | 0 | 3 | 91% |
 | WS-B E2E 差距 | 67 | 66 | 1 | 0 | 98.5% |
 | WS-C Mock→Live | 26 | 21 | 5 | 0 | 81% |
-| **總計** | **128** | **119** | **6** | **3** | **~93%** |
+| Module 8.0 Auto-TRIZ v2 | 25 | 25 | 0 | 0 | 100% |
+| **總計** | **153** | **144** | **6** | **3** | **~94%** |
 
 ### 近期里程碑
 
 - **2026-03-12**：WS-B 主 WBS (1.0-5.0) 42 工作包 100% 完成
 - **2026-04-07**：WS-A API 端點 31 routes live + 501 stubs 清零；WS-C Sprint 3 完成
-- **2026-04-15**（今日）：三份 WBS 合併為單一主文檔 (本檔)
+- **2026-04-15**：三份 WBS 合併為單一主文檔 (本檔)
+- **2026-04-24**：Module 8.0 Auto-TRIZ v2 Integration 全部 25 工作包完成（後端 8.1-8.4 + 前端 8.5-8.6 + 文件 8.7）
 - **目標**：Sprint 4 收尾（移除 7 mock 殘留 + Playwright E2E 驗證）後，整體達 100%
 
 ---
@@ -461,6 +532,7 @@ WS-C: Mock → Live 遷移 (Supabase 即時 API)         [🟡 ~85% · Sprint 4 
 - [ADR-003](adrs/ADR-003-llm-service-hardening.md) — LLM Service Hardening (A-1.3 / B-6.8 closure)
 - [ADR-004](adrs/ADR-004-qa-devops-infrastructure.md) — QA/DevOps Infrastructure
 - [ADR-005](adrs/ADR-005-scope-expansion.md) — Scope Expansion
+- [ADR-008](adrs/ADR-008-auto-triz-v2-integration.md) — Auto-TRIZ v2 Integration (Module 8.0)
 
 ### 歷史版本
 

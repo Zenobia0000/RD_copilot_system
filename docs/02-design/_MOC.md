@@ -51,6 +51,13 @@
 - [specs/review-templates/E5x--pre-cad-review-template](specs/review-templates/E5x--pre-cad-review-template.md) — Pre-CAD Gate 審查模板
 - [specs/review-templates/E5x--evidence-matrix-risk-register-template](specs/review-templates/E5x--evidence-matrix-risk-register-template.md) — 證據矩陣 & 風險登記
 
+## Auto-TRIZ v2 (Module 8.0) 相關文件 (v2.0 新增)
+
+- [ADR-008](../01-define/adrs/ADR-008-auto-triz-v2-integration.md) — Auto-TRIZ v2 閉環流程整合（FA / OZ-OT / SIM / CCI / Evidence Registry）
+- [pages/06_explore](../01-define/pages/06_explore.md) — Explore 頁 Page-Level Spec（Conditional Stepper）
+- [pages/08_create](../01-define/pages/08_create.md) — Create 頁 Page-Level Spec（OZ-OT / SIM / CCI / Evidence）
+- [pages/MAPPING](../01-define/pages/MAPPING.md) — Page Spec ↔ IA 雙向對照索引
+
 ## 其他位置 (交叉引用)
 
 **WBS 任務分解** 已統一歸檔至 DEFINE 階段：

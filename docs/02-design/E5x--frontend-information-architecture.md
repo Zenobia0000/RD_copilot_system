@@ -2,8 +2,8 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.0`
-**最後更新 (Last Updated):** `2026-04-15`
+**文件版本 (Document Version):** `v1.1`
+**最後更新 (Last Updated):** `2026-04-24`
 **主要作者 (Lead Author):** `UX / Frontend Lead`
 **狀態 (Status):** `Active`
 **對應 VibeCoding 模板:** `17_frontend_information_architecture_template.md`
@@ -162,10 +162,10 @@ RD Design Copilot
 | 欄位 | 內容 |
 |---|---|
 | **URL** | `/projects/:id/explore` |
-| **Purpose** | Anti-Anchor Sprint + Socratic 問答 + 矛盾識別 + CLD |
-| **Key Components** | `SocraticTab`, `ContradictionTab`, `CldTab`, `ExploreGates`, `KnowledgeRefsPanel` |
-| **State** | Tab 狀態（URL `?tab=`）；`useExplore` server state |
-| **Related API** | `/alternatives/anti-anchor`, `/unknown-factors/*`, `/causal-loops/*` |
+| **Purpose** | Conditional Stepper：依入口分級（Level A/B/C）切換模式 — Level A 5-step 引導（Problem Scoping → FA → Socratic → Contradictions → CLD）；Level B 原有 3-tab 快速通道；Level C 導向 Create SF-only |
+| **Key Components** | `EntryGradingModal` (v2.0 新增), `ConditionalStepper` (v2.0 新增), `ProblemScopingStep` (v2.0 新增), `FunctionAnalysisStep` (v2.0 新增), `SocraticTab`, `ContradictionTab`, `CldTab`, `ExploreGates`, `KnowledgeRefsPanel` |
+| **State** | `entryLevel: A\|B\|C\|null`（from DB）；Level A: `currentStep: 0-4`；Level B: Tab 狀態（URL `?tab=`）；`useExplore` server state |
+| **Related API** | `/analyst/entry-grading` (v2.0 新增), `/analyst/five-why` (v2.0 新增), `/analyst/kt-analysis` (v2.0 新增), `/analyst/function-analysis` (v2.0 新增), `/alternatives/anti-anchor`, `/unknown-factors/*`, `/causal-loops/*` |
 | **Source** | `src/pages/Explore.tsx` |
 
 ### 6.6 Create
@@ -174,9 +174,9 @@ RD Design Copilot
 |---|---|
 | **URL** | `/projects/:id/create?tab={triz\|subsystem\|decision\|tree}` |
 | **Purpose** | TRIZ 分層解 + Subsystem + Decision Center + 三層樹 |
-| **Key Components** | `LayeredSolutionCard`, `MissionContext`, `CreateStepper`, `KnowledgeRefsPanel`, `SubsystemHierarchyView`, `PackageMapPanel`, `SpatialOverlayDialog`, `SpatialOverrideDialog`, `PromoteToLearnedDialog`, `ConvergenceDashboard`, `HumanReviewPanel`, `ArchitectureHaltOverlay`, `MultiSolutionAdoptionPanel`, `ConvergenceGraph`（其餘見 UX spec） |
-| **State** | 提議 `useCreateStore` (Zustand) 管 tab/drill-down；`useLayeredTrizSolve`, `useSubsystemSuggestion` server state |
-| **Related API** | `/triz/solve-layered`, `/scamper/*`, `/contradictions/*`, `/subsystems/*` |
+| **Key Components** | `LayeredSolutionCard`, `MissionContext`, `CreateStepper`, `KnowledgeRefsPanel`, `SubsystemHierarchyView`, `PackageMapPanel`, `SpatialOverlayDialog`, `SpatialOverrideDialog`, `PromoteToLearnedDialog`, `ConvergenceDashboard`, `HumanReviewPanel`, `ArchitectureHaltOverlay`, `MultiSolutionAdoptionPanel`, `ConvergenceGraph`, `OzOtPanel` (v2.0 新增), `CciBadge` (v2.0 新增), `EvidenceCoverageGauge` (v2.0 新增)（其餘見 UX spec） |
+| **State** | 提議 `useCreateStore` (Zustand) 管 tab/drill-down；`useLayeredTrizSolve`, `useSubsystemSuggestion` server state；`useOzOtAnalysis`, `useSimMatrix`, `useComplexityCheck`, `useEvidenceCoverage` (v2.0 新增) |
+| **Related API** | `/triz/solve-layered`, `/triz/sim-matrix` (v2.0 新增), `/triz/complexity-check` (v2.0 新增), `/analyst/oz-ot-analysis` (v2.0 新增), `/evidence/coverage` (v2.0 新增), `/scamper/*`, `/contradictions/*`, `/subsystems/*` |
 | **參考 Spec** | **[create-ux-spec](specs/ux/E5x--create-ux-spec.md)**（完整 Tab ①–④） |
 | **Source** | `src/pages/Create.tsx` |
 

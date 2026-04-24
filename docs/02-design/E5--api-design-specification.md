@@ -2,8 +2,8 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.0`
-**最後更新 (Last Updated):** `2026-04-15`
+**文件版本 (Document Version):** `v1.2`
+**最後更新 (Last Updated):** `2026-04-24`
 **主要作者/設計師 (Lead Author/Designer):** `RD Design Copilot Backend Team`
 **審核者 (Reviewers):** `架構團隊、前端團隊、QA`
 **狀態 (Status):** `Active`
@@ -262,6 +262,37 @@ ISO 8601 + UTC（e.g. `2026-04-15T10:00:00Z`）。
 
 > **未列出端點**：`TBD — <be-lead TBD> by <2026-05-01 TBD>`（若有 router 漏掃請於 PR 補）
 
+### 7.13 資源：Analyst v2 (`analyst.py`) (Auto-TRIZ v2 新增)
+
+> **ADR-008 (2026-04-23)**：Auto-TRIZ v2 閉環流程整合，新增問題定向 + 功能建模 + 入口分級端點。
+
+| Method | Path | Request | Response | 說明 |
+|---|---|---|---|---|
+| POST | `/api/v1/analyst/five-why` | `FiveWhyRequest` | `FiveWhyResponse` | 5Why 根因分析，產出 5 層 Why chain |
+| POST | `/api/v1/analyst/kt-analysis` | `KtAnalysisRequest` | `KtAnalysisResponse` | KT Is/Is Not 範圍界定 |
+| POST | `/api/v1/analyst/function-analysis` | `FunctionAnalysisRequest` | `FunctionAnalysisResponse` | FA 功能建模，產出組件交互圖 + SF 診斷 |
+| POST | `/api/v1/analyst/oz-ot-analysis` | `OzOtAnalysisRequest` | `OzOtAnalysisResponse` | OZ-OT 時空分析，鎖定每個 TC 的 Px 變量 |
+| POST | `/api/v1/analyst/entry-grading` | `EntryGradingRequest` | `EntryGradingResponse` | 入口等級判定（Level A/B/C），驅動 Explore Conditional Stepper |
+
+### 7.14 資源：TRIZ v2 (`triz.py` 擴充) (Auto-TRIZ v2 新增)
+
+> **ADR-008 (2026-04-23)**：多 TC 交互評估 + 概念複雜度指標。
+
+| Method | Path | Request | Response | 說明 |
+|---|---|---|---|---|
+| POST | `/api/v1/triz/sim-matrix` | `SimMatrixRequest` | `SimMatrixResponse` | 解法交互矩陣（+1/0/-1），評估多 TC 間候選解法交互效應 |
+| POST | `/api/v1/triz/complexity-check` | `ComplexityCheckRequest` | `ComplexityCheckResponse` | CCI 概念複雜度指標（0-1 連續值），判定 Evolution / Weak Evolution / Patch |
+
+### 7.15 資源：Evidence Registry (`evidence.py`) (Auto-TRIZ v2 新增)
+
+> **ADR-008 (2026-04-23)**：LLM 數值聲明驗證，降低 hallucination 風險。
+
+| Method | Path | Request | Response | 說明 |
+|---|---|---|---|---|
+| POST | `/api/v1/evidence/claims` | `EvidenceClaimRequest` | `EvidenceClaimResponse` | 登記 evidence claim（數值聲明） |
+| POST | `/api/v1/evidence/claims/{id}/verify` | — | `EvidenceVerifyResponse` | 觸發 WebSearch 驗證 claim，標記 VERIFIED/APPROXIMATE/UNVERIFIED |
+| GET | `/api/v1/evidence/coverage/{project_id}` | — | `EvidenceCoverageResponse` | 查詢專案 evidence 覆蓋率（VERIFIED + APPROXIMATE 佔比） |
+
 ---
 
 ## 8. 資料模型/Schema 定義 (Data Models / Schema Definitions)
@@ -280,6 +311,26 @@ ISO 8601 + UTC（e.g. `2026-04-15T10:00:00Z`）。
 | `ValidationPassport` | 假設清單 | `schemas.py` L356 |
 | `ScamperVariant` / `ScamperResponse` | SCAMPER 變體 | `schemas.py` L708/727 |
 | `CldNode/Edge/Loop/Breakpoint` | 因果迴圈圖 | `schemas.py` L280–299 |
+
+### 8.1b 新增 Schema 索引 (Auto-TRIZ v2 新增)
+
+| Schema | 用途 | 對應端點 |
+|---|---|---|
+| `FunctionModel` | FA 功能建模結果（組件交互圖 + SF 診斷） | `/analyst/function-analysis` |
+| `OzOtResult` | OZ-OT 時空分析結果（zone/time/px_variable） | `/analyst/oz-ot-analysis` |
+| `SimMatrixResult` | 多 TC SIM 交互矩陣（+1/0/-1 評分陣列） | `/triz/sim-matrix` |
+| `ComplexityCheckResult` | CCI 複雜度判定（score + verdict） | `/triz/complexity-check` |
+| `EvidenceClaim` | 數值聲明（claim_text + source_agent + verification_status） | `/evidence/claims` |
+
+### 8.1c 新增 DB 表 (Auto-TRIZ v2 新增)
+
+| 表名 | 用途 | 關聯 |
+|---|---|---|
+| `function_models` | FA 功能模型持久化 | `project_id` → `projects` |
+| `evidence_claims` | LLM 數值聲明登記與驗證 | `project_id` → `projects` |
+| `sim_matrices` | 多 TC SIM 交互矩陣結果 | `project_id` → `projects` |
+
+> `contradictions` 表新增欄位：`oz_zone`（Operating Zone）、`ot_time`（Operating Time）、`px_variable`（鎖定的物理參數）。
 
 ### 8.2 範例：`LayeredTrizSolution` （節錄）
 ```python
@@ -304,6 +355,9 @@ class LayeredTrizSolution(BaseModel):
 | SCAMPER / Subsystem Suggestions | Beta |
 | Anti-Anchor / Validation Passport | Beta |
 | Spatial Overlay / Learn | Alpha |
+| Analyst v2 (5Why / KT / FA / OZ-OT / Entry Grading) | Beta (Auto-TRIZ v2) |
+| TRIZ v2 (SIM Matrix / Complexity Check) | Beta (Auto-TRIZ v2) |
+| Evidence Registry (Claims / Verify / Coverage) | Beta (Auto-TRIZ v2) |
 
 ### 9.2 版本控制策略
 URL 路徑版本（未來 `/v2/`）；目前僅一版。  
@@ -331,3 +385,4 @@ URL 路徑版本（未來 `/v2/`）；目前僅一版。
 | 日期 | 審核人 | 版本 | 變更摘要 |
 |---|---|---|---|
 | 2026-04-15 | Backend Team | v1.0 | 初版；對齊 VibeCoding 06 模板 |
+| 2026-04-24 | Backend Team | v1.2 | (Auto-TRIZ v2) 新增 §7.13 Analyst v2、§7.14 TRIZ v2、§7.15 Evidence Registry 共 10 端點；§8.3 新增 5 個 Schema；§9.1 更新生命週期 |

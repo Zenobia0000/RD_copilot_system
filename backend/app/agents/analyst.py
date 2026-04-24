@@ -32,6 +32,11 @@ from app.prompts.analyst import (
     ASSUMPTION_EXTRACTION,
     UNKNOWN_FACTOR_DISCOVERY,
     TC_TO_MULTI_PC_DECOMPOSITION,
+    FIVE_WHY_ANALYSIS,
+    KT_IS_IS_NOT,
+    FUNCTION_ANALYSIS,
+    OZ_OT_ANALYSIS,
+    ENTRY_GRADING,
 )
 from app.agents.triz_critic import should_trigger_pc_decomposition
 from app.tools.triz_kb import (
@@ -77,6 +82,16 @@ from app.models.schemas import (
     AssumptionExtractResponse,
     UnknownFactorDiscoverRequest,
     UnknownFactorDiscoverResponse,
+    FiveWhyRequest,
+    FiveWhyResponse,
+    KtIsIsNotRequest,
+    KtIsIsNotResponse,
+    FunctionAnalysisRequest,
+    FunctionAnalysisResponse,
+    OzOtAnalysisRequest,
+    OzOtAnalysisResponse,
+    EntryGradingRequest,
+    EntryGradingResponse,
 )
 from app.services.evidence_retrieval import (
     retrieve_constraint_evidence,
@@ -626,6 +641,71 @@ def decompose_tc_to_pcs(req: ContradictionDecomposeRequest) -> ContradictionDeco
             decomposed_pcs=[],
             reasoning=f"Decomposition failed: {exc}",
         )
+
+
+def analyze_five_why(req: FiveWhyRequest) -> FiveWhyResponse:
+    """Perform 5-Why root-cause analysis on a problem statement."""
+    logger.info("analyze_five_why: project=%s", req.project_id)
+    prompt = FIVE_WHY_ANALYSIS.format(
+        problem_statement=req.problem_statement,
+        context=req.context or "（未提供）",
+    )
+    raw = call_llm_json(ANALYST_SYSTEM, prompt)
+    data = json.loads(raw)
+    return FiveWhyResponse(**data)
+
+
+def analyze_kt_is_is_not(req: KtIsIsNotRequest) -> KtIsIsNotResponse:
+    """Perform KT Problem Analysis Is/Is-Not matrix."""
+    logger.info("analyze_kt_is_is_not: project=%s", req.project_id)
+    prompt = KT_IS_IS_NOT.format(
+        problem_statement=req.problem_statement,
+        known_facts="\n".join(f"- {f}" for f in req.known_facts) or "（尚無）",
+    )
+    raw = call_llm_json(ANALYST_SYSTEM, prompt)
+    data = json.loads(raw)
+    return KtIsIsNotResponse(**data)
+
+
+def analyze_function(req: FunctionAnalysisRequest) -> FunctionAnalysisResponse:
+    """Perform TRIZ Function Analysis (FA) with component interactions and SF diagnosis."""
+    logger.info("analyze_function: project=%s components=%d", req.project_id, len(req.components))
+    prompt = FUNCTION_ANALYSIS.format(
+        system_description=req.system_description,
+        components="\n".join(f"- {c}" for c in req.components),
+    )
+    raw = call_llm_json(ANALYST_SYSTEM, prompt)
+    data = json.loads(raw)
+    return FunctionAnalysisResponse(**data)
+
+
+def analyze_oz_ot(req: OzOtAnalysisRequest) -> OzOtAnalysisResponse:
+    """Perform TRIZ OZ-OT-Px analysis on a Technical Contradiction."""
+    logger.info(
+        "analyze_oz_ot: project=%s contradiction=%s",
+        req.project_id, req.contradiction_id,
+    )
+    prompt = OZ_OT_ANALYSIS.format(
+        tc_description=req.tc_description,
+        improving_param=req.improving_param or "（未提供）",
+        worsening_param=req.worsening_param or "（未提供）",
+    )
+    raw = call_llm_json(ANALYST_SYSTEM, prompt)
+    data = json.loads(raw)
+    return OzOtAnalysisResponse(**data)
+
+
+def grade_entry(req: EntryGradingRequest) -> EntryGradingResponse:
+    """Grade problem entry level (A/B/C) based on complexity and data quality."""
+    logger.info("grade_entry: project=%s", req.project_id)
+    prompt = ENTRY_GRADING.format(
+        problem_description=req.problem_description,
+        available_data=json.dumps(req.available_data, ensure_ascii=False, default=str)
+        if req.available_data else "（無可用資料）",
+    )
+    raw = call_llm_json(ANALYST_SYSTEM, prompt)
+    data = json.loads(raw)
+    return EntryGradingResponse(**data)
 
 
 def discover_unknown_factors(req: UnknownFactorDiscoverRequest) -> UnknownFactorDiscoverResponse:

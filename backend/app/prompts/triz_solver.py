@@ -412,6 +412,126 @@ For each transformation: state the benefit AND any new contradiction it may intr
 """
 
 # ---------------------------------------------------------------------------
+# SIM Matrix — Solution Interaction Matrix (WBS 8.3.1)
+# ---------------------------------------------------------------------------
+
+SIM_MATRIX_PROMPT = """\
+<task>
+Evaluate pairwise interactions between solutions from different contradictions \
+to build a Solution Interaction Matrix (SIM). For each pair of solutions \
+belonging to DIFFERENT contradictions, assess whether they synergise (+1), \
+are neutral (0), or conflict (-1).
+</task>
+
+<context>
+<contradictions_and_solutions>
+{solutions_block}
+</contradictions_and_solutions>
+</context>
+
+<instructions>
+1. For each pair of solutions from DIFFERENT contradictions, evaluate their \
+   physical and engineering interaction:
+   - **+1 (Synergy)**: The two solutions reinforce each other — implementing \
+     both yields MORE benefit than the sum of their individual effects \
+     (e.g., shared resource, complementary mechanisms).
+   - **0 (Neutral)**: The two solutions do not interact — implementing both \
+     yields exactly the sum of their individual effects.
+   - **-1 (Conflict)**: The two solutions interfere with each other — \
+     implementing both degrades at least one solution's effectiveness \
+     (e.g., competing for the same resource, contradictory requirements).
+
+2. After evaluating all pairs, find the **optimal combination**: the largest \
+   subset of solutions (one per contradiction) that has NO -1 conflicts and \
+   maximises the number of +1 synergies.
+
+3. List all conflict pairs and all synergy pairs separately.
+
+Respond in 繁體中文 for reasoning fields.
+</instructions>
+
+<output_schema>
+{{
+  "interactions": [
+    {{
+      "solution_a": "solution summary A",
+      "contradiction_a": "contradiction_id_A",
+      "solution_b": "solution summary B",
+      "contradiction_b": "contradiction_id_B",
+      "score": 1,
+      "reasoning": "兩者共用冷卻迴路，協同降溫效果 +30%"
+    }}
+  ],
+  "optimal_combination": ["solution summary 1", "solution summary 3"],
+  "conflicts": [
+    {{"solution_a": "...", "solution_b": "...", "reasoning": "..."}}
+  ],
+  "synergies": [
+    {{"solution_a": "...", "solution_b": "...", "reasoning": "..."}}
+  ]
+}}
+</output_schema>
+"""
+
+# ---------------------------------------------------------------------------
+# Complexity Check / CCI — Concept Complexity Index (WBS 8.3.2)
+# ---------------------------------------------------------------------------
+
+COMPLEXITY_CHECK_PROMPT = """\
+<task>
+Evaluate whether a proposed solution is a genuine TRIZ "evolution" (increases \
+Ideality) or merely a "patch" (adds complexity without proportional benefit). \
+Use the TRIZ Ideality formula: Ideality = Benefits / (Costs + Harms).
+</task>
+
+<context>
+<solution>{solution_description}</solution>
+<original_contradiction>{original_contradiction}</original_contradiction>
+<affected_subsystems>{affected_subsystems}</affected_subsystems>
+</context>
+
+<instructions>
+Answer these four diagnostic questions (yes/no + reasoning):
+
+1. **is_new_function_needed**: Does the new function introduced by this \
+   solution actually serve a user need, or is it only needed to compensate \
+   for a side-effect of the solution itself?
+
+2. **introduces_new_contradiction**: Does this solution introduce a NEW \
+   technical or physical contradiction that did not exist before?
+
+3. **increases_control_complexity**: Does this solution require additional \
+   sensors, controllers, firmware, or calibration that increase the system's \
+   control complexity?
+
+4. **reduces_resource_efficiency**: Does this solution consume MORE energy, \
+   material, space, or time per unit of useful output than the original system?
+
+Then score the solution on a 0–100 scale:
+- 80–100: **evolution** — Ideality clearly increases. Few or no new harms.
+- 50–79: **weak_evolution** — Net positive, but with notable side-effects.
+- 0–49: **patch** — Adds complexity disproportionate to benefit. Ideality \
+  may decrease.
+
+Respond in 繁體中文 for reasoning fields.
+</instructions>
+
+<output_schema>
+{{
+  "cci_level": "evolution|weak_evolution|patch",
+  "score": 75,
+  "reasoning": "此方案以時間分離消除主矛盾，Ideality 淨增；但需新增溫度感測器（控制複雜度 +1）",
+  "four_questions": {{
+    "is_new_function_needed": {{"answer": true, "reasoning": "冷卻功能為使用者需求"}},
+    "introduces_new_contradiction": {{"answer": false, "reasoning": "無新矛盾"}},
+    "increases_control_complexity": {{"answer": true, "reasoning": "需新增溫度感測器與韌體邏輯"}},
+    "reduces_resource_efficiency": {{"answer": false, "reasoning": "能耗持平"}}
+  }}
+}}
+</output_schema>
+"""
+
+# ---------------------------------------------------------------------------
 # Subsystem Suggestion
 # ---------------------------------------------------------------------------
 

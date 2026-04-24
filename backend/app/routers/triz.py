@@ -17,8 +17,13 @@ from app.models.schemas import (
     TrizLookupRequest, TrizLookupResponse,
     SuFieldRequest, SuFieldResponse,
     SolveTrizLayeredRequest, SolveTrizLayeredResponse,
+    SIMMatrixRequest, SIMMatrixResponse,
+    ComplexityCheckRequest, ComplexityCheckResponse,
 )
-from app.agents.triz_solver import solve_triz, analyze_sufield, solve_triz_layered
+from app.agents.triz_solver import (
+    solve_triz, analyze_sufield, solve_triz_layered,
+    sim_matrix, complexity_check,
+)
 
 router = APIRouter()
 
@@ -57,3 +62,24 @@ def triz_solve_layered(req: SolveTrizLayeredRequest):
       - `force_l2=true` → RD forces L2 deepen regardless of critic/severity
     """
     return solve_triz_layered(req)
+
+
+@router.post("/triz/sim-matrix", response_model=SIMMatrixResponse)
+def triz_sim_matrix(req: SIMMatrixRequest):
+    """Auto-TRIZ v2 (WBS 8.3.1) — Solution Interaction Matrix.
+
+    Evaluates pairwise interactions (+1 synergy / 0 neutral / -1 conflict)
+    between solutions from different contradictions, finds the optimal
+    non-conflicting combination, and persists the result.
+    """
+    return sim_matrix(req)
+
+
+@router.post("/triz/complexity-check", response_model=ComplexityCheckResponse)
+def triz_complexity_check(req: ComplexityCheckRequest):
+    """Auto-TRIZ v2 (WBS 8.3.2) — Concept Complexity Index (CCI).
+
+    Lightweight evaluation of whether a solution is an evolution (increases
+    Ideality) or a patch (adds complexity). Does not persist to DB.
+    """
+    return complexity_check(req)

@@ -1787,3 +1787,65 @@ class EntryGradingResponse(BaseModel):
     level: Literal["A", "B", "C"]
     reasoning: str
     recommended_steps: list[str] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Evidence Registry (WBS 8.4)
+# ---------------------------------------------------------------------------
+
+class RegisterClaimRequest(BaseModel):
+    """Register a new evidence claim."""
+    project_id: str
+    claim_text: str
+    claim_type: Literal["assumption", "hypothesis", "result", "constraint"]
+    linked_artifact_id: str | None = None
+    linked_artifact_type: str | None = None
+
+
+class RegisterClaimResponse(BaseModel):
+    """Registered claim record."""
+    id: str
+    project_id: str
+    claim_text: str
+    claim_type: str
+    status: str = "unverified"
+    verification_sources: list = Field(default_factory=list)
+    confidence_score: float = 0.0
+    linked_artifact_id: str | None = None
+    linked_artifact_type: str | None = None
+
+
+class VerifyClaimRequest(BaseModel):
+    """Verify / update a claim's status."""
+    verification_source: dict
+    new_status: Literal["unverified", "verified", "refuted", "partial"]
+    confidence_score: float | None = Field(default=None, ge=0, le=1)
+
+
+class VerifyClaimResponse(BaseModel):
+    """Updated claim record after verification."""
+    id: str
+    status: str
+    verification_sources: list = Field(default_factory=list)
+    confidence_score: float | None = None
+    updated_at: str | None = None
+
+
+class ClaimTypeCoverage(BaseModel):
+    """Per-type coverage breakdown."""
+    total: int = 0
+    verified: int = 0
+    refuted: int = 0
+    partial: int = 0
+    unverified: int = 0
+
+
+class CoverageResponse(BaseModel):
+    """Project-level evidence coverage statistics."""
+    total_claims: int = 0
+    verified_count: int = 0
+    refuted_count: int = 0
+    partial_count: int = 0
+    unverified_count: int = 0
+    coverage_ratio: float = 0.0
+    by_type: dict[str, ClaimTypeCoverage] = Field(default_factory=dict)

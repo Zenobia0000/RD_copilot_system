@@ -205,3 +205,46 @@ def check_manual(
         return GateCheckItem(label=label, met=False, detail=detail), fail_reason
 
     return _check
+
+
+# ---------------------------------------------------------------------------
+# check_evidence_coverage — evidence claims coverage ratio (WBS 8.4.4)
+# ---------------------------------------------------------------------------
+
+def check_evidence_coverage(
+    *,
+    min_ratio: float = 0.4,
+    label_template: str = "Evidence 覆蓋率 >= {min_pct}%（現有 {actual_pct}%）",
+    fail_template: str = "Evidence 覆蓋率不足：需要 >= {min_pct}%，目前 {actual_pct}%",
+) -> CheckFn:
+    """Check that project evidence coverage ratio meets threshold.
+
+    Queries evidence_claims table and computes verified / total.
+    Returns a warning (not a hard fail) when below min_ratio.
+    """
+
+    def _check(sb, project_id: str) -> tuple[GateCheckItem, str | None]:
+        result = (
+            sb.table("evidence_claims")
+            .select("status")
+            .eq("project_id", project_id)
+            .execute()
+        )
+        rows = result.data or []
+        total = len(rows)
+        if total == 0:
+            label = label_template.format(min_pct=int(min_ratio * 100), actual_pct=0)
+            return GateCheckItem(label=label, met=False, detail="尚無 evidence claims"), (
+                fail_template.format(min_pct=int(min_ratio * 100), actual_pct=0)
+            )
+
+        verified = sum(1 for r in rows if r["status"] == "verified")
+        ratio = verified / total
+        actual_pct = round(ratio * 100, 1)
+        min_pct = int(min_ratio * 100)
+        met = ratio >= min_ratio
+        label = label_template.format(min_pct=min_pct, actual_pct=actual_pct)
+        reason = None if met else fail_template.format(min_pct=min_pct, actual_pct=actual_pct)
+        return GateCheckItem(label=label, met=met), reason
+
+    return _check

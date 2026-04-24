@@ -10,6 +10,7 @@ import time
 logger = logging.getLogger(__name__)
 
 from app.agents.base import call_llm_json, web_search_with_llm
+from app.core.config import settings
 from pydantic import ValidationError
 
 from app.prompts.analyst import (
@@ -123,9 +124,11 @@ def _convert_refs(service_refs: list[ServiceEvidenceRef]) -> list[EvidenceRefere
 
 def extract_brief(req: BriefExtractionRequest) -> BriefExtractionResponse:
     prompt = BRIEF_EXTRACTION.format(raw_text=req.raw_text or "(無文字，請根據 file_urls 推斷)")
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        return harness_call("analyst_brief", ANALYST_SYSTEM, prompt, BriefExtractionResponse)
     raw = call_llm_json(ANALYST_SYSTEM, prompt, max_tokens=2048)
     data = json.loads(raw)
-    # Only keep the 4 expected keys to avoid Pydantic validation errors
     filtered = {
         "constraints": data.get("constraints", []),
         "kpis": data.get("kpis", []),
@@ -142,6 +145,9 @@ def check_constraint_feasibility(req: ConstraintFeasibilityRequest) -> Constrain
         mission=req.mission or "（未提供）",
         constraints="\n".join(f"- {c}" for c in req.constraints),
     )
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        return harness_call("analyst_feasibility", ANALYST_SYSTEM, prompt, ConstraintFeasibilityResponse)
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
     return ConstraintFeasibilityResponse(**data)
@@ -157,6 +163,11 @@ async def rewrite_mission(req: BriefRewriteRequest) -> BriefRewriteResponse:
         kpis="\n".join(f"- {k}" for k in req.kpis) or "（尚無）",
         evidence_context=evidence.prompt_context,
     )
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        result = harness_call("analyst_rewrite", ANALYST_SYSTEM, prompt, BriefRewriteResponse)
+        result.evidence_references = _convert_refs(evidence.references)
+        return result
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
     return BriefRewriteResponse(
@@ -177,6 +188,11 @@ async def suggest_constraints(req: ConstraintSuggestRequest) -> ConstraintSugges
         existing_constraints="\n".join(f"- {c}" for c in req.existing_constraints) or "（尚無）",
         evidence_context=evidence.prompt_context,
     )
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        result = harness_call("analyst_constraints", ANALYST_SYSTEM, prompt, ConstraintSuggestResponse)
+        result.evidence_references = _convert_refs(evidence.references)
+        return result
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
     return ConstraintSuggestResponse(
@@ -198,6 +214,11 @@ async def suggest_kpis(req: KpiSuggestRequest) -> KpiSuggestResponse:
         existing_kpis="\n".join(f"- {k}" for k in req.existing_kpis) or "（尚無）",
         evidence_context=evidence.prompt_context,
     )
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        result = harness_call("analyst_kpis", ANALYST_SYSTEM, prompt, KpiSuggestResponse)
+        result.evidence_references = _convert_refs(evidence.references)
+        return result
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
     return KpiSuggestResponse(
@@ -215,6 +236,11 @@ async def generate_5w1h(req: TaskDef5W1HRequest) -> TaskDef5W1HResponse:
         kpis="\n".join(f"- {k}" for k in req.kpis) or "（尚無）",
         evidence_context=evidence.prompt_context,
     )
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        result = harness_call("analyst_5w1h", ANALYST_SYSTEM, prompt, TaskDef5W1HResponse)
+        result.evidence_references = _convert_refs(evidence.references)
+        return result
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
     return TaskDef5W1HResponse(
@@ -235,8 +261,22 @@ def generate_socratic_questions(req: SocraticRequest) -> SocraticResponse:
         constraints="\n".join(f"- {c}" for c in req.constraints),
         existing_questions="\n".join(f"- {q}" for q in req.existing_questions),
     )
-    raw = call_llm_json(ANALYST_SYSTEM, prompt)
-    data = json.loads(raw)
+    # Socratic questions need dict→list post-processing regardless of path
+    if settings.use_harness_agents:
+        from app.harness.agent_base import HarnessAgent
+        from pydantic import BaseModel as _BM, Field as _F
+
+        class _SocraticRaw(_BM):
+            class Config:
+                extra = "allow"
+            questions: dict | list = _F(default_factory=dict)
+
+        agent = HarnessAgent(name="analyst_socratic", system_prompt=ANALYST_SYSTEM, output_type=_SocraticRaw)
+        raw_result = agent.run_sync(prompt)
+        data = raw_result.model_dump()
+    else:
+        raw = call_llm_json(ANALYST_SYSTEM, prompt)
+        data = json.loads(raw)
     # Prompt uses dict keyed by category → convert to list
     q_raw = data.get("questions", {})
     if isinstance(q_raw, dict):
@@ -259,6 +299,9 @@ def analyze_socratic_depth(req: SocraticFollowUpRequest) -> SocraticFollowUpResp
         constraints="\n".join(f"- {c}" for c in req.constraints),
         answered_questions=qa_text,
     )
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        return harness_call("analyst_socratic_depth", ANALYST_SYSTEM, prompt, SocraticFollowUpResponse)
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
     data.setdefault("follow_ups", [])
@@ -277,6 +320,9 @@ def evaluate_brief_impact(req: SocraticBriefImpactRequest) -> SocraticBriefImpac
         new_constraints="\n".join(f"- {c}" for c in req.new_constraints),
         existing_questions=q_text,
     )
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        return harness_call("analyst_brief_impact", ANALYST_SYSTEM, prompt, SocraticBriefImpactResponse)
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
     data.setdefault("affected", [])
@@ -298,6 +344,9 @@ def auto_tag_socratic(req: SocraticAutoTagRequest) -> SocraticAutoTagResponse:
         existing_contradictions="\n".join(f"- {c}" for c in req.existing_contradictions) or "（尚無）",
         untagged_questions=untagged_text,
     )
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        return harness_call("analyst_auto_tag", ANALYST_SYSTEM, prompt, SocraticAutoTagResponse)
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
     return SocraticAutoTagResponse(**data)
@@ -312,6 +361,18 @@ def _extract_socratic_insights(socraticAnswers: list[str], purpose: str) -> str:
         socraticAnswers="\n".join(f"- {a}" for a in socraticAnswers),
         purpose=purpose,
     )
+
+    if settings.use_harness_agents:
+        from pydantic import BaseModel as _BM, Field as _F
+        from app.harness.agent_base import harness_call
+
+        class _InsightsOutput(_BM):
+            insights: list[str] = _F(default_factory=list)
+
+        result = harness_call("analyst_insights", ANALYST_SYSTEM, prompt, _InsightsOutput)
+        if not result.insights:
+            return "No additional insights available."
+        return "\n".join(f"- {ins}" for ins in result.insights)
 
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
@@ -339,6 +400,9 @@ def generate_cld(req: CldGenerationRequest) -> CldGenerationResponse:
         kpis="\n".join(f"- {k}" for k in req.kpis) or "（尚無）",
         socratic_insights=socratic_insights,
     )
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        return harness_call("analyst_cld", ANALYST_SYSTEM, prompt, CldGenerationResponse)
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
     return CldGenerationResponse.model_validate(data)
@@ -359,8 +423,20 @@ def formalize_contradiction(req: ContradictionFormalizeRequest) -> Contradiction
         kpis="\n".join(f"- {k}" for k in req.kpis) or "（尚無）",
         socratic_insights=socratic_insights,
     )
-    raw = call_llm_json(ANALYST_SYSTEM, prompt)
-    data = json.loads(raw)
+    if settings.use_harness_agents:
+        from app.harness.agent_base import HarnessAgent
+        from pydantic import BaseModel as _BM
+
+        class _FormalizeRaw(_BM):
+            class Config:
+                extra = "allow"
+
+        agent = HarnessAgent(name="analyst_formalize", system_prompt=ANALYST_SYSTEM, output_type=_FormalizeRaw)
+        raw_result = agent.run_sync(prompt)
+        data = raw_result.model_dump()
+    else:
+        raw = call_llm_json(ANALYST_SYSTEM, prompt)
+        data = json.loads(raw)
 
     # ADR-007: Explore stage always emits TC. Coerce any non-TC to null.
     raw_type = data.get("type")
@@ -425,6 +501,16 @@ def derive_su_field_from_tc(
             worsening_name=get_param_name(worsening_param) or "",
             natural_description=natural_description or engineering_statement or "",
         )
+        if settings.use_harness_agents:
+            from app.harness.agent_base import harness_call
+            model = harness_call("analyst_su_field", ANALYST_SYSTEM, prompt, SuFieldModel)
+            if not (model.S1 or model.S2 or model.F):
+                logger.info(
+                    "derive_su_field_from_tc: empty Su-Field (ip=%s, wp=%s) — L3 will degrade",
+                    improving_param, worsening_param,
+                )
+                return None
+            return model
         raw = call_llm_json(ANALYST_SYSTEM, prompt, max_tokens=512)
         data = json.loads(raw)
         model = SuFieldModel(
@@ -461,6 +547,9 @@ def extract_assumptions(req: AssumptionExtractRequest) -> AssumptionExtractRespo
         existing_assumptions="\n".join(f"- {a}" for a in req.existing_assumptions) or "（尚無）",
         questions_and_answers=qa_text,
     )
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        return harness_call("analyst_assumptions", ANALYST_SYSTEM, prompt, AssumptionExtractResponse)
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
     return AssumptionExtractResponse(**data)
@@ -491,15 +580,18 @@ def generate_anti_anchor(req: AntiAnchorRequest) -> AntiAnchorResponse:
         existing_alternatives="\n".join(f"- {a}" for a in req.existing_alternatives),
         socratic_insights=socratic_insights,
     )
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        return harness_call("analyst_anti_anchor", ANALYST_SYSTEM, prompt, AntiAnchorResponse)
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
     # Even if the prompt requires a string, the LLM may still return a dict.
     for alt in data.get("alternatives", []):
-        for key in ("mechanism", "why_unconventional", 
+        for key in ("mechanism", "why_unconventional",
                      "potential_advantage", "cross_domain_source"):
             if key in alt and not isinstance(alt[key], str):
                 alt[key] = _flatten_to_str(alt[key])
-    
+
     return AntiAnchorResponse(**data)
 
 
@@ -585,10 +677,24 @@ def decompose_tc_to_pcs(req: ContradictionDecomposeRequest) -> ContradictionDeco
         )
 
         t0 = time.monotonic()
-        raw = call_llm_json(ANALYST_SYSTEM, prompt)
+        if settings.use_harness_agents:
+            from app.harness.agent_base import HarnessAgent
+            from pydantic import BaseModel as _BM
+
+            class _DecomposeRaw(_BM):
+                class Config:
+                    extra = "allow"
+                decomposed_pcs: list[dict] = []
+                reasoning: str = ""
+
+            agent = HarnessAgent(name="analyst_decompose", system_prompt=ANALYST_SYSTEM, output_type=_DecomposeRaw)
+            raw_result = agent.run_sync(prompt)
+            data = raw_result.model_dump()
+        else:
+            raw = call_llm_json(ANALYST_SYSTEM, prompt)
+            data = json.loads(raw)
         elapsed_ms = int((time.monotonic() - t0) * 1000)
         logger.info("decompose_tc_to_pcs: LLM call elapsed=%dms", elapsed_ms)
-        data = json.loads(raw)
 
         raw_pcs = data.get("decomposed_pcs", []) or []
         llm_reasoning = str(data.get("reasoning", "") or "")
@@ -645,6 +751,9 @@ def analyze_five_why(req: FiveWhyRequest) -> FiveWhyResponse:
         problem_statement=req.problem_statement,
         context=req.context or "（未提供）",
     )
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        return harness_call("analyst_five_why", ANALYST_SYSTEM, prompt, FiveWhyResponse)
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
     return FiveWhyResponse(**data)
@@ -657,6 +766,9 @@ def analyze_kt_is_is_not(req: KtIsIsNotRequest) -> KtIsIsNotResponse:
         problem_statement=req.problem_statement,
         known_facts="\n".join(f"- {f}" for f in req.known_facts) or "（尚無）",
     )
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        return harness_call("analyst_kt", ANALYST_SYSTEM, prompt, KtIsIsNotResponse)
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
     return KtIsIsNotResponse(**data)
@@ -669,6 +781,9 @@ def analyze_function(req: FunctionAnalysisRequest) -> FunctionAnalysisResponse:
         system_description=req.system_description,
         components="\n".join(f"- {c}" for c in req.components),
     )
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        return harness_call("analyst_function", ANALYST_SYSTEM, prompt, FunctionAnalysisResponse)
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
     return FunctionAnalysisResponse(**data)
@@ -685,6 +800,9 @@ def analyze_oz_ot(req: OzOtAnalysisRequest) -> OzOtAnalysisResponse:
         improving_param=req.improving_param or "（未提供）",
         worsening_param=req.worsening_param or "（未提供）",
     )
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        return harness_call("analyst_oz_ot", ANALYST_SYSTEM, prompt, OzOtAnalysisResponse)
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
     return OzOtAnalysisResponse(**data)
@@ -698,6 +816,9 @@ def grade_entry(req: EntryGradingRequest) -> EntryGradingResponse:
         available_data=json.dumps(req.available_data, ensure_ascii=False, default=str)
         if req.available_data else "（無可用資料）",
     )
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        return harness_call("analyst_grade", ANALYST_SYSTEM, prompt, EntryGradingResponse)
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
     return EntryGradingResponse(**data)
@@ -713,6 +834,9 @@ def discover_unknown_factors(req: UnknownFactorDiscoverRequest) -> UnknownFactor
         existing_assumptions="\n".join(f"- {a}" for a in req.existing_assumptions) or "（尚無）",
         existing_unknowns="\n".join(f"- {u}" for u in req.existing_unknowns) or "（尚無）",
     )
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        return harness_call("analyst_unknowns", ANALYST_SYSTEM, prompt, UnknownFactorDiscoverResponse)
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
     return UnknownFactorDiscoverResponse(**data)

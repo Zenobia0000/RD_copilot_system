@@ -51,7 +51,14 @@ def triz_solve_layered(req: SolveTrizLayeredRequest):
     """v7 — Three-layer drill-down TRIZ solver (LEGACY — kept for back-compat).
 
     Prefer `/triz/solve-directed` for new consumers.
+
+    When USE_HARNESS_AGENTS is enabled, routes through the solver_registry
+    orchestrator (Phase 3) which adds structured logging and context isolation.
     """
+    from app.core.config import settings
+    if settings.use_harness_agents:
+        from app.harness.solver_registry import dispatch
+        return dispatch("triz_layered", req)
     return solve_triz_layered(req)
 
 

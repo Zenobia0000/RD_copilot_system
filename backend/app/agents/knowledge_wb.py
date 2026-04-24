@@ -16,6 +16,7 @@ import json
 import logging
 
 from app.agents.base import call_llm_json
+from app.core.config import settings
 from app.core.supabase import get_supabase
 from app.models.schemas import (
     KnowledgeWritebackResponse,
@@ -155,10 +156,25 @@ def writeback_knowledge(
         prompt = _SYNTHESIS_PROMPTS[asset_type]
         user_msg = f"{prompt}\n\nSource data:\n{json.dumps(sources, default=str, ensure_ascii=False)}"
 
-        raw = call_llm_json(SYNTHESIS_SYSTEM, user_msg)
-        article = json.loads(raw)
-        title = article.get("title", f"{asset_type} for {project_id}")
-        content = article.get("content", "")
+        if settings.use_harness_agents:
+            from app.harness.agent_base import harness_call
+            from pydantic import BaseModel as _BM
+
+            class _SynthesisOutput(_BM):
+                title: str = ""
+                content: str = ""
+
+            result = harness_call(
+                f"knowledge_wb_{asset_type}", SYNTHESIS_SYSTEM, user_msg,
+                _SynthesisOutput,
+            )
+            title = result.title or f"{asset_type} for {project_id}"
+            content = result.content
+        else:
+            raw = call_llm_json(SYNTHESIS_SYSTEM, user_msg)
+            article = json.loads(raw)
+            title = article.get("title", f"{asset_type} for {project_id}")
+            content = article.get("content", "")
 
         # 3. Idempotency check: skip if (project_id, asset_type, title) exists
         existing = (

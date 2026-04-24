@@ -101,6 +101,62 @@ def solve_triz(req: TrizLookupRequest) -> TrizLookupResponse:
 
 
 def _solve_tc(req: TrizLookupRequest) -> TrizLookupResponse:
+    if settings.use_harness_agents:
+        return _solve_tc_harness(req)
+    return _solve_tc_legacy(req)
+
+
+def _solve_tc_harness(req: TrizLookupRequest) -> TrizLookupResponse:
+    """Harness path: route TC solving through HarnessAgent (Phase 2b)."""
+    from app.harness.agent_base import HarnessAgent
+    from app.harness.prompt_assembler import assemble_prompt
+    from pydantic import BaseModel, Field as PydField
+
+    class _TCSolverOutput(BaseModel):
+        suggestions: list[TrizSuggestion] = PydField(default_factory=list)
+
+    improving = req.improving_param
+    worsening = req.worsening_param
+    candidates = lookup_matrix(improving, worsening)
+    triz_context = build_triz_tc_context(improving, worsening)
+
+    system_prompt, user_message = assemble_prompt(
+        TRIZ_SOLVER_SYSTEM,
+        knowledge_blocks={"triz_tc_context": triz_context},
+        dynamic_context={
+            "user_input": TRIZ_TC_INSTANTIATION.format(
+                natural_description=req.natural_description,
+                triz_context=triz_context,
+                improving=improving,
+                worsening=worsening,
+            ),
+        },
+    )
+
+    agent = HarnessAgent(
+        name="triz_tc",
+        system_prompt=system_prompt,
+        output_type=_TCSolverOutput,
+        model_override=settings.fast_model,
+    )
+
+    result = agent.run_sync(user_message)
+
+    # Ensure each suggestion carries path="TC"
+    for s in result.suggestions:
+        if not s.path:
+            s.path = "TC"
+
+    return TrizLookupResponse(
+        mapped_improving=improving,
+        mapped_worsening=worsening,
+        candidate_principles=candidates,
+        suggestions=[s.model_dump() for s in result.suggestions],
+    )
+
+
+def _solve_tc_legacy(req: TrizLookupRequest) -> TrizLookupResponse:
+    """Legacy path: direct call_llm_json (pre-harness)."""
     improving = req.improving_param
     worsening = req.worsening_param
     candidates = lookup_matrix(improving, worsening)

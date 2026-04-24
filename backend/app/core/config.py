@@ -122,6 +122,13 @@ class Settings(BaseSettings):
     )
     tavily_api_key: str = ""
 
+    # --- Harness Architecture (ADR-006) ---
+    use_harness_agents: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("USE_HARNESS_AGENTS"),
+        description="Feature flag: route agent calls through HarnessAgent (Phase 2b).",
+    )
+
     # --- TRIZ Knowledge Base ---
     triz_kb_path: str = "../rd_assistant_design_system/triz_knowledge_base"
 

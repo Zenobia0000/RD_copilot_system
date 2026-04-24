@@ -20,10 +20,16 @@ def suggest_actions(req: ActionSuggestRequest) -> ActionSuggestResponse:
         rationale=req.rationale,
         risks="\n".join(f"- {r}" for r in req.risks),
     )
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        return harness_call(
+            "knowledge_actions", KNOWLEDGE_SYSTEM, prompt,
+            ActionSuggestResponse, model_override=settings.fast_model,
+        )
     raw = call_llm_json(
         KNOWLEDGE_SYSTEM,
         prompt,
-        model=settings.fast_model,  # Knowledge Agent uses lighter model
+        model=settings.fast_model,
     )
     data = json.loads(raw)
     return ActionSuggestResponse(**data)

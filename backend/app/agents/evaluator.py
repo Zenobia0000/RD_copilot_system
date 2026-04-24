@@ -6,6 +6,7 @@ Ref: AI_Agent_Architecture.md §1.1 Evaluator Agent + §6.2 evaluator_agent tool
 import json
 
 from app.agents.base import call_llm_json
+from app.core.config import settings
 from app.prompts.evaluator import (
     EVALUATOR_SYSTEM,
     RISK_ANALYSIS,
@@ -42,6 +43,9 @@ def analyze_risk(req: RiskAnalysisRequest) -> RiskAnalysisResponse:
         mechanism=req.mechanism,
         assumptions="\n".join(f"- {a}" for a in req.assumptions),
     )
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        return harness_call("evaluator_risk", EVALUATOR_SYSTEM, prompt, RiskAnalysisResponse)
     raw = call_llm_json(EVALUATOR_SYSTEM, prompt)
     data = json.loads(raw)
     return RiskAnalysisResponse(**data)
@@ -59,6 +63,9 @@ def evaluate_must(req: MustEvaluationRequest) -> MustEvaluationResponse:
         kpis="\n".join(f"- {k}" for k in req.kpis) or "（無）",
         must_criteria=criteria_text,
     )
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        return harness_call("evaluator_must", EVALUATOR_SYSTEM, prompt, MustEvaluationResponse)
     raw = call_llm_json(EVALUATOR_SYSTEM, prompt)
     data = json.loads(raw)
     return MustEvaluationResponse(**data)
@@ -166,9 +173,13 @@ def analyze_pre_cad(req: PreCadAnalyzeRequest) -> PreCadAnalyzeResponse:
         constraints="\n".join(f"- {c}" for c in req.constraints) or "（無）",
         spatial_evidence=spatial_evidence,
     )
-    raw = call_llm_json(EVALUATOR_SYSTEM, prompt)
-    data = json.loads(raw)
-    response = PreCadAnalyzeResponse(**data)
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        response = harness_call("evaluator_pre_cad", EVALUATOR_SYSTEM, prompt, PreCadAnalyzeResponse)
+    else:
+        raw = call_llm_json(EVALUATOR_SYSTEM, prompt)
+        data = json.loads(raw)
+        response = PreCadAnalyzeResponse(**data)
 
     # Deterministic override: whenever the caller supplied subsystems, the
     # validator — not the LLM — owns `spatial_score`. Three sub-cases:
@@ -252,6 +263,9 @@ def seed_want_criteria(req: WantSeedRequest) -> WantSeedResponse:
         constraints="\n".join(f"- {c}" for c in req.constraints) or "（無）",
         kpis="\n".join(f"- {k}" for k in req.kpis) or "（無）",
     )
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        return harness_call("evaluator_want_seed", EVALUATOR_SYSTEM, prompt, WantSeedResponse)
     raw = call_llm_json(EVALUATOR_SYSTEM, prompt)
     data = json.loads(raw)
     return WantSeedResponse(**data)
@@ -343,6 +357,11 @@ def scan_convergence(req: ConvergenceScanRequest) -> ConvergenceScanResponse:
         mission=mission, constraints=constraints, kpis=kpis,
     )
 
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        result = harness_call("evaluator_convergence", EVALUATOR_SYSTEM, prompt, ConvergenceScanResponse)
+        result.phase = req.phase
+        return result
     raw = call_llm_json(EVALUATOR_SYSTEM, prompt)
     data = json.loads(raw)
     # Defensive defaults — LLM may omit optional fields
@@ -363,6 +382,9 @@ def generate_validation_passport(req: ValidationPassportRequest) -> ValidationPa
         constraints="\n".join(f"- {c}" for c in req.constraints) or "（無）",
         kpis="\n".join(f"- {k}" for k in req.kpis) or "（無）",
     )
+    if settings.use_harness_agents:
+        from app.harness.agent_base import harness_call
+        return harness_call("evaluator_passport", EVALUATOR_SYSTEM, prompt, ValidationPassportResponse)
     raw = call_llm_json(EVALUATOR_SYSTEM, prompt)
     data = json.loads(raw)
     return ValidationPassportResponse(**data)
@@ -372,6 +394,20 @@ def generate_validation_passport(req: ValidationPassportRequest) -> ValidationPa
 # Gate quality evaluators (called from evaluator_registry.py)
 # ---------------------------------------------------------------------------
 
+def _harness_call_dict(name: str, system_prompt: str, prompt: str) -> dict:
+    """Harness path for functions that return raw dict (no Pydantic model)."""
+    from app.harness.agent_base import HarnessAgent
+    from pydantic import BaseModel as _BM
+
+    class _DictWrapper(_BM):
+        class Config:
+            extra = "allow"
+
+    agent = HarnessAgent(name=name, system_prompt=system_prompt, output_type=_DictWrapper)
+    result = agent.run_sync(prompt)
+    return result.model_dump()
+
+
 def review_brief_quality(
     mission: str, constraints: list[str], kpis: list[str],
 ) -> dict:
@@ -380,6 +416,8 @@ def review_brief_quality(
         constraints="\n".join(f"- {c}" for c in constraints) or "（尚無）",
         kpis="\n".join(f"- {k}" for k in kpis) or "（尚無）",
     )
+    if settings.use_harness_agents:
+        return _harness_call_dict("evaluator_brief_quality", EVALUATOR_SYSTEM, prompt)
     raw = call_llm_json(EVALUATOR_SYSTEM, prompt)
     return json.loads(raw)
 
@@ -400,6 +438,8 @@ def review_depth_quality(
             for c in contradictions
         ) or "（尚無）",
     )
+    if settings.use_harness_agents:
+        return _harness_call_dict("evaluator_depth_quality", EVALUATOR_SYSTEM, prompt)
     raw = call_llm_json(EVALUATOR_SYSTEM, prompt)
     return json.loads(raw)
 
@@ -418,5 +458,7 @@ def review_experiment_coverage(
             for e in experiments
         ) or "（尚無實驗）",
     )
+    if settings.use_harness_agents:
+        return _harness_call_dict("evaluator_experiment_coverage", EVALUATOR_SYSTEM, prompt)
     raw = call_llm_json(EVALUATOR_SYSTEM, prompt)
     return json.loads(raw)

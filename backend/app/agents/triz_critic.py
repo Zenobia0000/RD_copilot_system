@@ -180,6 +180,7 @@ def _llm_critic_judges_trade_off(
 ) -> tuple[bool, str]:
     """LLM fallback for rule 5. Uses L1_TRADE_OFF_CRITIC prompt."""
     from app.agents.base import call_llm_json
+    from app.core.config import settings
     from app.prompts.analyst import ANALYST_SYSTEM, L1_TRADE_OFF_CRITIC
     from app.tools.triz_kb import get_param_name
 
@@ -192,6 +193,21 @@ def _llm_critic_judges_trade_off(
         candidate_principles=", ".join(str(p) for p in candidate_principles),
         suggestions_text="(none provided)",
     )
+
+    if settings.use_harness_agents:
+        from pydantic import BaseModel as _BM
+
+        class _CriticOutput(_BM):
+            all_trade_off: bool = False
+            reason: str = ""
+
+        from app.harness.agent_base import harness_call
+        result = harness_call("triz_critic", ANALYST_SYSTEM, prompt, _CriticOutput)
+        reason = str(result.reason)[:200]
+        if result.all_trade_off:
+            return True, f"critic: {reason}"
+        return False, f"critic: L1 足夠深 ({reason})"
+
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw) if raw and raw.strip() else {}
     all_trade_off = bool(data.get("all_trade_off"))

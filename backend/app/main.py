@@ -36,6 +36,13 @@ async def lifespan(app: FastAPI):
         _log.getLogger(__name__).warning(
             "TRIZ KB files not found — TRIZ endpoints will return degraded results"
         )
+    # Load harness skills (Phase 4)
+    try:
+        from app.harness.skill_loader import load_all as load_skills
+        skill_count = load_skills()
+        _log.getLogger(__name__).info("Loaded %d harness skills", skill_count)
+    except Exception:
+        _log.getLogger(__name__).warning("Harness skill loading failed — skills unavailable")
     yield
 
 

@@ -2,8 +2,8 @@
 
 ---
 
-**文件版本 (Document Version):** `v2.2` (2026-04-23 納入 Module 8.0 Auto-TRIZ v2 Integration)
-**最後更新 (Last Updated):** `2026-04-23`
+**文件版本 (Document Version):** `v2.3` (2026-04-24 納入 Module 9.0 Harness Architecture Refactoring)
+**最後更新 (Last Updated):** `2026-04-24`
 **主要作者 (Lead Author):** PM / TaskMaster Hub
 **審核者 (Reviewers):** TL, ARCH, PO, QA Lead, DevOps Lead
 **狀態 (Status):** Approved
@@ -23,7 +23,7 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 
 ### ⚠️ Effort Envelope Baseline
 
-本版規劃工時 **1,473h**（原 1,280h + Module 8.0 Auto-TRIZ v2 Integration 193h），對應本專案「小型 AI 產品快速原型」的實際人力配置。v2.2 新增 Module 8.0 由 [ADR-008](adrs/ADR-008-auto-triz-v2-integration.md) 觸發，將 Auto-TRIZ v2 方法論（FA / OZ-OT / SIM / CCI / Evidence Registry）注入現有自動化架構。詳見 [WS-I](wbs-workstreams/WS-I--auto-triz-v2-integration.md)。
+本版規劃工時 **1,649h**（原 1,280h + Module 8.0 Auto-TRIZ v2 Integration 193h + Module 9.0 Harness Architecture Refactoring 176h），對應本專案「小型 AI 產品快速原型」的實際人力配置。v2.2 新增 Module 8.0 由 [ADR-008](adrs/ADR-008-auto-triz-v2-integration.md) 觸發。v2.3 新增 Module 9.0 由 [ADR-006](adrs/ADR-006-harness-architecture.md) 觸發，將 backend 重構為 Pydantic AI + MCP + Skills 的 Harness 架構，含 Token 監控、Prompt Skill 化、Context Engineering。
 
 ### 🔒 Critical Path (M6 Release v1.0)
 
@@ -141,6 +141,16 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 ├── 8.5 前端 Explore 擴充 (Conditional Stepper: Entry Grading + Level A 5-step / Level B 3-tab)
 ├── 8.6 前端 Create 擴充 (OZ-OT + SIM + CCI + Evidence — Step 1/4 內嵌)
 └── 8.7 文件 Phase 2-3 + BDD + 驗收
+
+9.0 Harness Architecture Refactoring (ADR-006)                 [176h]
+├── 9.1 Phase 0: 依賴與骨架 (pydantic-ai + mcp + harness/ stub)
+├── 9.2 Phase 1: Tool Registry + MCP Server
+├── 9.3 Phase 2a: Model Adapter + Prompt Assembler + Token 監控
+├── 9.4 Phase 2b: HarnessAgent Base + TRIZ Solver 試刀
+├── 9.5 Phase 2c: 全 Agent 轉換
+├── 9.6 Phase 3: Orchestrator + Solver Registry
+├── 9.7 Phase 4: Skill Loader + 知識型 Prompt Skill 化
+└── 9.8 Phase 5: MCP Client + 清理 + 文件
 ```
 
 ### 📈 工作包統計概覽
@@ -155,11 +165,12 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 | 6.0 部署上線 | 100h | 72h | 72% | 🔄 |
 | 7.0 文檔培訓 | 40h | 35h | 88% | 🔄 |
 | 8.0 Auto-TRIZ v2 | 193h | 0h | 0% | ⏳ |
-| **總計** | **1,489h** | **1,172h** | **~79%** | **🔄** |
+| 9.0 Harness 重構 | 176h | 8h | 5% | 🔄 |
+| **總計** | **1,665h** | **1,180h** | **~71%** | **🔄** |
 
 **狀態圖示**：✅ 已完成 / ⚡ 接近完成 / 🔄 進行中 / ⏳ 計劃中 / ⬜ 未開始 / ⏸ 暫停（降級 / v1.0.1 後補）
 
-> **Note (v2.2)**：Module 8.0 新增 193h 使整體進度從 ~90% 回落至 ~79%。8.0 為 v1.0 之後的**方法論強化**，不影響 M6 Release v1.0 的交付範圍。
+> **Note (v2.3)**：Module 9.0 Harness Architecture Refactoring 新增 176h。Phase 0（依賴+骨架 8h）已完成。9.0 為 backend 架構強化，與 8.0 可部分並行（9.1-9.2 獨立；9.4+ 需等 8.0 agent 變更穩定後再轉換）。
 
 ---
 
@@ -545,6 +556,94 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 
 ---
 
+### 9.0 Harness Architecture Refactoring (ADR-006)
+
+> **觸發**：[ADR-006](adrs/ADR-006-harness-architecture.md) — Backend 重構為 Pydantic AI + MCP + Skills 的 Harness 架構
+> **設計參考**：Hermes Agent 選擇性器官移植（Tool Registry / Toolset 掃描 / Subagent 隔離）
+> **詳細計畫**：[E5x--harness-refactor-plan.md](../02-design/specs/backend-harness/E5x--harness-refactor-plan.md)
+> **前置依賴**：Module 3.0 backend 基礎架構穩定
+
+#### 9.1 Phase 0: 依賴與骨架
+
+| 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | ADR |
+|---------|---------|--------|---------|------|----------|------|-----|
+| 9.1.1 | `pyproject.toml` 加 `pydantic-ai`, `mcp`; 移除未用 `langgraph`, `langchain-*` | BE | 2 | ✅ | 2026-04-24 | 3.1.1 | ADR-006 |
+| 9.1.2 | 建立 `backend/app/harness/` + `HarnessAgentProtocol` stub + 8 空 stub 模組 | BE | 4 | ✅ | 2026-04-24 | 9.1.1 | ADR-006 |
+| 9.1.3 | 驗證 pytest 全綠 + import 成功 | QA | 2 | ✅ | 2026-04-24 | 9.1.2 | — |
+
+#### 9.2 Phase 1: Tool Registry + MCP Server
+
+| 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | ADR |
+|---------|---------|--------|---------|------|----------|------|-----|
+| 9.2.1 | `harness/tool_registry.py` — `@register_tool` decorator + `ToolDefinition` + JSON Schema 自動產生 | BE | 8 | ⏳ | — | 9.1.2 | ADR-006 |
+| 9.2.2 | `harness/mcp_server.py` — stdio MCP server, 列出/呼叫 registered tools | BE | 8 | ⏳ | — | 9.2.1 | ADR-006 |
+| 9.2.3 | `tools/triz_kb.py` 標記 `@register_tool`（lookup_matrix, load_40_principles, build_triz_tc_context） | BE | 4 | ⏳ | — | 9.2.1 | ADR-006 |
+| 9.2.4 | `tests/harness/test_tool_registry.py` + MCP server E2E 驗證 | QA | 4 | ⏳ | — | 9.2.2, 9.2.3 | — |
+
+#### 9.3 Phase 2a: Model Adapter + Prompt Assembler + Token 監控
+
+| 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | ADR |
+|---------|---------|--------|---------|------|----------|------|-----|
+| 9.3.1 | `harness/model_adapter.py` — Pydantic AI `Model` protocol 包裝 `_call_provider` + cache 分離 | BE | 10 | ⏳ | — | 9.2.1, 3.1.5 | ADR-006 |
+| 9.3.2 | `harness/prompt_assembler.py` — assemble_prompt(template, skills, context, budget) + token budget 截斷 | BE | 6 | ⏳ | — | 9.3.1 | ADR-006 |
+| 9.3.3 | Token 監控骨架 — emit_token_usage(agent_name, input_tokens, output_tokens, cost) | BE | 4 | ⏳ | — | 9.3.1, 3.1.9 | ADR-006 |
+
+#### 9.4 Phase 2b: HarnessAgent Base + TRIZ Solver 試刀
+
+| 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | ADR |
+|---------|---------|--------|---------|------|----------|------|-----|
+| 9.4.1 | `harness/agent_base.py` — `HarnessAgent[DepsT, OutputT]` 泛型 class + context 隔離 | BE | 8 | ⏳ | — | 9.3.1 | ADR-006 |
+| 9.4.2 | `core/config.py` 加 `USE_HARNESS_AGENTS` feature flag | BE | 1 | ⏳ | — | 9.4.1 | ADR-006 |
+| 9.4.3 | `agents/triz_solver.py::_solve_tc()` 雙路徑轉換（harness vs legacy） | BE | 12 | ⏳ | — | 9.4.1, 9.4.2 | ADR-006 |
+| 9.4.4 | A/B 比對驗證（同矛盾 harness vs legacy token/latency <5%） | QA | 3 | ⏳ | — | 9.4.3 | — |
+
+#### 9.5 Phase 2c: 全 Agent 轉換
+
+| 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | ADR |
+|---------|---------|--------|---------|------|----------|------|-----|
+| 9.5.1 | `knowledge.py` + `knowledge_wb.py` 轉換 (2 fns) | BE | 4 | ⏳ | — | 9.4.3 | ADR-006 |
+| 9.5.2 | `triz_critic.py` 轉換 (helper fns) | BE | 4 | ⏳ | — | 9.4.3 | ADR-006 |
+| 9.5.3 | `evaluator.py` 轉換 (6 fns) | BE | 8 | ⏳ | — | 9.4.3 | ADR-006 |
+| 9.5.4 | `scamper_feedback.py` 轉換 (1 fn) | BE | 4 | ⏳ | — | 9.4.3 | ADR-006 |
+| 9.5.5 | `analyst.py` 轉換 (~20 fns) | BE | 16 | ⏳ | — | 9.4.3 | ADR-006 |
+| 9.5.6 | 全 agent 轉換後迴歸測試 | QA | 4 | ⏳ | — | 9.5.1-5 | — |
+
+#### 9.6 Phase 3: Orchestrator + Solver Registry
+
+| 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | ADR |
+|---------|---------|--------|---------|------|----------|------|-----|
+| 9.6.1 | `harness/solver_registry.py` — `@register_solver` decorator | BE | 4 | ⏳ | — | 9.5.6 | ADR-006 |
+| 9.6.2 | `harness/orchestrator.py` — 萃取 L1→critic→L2→L3 管線 + context 隔離 + token 累計 | BE | 10 | ⏳ | — | 9.6.1, 9.4.3 | ADR-006 |
+| 9.6.3 | `routers/triz.py` 改走 `solver_registry.dispatch()` | BE | 2 | ⏳ | — | 9.6.2 | ADR-006 |
+| 9.6.4 | Orchestrator E2E 驗證（3 RD flag 行為不變） | QA | 4 | ⏳ | — | 9.6.3 | — |
+
+#### 9.7 Phase 4: Skill Loader + 知識型 Prompt Skill 化
+
+| 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | ADR |
+|---------|---------|--------|---------|------|----------|------|-----|
+| 9.7.1 | `harness/skill_loader.py` — 掃 `skills/*/SKILL.md`, YAML frontmatter, 註冊 tool + prompt content | BE | 8 | ⏳ | — | 9.2.1 | ADR-006 |
+| 9.7.2 | `skills/triz_39_parameters/SKILL.md` + `triz_76_standards/SKILL.md` + `separation_principles/SKILL.md` 知識型 Skill 化 | BE | 6 | ⏳ | — | 9.7.1 | ADR-006 |
+| 9.7.3 | `skills/ebike_reference_library/` 範例 Skill（handler + data） | BE | 4 | ⏳ | — | 9.7.1 | ADR-006 |
+| 9.7.4 | `main.py` lifespan 加 `skill_loader.load_all()` + hot-reload 驗證 | BE | 2 | ⏳ | — | 9.7.1 | ADR-006 |
+| 9.7.5 | Skill loader 測試（放入 test skill → 重啟 → 可見） | QA | 4 | ⏳ | — | 9.7.4 | — |
+
+#### 9.8 Phase 5: MCP Client + 清理 + 文件
+
+| 任務編號 | 任務名稱 | 負責人 | 工時(h) | 狀態 | 完成日期 | 依賴 | ADR |
+|---------|---------|--------|---------|------|----------|------|-----|
+| 9.8.1 | `harness/mcp_client.py` — 讀 `.mcp.json`, 掛載外部 MCP tools | BE | 6 | ⏳ | — | 9.2.2 | ADR-006 |
+| 9.8.2 | 移除 `USE_HARNESS_AGENTS` feature flag（全面切換） | BE | 2 | ⏳ | — | 9.5.6, 9.6.4 | ADR-006 |
+| 9.8.3 | Token 監控儀表板規劃（per-agent breakdown + provider cost comparison） | BE / DevOps | 4 | ⏳ | — | 9.3.3 | — |
+| 9.8.4 | 文件更新（architecture doc + README + API reference） | Doc | 4 | ⏳ | — | 9.8.1 | — |
+
+**9.0 小計**：176h / 8h 已完成（5%） 🔄
+
+**關鍵路徑**：9.1 (8h) → 9.2 (24h) → 9.3 (20h) → 9.4 (24h) → 9.5 (40h) → 9.6 (20h) → 9.8.2 (2h) ≈ **138h**
+
+**可並行分支**：9.7 (24h) 可與 9.6 並行；9.8.1 (6h) 可與 9.7 並行
+
+---
+
 ## 4. 專案進度摘要 (Project Progress Summary)
 
 ### 🎯 整體進度統計
@@ -559,7 +658,8 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 | 6.0 部署上線 | 80h | 72h | 90% | ⚡ |
 | 7.0 文檔培訓 | 40h | 35h | 88% | 🔄 |
 | 8.0 Auto-TRIZ v2 | 193h | 0h | 0% | ⏳ |
-| **總計** | **1,473h** | **1,172h** | **~80%** | **🔄** |
+| 9.0 Harness 重構 | 176h | 8h | 5% | 🔄 |
+| **總計** | **1,649h** | **1,180h** | **~72%** | **🔄** |
 
 ### 📅 週度進度分析（16 週 sprint summary）
 
@@ -587,10 +687,13 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 - 進行：移除 7 mock 殘留、Playwright E2E、Socratic prompt injection、phase state machine trigger、使用者手冊
 - 目標：M4 Sprint 4 closure + M5 P0 closure + M6 Release v1.0
 
-#### ⏳ Week 17+ (2026-04-23 →)：Auto-TRIZ v2 Integration (Module 8.0)
+#### ⏳ Week 17+ (2026-04-23 →)：Auto-TRIZ v2 Integration (Module 8.0) + Harness Refactoring (Module 9.0)
 - 啟動：ADR-008 已建立、Phase 1 文件（10 份）已完成
-- 目標：P0 關鍵路徑 63h — DB migration → FA + OZ-OT agents → solve_layered 擴充 → Evidence Registry
+- 目標：8.0 P0 關鍵路徑 63h — DB migration → FA + OZ-OT agents → solve_layered 擴充 → Evidence Registry
 - 里程碑：M7 Auto-TRIZ v2 Phase 1 Backend
+- 啟動：ADR-006 Phase 0 已完成（8h）— `pydantic-ai` + `mcp` 依賴、`harness/` 骨架建立
+- 目標：9.0 關鍵路徑 138h — Tool Registry → Model Adapter → HarnessAgent → 全 Agent 轉換 → Orchestrator
+- 里程碑：M9 Harness Phase 1 (Tool Registry + MCP)、M10 Harness Full Migration
 
 ---
 
@@ -625,6 +728,16 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 | SIM 矩陣 LLM 評分不穩定 | 中 | 低 | temperature=0.2 + 固定 prompt 結構 | BE |
 | 流程步驟增加 → RD 覺得繁瑣 | 高 | 中 | 入口分級自動跳步 + progressive disclosure | FE / PO |
 | Evidence Registry 增加 API latency | 低 | 低 | register_claim 非同步，不阻塞主流程 | BE |
+
+### 🟡 中風險項目 — Harness Refactoring (Module 9.0)
+
+| 風險項目 | 影響度 | 可能性 | 緩解措施 | 負責人 |
+|---------|--------|--------|----------|--------|
+| Pydantic AI <1.0 API 不穩定 | 中 | 中 | `model_adapter.py` 為唯一接觸點；pin minor 版本 | BE |
+| `mcp` + `anthropic` SDK 版本衝突 | 高 | 低 | Phase 0 已驗證共存；衝突時 subprocess 隔離 MCP server | BE |
+| 全 agent 一次轉換風險 | 中 | 中 | `USE_HARNESS_AGENTS` feature flag 並行一週；thin wrapper 保留舊路徑 | BE |
+| Context 汙染（層間 raw text 洩漏） | 高 | 低 | HarnessAgent 天然隔離 + Orchestrator 只傳 Pydantic model | BE |
+| Module 8.0 agent 變更與 9.5 轉換衝突 | 中 | 中 | 9.4-9.5 排在 8.0 agent 擴充穩定後；或 worktree 隔離開發 | BE |
 
 ### 🟢 低風險項目
 
@@ -663,6 +776,8 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 | **M6**: Release v1.0 | 2026-04-17 | ⏳ | (a) 0 P0 issues；(b) Playwright smoke CI 綠；(c) LLM failure rate <2% 測 50 calls；(d) rollback drill 實際演練；(e) security hardening 6.1.5 完成（簽核：PM + TL + QA Lead + DevOps Lead） |
 | **M7**: Auto-TRIZ v2 Phase 1 Backend | 2026-W26 | ⏳ | (a) 8.1 DB migration 完成；(b) 8.2.3+8.2.4 FA+OZ-OT agents 上線；(c) 8.4 Evidence Registry 上線；(d) 8.3.3 solve_layered 接收 FA+OZ-OT context；(e) pilot tests 全通過（簽核：BE Lead + QA Lead） |
 | **M8**: Auto-TRIZ v2 Full Stack | 2026-W30 | ⏳ | (a) 8.5+8.6 前端擴充完成；(b) 8.3.1+8.3.2 SIM+CCI 上線；(c) 8.7 文件 Phase 2-3 完成；(d) BDD Feature 4-8 全通過；(e) E2E 手測腳本走查通過（簽核：PM + TL + FE Lead） |
+| **M9**: Harness Phase 1 (Tool Registry + MCP) | 2026-W28 | 🔄 | (a) 9.1 Phase 0 完成 ✅；(b) 9.2 Tool Registry + MCP Server 上線；(c) Claude Code 可呼叫 `lookup_matrix`；(d) 9.3 Model Adapter + Token 監控骨架上線（簽核：BE Lead + ARCH） |
+| **M10**: Harness Full Migration | 2026-W34 | ⏳ | (a) 全 agent 轉換完成 (9.5)；(b) Orchestrator + Solver Registry 上線 (9.6)；(c) Skill Loader + 知識型 Skill 上線 (9.7)；(d) MCP Client 可消費外部 tools (9.8)；(e) Feature flag 移除；(f) token/latency <5% 回歸（簽核：PM + TL + ARCH） |
 
 ### 📈 品質指標監控
 
@@ -715,7 +830,7 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 - [ADR-003](adrs/ADR-003-llm-service-hardening.md) — LLM Service Hardening (3.1.5–3.1.9 closure)
 - [ADR-004](adrs/ADR-004-qa-devops-infrastructure.md) — QA/DevOps Infrastructure
 - [ADR-005](adrs/ADR-005-scope-expansion.md) — Scope Expansion (Evidence retrieval + multi-solution MUST)
-- [ADR-006](adrs/ADR-006-harness-architecture.md) — Backend Harness 架構 (Pydantic AI + MCP + Skills)
+- [ADR-006](adrs/ADR-006-harness-architecture.md) — Backend Harness 架構 (Pydantic AI + MCP + Skills) — 觸發 Module 9.0
 - [ADR-007](adrs/ADR-007-tc-only-explore-pc-sf-derivation-in-create.md) — Explore TC-only；PC/SF 於 Create 派生
 - [ADR-008](adrs/ADR-008-auto-triz-v2-integration.md) — ✅ Auto-TRIZ v2 Integration（FA / OZ-OT / SIM / CCI / Evidence Registry）— 觸發 Module 8.0
 - **ADR-009**（待撰 @ v1.1）— RAG pipeline（embedding model, chunking strategy, retrieval API）（3.4.10）
@@ -734,8 +849,11 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 
 ---
 
-**專案管理總結**：v1.0 範圍（Module 1.0–7.0）整體 ~92%，核心 API 與前端均已接近完成。v2.2 新增 Module 8.0 Auto-TRIZ v2 Integration（193h），為 v1.0 之後的方法論強化，不影響 M6 Release v1.0 交付。8.0 關鍵路徑（DB → FA+OZ-OT → Evidence Registry）約 63h，目標 M7 (W26) 後端上線、M8 (W30) 全棧完成。
+**專案管理總結**：v1.0 範圍（Module 1.0–7.0）整體 ~92%，核心 API 與前端均已接近完成。v2.2 新增 Module 8.0 Auto-TRIZ v2 Integration（193h），v2.3 新增 Module 9.0 Harness Architecture Refactoring（176h）。兩者均為 v1.0 之後的架構強化，不影響 M6 Release v1.0 交付。
+
+- **8.0 關鍵路徑**（DB → FA+OZ-OT → Evidence Registry）約 63h，目標 M7 (W26) 後端上線、M8 (W30) 全棧完成
+- **9.0 關鍵路徑**（Tool Registry → Model Adapter → HarnessAgent → 全 Agent 轉換 → Orchestrator）約 138h，Phase 0 已完成（8h），目標 M9 (W28) Tool Registry + MCP、M10 (W34) 全面遷移
 
 **專案經理**：TaskMaster Hub
-**最後更新**：2026-04-23
-**下次檢討**：Week 17 Sprint 站立會（v1.0 收尾）→ Week 18+ 轉入 Module 8.0
+**最後更新**：2026-04-24
+**下次檢討**：Week 17 Sprint 站立會（v1.0 收尾）→ Week 18+ 轉入 Module 8.0 + 9.0 並行

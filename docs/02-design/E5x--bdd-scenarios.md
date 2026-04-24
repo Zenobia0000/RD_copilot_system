@@ -2,8 +2,8 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.0`
-**最後更新 (Last Updated):** `2026-04-15`
+**文件版本 (Document Version):** `v2.0`
+**最後更新 (Last Updated):** `2026-04-24`
 **主要作者 (Lead Author):** `RD Design Copilot Team`
 **狀態 (Status):** `Active`
 **對應 VibeCoding 模板:** `03_behavior_driven_development_guide.md`
@@ -16,11 +16,19 @@
 - [Ⅰ. BDD 核心原則](#-bdd-核心原則)
 - [Ⅱ. Gherkin 語法速查](#-gherkin-語法速查)
 - [Ⅲ. BDD 範本 (`.feature` file)](#-bdd-範本-feature-file)
+  - [Feature 1: Forward TRIZ 解矛盾](#feature-1-forward-triz-解矛盾對應-e3x-2)
+  - [Feature 2: Reverse Anti-Anchor](#feature-2-reverse-anti-anchor對應-e3x-3)
+  - [Feature 3: Pre-CAD Gate 審查](#feature-3-pre-cad-gate-審查對應-e3x-4)
+  - [Feature 4: Entry Grading + Conditional Stepper](#feature-4-entry-grading--conditional-stepper入口等級評估--條件式步進器)
+  - [Feature 5: Five-Why + KT Analysis](#feature-5-five-why--kt-analysis問題定向)
+  - [Feature 6: Function Analysis (FA) + OZ-OT](#feature-6-function-analysis-fa--oz-ot)
+  - [Feature 7: SIM Matrix + CCI](#feature-7-sim-matrix--cci解法交互矩陣--概念信心指標)
+  - [Feature 8: Evidence Registry](#feature-8-evidence-registry證據登記簿)
 - [Ⅳ. 最佳實踐](#-最佳實踐)
 
 ---
 
-**目的**: 以 Gherkin 結構化描述 RD Design Copilot 的三大使用情境（Forward TRIZ / Reverse Anti-Anchor / Pre-CAD Gate），作為前後端 E2E 測試、`E7x--e2e-manual-scripts/` 手測腳本與 Playwright 自動化的共同事實來源。
+**目的**: 以 Gherkin 結構化描述 RD Design Copilot 的八大使用情境（Forward TRIZ / Reverse Anti-Anchor / Pre-CAD Gate / Entry Grading / Problem Scoping / Function Analysis / SIM Matrix / Evidence Registry），作為前後端 E2E 測試、`E7x--e2e-manual-scripts/` 手測腳本與 Playwright 自動化的共同事實來源。
 
 ---
 
@@ -194,6 +202,257 @@ Feature: Pre-CAD Gate six-dimension review
 
 **LLM Prompting Guide:**
 > 「請根據以下 BDD Scenario，為 React 19 前端組件生成失敗的 Vitest + Testing Library 測試。情境：[貼上 Gherkin]」
+
+---
+
+### Feature 4: Entry Grading + Conditional Stepper（入口等級評估 + 條件式步進器）
+
+**檔案名稱**: `entry_grading_stepper.feature`
+
+```gherkin
+# Feature: Entry Grading + Conditional Stepper
+# 對應 WBS: 8.7.3
+# 對應 API: POST /projects/{pid}/entry-grading
+
+Feature: Entry Grading 入口等級評估與條件式步進器
+
+  Background:
+    Given I am a logged-in RD user
+    And I have a project with frozen Brief
+    And I am on the "/explore" page
+
+  @happy-path @smoke
+  Scenario: RD 輸入問題描述後系統判定 Level A
+    When 點擊「入口等級評估」按鈕
+    And 輸入問題描述並提交
+    Then 系統回傳 Level A/B/C 判定
+    And 根據等級顯示對應的步驟流程
+
+  @happy-path
+  Scenario: Level A 啟動 5-step stepper
+    Given 入口判定為 Level A
+    Then Explore 頁切換為 5-step stepper
+    And stepper 包含步驟「問題定向 → 功能分析 → 蘇格拉底 → 矛盾 → CLD」
+    And 當前步驟高亮為「問題定向」
+
+  @happy-path
+  Scenario: Level B 啟動 3-step stepper
+    Given 入口判定為 Level B
+    Then Explore 頁切換為 3-step stepper
+    And stepper 包含步驟「矛盾識別 → TRIZ 求解 → CLD」
+
+  @happy-path
+  Scenario: Level C 直接進入快速模式
+    Given 入口判定為 Level C
+    Then Explore 頁顯示快速模式介面
+    And 使用者可直接輸入已知矛盾進行求解
+
+  @sad-path
+  Scenario: 問題描述過短無法判定等級
+    When 點擊「入口等級評估」按鈕
+    And 輸入少於 10 個字的描述並提交
+    Then 系統顯示錯誤提示「問題描述不足，請提供更詳細的情境說明」
+```
+
+### Feature 5: Five-Why + KT Analysis（問題定向）
+
+**檔案名稱**: `problem_scoping.feature`
+
+```gherkin
+# Feature: Five-Why + KT Analysis (Problem Scoping)
+# 對應 WBS: 8.7.3
+# 對應 API: POST /projects/{pid}/five-why, POST /projects/{pid}/kt-analysis
+
+Feature: Five-Why 與 KT Is/Is Not 問題定向分析
+
+  Background:
+    Given I am a logged-in RD user
+    And 入口判定為 Level A
+    And I am on the "Problem Scoping" step of the Explore stepper
+
+  @happy-path @smoke
+  Scenario: RD 執行 5Why 分析
+    When 輸入問題陳述並執行 5Why
+    Then 顯示 5 層 Why-Because 鏈
+    And 每層 Why 包含「現象」與「因果關係」欄位
+    And 列出根因和建議下一步
+    And 根因自動填入 stepper 的下一步驟作為輸入
+
+  @happy-path
+  Scenario: RD 執行 KT Is/Is Not 分析
+    When 點擊「KT 分析」tab
+    And 填入 Is（發生的現象）與 Is Not（未發生的現象）
+    And 點擊「分析差異」
+    Then 系統顯示 Is/Is Not 對照表
+    And 自動推斷可能原因至少 1 條
+    And 每條可能原因附帶信心分數
+
+  @edge-case
+  Scenario: 5Why 鏈中某層使用者手動修正
+    Given 5Why 分析已產出 5 層鏈
+    When 使用者編輯第 3 層的 Why 描述
+    Then 第 4-5 層自動重新推導
+    And 根因更新為修正後的推導結果
+
+  @sad-path
+  Scenario: 問題陳述為空時拒絕執行
+    When 未輸入問題陳述直接點擊「執行 5Why」
+    Then 顯示驗證錯誤「請先輸入問題陳述」
+    And 5Why 分析不會被觸發
+```
+
+### Feature 6: Function Analysis (FA) + OZ-OT
+
+**檔案名稱**: `function_analysis_oz_ot.feature`
+
+```gherkin
+# Feature: Function Analysis (FA) + OZ-OT
+# 對應 WBS: 8.7.3
+# 對應 API: POST /projects/{pid}/function-analysis, POST /projects/{pid}/oz-ot
+
+Feature: 功能分析 (FA) 與 OZ-OT 操作區域/時間分析
+
+  Background:
+    Given I am a logged-in RD user
+    And I have a project with frozen Brief and completed Problem Scoping
+
+  @happy-path @smoke
+  Scenario: RD 執行功能分析
+    Given I am on the "Function Analysis" step of the Explore stepper
+    When 輸入系統描述和組件清單
+    And 點擊「產生功能模型」
+    Then 顯示組件交互圖
+    And 交互圖中以綠色箭頭標示「有用功能」
+    And 以紅色箭頭標示「有害功能」
+    And 以虛線箭頭標示「不足功能」
+    And 顯示 SF（物質-場）診斷摘要
+
+  @happy-path
+  Scenario: FA 結果自動識別問題組件
+    Given 功能分析已完成
+    Then 有害功能和不足功能的組件自動標記為「問題組件」
+    And 問題組件列表供後續矛盾識別使用
+
+  @happy-path @smoke
+  Scenario: RD 在 Create 執行 OZ-OT 分析
+    Given I am on the "/create" page, TRIZ 區段
+    And 已選定一條矛盾 "C-01"
+    When 展開 OZ-OT 面板並觸發分析
+    Then 顯示操作區域 (OZ) — 至少列出 1 個空間區域
+    And 顯示操作時間 (OT) — 至少列出 1 個時間窗口
+    And 顯示可控參數 (Px) — 至少列出 1 個可調參數
+    And OZ/OT/Px 各項均附帶簡要說明
+
+  @edge-case
+  Scenario: 組件清單為空時的提示
+    Given I am on the "Function Analysis" step
+    When 輸入系統描述但組件清單為空
+    And 點擊「產生功能模型」
+    Then 系統顯示提示「請至少輸入 2 個組件以進行功能分析」
+    And 功能分析不會被觸發
+```
+
+### Feature 7: SIM Matrix + CCI（解法交互矩陣 + 概念信心指標）
+
+**檔案名稱**: `sim_matrix_cci.feature`
+
+```gherkin
+# Feature: SIM Matrix + CCI
+# 對應 WBS: 8.7.3
+# 對應 API: POST /projects/{pid}/sim-matrix, GET /projects/{pid}/solutions/{sid}/cci
+
+Feature: SIM 解法交互矩陣與 CCI 概念信心指標
+
+  Background:
+    Given I am a logged-in RD user
+    And I am on the "/create" page
+    And 專案已有至少 2 條 TC 矛盾且各有解法
+
+  @happy-path @smoke
+  Scenario: 多矛盾時觸發 SIM 矩陣
+    When 執行 SIM 矩陣分析
+    Then 顯示解法交互矩陣
+    And 矩陣中每個交叉格顯示 +1（協同）/ 0（無關）/ -1（衝突）
+    And 推薦最佳不衝突組合
+    And 推薦組合以高亮方式標示
+
+  @happy-path
+  Scenario: 方案卡顯示 CCI 評定
+    Given SIM 矩陣分析已完成
+    When 查看個別方案卡
+    Then 每張方案卡顯示 CCI badge
+    And badge 標籤為「Evolution」（演化型）或「Patch」（修補型）
+    And badge 旁顯示概念信心分數（0-100）
+
+  @edge-case
+  Scenario: 僅 1 條矛盾時 SIM 矩陣不可用
+    Given 專案僅有 1 條 TC 矛盾
+    When 嘗試觸發 SIM 矩陣分析
+    Then 顯示提示「SIM 矩陣需要至少 2 條矛盾的解法才能進行交互分析」
+    And SIM 矩陣按鈕為禁用狀態
+
+  @sad-path
+  Scenario: 矛盾有解法但未全部完成求解
+    Given 專案有 3 條 TC 矛盾但僅 1 條已完成求解
+    When 嘗試觸發 SIM 矩陣分析
+    Then 顯示警告「尚有 2 條矛盾未完成求解，建議先完成所有求解再進行 SIM 分析」
+    And 提供「僅分析已有解法」的選項
+```
+
+### Feature 8: Evidence Registry（證據登記簿）
+
+**檔案名稱**: `evidence_registry.feature`
+
+```gherkin
+# Feature: Evidence Registry
+# 對應 WBS: 8.7.3
+# 對應 API: POST /projects/{pid}/evidence, PATCH /projects/{pid}/evidence/{eid}, GET /projects/{pid}/evidence/coverage
+
+Feature: Evidence Registry 證據登記與覆蓋率追蹤
+
+  Background:
+    Given I am a logged-in RD user
+    And I have a project with at least 1 completed TRIZ solution
+
+  @happy-path @smoke
+  Scenario: AI 分析自動登記 evidence claim
+    When AI 完成一次 TRIZ 求解分析
+    Then Evidence Registry 自動新增至少 1 條 claim
+    And 每條 claim 包含「來源步驟」「聲明內容」「信心等級」
+    And claim 預設狀態為「pending」
+
+  @happy-path
+  Scenario: RD 驗證一條 claim
+    Given Evidence Registry 有一條狀態為「pending」的 claim
+    When RD 點擊該 claim 的「驗證」按鈕
+    And 上傳驗證附件或填入驗證說明
+    And 選擇結果為「confirmed」或「rejected」
+    Then claim 狀態更新為選擇的結果
+    And 顯示驗證者名稱與時間戳
+
+  @gate @smoke
+  Scenario: Gate PG2 檢查 evidence 覆蓋率 ≥ 40%
+    Given 專案進入 Pre-Gate 2 (PG2) 審查
+    When 系統計算 evidence 覆蓋率
+    Then 若覆蓋率 ≥ 40%，Gate PG2 顯示「通過」
+    And 覆蓋率數值顯示在 Gate 報告的 Evidence 區段
+    And 覆蓋率計算方式為 confirmed_claims / total_claims × 100%
+
+  @gate @blocker
+  Scenario: Gate PG2 覆蓋率不足阻擋通過
+    Given 專案 evidence 覆蓋率 = 25%（低於 40% 門檻）
+    When 嘗試通過 Gate PG2
+    Then 顯示阻擋訊息「Evidence 覆蓋率 25% 未達 40% 門檻」
+    And Gate 狀態維持「blocked」
+    And 列出尚未驗證的 pending claims 清單
+
+  @sad-path
+  Scenario: 無任何 claim 時覆蓋率顯示 N/A
+    Given Evidence Registry 為空（0 條 claim）
+    When 查看 evidence 覆蓋率
+    Then 覆蓋率顯示為「N/A」
+    And 提示「尚無 AI 分析產出，請先執行 TRIZ 分析流程」
+```
 
 ---
 

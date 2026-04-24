@@ -22,6 +22,8 @@ from app.prompts.triz_solver import (
     L1_CRITIC_PROMPT,
     DEEPEN_LINK_DERIVE_PROMPT,
     DIFFERENTIAL_ANALYSIS_PROMPT,
+    SIM_MATRIX_PROMPT,
+    COMPLEXITY_CHECK_PROMPT,
 )
 from app.tools.triz_kb import (
     build_triz_tc_context,
@@ -59,6 +61,12 @@ from app.models.schemas import (
     SolveTrizLayeredRequest,
     SolveTrizLayeredResponse,
     TrizSuggestion,
+    # Auto-TRIZ v2 (WBS 8.3)
+    SIMMatrixRequest,
+    SIMMatrixResponse,
+    SolutionInteraction,
+    ComplexityCheckRequest,
+    ComplexityCheckResponse,
 )
 from app.services import reference_library  # legacy direct access (kept for back-compat)
 from app.services.spatial_lookup import LookupQuery, default_resolver
@@ -303,6 +311,117 @@ def analyze_sufield(req: SuFieldRequest) -> SuFieldResponse:
 
 
 # ---------------------------------------------------------------------------
+# Auto-TRIZ v2 — SIM Matrix (WBS 8.3.1)
+# ---------------------------------------------------------------------------
+
+
+def sim_matrix(req: SIMMatrixRequest) -> SIMMatrixResponse:
+    """Evaluate solution interactions across multiple contradictions.
+
+    Builds a Solution Interaction Matrix (SIM) via LLM, then persists the
+    result into the ``sim_matrices`` Supabase table (upsert on project_id +
+    contradiction_ids combination).
+    """
+    # Build the solutions block for the prompt
+    lines: list[str] = []
+    for cid in req.contradiction_ids:
+        solutions = req.solutions_per_contradiction.get(cid, [])
+        lines.append(f"Contradiction {cid}:")
+        for sol in solutions:
+            lines.append(f"  - {sol}")
+    solutions_block = "\n".join(lines)
+
+    prompt = SIM_MATRIX_PROMPT.format(solutions_block=solutions_block)
+    raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt, model=settings.fast_model)
+    try:
+        data = json.loads(raw) if raw and raw.strip() else {}
+    except json.JSONDecodeError:
+        data = {}
+
+    # Parse interactions into SolutionInteraction models
+    interactions: list[SolutionInteraction] = []
+    for item in data.get("interactions", []):
+        try:
+            interactions.append(SolutionInteraction.model_validate(item))
+        except Exception as exc:
+            logger.debug("drop malformed SIM interaction: %s (%s)", item, exc)
+
+    response = SIMMatrixResponse(
+        project_id=req.project_id,
+        contradiction_ids=req.contradiction_ids,
+        matrix=interactions,
+        optimal_combination=data.get("optimal_combination", []),
+        conflicts=data.get("conflicts", []),
+        synergies=data.get("synergies", []),
+    )
+
+    # Persist to Supabase (non-fatal)
+    _persist_sim_matrix(response)
+
+    return response
+
+
+def _persist_sim_matrix(resp: SIMMatrixResponse) -> None:
+    """Upsert SIM matrix into sim_matrices table. Non-fatal on failure."""
+    from app.core.supabase import get_supabase
+    try:
+        sb = get_supabase()
+        # Sort contradiction_ids for deterministic key
+        sorted_ids = sorted(resp.contradiction_ids)
+        payload = {
+            "project_id": resp.project_id,
+            "contradiction_ids": sorted_ids,
+            "matrix": [i.model_dump(mode="json") for i in resp.matrix],
+            "optimal_combination": resp.optimal_combination,
+        }
+        sb.table("sim_matrices").upsert(
+            payload, on_conflict="project_id,contradiction_ids"
+        ).execute()
+    except Exception as exc:
+        logger.warning("persist sim_matrix failed for project %s: %s", resp.project_id, exc)
+
+
+# ---------------------------------------------------------------------------
+# Auto-TRIZ v2 — Complexity Check / CCI (WBS 8.3.2)
+# ---------------------------------------------------------------------------
+
+
+def complexity_check(req: ComplexityCheckRequest) -> ComplexityCheckResponse:
+    """Evaluate whether a solution is an evolution or a patch (CCI).
+
+    Lightweight assessment — does NOT persist to DB.
+    """
+    prompt = COMPLEXITY_CHECK_PROMPT.format(
+        solution_description=req.solution_description,
+        original_contradiction=req.original_contradiction,
+        affected_subsystems=", ".join(req.affected_subsystems) or "(none)",
+    )
+    raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt, model=settings.fast_model)
+    try:
+        data = json.loads(raw) if raw and raw.strip() else {}
+    except json.JSONDecodeError:
+        data = {}
+
+    # Validate cci_level
+    cci_level = data.get("cci_level", "patch")
+    if cci_level not in ("evolution", "weak_evolution", "patch"):
+        cci_level = "patch"
+
+    score = data.get("score", 0)
+    try:
+        score = max(0, min(100, int(score)))
+    except (TypeError, ValueError):
+        score = 0
+
+    return ComplexityCheckResponse(
+        cci_level=cci_level,
+        score=score,
+        reasoning=str(data.get("reasoning") or ""),
+        four_questions=data.get("four_questions", {}),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Layered Drill-Down (v7)
 #
 # Ref: docs/e2e/TRIZ_Layered_DrillDown_Optimization.md §4–§8
@@ -435,7 +554,12 @@ def _derive_pc_from_tc(
 
 
 def _run_l1(req: SolveTrizLayeredRequest) -> L1Surface:
-    """Run the L1 (TC) layer — wraps existing _solve_tc primitive."""
+    """Run the L1 (TC) layer — wraps existing _solve_tc primitive.
+
+    WBS 8.3.3: If ``fa_context`` is provided on the request, the function
+    analysis context is injected into the natural_description so the TC
+    instantiation prompt can leverage functional model information.
+    """
     if not (req.improving_param and req.worsening_param):
         return L1Surface(
             improving_param=req.improving_param,
@@ -448,10 +572,22 @@ def _run_l1(req: SolveTrizLayeredRequest) -> L1Surface:
             status="error",
         )
 
+    # WBS 8.3.3: Enrich description with FA context
+    description = req.natural_description
+    if req.fa_context:
+        fa_lines = ["\n\n<function_analysis_context>"]
+        for key in ("system_function", "substance_1", "substance_2", "field_type",
+                     "interaction_type", "su_field_completeness", "problem_description"):
+            val = req.fa_context.get(key)
+            if val:
+                fa_lines.append(f"  {key}: {val}")
+        fa_lines.append("</function_analysis_context>")
+        description += "\n".join(fa_lines)
+
     tc_req = TrizLookupRequest(
         project_id=req.project_id,
         contradiction_id=req.contradiction_id,
-        natural_description=req.natural_description,
+        natural_description=description,
         improving_param=req.improving_param,
         worsening_param=req.worsening_param,
         type="TC",
@@ -467,7 +603,13 @@ def _run_l1(req: SolveTrizLayeredRequest) -> L1Surface:
 
 
 def _run_l2(req: SolveTrizLayeredRequest, l1: L1Surface) -> L2RootCause:
-    """Run the L2 (PC) layer with an ARIZ deepen_link from L1."""
+    """Run the L2 (PC) layer with an ARIZ deepen_link from L1.
+
+    WBS 8.3.3: If ``oz_ot_context`` is provided on the request, the
+    OZ (operating zone) / OT (operating time) context is injected into the
+    PC problem statement so the separation principle selection can leverage
+    spatiotemporal operating window information.
+    """
     deepen = _derive_pc_from_tc(
         natural_description=req.natural_description,
         improving=l1.improving_param,
@@ -480,10 +622,22 @@ def _run_l2(req: SolveTrizLayeredRequest, l1: L1Surface) -> L2RootCause:
         or deepen.contradiction_statement
         or req.natural_description
     )
+
+    # WBS 8.3.3: Enrich PC statement with OZ-OT context
+    description = req.natural_description
+    if req.oz_ot_context:
+        oz_ot_lines = ["\n\n<oz_ot_context>"]
+        for key in ("oz_zone", "ot_time", "px_variable"):
+            val = req.oz_ot_context.get(key)
+            if val:
+                oz_ot_lines.append(f"  {key}: {val}")
+        oz_ot_lines.append("</oz_ot_context>")
+        description += "\n".join(oz_ot_lines)
+
     pc_req = TrizLookupRequest(
         project_id=req.project_id,
         contradiction_id=req.contradiction_id,
-        natural_description=req.natural_description,
+        natural_description=description,
         physical_contradiction=pc_statement,
         type="PC",
     )

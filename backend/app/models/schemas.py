@@ -675,6 +675,9 @@ class SolveTrizLayeredRequest(BaseModel):
     # Control flags (WBS 3.5 / 3.6)
     quick_mode: bool = False         # severity=minor + quick_mode=true → L2 skipped
     force_l2: bool = False           # RD 手動要求深挖，覆蓋所有條件
+    # Auto-TRIZ v2 (WBS 8.3.3): optional FA + OZ-OT context for enriched prompts
+    fa_context: dict | None = None   # FunctionAnalysisResponse dict (optional)
+    oz_ot_context: dict | None = None  # OzOtAnalysisResponse dict (optional)
 
 
 class SolveTrizLayeredResponse(BaseModel):
@@ -1849,3 +1852,72 @@ class CoverageResponse(BaseModel):
     unverified_count: int = 0
     coverage_ratio: float = 0.0
     by_type: dict[str, ClaimTypeCoverage] = Field(default_factory=dict)
+
+
+# ---------------------------------------------------------------------------
+# Auto-TRIZ v2 — SIM Matrix (WBS 8.3.1)
+# ---------------------------------------------------------------------------
+
+class SIMMatrixRequest(BaseModel):
+    """Evaluate solution interactions across multiple contradictions."""
+    project_id: str
+    contradiction_ids: list[str] = Field(..., min_length=2)
+    solutions_per_contradiction: dict[str, list[str]] = Field(
+        ...,
+        description="Mapping contradiction_id → list of solution summary strings",
+    )
+
+
+class SolutionInteraction(BaseModel):
+    """A single cell in the SIM matrix."""
+    solution_a: str
+    contradiction_a: str
+    solution_b: str
+    contradiction_b: str
+    score: Literal[-1, 0, 1]  # -1 conflict, 0 neutral, +1 synergy
+    reasoning: str = ""
+
+
+class SIMMatrixResponse(BaseModel):
+    """SIM matrix output with optimal combination and conflict/synergy pairs."""
+    project_id: str
+    contradiction_ids: list[str]
+    matrix: list[SolutionInteraction] = Field(default_factory=list)
+    optimal_combination: list[str] = Field(
+        default_factory=list,
+        description="Best non-conflicting solution combination (list of solution summaries)",
+    )
+    conflicts: list[dict] = Field(
+        default_factory=list,
+        description="Pairs of solutions that conflict (-1)",
+    )
+    synergies: list[dict] = Field(
+        default_factory=list,
+        description="Pairs of solutions that synergise (+1)",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Auto-TRIZ v2 — Complexity Check / CCI (WBS 8.3.2)
+# ---------------------------------------------------------------------------
+
+class ComplexityCheckRequest(BaseModel):
+    """Evaluate whether a solution is an evolution or a patch."""
+    project_id: str
+    solution_description: str
+    original_contradiction: str
+    affected_subsystems: list[str] = Field(default_factory=list)
+
+
+class ComplexityCheckResponse(BaseModel):
+    """CCI (Concept Complexity Index) evaluation result."""
+    cci_level: Literal["evolution", "weak_evolution", "patch"]
+    score: int = Field(ge=0, le=100, description="0=pure patch, 100=ideal evolution")
+    reasoning: str = ""
+    four_questions: dict = Field(
+        default_factory=dict,
+        description=(
+            "Answers to: is_new_function_needed, introduces_new_contradiction, "
+            "increases_control_complexity, reduces_resource_efficiency"
+        ),
+    )

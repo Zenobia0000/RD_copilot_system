@@ -20,8 +20,7 @@ import { AiButton } from "@/components/ui/ai-button";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { SectionIntro } from "@/components/ui/section-intro";
 import { KnowledgeRefsPanel } from "@/components/create/KnowledgeRefsPanel";
-// TODO: Replace mockPageKnowledgeRefs with a useKnowledgeRefs hook once a knowledge_refs DB table is created (Sprint 5+)
-import { mockPageKnowledgeRefs } from "@/data/mockKnowledgeRefs";
+// TODO: Replace with useKnowledgeRefs hook once knowledge_refs DB table is created (Sprint 5+)
 import { AttachmentsPanel } from "@/components/review/AttachmentsPanel";
 import { supabase } from "@/integrations/supabase/client";
 import type {
@@ -887,7 +886,8 @@ export default function DesignReview() {
       </Card>
 
       {/* Knowledge Enhancement Panel (WBS 3.4.2) */}
-      <KnowledgeRefsPanel refs={mockPageKnowledgeRefs.review ?? []} />
+      {/* TODO: Replace with useKnowledgeRefs hook (Sprint 5+) */}
+      <KnowledgeRefsPanel refs={[]} />
 
       {/* Gate 3.1 */}
       <Separator />

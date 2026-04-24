@@ -265,13 +265,7 @@ export function CldTab({ causalLoop, onUpdateCausalLoop, projectId, contradictio
         toast.success("AI 已生成因果迴路圖");
       } catch (err) {
         console.error("CLD generation failed:", err);
-        if (isMountedRef.current) {
-          const { mockCausalLoop } = await import("@/data/mockExplore");
-          if (mockCausalLoop[projectId]) {
-            onUpdateCausalLoop(mockCausalLoop[projectId]);
-          }
-        }
-        toast.error("AI 生成失敗，已載入範例資料");
+        toast.error("AI 因果迴路圖生成失敗，請稍後再試");
       } finally {
         if (isMountedRef.current) setIsGenerating(false);
       }

@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Search, BookOpen, FileText, Lightbulb, Calendar, User, GitBranch, ChevronLeft, ChevronRight } from "lucide-react";
 import { useKnowledgeArticles, useKnowledgeArticle } from "@/hooks/api/useKnowledge";
-import { mockKnowledgeArticles } from "@/data/mockKnowledge";
 
 const CATEGORY_MAP: Record<string, { label: string; icon: React.ReactNode }> = {
   playbook: { label: "Playbook", icon: <BookOpen className="h-3.5 w-3.5" /> },
@@ -27,9 +26,7 @@ const KnowledgeBase = () => {
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [page, setPage] = useState(1);
 
-  // Fetch articles from Supabase; fall back to mock data when empty or on error
-  const { data: liveArticles, isLoading: articlesLoading } = useKnowledgeArticles();
-  const articles = liveArticles.length > 0 ? liveArticles : mockKnowledgeArticles;
+  const { data: articles, isLoading: articlesLoading } = useKnowledgeArticles();
 
   // Fetch single article by slug from Supabase
   const { data: liveArticle, isLoading: articleLoading } = useKnowledgeArticle(slug);
@@ -54,7 +51,6 @@ const KnowledgeBase = () => {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // Use live article from Supabase if available, otherwise fall back to mock
   const selectedArticle = slug
     ? (liveArticle ?? articles.find((a) => a.slug === slug) ?? null)
     : null;

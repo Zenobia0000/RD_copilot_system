@@ -165,7 +165,7 @@ export type {
 export { CATEGORY_CONFIG } from './explore';
 
 // --- knowledge.ts ---
-export type { KnowledgeArticle } from './knowledge';
+export type { KnowledgeRef, KnowledgeArticle } from './knowledge';
 
 // --- preCadReview.ts ---
 export type {

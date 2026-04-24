@@ -23,8 +23,7 @@ import { AiButton } from "@/components/ui/ai-button";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { SectionIntro } from "@/components/ui/section-intro";
 import { KnowledgeRefsPanel } from "@/components/create/KnowledgeRefsPanel";
-// TODO: Replace mockPageKnowledgeRefs with a useKnowledgeRefs hook once a knowledge_refs DB table is created (Sprint 5+)
-import { mockPageKnowledgeRefs } from "@/data/mockKnowledgeRefs";
+// TODO: Replace with useKnowledgeRefs hook once knowledge_refs DB table is created (Sprint 5+)
 import {
   BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, LabelList,
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend
@@ -944,7 +943,8 @@ export default function DecisionRecord() {
       </div>
 
       {/* Knowledge Enhancement Panel (WBS 3.4.2) */}
-      <KnowledgeRefsPanel refs={mockPageKnowledgeRefs.decide ?? []} />
+      {/* TODO: Replace with useKnowledgeRefs hook (Sprint 5+) */}
+      <KnowledgeRefsPanel refs={[]} />
 
       {/* ═══════════════════════════════════════════
           Gate Checks

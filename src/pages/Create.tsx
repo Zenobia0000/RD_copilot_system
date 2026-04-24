@@ -61,8 +61,7 @@ function neighbourTextToContractMap(
   }
   return result;
 }
-// TODO: mockAntiAnchorWarning — AI-generated warning, keep on frontend until AI integration (Sprint 3+)
-import { mockAntiAnchorWarning } from "@/data/mockCreate";
+// TODO: Replace with AI-generated anti-anchor warning via API (Sprint 3+)
 import {
   useAntiAnchorRoutes,
   useCreateAntiAnchorRoute,
@@ -108,8 +107,7 @@ import type { MustCriterionResult } from "@/lib/api";
 import type { PackageMap } from "@/types/generated/subsystem";
 import { useSubsystemSuggestion } from "@/hooks/api/useSubsystemSuggestion";
 import { useProject } from "@/hooks/api/useProjects";
-// TODO: Replace mockStepKnowledgeRefs with a useKnowledgeRefs hook once a knowledge_refs DB table is created (Sprint 5+)
-import { mockStepKnowledgeRefs } from "@/data/mockKnowledgeRefs";
+// TODO: Replace with useKnowledgeRefs hook once knowledge_refs DB table is created (Sprint 5+)
 import { MissionContext } from "@/components/create/MissionContext";
 import { CreateStepper } from "@/components/create/CreateStepper";
 import { KnowledgeRefsPanel } from "@/components/create/KnowledgeRefsPanel";
@@ -128,8 +126,7 @@ import { HumanReviewPanel } from "@/components/create/HumanReviewPanel";
 import { ArchitectureHaltOverlay } from "@/components/create/ArchitectureHaltOverlay";
 import { MultiSolutionAdoptionPanel } from "@/components/create/MultiSolutionAdoptionPanel";
 import { useConceptRoutes, useCompatibilityPairs } from "@/hooks/api/useConceptRoutes";
-// TODO: Replace with API when available — AI-generated adoption state, no dedicated DB table yet
-import { mockAdoptionState } from "@/data/mockConceptRoutes";
+// TODO: Replace with API when available -- AI-generated adoption state, no dedicated DB table yet
 import type { ConceptRoute, MultiSolutionAdoptionState } from "@/types/conceptRoute";
 
 const RADAR_COLORS = [
@@ -610,25 +607,29 @@ export default function Create() {
 
   // antiAnchorGenerated is now derived from routes.length — no effect needed
 
-  // ── Computed: Multi-Solution Adoption State from DB (fallback to mock) ──
+  // ── Computed: Multi-Solution Adoption State from DB ──
+  const emptyAdoptionState: MultiSolutionAdoptionState = {
+    matrix: { solutions: [], pairs: [] },
+    recommendedRoutes: [],
+    antiPatternChecks: [],
+  };
   const adoptionState: MultiSolutionAdoptionState = useMemo(() => {
     const dbRoutes = conceptRoutesQuery.data;
     const dbPairs = compatibilityPairsQuery.data;
 
-    // If DB has data, build state from it; otherwise fall back to mock
     if (dbRoutes && dbRoutes.length > 0 && dbPairs && dbPairs.length > 0) {
       return {
         matrix: {
           // TODO: Build solutions list from convergence loop output or DB query
-          solutions: mockAdoptionState.matrix.solutions,
+          solutions: [],
           pairs: dbPairs,
         },
         recommendedRoutes: dbRoutes,
         // TODO: Compute anti-pattern checks from routes + pairs via AI API
-        antiPatternChecks: mockAdoptionState.antiPatternChecks,
+        antiPatternChecks: [],
       };
     }
-    return mockAdoptionState;
+    return emptyAdoptionState;
   }, [conceptRoutesQuery.data, compatibilityPairsQuery.data]);
 
   const assumptionMap = useMemo(() => {
@@ -1791,17 +1792,7 @@ export default function Create() {
   function renderAntiAnchor() {
     return (
       <div className="space-y-6">
-        {id && mockAntiAnchorWarning[id] && (
-          <Card className="border-warning/30 bg-warning/5">
-            <CardContent className="p-4 flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium mb-1">路徑依賴風險</p>
-                <p className="text-sm text-muted-foreground leading-relaxed">{mockAntiAnchorWarning[id]}</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* TODO: Replace with AI-generated anti-anchor warning via API (Sprint 3+) */}
 
         {/* 🧭 新手閱讀指引 — 第一次看到這頁的人必讀 */}
         <Collapsible defaultOpen={!antiAnchorGenerated}>
@@ -2128,7 +2119,7 @@ export default function Create() {
           </CardContent>
         </Card>
 
-        <KnowledgeRefsPanel refs={mockStepKnowledgeRefs[0] ?? []} />
+        <KnowledgeRefsPanel refs={[] /* TODO: useKnowledgeRefs (Sprint 5+) */} />
       </div>
     );
   }
@@ -2257,7 +2248,7 @@ export default function Create() {
           )}
         </div>
 
-        <KnowledgeRefsPanel refs={mockStepKnowledgeRefs[1] ?? []} />
+        <KnowledgeRefsPanel refs={[] /* TODO: useKnowledgeRefs (Sprint 5+) */} />
       </div>
     );
   }
@@ -2462,7 +2453,7 @@ export default function Create() {
           <PackageMapPanel packageMap={packageMap} />
         </section>
 
-        <KnowledgeRefsPanel refs={mockStepKnowledgeRefs[2] ?? []} />
+        <KnowledgeRefsPanel refs={[] /* TODO: useKnowledgeRefs (Sprint 5+) */} />
 
         {/* Wave 2: What-if Overlay dialog. Stateless relative to the main
             Package Map — onSubmit does NOT update `packageMap` state. */}
@@ -2666,7 +2657,7 @@ export default function Create() {
             </CardContent>
           </Card>
         )}
-        <KnowledgeRefsPanel refs={mockStepKnowledgeRefs[3] ?? []} />
+        <KnowledgeRefsPanel refs={[] /* TODO: useKnowledgeRefs (Sprint 5+) */} />
       </div>
     );
   }
@@ -2868,7 +2859,7 @@ export default function Create() {
           </Card>
         )}
 
-        <KnowledgeRefsPanel refs={mockStepKnowledgeRefs[4] ?? []} />
+        <KnowledgeRefsPanel refs={[] /* TODO: useKnowledgeRefs (Sprint 5+) */} />
       </div>
     );
   }
@@ -2995,7 +2986,7 @@ export default function Create() {
             );
           })}
         </div>
-        <KnowledgeRefsPanel refs={mockStepKnowledgeRefs[5] ?? []} />
+        <KnowledgeRefsPanel refs={[] /* TODO: useKnowledgeRefs (Sprint 5+) */} />
       </div>
     );
   }
@@ -3148,7 +3139,7 @@ export default function Create() {
             </CardContent>
           </Card>
         )}
-        <KnowledgeRefsPanel refs={mockStepKnowledgeRefs[6] ?? []} />
+        <KnowledgeRefsPanel refs={[] /* TODO: useKnowledgeRefs (Sprint 5+) */} />
       </div>
     );
   }

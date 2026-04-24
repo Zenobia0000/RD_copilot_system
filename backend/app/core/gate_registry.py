@@ -18,6 +18,7 @@ from app.core.gate_checks import (
     check_cross_table,
     check_any_status,
     check_manual,
+    check_evidence_coverage,
 )
 
 
@@ -170,6 +171,11 @@ _register(GateDefinition(
             use_count_exact=True,
             label_template="Pre-CAD 通過 >= {min}（現有 {actual}）",
             fail_template="尚無方案通過 Pre-CAD 審查",
+        ),
+        check_evidence_coverage(
+            min_ratio=0.4,
+            label_template="Evidence 覆蓋率 >= {min_pct}%（現有 {actual_pct}%）",
+            fail_template="Evidence 覆蓋率不足：需要 >= {min_pct}%，目前 {actual_pct}%（警告）",
         ),
     ],
 ))

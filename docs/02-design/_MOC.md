@@ -10,8 +10,11 @@
 
 ## IA + Frontend
 
-- [E5x--frontend-architecture](E5x--frontend-architecture.md) — 前端架構規格 (VibeCoding 12)
-- [E5x--frontend-information-architecture](E5x--frontend-information-architecture.md) — 前端資訊架構 / 網站地圖 (VibeCoding 17)
+> **文件分工**：`E5--api-design-specification` 為前後端共用契約（endpoints / schemas / errors）。
+> 下方兩份為前端內部規格——architecture 管「怎麼蓋」，IA 管「蓋什麼頁面」。
+
+- [E5x--frontend-architecture](E5x--frontend-architecture.md) — 前端架構規格：分層、技術選型、效能、工程實踐 (VibeCoding 12)
+- [E5x--frontend-information-architecture](E5x--frontend-information-architecture.md) — 前端資訊架構：路由樹、頁面規格、使用者旅程 (VibeCoding 17)
 - [specs/ux/E5x--create-ux-spec](specs/ux/E5x--create-ux-spec.md) — Create 頁完整 UX 規格 (Tab ①–④)
 
 ## BDD + 工程規範

@@ -29,9 +29,9 @@ TR0 階段比較分析（`docs_harness` vs `docs/02-design`）揭露舊架構在
 
 | Auto-TRIZ v2 Step | 映射至現有架構 | 實作方式 |
 |---|---|---|
-| §1.1 入口判定 (Level A/B/C) | Explore 頁入口 | `analyst.entry_grading()` — 判定問題成熟度並路由 |
-| Step 0: 5 Why + KT | Explore 頁新增 `#problem-scoping` tab | `analyst.five_why()` + `analyst.kt_is_is_not()` — 與 Socratic **並存**，互補 |
-| Step 1: FA + SF 診斷 | Explore 頁新增 `#function-analysis` tab | `analyst.function_analysis()` — 產出組件交互圖 + SF 狀態 |
+| §1.1 入口判定 (Level A/B/C) | Explore 頁入口 Modal | `analyst.entry_grading()` — 首次進入觸發，結果存入 `projects.entry_level`，驅動 Conditional Stepper 路由（Level A → 5-step stepper / Level B → 原 3-tab / Level C → SF-only 提示） |
+| Step 0: 5 Why + KT | Explore 頁 **Level A stepper** Step 1 | `analyst.five_why()` + `analyst.kt_is_is_not()` — 與 Socratic **並存**互補；Level B 使用者可選跳過（原 3-tab 不受影響） |
+| Step 1: FA + SF 診斷 | Explore 頁 **Level A stepper** Step 2 | `analyst.function_analysis()` — 產出組件交互圖 + SF 狀態；Level B 使用者以可選側面板呈現 |
 | Step 2: TC + 矩陣查表 | `analyst.formalize_contradiction()` (已有) | 增強 KB 操作協議（結構化 5 KB 查詢） |
 | Step 2b: OZ/OT 預篩 | Create 頁 TRIZ step 前置 | `analyst.oz_ot_analysis()` — 鎖定 Px |
 | Step 3b: SIM 精篩 | Create 頁多 TC 場景 | `triz_solver.sim_matrix()` — +1/0/-1 交互矩陣 |
@@ -65,6 +65,20 @@ TR0 階段比較分析（`docs_harness` vs `docs/02-design`）揭露舊架構在
 - -1 交互項視為新 TC，回流至 Step 3 處理
 - 收斂規則：≤2 輪 SIM 迭代
 
+### D6: Explore 頁採用 Conditional Stepper（取代平行 Tab 方案）
+
+原始方案為 Explore 新增 2 個 Tab（`#problem-scoping` / `#function-analysis`），使 Explore 成為 5-tab 頁面。經 UX 分析後改採 **Conditional Stepper**，理由如下：
+
+1. **方法論序列性**：5Why/KT → FA → Socratic → 矛盾有明確前後依賴。Tab 的 flat-access 心智模型假設平行操作，無法強制使用者先完成 FA 再定義矛盾，將導致 G1 缺口（矛盾定義在錯誤粒度）重現
+2. **Entry Grading 是路由決策**：Level A/B/C 判定決定使用者需要哪些步驟，屬 gateway 而非內容 Tab
+3. **認知負荷管理**：5 個含序列依賴的 Tab 違反 progressive disclosure 原則。Level B（已知 TC）的資深 RD 不需要走 5Why/FA，強制暴露這些 Tab 增加無效認知負擔
+4. **繁瑣風險緩解**：ADR-008 風險表識別「流程步驟增加 → RD 覺得繁瑣」為高機率風險。Conditional Stepper 讓 Level B 使用者看到與 v1.0 完全一致的 3-tab UI，繁瑣風險降至最低
+
+**Conditional Stepper 設計**：
+- **Level A**（問題症狀，需引導）→ Explore 渲染為 5-step stepper：Problem Scoping → FA → Socratic → Contradictions → CLD
+- **Level B**（已知 TC，快速通道）→ Explore 維持原 3-tab 佈局，FA 作為可選側面板
+- **Level C**（功能缺失，無副作用）→ 提示導向 Create SF-only 通道
+
 ## Consequences
 
 ### Positive
@@ -77,7 +91,7 @@ TR0 階段比較分析（`docs_harness` vs `docs/02-design`）揭露舊架構在
 
 ### Negative / Trade-off
 
-- 流程步驟增加（Explore 新增 2 tab + Create 新增 OZ-OT 前置步驟）
+- 流程步驟增加（Explore Level A 模式新增 5-step stepper + Create Step 1 內嵌 OZ-OT 前置面板）；Level B 使用者維持原 3-tab 無額外負擔
 - LLM 呼叫次數增加（FA: +1, OZ-OT: +1, SIM: +N×N/2, CCI: +1, Evidence verify: +M per session）
 - 預估每個矛盾增加 10-20 秒處理時間（FA + OZ-OT + Evidence verify）
 - 需要 3 個新 DB 表（`function_models`, `evidence_claims`, `sim_matrices`）
@@ -99,9 +113,9 @@ TR0 階段比較分析（`docs_harness` vs `docs/02-design`）揭露舊架構在
 | 5 | `backend/app/models/schemas.py` | 新增 `FunctionModel`, `OzOtResult`, `SimMatrixResult`, `ComplexityCheckResult`, `EvidenceClaim` Pydantic models | 新增 5 schemas |
 | 6 | `supabase/migrations/` | 新增 `function_models`, `evidence_claims`, `sim_matrices` 表；`contradictions` 新增 `oz_zone`, `ot_time`, `px_variable` 欄位 | 新增 migration |
 | 7 | `backend/app/routers/` | 新增 analyst 5 端點 + triz 2 端點 + evidence 3 端點 | 新增 10 endpoints |
-| 8 | `src/pages/Explore.tsx` | 新增 `#problem-scoping` + `#function-analysis` tab | 修改 |
-| 9 | `src/pages/Create.tsx` | TRIZ step 前新增 OZ-OT 面板；決策中心新增 CCI badge | 修改 |
-| 10 | `src/hooks/api/` | 新增 `useFunctionAnalysis`, `useOzOtAnalysis`, `useSimMatrix`, `useEvidenceRegistry` hooks | 新增 4 hooks |
+| 8 | `src/pages/Explore.tsx` | Conditional Stepper：Entry Grading Modal + Level A 5-step stepper（Problem Scoping / FA / Socratic / Contradictions / CLD）/ Level B 原 3-tab + FA 可選側面板 | 修改 |
+| 9 | `src/pages/Create.tsx` | Step 1 TRIZ 內部新增 OZ-OT accordion section + SIM Matrix conditional view（≥2 TC）；Step 4 Decision Hub 新增 CCI Badge + Evidence Coverage Gauge | 修改 |
+| 10 | `src/hooks/api/` | 新增 `useEntryGrading`, `useFiveWhy`, `useKtAnalysis`, `useFunctionAnalysis`, `useOzOtAnalysis`, `useSimMatrix`, `useComplexityCheck`, `useEvidenceRegistry` hooks | 新增 8 hooks |
 | 11 | Docs | 本 ADR 觸發 20 份文件更新（見架構融合計畫） | 修改 |
 
 ## Rollout

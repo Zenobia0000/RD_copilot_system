@@ -38,11 +38,10 @@
 
 ## 2. 核心設計原則
 
-- **任務導向**：以 RD 核心任務（解矛盾、探索反向、審查 gate）為分區。
-- **Progressive disclosure**：複雜流程以 Tab + drill-down 分層揭露。
+> 跨頁面通用原則（user-centric、progressive disclosure、observable state 等）見 [`E5x--frontend-architecture.md` §1](E5x--frontend-architecture.md#第一部分前端架構的第一性原理)。以下為 IA 層獨有原則：
+
 - **可追溯**：URL 可還原精確狀態（project_id / tab / contradiction_id 等）。
 - **最短路徑**：核心三流程（TRIZ / Anti-Anchor / Pre-CAD）從 dashboard 最多 2 次點擊抵達。
-- **一致性**：所有頁面共用 `layouts/` 與 sidebar/topbar。
 
 ## 3. 資訊架構總覽
 
@@ -58,15 +57,22 @@ RD Design Copilot
 │   │   └── /projects/:id            (ProjectDashboard)
 │   ├── Phase 1 — Define
 │   │   ├── /projects/:id/brief       (TaskDefinition: Brief + 5W1H + AI 提取)
-│   │   └── /projects/:id/explore     (Explore: 3-tab — #socratic / #contradictions / #cld)
+│   │   └── /projects/:id/explore     (Explore: Conditional Stepper — Entry Grading Modal 驅動)
+│   │   │                              Level A: 5-step stepper (Problem Scoping → FA → Socratic → Contradictions → CLD)
+│   │   │                              Level B: 3-tab (#socratic / #contradictions / #cld) + FA 可選側面板
+│   │   │                              Level C: SF-only 提示導向 Create
 │   ├── Phase 2 — Diverge
 │   │   ├── /projects/:id/track       (Track: 假設追蹤 Kanban + Unknown Factors)
 │   │   ├── /projects/:id/create      (Create: 7-step accordion stepper)
 │   │   │   ├── Step 0: 反向探索 Anti-Anchor    (zone: reverse)
 │   │   │   ├── Step 1: TRIZ 解矛盾             (zone: forward)
+│   │   │   │   ├── OZ-OT 前置 accordion section（鎖定 Px，矩陣查表前）
+│   │   │   │   └── SIM Matrix conditional view（≥2 TC 自動觸發）
 │   │   │   ├── Step 2: 子系統定義              (zone: forward)
 │   │   │   ├── Step 3: SCAMPER 變形            (zone: forward)
 │   │   │   ├── Step 4: 候選方案決策中心         (zone: hub)
+│   │   │   │   ├── CCI Badge（Evolution / Weak Evolution / Patch）
+│   │   │   │   └── Evidence Coverage Gauge（cross-cutting 指標）
 │   │   │   ├── Step 5: MUST 快篩               (zone: eval)
 │   │   │   └── Step 6: Pre-CAD 審查            (zone: eval)
 │   │   └── /projects/:id/pre-cad     (PreCadReview: 六維評分 + 簽核)
@@ -190,10 +196,14 @@ Step 狀態由 `getStepStatus()` 根據 `pathname` + `PhaseProgress` 判斷：`"
 | 欄位 | 內容 |
 |---|---|
 | **URL** | `/projects/:id/explore` |
-| **Purpose** | Socratic 問答 + 矛盾識別 + CLD |
-| **Key Components** | `SocraticTab`, `ContradictionTab`, `CldTab`, `ExploreGates`, `KnowledgeRefsPanel`, `HelpTooltip` |
-| **State** | Tab 狀態（URL hash `#socratic` / `#contradictions` / `#cld`）；`useSocraticQuestions`, `useExploreContradictions`, `useCldNodes`, `useCldEdges` server state；`useAiOperationGuard` AI 操作鎖 |
-| **Related API** | `/alternatives/anti-anchor`, `/unknown-factors/*`, `/causal-loops/*` |
+| **Purpose** | Conditional Stepper：依 Entry Grading 結果切換 Level A（5-step 引導流）或 Level B（3-tab 快速通道），完成問題探索與矛盾識別 |
+| **Entry Grading** | 首次進入觸發 Modal，判定 Level A（症狀級）/ B（已知 TC）/ C（功能缺失→SF-only），結果存入 `projects.entry_level` |
+| **Level A 模式** | 5-step stepper：① Problem Scoping（5Why + KT）→ ② Function Analysis（FA 組件交互圖）→ ③ Socratic Q&A → ④ Contradictions → ⑤ CLD |
+| **Level B 模式** | 原 3-tab 佈局（#socratic / #contradictions / #cld）+ FA 可選側面板 |
+| **Level C 模式** | 提示訊息導向 Create SF-only 通道 |
+| **Key Components** | `EntryGradingModal`（新增）, `ProblemScopingStep`（新增）, `FunctionAnalysisStep`（新增）, `SocraticTab`, `ContradictionTab`, `CldTab`, `ExploreGates`, `KnowledgeRefsPanel`, `HelpTooltip` |
+| **State** | `entry_level: 'A' \| 'B' \| 'C'`（from DB）；Level A: `currentStep` (0-4)；Level B: Tab 狀態（URL hash）；`useSocraticQuestions`, `useExploreContradictions`, `useCldNodes`, `useCldEdges`, `useEntryGrading`, `useFiveWhy`, `useKtAnalysis`, `useFunctionAnalysis` server state；`useAiOperationGuard` AI 操作鎖 |
+| **Related API** | `/analyst/entry-grading`, `/analyst/five-why`, `/analyst/kt-analysis`, `/analyst/function-analysis`, `/alternatives/anti-anchor`, `/unknown-factors/*`, `/causal-loops/*` |
 | **Source** | `src/pages/Explore.tsx` |
 
 ### 6.6 Create
@@ -201,11 +211,11 @@ Step 狀態由 `getStepStatus()` 根據 `pathname` + `PhaseProgress` 判斷：`"
 | 欄位 | 內容 |
 |---|---|
 | **URL** | `/projects/:id/create` |
-| **Purpose** | 7-step accordion stepper：反向探索 + TRIZ 分層解 + 子系統 + SCAMPER + 決策中心 + MUST 快篩 + Pre-CAD 審查 |
-| **Step 結構** | Step 0: Anti-Anchor (reverse) · Step 1: TRIZ 解矛盾 (forward) · Step 2: 子系統定義 (forward) · Step 3: SCAMPER 變形 (forward) · Step 4: 候選方案決策中心 (hub) · Step 5: MUST 快篩 (eval) · Step 6: Pre-CAD 審查 (eval) |
-| **Key Components** | `MissionContext`, `CreateStepper`, `LayeredSolutionCard`, `DirectionResultCard`, `ConsolidationPanel`, `KnowledgeRefsPanel`, `SubsystemHierarchyView`, `PackageMapPanel`, `SpatialOverlayDialog`, `SpatialOverrideDialog`, `PromoteToLearnedDialog`, `ConvergenceDashboard`, `HumanReviewPanel`, `ArchitectureHaltOverlay`, `MultiSolutionAdoptionPanel`, `ConvergenceGraph` |
-| **State** | `useState`：`currentStep` (0–6)、`activeTrack` (reverse/forward)；server state：`useAntiAnchorRoutes`, `useTrizSolutions`, `useLayeredTrizSolutions`, `useDirectedTrizSolutions`, `useSubsystems`, `useScamperVariants`, `useAlternatives`, `useConceptRoutes`, `useConvergenceLoop`；`useContradictions`, `useBrief`, `useConstraints`, `useKpis`, `useTrackAssumptions` |
-| **Related API** | `antiAnchorGenerate`, `trizSolveLayered`, `trizSolveDirected`, `trizConsolidate`, `scamperTransform`, `riskAnalyze`, `mustEvaluate`, `validationPassportGenerate`, `scamperSpatialOverlay`, `spatialComponentOverride`, `spatialLearnedComponent` |
+| **Purpose** | 7-step accordion stepper：反向探索 + TRIZ 分層解（含 OZ-OT/SIM）+ 子系統 + SCAMPER + 決策中心（含 CCI/Evidence）+ MUST 快篩 + Pre-CAD 審查 |
+| **Step 結構** | Step 0: Anti-Anchor (reverse) · Step 1: TRIZ 解矛盾 (forward) — 內含 OZ-OT 前置 accordion + SIM Matrix conditional view · Step 2: 子系統定義 (forward) · Step 3: SCAMPER 變形 (forward) · Step 4: 候選方案決策中心 (hub) — 內含 CCI Badge + Evidence Coverage Gauge · Step 5: MUST 快篩 (eval) · Step 6: Pre-CAD 審查 (eval) |
+| **Key Components** | `MissionContext`, `CreateStepper`, `LayeredSolutionCard`, `DirectionResultCard`, `ConsolidationPanel`, `OzOtPanel`（新增）, `SimMatrixView`（新增）, `CciBadge`（新增）, `EvidenceCoverageGauge`（新增）, `KnowledgeRefsPanel`, `SubsystemHierarchyView`, `PackageMapPanel`, `SpatialOverlayDialog`, `SpatialOverrideDialog`, `PromoteToLearnedDialog`, `ConvergenceDashboard`, `HumanReviewPanel`, `ArchitectureHaltOverlay`, `MultiSolutionAdoptionPanel`, `ConvergenceGraph` |
+| **State** | `useState`：`currentStep` (0–6)、`activeTrack` (reverse/forward)；server state：`useAntiAnchorRoutes`, `useTrizSolutions`, `useLayeredTrizSolutions`, `useDirectedTrizSolutions`, `useOzOtAnalysis`（新增）, `useSimMatrix`（新增）, `useComplexityCheck`（新增）, `useEvidenceRegistry`（新增）, `useSubsystems`, `useScamperVariants`, `useAlternatives`, `useConceptRoutes`, `useConvergenceLoop`；`useContradictions`, `useBrief`, `useConstraints`, `useKpis`, `useTrackAssumptions` |
+| **Related API** | `antiAnchorGenerate`, `trizSolveLayered`, `trizSolveDirected`, `trizConsolidate`, `/analyst/oz-ot-analysis`（新增）, `/triz/sim-matrix`（新增）, `/triz/complexity-check`（新增）, `/evidence/register-claim`（新增）, `/evidence/coverage`（新增）, `scamperTransform`, `riskAnalyze`, `mustEvaluate`, `validationPassportGenerate`, `scamperSpatialOverlay`, `spatialComponentOverride`, `spatialLearnedComponent` |
 | **參考 Spec** | **[create-ux-spec](specs/ux/E5x--create-ux-spec.md)** |
 | **Source** | `src/pages/Create.tsx`（最大頁面，700+ LOC） |
 
@@ -331,12 +341,10 @@ Step 狀態由 `getStepStatus()` 根據 `pathname` + `PhaseProgress` 判斷：`"
 
 ## 8. 數據流與狀態管理
 
-- **Server state**：`@tanstack/react-query` v5.83.0；per-page hooks in `src/hooks/api/`（25+ hooks）。Query config：`staleTime: 30s`、`gcTime: 5min`、4xx 不 retry、5xx retry ≤ 2。
-- **Client UI state**：React `useState` per-page（如 Create 的 `currentStep`、`activeTrack`；Explore 的 `activeTab`）。
-- **Global context**（`src/contexts/`）：`AuthContext`（Supabase Auth + DEV_BYPASS_AUTH）、`ArtifactContext`（artifact 狀態機）、`ProjectDataContext`（跨步驟資料共享）。
-- **Theme**：`ThemeProvider`（`src/components/ThemeProvider.tsx`）使用 `next-themes`，存 `localStorage` key `rd-theme`。
+> 完整狀態架構（Context API、React Query config、技術版本）見 [`E5x--frontend-architecture.md`](E5x--frontend-architecture.md)：§2.1(c)（Context）、§4（技術選型）、§5（React Query / 效能）。以下僅列 IA 層特有的狀態模式。
+
 - **URL as state**：Explore 頁 tab 寫入 URL hash（`#socratic`、`#contradictions`、`#cld`）；Create 頁以 `useState` 管理 `currentStep`（0–6）。
-- **Form state**：`react-hook-form` v7.61.1 + `zod` v3.25.76。
+- **Theme**：`ThemeProvider`（`src/components/ThemeProvider.tsx`）使用 `next-themes`，存 `localStorage` key `rd-theme`。
 - **AI Operation Guard**：`useAiOperationGuard` hook 管理 AI 操作鎖（startOp / endOp），防止並行 AI 呼叫。
 
 ## 9. URL 結構與路由規範
@@ -349,13 +357,7 @@ Step 狀態由 `getStepStatus()` 根據 `pathname` + `PhaseProgress` 判斷：`"
 
 ## 10. 實施檢查清單與驗收標準
 
-- [ ] 每個 Route 有對應 page 元件
-- [ ] 所有 `/projects/:id/*` 受 auth guard
-- [ ] Breadcrumb 可還原層級
-- [ ] 關鍵 state 可由 URL 重建（深連結測試）
-- [ ] 側欄 active 狀態準確
-- [ ] BDD scenarios 覆蓋三大 Journey
-- [ ] E7x 手測腳本覆蓋核心 URL
+> 統一檢查清單已合併至 [`E5x--frontend-architecture.md` §10](E5x--frontend-architecture.md#第十部分前端開發檢查清單)（含架構層 + IA / 導航層 + 驗收項目）。
 
 ## 11. 附錄
 

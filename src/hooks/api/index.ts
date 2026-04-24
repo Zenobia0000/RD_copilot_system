@@ -150,6 +150,20 @@ export {
   useDeleteActionItem,
 } from './useDecisionRecord';
 
+// --- Auto-TRIZ v2: Analyst hooks (WBS 8.5) ---
+export {
+  useEntryGrading,
+  useFiveWhy,
+  useKtAnalysis,
+  useFunctionAnalysis,
+} from './useAnalystV2';
+
+// --- Auto-TRIZ v2: Create V2 hooks (WBS 8.6) ---
+export {
+  useOzOtAnalysis,
+  useEvidenceCoverage,
+} from './useCreateV2';
+
 // --- Evidence Entries (structured measurement logs) ---
 export {
   useEvidenceEntries,

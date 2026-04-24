@@ -1286,4 +1286,122 @@ export function unknownFactorDiscover(body: UnknownFactorDiscoverRequest) {
   return request<UnknownFactorDiscoverResponse>("/unknown-factors/discover", body, { timeoutMs: 300_000 });
 }
 
+// ─── Analyst V2 (Auto-TRIZ v2 Layer 2) ─────────────────────────────────────
+
+export interface EntryGradingRequest {
+  project_id: string;
+  problem_description: string;
+}
+
+export interface EntryGradingResponse {
+  level: "A" | "B" | "C";
+  reasoning: string;
+}
+
+export function entryGrading(body: EntryGradingRequest) {
+  return request<EntryGradingResponse>("/analyst/entry-grading", body);
+}
+
+export interface FiveWhyRequest {
+  project_id: string;
+  problem_description: string;
+  context?: string;
+}
+
+export interface FiveWhyPair {
+  why: string;
+  because: string;
+}
+
+export interface FiveWhyResponse {
+  chain: FiveWhyPair[];
+  root_cause: string;
+}
+
+export function fiveWhyAnalysis(body: FiveWhyRequest) {
+  return request<FiveWhyResponse>("/analyst/five-why", body);
+}
+
+export interface KtAnalysisRequest {
+  project_id: string;
+  problem_description: string;
+  context?: string;
+}
+
+export interface KtIsIsNotRow {
+  dimension: string;
+  is: string;
+  is_not: string;
+}
+
+export interface KtIsIsNotResponse {
+  rows: KtIsIsNotRow[];
+  summary: string;
+}
+
+export function ktAnalysis(body: KtAnalysisRequest) {
+  return request<KtIsIsNotResponse>("/analyst/kt-analysis", body);
+}
+
+export interface FunctionAnalysisRequest {
+  project_id: string;
+  problem_description: string;
+  context?: string;
+}
+
+export interface FunctionComponent {
+  name: string;
+  role: string;
+  interactions: string[];
+}
+
+export interface SfDiagnosis {
+  substance_1: string;
+  substance_2: string;
+  field: string;
+  diagnosis: string;
+}
+
+export interface FunctionAnalysisResponse {
+  components: FunctionComponent[];
+  sf_diagnosis: SfDiagnosis;
+  summary: string;
+}
+
+export function functionAnalysis(body: FunctionAnalysisRequest) {
+  return request<FunctionAnalysisResponse>("/analyst/function-analysis", body);
+}
+
+// ─── OZ/OT Analysis (Create V2) ────────────────────────────────────────────
+
+export interface OzOtAnalysisRequest {
+  project_id: string;
+  problem_description: string;
+  contradictions?: string[];
+}
+
+export interface OzOtAnalysisResponse {
+  operating_zone: string;
+  operating_time: string;
+  controllable_params: string[];
+  summary: string;
+}
+
+export function ozOtAnalysis(body: OzOtAnalysisRequest) {
+  return request<OzOtAnalysisResponse>("/analyst/oz-ot-analysis", body);
+}
+
+// ─── Evidence Coverage (GET) ────────────────────────────────────────────────
+
+export interface EvidenceCoverageResponse {
+  project_id: string;
+  coverage_pct: number;
+  total_claims: number;
+  covered_claims: number;
+}
+
+export function evidenceCoverage(projectId: string) {
+  return requestGet<EvidenceCoverageResponse>(`/evidence/coverage/${encodeURIComponent(projectId)}`);
+}
+
 export { ApiError, ApiNetworkError, type RequestOptions };

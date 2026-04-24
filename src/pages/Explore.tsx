@@ -30,6 +30,7 @@ import type { SocraticQuestion, ExploreContradiction, CausalLoop, GateCheckItem 
 import { ArrowLeft, Check } from "lucide-react";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { KnowledgeRefsPanel } from "@/components/create/KnowledgeRefsPanel";
+import { EntryGradingModal } from "@/components/explore/EntryGradingModal";
 // TODO: Replace with useKnowledgeRefs hook once knowledge_refs DB table is created (Sprint 5+)
 
 type TabKey = 'socratic' | 'contradictions' | 'cld';
@@ -507,6 +508,8 @@ export default function Explore() {
               Step 1.2–1.3 · 蘇格拉底問答 → 矛盾識別 → 因果迴路圖
             </p>
           </div>
+          {/* Auto-TRIZ v2: Entry Grading (WBS 8.5.2) */}
+          <EntryGradingModal projectId={id || ''} />
         </div>
       </div>
 

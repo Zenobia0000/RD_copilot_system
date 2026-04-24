@@ -3,13 +3,12 @@
 ---
 
 **文件版本 (Document Version):** `v1.2`
-**最後更新 (Last Updated):** `2026-04-23`
+**最後更新 (Last Updated):** `2026-04-24`
 **主要作者/設計師 (Lead Author/Designer):** `RD Design Copilot Backend Team`
 **審核者 (Reviewers):** `架構團隊、前端團隊、QA`
 **狀態 (Status):** `Active`
 **相關 SD 文檔:** [`01-define/E3--architecture-and-design.md`](../01-define/E3--architecture-and-design.md) (Appendix A–E)
 **OpenAPI 定義文件:** `backend/app/main.py` (FastAPI 自動生成 `/openapi.json` · Schema 源 → `backend/app/models/schemas.py`)
-**Machine-readable Specs:** [`specs/api/openapi.yaml`](specs/api/openapi.yaml) (REST design-first) · [`specs/api/asyncapi.yaml`](specs/api/asyncapi.yaml) (Supabase Realtime 頻道契約)
 **對應 VibeCoding 模板:** `06_api_design_specification.md`
 
 ---
@@ -41,11 +40,11 @@
 - **第 1 步**：啟動本地 backend `cd backend && uvicorn app.main:app --reload --port 8000`
 - **第 2 步**：
   ```bash
-  curl -X POST http://localhost:8000/api/v1/triz/solve-directed \
+  curl -X POST http://localhost:8000/triz/solve-layered \
     -H 'Content-Type: application/json' \
-    -d '{"project_id":"P-01","contradiction_id":"C-01","natural_description":"提高剛性會增加重量"}'
+    -d '{"contradiction_id":"C-01","improving":"weight","worsening":"rigidity"}'
   ```
-- **預期回應**: `SolveDirectedResponse`（含 `ContradictionDirectionResult`，包括 scored directions + Top1/Top2 picks）
+- **預期回應**: `SolveTrizLayeredResponse`（含 `l1_surface`、`l2_root_cause`、`l3_sufield` 分層）
 
 ---
 
@@ -59,7 +58,7 @@
 - **Dev**: `http://localhost:8000`
 - **Staging**: `TBD — <infra-lead TBD> by <2026-05-01 TBD>`
 - **Production**: `TBD — <infra-lead TBD> by <2026-05-01 TBD>`
-- **版本策略**：v1 路徑前綴 `/api/v1`（由 `main.py` 統一設定 `API_PREFIX`）；未來破壞性變更導入 `/api/v2/`。
+- **版本策略**：v1 目前隱含在路徑前；未來破壞性變更導入 `/v2/`。
 
 ### 2.3 請求與回應格式
 - `application/json` (UTF-8)；Pydantic `model_config.populate_by_name=True` → 接受 snake_case（BE 原生）與 camelCase（FE adapter）。
@@ -194,7 +193,6 @@ ISO 8601 + UTC（e.g. `2026-04-15T10:00:00Z`）。
 |---|---|---|
 | POST | `/contradictions/{cid}/formalize` | `ContradictionFormalizeResponse` |
 | POST | `/contradictions/{cid}/decompose` | `ContradictionDecomposeResponse` |
-| POST | `/contradictions/{cid}/derive-sf` | `ContradictionDeriveSFResponse` |
 
 > **ADR-007 (2026-04-15)**: `/contradictions/{cid}/formalize` 已改為 TC-only 合約：
 > - **Response schema**: `type: "TC" | null`（移除 `"PC"` / `"SF"` 舊值）；新增 `rationale: str` 欄位（成功時說明映射理由，失敗時解釋為何無法映射到 39 參數）。
@@ -204,30 +202,12 @@ ISO 8601 + UTC（e.g. `2026-04-15T10:00:00Z`）。
 > - 詳見 [ADR-007](../01-define/adrs/ADR-007-tc-only-explore-pc-sf-derivation-in-create.md) 與 E3 Appendix B §B.0。
 
 ### 7.5 資源：TRIZ (`triz.py`) ★ 核心
-| Method | Path | Response | 狀態 |
-|---|---|---|---|
-| POST | `/triz/solve` | `TrizLookupResponse` | Deprecated — 原始單路徑 solver |
-| POST | `/triz/sufield` | `SuFieldResponse` | GA |
-| POST | `/triz/solve-layered` | `SolveTrizLayeredResponse` | **Legacy** — v7 三層鑽降，保留向後相容 |
-| POST | `/triz/solve-directed` | `SolveDirectedResponse` | **GA (v8)** — 方向導向求解（主力流程） |
-| POST | `/triz/consolidate` | `ConsolidateResponse` | **GA (v8)** — 跨矛盾方向整合 |
-| POST | `/triz/sim-matrix` | `SimMatrixResponse` | **(v1.2 ADR-008)** — 多 TC SIM 交互矩陣 |
-| POST | `/triz/complexity-check` | `ComplexityCheckResponse` | **(v1.2 ADR-008)** — CCI 複雜度判定 |
+| Method | Path | Response |
+|---|---|---|
+| POST | `/triz/solve` | `TrizLookupResponse` |
+| POST | `/triz/sufield` | `SuFieldResponse` |
+| POST | `/triz/solve-layered` | `SolveTrizLayeredResponse` |
 
-> **v8 Direction-Centric Flow (2026-04-20)**:
-> 新主力流程為 `/triz/solve-directed` + `/triz/consolidate`，取代 `/triz/solve-layered`。
->
-> **`/triz/solve-directed`** 單一矛盾方向導向求解 pipeline：
-> - Step A: TC solve（矩陣 → 40 原理）
-> - Step B: 衍生 PC + solve（分離原理）
-> - Step C: 衍生 SF + solve（76 標準解）
-> - Step D: 合併所有解法（含 path tags）
-> - Step E: LLM 按實施方向聚類
-> - Step F: LLM + 規則評分
-> - Step G: 選出 Top1 + Top2
->
-> **`/triz/consolidate`** 接受 N 個 `ContradictionDirectionResult`，檢查 Top1 相容性，衝突時嘗試 Top2 替換，輸出最終採納方案或衝突報告。
->
 > **ADR-007 (2026-04-15)**: `/triz/solve-layered` 若 request 缺 `sf_substance_1/2`、`sf_field`、`physical_contradiction` 欄位，後端於 agent 入口**自動派生**（`analyst.derive_su_field_from_tc` + `analyst.decompose_tc_to_pcs`）。派生產物僅於本次 response 回傳，**不回寫** `contradictions` 表。若 SF 派生失敗，L3 降級為 warning，L1/L2 不受影響。詳見 [ADR-007](../01-define/adrs/ADR-007-tc-only-explore-pc-sf-derivation-in-create.md) 與 E3 Appendix B §B.0。
 
 ### 7.6 資源：SCAMPER / Subsystem (`scamper.py`)
@@ -271,7 +251,7 @@ ISO 8601 + UTC（e.g. `2026-04-15T10:00:00Z`）。
 | POST | `/spatial/component-overrides` | 新增 override |
 | GET | `/spatial/component-overrides` | 列出 |
 | DELETE | `/spatial/component-overrides` | 刪除 |
-| POST | `/spatial/learned-components` | 學習新元件（promote confirmed estimate globally） |
+| POST | `/spatial/learn` | 學習新元件 |
 | GET | `/spatial/learned-components` | 列學習記錄 |
 
 ### 7.12 資源：Knowledge Writeback / Export
@@ -280,27 +260,38 @@ ISO 8601 + UTC（e.g. `2026-04-15T10:00:00Z`）。
 | POST | `/knowledge/writeback` | `KnowledgeWritebackResponse` |
 | POST | `/export` | `ExportResponse` |
 
-### 7.13 (v1.2) 資源：Analyst — Auto-TRIZ v2 擴充 (`analyst.py`)
-| Method | Path | Response | 說明 |
-|---|---|---|---|
-| POST | `/analyst/five-why` | `FiveWhyResponse` | 5 Why 根因分析 — 從症狀挖掘可操作因果節點 |
-| POST | `/analyst/kt-analysis` | `KtAnalysisResponse` | KT Is/Is Not 差異分析 — 有對照組時鎖定 Px 候選 |
-| POST | `/analyst/function-analysis` | `FunctionAnalysisResponse` | FA 功能建模 — 組件交互圖 + SF 診斷 + 子系統邊界 |
-| POST | `/analyst/oz-ot-analysis` | `OzOtResponse` | OZ-OT 分析 — 鎖定 Px 物理變數，TC→PC 橋樑 |
-| POST | `/analyst/entry-grading` | `EntryGradingResponse` | 入口成熟度分級 — Level A/B/C 路由判定 |
-
-> **ADR-008 (2026-04-23)**：以上 5 個端點由 Auto-TRIZ v2 整合引入。`five_why` + `kt_is_is_not` 為問題定向工具（Step 0），與現有 Socratic Q&A **並存**；`function_analysis` 為功能建模（Step 1），確保矛盾定義在正確系統粒度；`oz_ot_analysis` 為 OZ-OT 分析（Step 3a），為 TC→PC 轉換提供 Px 錨點；`entry_grading` 為入口分級，識別 TRIZ 不適用的情境。
-
-### 7.14 (v1.2) 資源：Evidence Registry (`evidence.py`)
-| Method | Path | Response | 說明 |
-|---|---|---|---|
-| POST | `/evidence/register-claim` | `RegisterClaimResponse` | 註冊數值聲明 — 含 Claim ID、來源 agent/step |
-| POST | `/evidence/verify` | `VerifyClaimResponse` | 驗證 claim — WebSearch (Tavily) 外部驗證 |
-| GET | `/evidence/coverage` | `CoverageResponse` | Evidence Coverage 統計 — Gate 退出條件用 |
-
-> **ADR-008 (2026-04-23)**：Evidence Registry 為 cross-cutting 數據驗證層。所有 LLM agent 產出的數值聲明經此服務註冊 + 驗證。Gate 退出條件新增 `Evidence Coverage ≥ 40%`（可配置）。詳見 [evidence-registry.md](specs/modules/evidence-registry.md)。
-
 > **未列出端點**：`TBD — <be-lead TBD> by <2026-05-01 TBD>`（若有 router 漏掃請於 PR 補）
+
+### 7.13 資源：Analyst v2 (`analyst.py`) (Auto-TRIZ v2 新增)
+
+> **ADR-008 (2026-04-23)**：Auto-TRIZ v2 閉環流程整合，新增問題定向 + 功能建模 + 入口分級端點。
+
+| Method | Path | Request | Response | 說明 |
+|---|---|---|---|---|
+| POST | `/api/v1/analyst/five-why` | `FiveWhyRequest` | `FiveWhyResponse` | 5Why 根因分析，產出 5 層 Why chain |
+| POST | `/api/v1/analyst/kt-analysis` | `KtAnalysisRequest` | `KtAnalysisResponse` | KT Is/Is Not 範圍界定 |
+| POST | `/api/v1/analyst/function-analysis` | `FunctionAnalysisRequest` | `FunctionAnalysisResponse` | FA 功能建模，產出組件交互圖 + SF 診斷 |
+| POST | `/api/v1/analyst/oz-ot-analysis` | `OzOtAnalysisRequest` | `OzOtAnalysisResponse` | OZ-OT 時空分析，鎖定每個 TC 的 Px 變量 |
+| POST | `/api/v1/analyst/entry-grading` | `EntryGradingRequest` | `EntryGradingResponse` | 入口等級判定（Level A/B/C），驅動 Explore Conditional Stepper |
+
+### 7.14 資源：TRIZ v2 (`triz.py` 擴充) (Auto-TRIZ v2 新增)
+
+> **ADR-008 (2026-04-23)**：多 TC 交互評估 + 概念複雜度指標。
+
+| Method | Path | Request | Response | 說明 |
+|---|---|---|---|---|
+| POST | `/api/v1/triz/sim-matrix` | `SimMatrixRequest` | `SimMatrixResponse` | 解法交互矩陣（+1/0/-1），評估多 TC 間候選解法交互效應 |
+| POST | `/api/v1/triz/complexity-check` | `ComplexityCheckRequest` | `ComplexityCheckResponse` | CCI 概念複雜度指標（0-1 連續值），判定 Evolution / Weak Evolution / Patch |
+
+### 7.15 資源：Evidence Registry (`evidence.py`) (Auto-TRIZ v2 新增)
+
+> **ADR-008 (2026-04-23)**：LLM 數值聲明驗證，降低 hallucination 風險。
+
+| Method | Path | Request | Response | 說明 |
+|---|---|---|---|---|
+| POST | `/api/v1/evidence/claims` | `EvidenceClaimRequest` | `EvidenceClaimResponse` | 登記 evidence claim（數值聲明） |
+| POST | `/api/v1/evidence/claims/{id}/verify` | — | `EvidenceVerifyResponse` | 觸發 WebSearch 驗證 claim，標記 VERIFIED/APPROXIMATE/UNVERIFIED |
+| GET | `/api/v1/evidence/coverage/{project_id}` | — | `EvidenceCoverageResponse` | 查詢專案 evidence 覆蓋率（VERIFIED + APPROXIMATE 佔比） |
 
 ---
 
@@ -315,14 +306,31 @@ ISO 8601 + UTC（e.g. `2026-04-15T10:00:00Z`）。
 |---|---|---|
 | `EvidenceReference` | 所有 AI 答案的 citation 標準結構 | `schemas.py` L15 |
 | `LayeredTrizSolution` | L1/L2/L3 分層輸出 | `schemas.py` L639 |
-| `SolveTrizLayeredRequest/Response` | v7 TRIZ 端點 I/O (legacy) | `schemas.py` L659/679 |
-| `SolveDirectedRequest/Response` | v8 方向導向 TRIZ 主力端點 I/O | `schemas.py` L1653/1663 |
-| `ConsolidateRequest/Response` | v8 跨矛盾整合端點 I/O | `schemas.py` L1668/1674 |
-| `ContradictionDeriveSFRequest/Response` | TC→SF 衍生端點 I/O | `schemas.py` L1470/1480 |
+| `SolveTrizLayeredRequest/Response` | 主 TRIZ 端點 I/O | `schemas.py` L659/679 |
 | `AntiAnchorRoute` / `AntiAnchorResponse` | 反向路線 | `schemas.py` L376/392 |
 | `ValidationPassport` | 假設清單 | `schemas.py` L356 |
 | `ScamperVariant` / `ScamperResponse` | SCAMPER 變體 | `schemas.py` L708/727 |
 | `CldNode/Edge/Loop/Breakpoint` | 因果迴圈圖 | `schemas.py` L280–299 |
+
+### 8.1b 新增 Schema 索引 (Auto-TRIZ v2 新增)
+
+| Schema | 用途 | 對應端點 |
+|---|---|---|
+| `FunctionModel` | FA 功能建模結果（組件交互圖 + SF 診斷） | `/analyst/function-analysis` |
+| `OzOtResult` | OZ-OT 時空分析結果（zone/time/px_variable） | `/analyst/oz-ot-analysis` |
+| `SimMatrixResult` | 多 TC SIM 交互矩陣（+1/0/-1 評分陣列） | `/triz/sim-matrix` |
+| `ComplexityCheckResult` | CCI 複雜度判定（score + verdict） | `/triz/complexity-check` |
+| `EvidenceClaim` | 數值聲明（claim_text + source_agent + verification_status） | `/evidence/claims` |
+
+### 8.1c 新增 DB 表 (Auto-TRIZ v2 新增)
+
+| 表名 | 用途 | 關聯 |
+|---|---|---|
+| `function_models` | FA 功能模型持久化 | `project_id` → `projects` |
+| `evidence_claims` | LLM 數值聲明登記與驗證 | `project_id` → `projects` |
+| `sim_matrices` | 多 TC SIM 交互矩陣結果 | `project_id` → `projects` |
+
+> `contradictions` 表新增欄位：`oz_zone`（Operating Zone）、`ot_time`（Operating Time）、`px_variable`（鎖定的物理參數）。
 
 ### 8.2 範例：`LayeredTrizSolution` （節錄）
 ```python
@@ -343,12 +351,13 @@ class LayeredTrizSolution(BaseModel):
 | 端點類別 | 階段 |
 |---|---|
 | Brief / TaskDef / Socratic / CLD | GA |
-| TRIZ (solve-directed, consolidate, sufield) | GA |
-| TRIZ (solve-layered) | Legacy (保留向後相容) |
-| TRIZ (solve) | Deprecated |
+| TRIZ (solve, solve-layered, sufield) | GA |
 | SCAMPER / Subsystem Suggestions | Beta |
 | Anti-Anchor / Validation Passport | Beta |
 | Spatial Overlay / Learn | Alpha |
+| Analyst v2 (5Why / KT / FA / OZ-OT / Entry Grading) | Beta (Auto-TRIZ v2) |
+| TRIZ v2 (SIM Matrix / Complexity Check) | Beta (Auto-TRIZ v2) |
+| Evidence Registry (Claims / Verify / Coverage) | Beta (Auto-TRIZ v2) |
 
 ### 9.2 版本控制策略
 URL 路徑版本（未來 `/v2/`）；目前僅一版。  
@@ -376,4 +385,4 @@ URL 路徑版本（未來 `/v2/`）；目前僅一版。
 | 日期 | 審核人 | 版本 | 變更摘要 |
 |---|---|---|---|
 | 2026-04-15 | Backend Team | v1.0 | 初版；對齊 VibeCoding 06 模板 |
-| 2026-04-22 | Docs-Code 對齊審查 | v1.1 | 新增 v8 TRIZ endpoints (solve-directed, consolidate)、/derive-sf；修正 /spatial/learn → /learned-components；標記 solve-layered 為 Legacy；補充 API prefix /api/v1 |
+| 2026-04-24 | Backend Team | v1.2 | (Auto-TRIZ v2) 新增 §7.13 Analyst v2、§7.14 TRIZ v2、§7.15 Evidence Registry 共 10 端點；§8.3 新增 5 個 Schema；§9.1 更新生命週期 |

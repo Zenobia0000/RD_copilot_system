@@ -1674,3 +1674,116 @@ class ConsolidateRequest(BaseModel):
 class ConsolidateResponse(BaseModel):
     """POST /triz/consolidate — 回傳。"""
     consolidation: ConsolidationResult
+
+
+# ---------------------------------------------------------------------------
+# Auto-TRIZ v2 Analyst Methods (WBS 8.2.1–8.2.5)
+# ---------------------------------------------------------------------------
+
+# --- 8.2.1: Five Why Analysis ---
+
+class FiveWhyRequest(BaseModel):
+    """Input for 5-Why root-cause analysis."""
+    project_id: str
+    problem_statement: str
+    context: str = ""
+
+
+class WhyBecausePair(BaseModel):
+    why: str
+    because: str
+
+
+class FiveWhyResponse(BaseModel):
+    """5-Why analysis output with root causes and next step."""
+    why_chain: list[WhyBecausePair]
+    root_causes: list[str]
+    recommended_next_step: str
+
+
+# --- 8.2.2: KT Is/Is-Not Analysis ---
+
+class KtIsIsNotRequest(BaseModel):
+    """Input for Kepner-Tregoe Is/Is-Not analysis."""
+    project_id: str
+    problem_statement: str
+    known_facts: list[str] = Field(default_factory=list)
+
+
+class IsIsNotDimension(BaseModel):
+    dimension: str  # what / where / when / extent
+    is_value: str
+    is_not_value: str
+
+
+class KtIsIsNotResponse(BaseModel):
+    """KT Is/Is-Not matrix output."""
+    is_matrix: list[IsIsNotDimension]
+    distinctions: list[str]
+    hypotheses: list[str]
+
+
+# --- 8.2.3: Function Analysis ---
+
+class FunctionAnalysisRequest(BaseModel):
+    """Input for TRIZ Function Analysis (FA)."""
+    project_id: str
+    system_description: str
+    components: list[str]
+
+
+class ComponentInteraction(BaseModel):
+    from_component: str = Field(validation_alias="from")
+    to_component: str = Field(validation_alias="to")
+    action: str
+    type: str  # useful / harmful / insufficient
+
+
+class SfDiagnosis(BaseModel):
+    S1: str = ""
+    S2: str = ""
+    F: str = ""
+    state: str = "unknown"  # incomplete / effective / harmful / insufficient / unknown
+    problem_summary: str = ""
+
+
+class FunctionAnalysisResponse(BaseModel):
+    """Function Analysis output — component interactions + SF diagnosis."""
+    component_interactions: list[ComponentInteraction]
+    sf_diagnosis: SfDiagnosis
+    subsystem_boundary: dict = Field(default_factory=dict)
+
+
+# --- 8.2.4: OZ-OT Analysis ---
+
+class OzOtAnalysisRequest(BaseModel):
+    """Input for TRIZ OZ-OT-Px analysis."""
+    project_id: str
+    contradiction_id: str
+    tc_description: str
+    improving_param: int | None = None
+    worsening_param: int | None = None
+
+
+class OzOtAnalysisResponse(BaseModel):
+    """OZ-OT-Px analysis output."""
+    oz_zone: str
+    ot_time: str
+    px_variable: str
+    separation_hints: list[str] = Field(default_factory=list)
+
+
+# --- 8.2.5: Entry Grading ---
+
+class EntryGradingRequest(BaseModel):
+    """Input for problem entry-level grading."""
+    project_id: str
+    problem_description: str
+    available_data: dict = Field(default_factory=dict)
+
+
+class EntryGradingResponse(BaseModel):
+    """Entry grading output — complexity level + recommended steps."""
+    level: Literal["A", "B", "C"]
+    reasoning: str
+    recommended_steps: list[str] = Field(default_factory=list)

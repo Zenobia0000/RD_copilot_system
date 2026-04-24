@@ -18,6 +18,7 @@ from app.routers import (
     risk, action, convergence, must,
     contradictions, assumptions, pre_cad, want, gates, exports, knowledge_wb,
     validation, unknown_factors, spatial, observability,
+    analyst_v2,
 )
 
 
@@ -84,6 +85,7 @@ app.include_router(knowledge_wb.router, prefix=API_PREFIX, tags=["知識回寫 k
 app.include_router(validation.router, prefix=API_PREFIX, tags=["驗證護照 validation"], dependencies=_auth)
 app.include_router(unknown_factors.router, prefix=API_PREFIX, tags=["未知集合 unknown-factors"], dependencies=_auth)
 app.include_router(spatial.router, prefix=API_PREFIX, tags=["空間查找 spatial"], dependencies=_auth)
+app.include_router(analyst_v2.router, prefix=API_PREFIX, tags=["Auto-TRIZ v2 分析 analyst"], dependencies=_auth)
 # Web Vitals beacon — no auth: sendBeacon can't reliably attach auth headers.
 app.include_router(observability.router, prefix=API_PREFIX, tags=["observability"])
 

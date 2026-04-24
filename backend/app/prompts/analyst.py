@@ -1103,6 +1103,244 @@ Worsening: #{worsening_param} ({worsening_name})
 # distinct physical property in a distinct subsystem.
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# 5-Why Analysis (WBS 8.2.1)
+# ---------------------------------------------------------------------------
+
+FIVE_WHY_ANALYSIS = """\
+<task>
+Perform a structured 5-Why root-cause analysis on the given problem statement.
+Each "why" must be a specific causal question, and each "because" must be a
+concrete, evidence-based answer — not a tautology or restatement.
+</task>
+
+<context>
+<problem_statement>{problem_statement}</problem_statement>
+<additional_context>{context}</additional_context>
+</context>
+
+<instructions>
+1. Start from the observable symptom (the problem statement).
+2. For each level, ask "Why does this happen?" and answer with a specific
+   mechanism or cause. Avoid vague answers like "because of poor design".
+3. Each subsequent "why" must drill deeper — never repeat or rephrase a
+   previous level.
+4. After 5 levels, identify 1–3 actionable root causes.
+5. Recommend the most appropriate next step (e.g., "Proceed to KT analysis",
+   "Build function model", "Formalize as TC").
+</instructions>
+
+<output_schema>
+{{
+  "why_chain": [
+    {{"why": "Why does X happen?", "because": "Because Y occurs due to Z"}},
+    {{"why": "Why does Y occur?", "because": "Because ..."}},
+    {{"why": "...", "because": "..."}},
+    {{"why": "...", "because": "..."}},
+    {{"why": "...", "because": "..."}}
+  ],
+  "root_causes": ["Root cause 1", "Root cause 2"],
+  "recommended_next_step": "Proceed to function analysis to map component interactions"
+}}
+</output_schema>
+"""
+
+# ---------------------------------------------------------------------------
+# KT Is/Is-Not Analysis (WBS 8.2.2)
+# ---------------------------------------------------------------------------
+
+KT_IS_IS_NOT = """\
+<task>
+Construct a Kepner-Tregoe (KT) Problem Analysis Is/Is-Not matrix for the
+given problem statement. The matrix sharpens the problem boundary by
+systematically contrasting what IS observed against what IS NOT observed
+across four dimensions.
+</task>
+
+<context>
+<problem_statement>{problem_statement}</problem_statement>
+<known_facts>
+{known_facts}
+</known_facts>
+</context>
+
+<instructions>
+1. Fill in four dimensions: What, Where, When, Extent.
+   - **What**: What object/defect IS affected vs. what similar object/defect IS NOT?
+   - **Where**: Where on the object / in the process IS it seen vs. NOT seen?
+   - **When**: When (time, lifecycle phase, sequence) IS it observed vs. NOT?
+   - **Extent**: How much / how many IS affected vs. NOT?
+2. From the contrasts, derive 2–4 **distinctions** — factors unique to the IS
+   side that are absent from the IS-NOT side.
+3. From the distinctions, propose 2–4 testable **hypotheses** explaining the
+   root cause.
+4. Use known facts to constrain the analysis. Do not invent facts.
+</instructions>
+
+<output_schema>
+{{
+  "is_matrix": [
+    {{"dimension": "what", "is_value": "...", "is_not_value": "..."}},
+    {{"dimension": "where", "is_value": "...", "is_not_value": "..."}},
+    {{"dimension": "when", "is_value": "...", "is_not_value": "..."}},
+    {{"dimension": "extent", "is_value": "...", "is_not_value": "..."}}
+  ],
+  "distinctions": ["Distinction 1", "Distinction 2"],
+  "hypotheses": ["Hypothesis 1", "Hypothesis 2"]
+}}
+</output_schema>
+"""
+
+# ---------------------------------------------------------------------------
+# Function Analysis (WBS 8.2.3)
+# ---------------------------------------------------------------------------
+
+FUNCTION_ANALYSIS = """\
+<task>
+Perform a TRIZ Function Analysis (FA) on the described system. Identify all
+interactions between the given components, classify each as useful, harmful,
+or insufficient, and derive a Substance-Field (Su-Field) diagnosis.
+</task>
+
+<context>
+<system_description>{system_description}</system_description>
+<components>
+{components}
+</components>
+</context>
+
+<instructions>
+1. For each pair of interacting components, identify:
+   - **from**: the acting component (tool substance)
+   - **to**: the receiving component (product substance)
+   - **action**: what function is performed (verb phrase)
+   - **type**: "useful" (desired function delivered), "harmful" (undesired side
+     effect), or "insufficient" (desired but too weak / unreliable)
+2. Derive an overall Su-Field diagnosis:
+   - S1 (tool substance), S2 (product substance), F (field type)
+   - state: incomplete / effective / harmful / insufficient / unknown
+   - problem_summary: one sentence describing the core functional deficiency
+3. Identify subsystem boundaries — group components into logical subsystems.
+</instructions>
+
+<output_schema>
+{{
+  "component_interactions": [
+    {{"from": "Component A", "to": "Component B", "action": "transmits torque", "type": "useful"}},
+    {{"from": "Component B", "to": "Component C", "action": "generates heat", "type": "harmful"}}
+  ],
+  "sf_diagnosis": {{
+    "S1": "Component A",
+    "S2": "Component B",
+    "F": "mechanical",
+    "state": "insufficient",
+    "problem_summary": "Torque transmission is insufficient due to ..."
+  }},
+  "subsystem_boundary": {{
+    "drive_train": ["Component A", "Component B"],
+    "thermal": ["Component C"]
+  }}
+}}
+</output_schema>
+"""
+
+# ---------------------------------------------------------------------------
+# OZ-OT-Px Analysis (WBS 8.2.4)
+# ---------------------------------------------------------------------------
+
+OZ_OT_ANALYSIS = """\
+<task>
+Perform TRIZ OZ-OT-Px analysis on the given Technical Contradiction (TC).
+Lock down the spatio-temporal operating window where the contradiction
+manifests, and identify the controllable parameter (Px) that governs the
+conflict.
+</task>
+
+<context>
+<tc_description>{tc_description}</tc_description>
+<improving_param>{improving_param}</improving_param>
+<worsening_param>{worsening_param}</worsening_param>
+</context>
+
+<instructions>
+1. **OZ (Operating Zone)**: Define the spatial region where the contradiction
+   physically occurs. Be specific — name the geometric interface, contact
+   zone, or volume where opposing requirements collide.
+2. **OT (Operating Time)**: Define the temporal window — when in the
+   operational cycle does the conflict manifest? Include duration, frequency,
+   and lifecycle phase.
+3. **Px (Controllable Parameter)**: Identify the single physical parameter
+   whose value directly governs the trade-off. This parameter is the one
+   that "must be large AND must be small" (the seed of a Physical
+   Contradiction).
+4. **Separation hints**: Suggest 2–4 separation strategies (time, space,
+   condition, or whole-part) that could resolve the Px conflict, with
+   one-sentence rationale each.
+</instructions>
+
+<output_schema>
+{{
+  "oz_zone": "The gear tooth contact surface at the mesh line (width 2mm, radius 35-55mm)",
+  "ot_time": "During peak torque phase of each pedal stroke (0.1-0.3s, ~60 RPM cadence)",
+  "px_variable": "Gear module (m) — must be large for bending strength, small for packaging",
+  "separation_hints": [
+    "Time separation: use variable geometry that shifts module during low-load phases",
+    "Space separation: planetary arrangement distributes load across multiple small-module meshes"
+  ]
+}}
+</output_schema>
+"""
+
+# ---------------------------------------------------------------------------
+# Entry Grading (WBS 8.2.5)
+# ---------------------------------------------------------------------------
+
+ENTRY_GRADING = """\
+<task>
+Grade the entry level of the given engineering problem based on its complexity
+and the quality/completeness of available data. The grade determines which
+TRIZ analysis path to recommend.
+</task>
+
+<context>
+<problem_description>{problem_description}</problem_description>
+<available_data>
+{available_data}
+</available_data>
+</context>
+
+<instructions>
+1. Assess problem complexity:
+   - Number of interacting subsystems
+   - Presence of coupled / contradictory requirements
+   - Novelty (is this a known problem type or unprecedented?)
+2. Assess data quality:
+   - Are failure modes documented?
+   - Are quantitative measurements available?
+   - Is the system boundary well-defined?
+3. Assign a grade:
+   - **A** (High readiness): Clear TC, good data, well-defined boundary.
+     → Can proceed directly to TRIZ solve.
+   - **B** (Medium readiness): Problem identified but TC not yet formalized,
+     partial data. → Needs scoping (5-Why/KT) then function analysis.
+   - **C** (Low readiness): Vague symptom, little data, unclear boundary.
+     → Needs full scoping + Socratic exploration before any analysis.
+4. Provide reasoning (2–3 sentences) and 3–5 recommended next steps.
+</instructions>
+
+<output_schema>
+{{
+  "level": "B",
+  "reasoning": "The problem involves multiple subsystems with partial test data. The contradiction is implicit but not yet formalized. Function analysis is needed to map interactions before TC identification.",
+  "recommended_steps": [
+    "Run 5-Why to identify root cause chain",
+    "Build function model of drive-train subsystem",
+    "Formalize the contradiction as TC with TRIZ 39 parameters"
+  ]
+}}
+</output_schema>
+"""
+
 TC_TO_MULTI_PC_DECOMPOSITION = """\
 <task>
 You are a TRIZ ARIZ expert. Given a Technical Contradiction (TC) at the

@@ -13,7 +13,7 @@ import {
 } from "@/hooks/api";
 import { useConceptRoutes } from "@/hooks/api/useConceptRoutes";
 import { useTrackAssumptions } from "@/hooks/api/useTrack";
-import { getMockNavCards } from "@/data/mockNavCards";
+import { getNavCards } from "@/lib/navCards";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -372,7 +372,7 @@ export default function ProjectDashboard() {
   // Use live stats from DB if available, otherwise fall back to project.quick_stats
   const quickStats = liveStats ?? project.quick_stats;
 
-  const navCards = getMockNavCards(project.phase_progress);
+  const navCards = getNavCards(project.phase_progress);
   const createdDate = new Date(project.createdAt).toLocaleDateString("zh-TW");
   const isZeroData = Object.values(quickStats).every((v) => v === 0);
 

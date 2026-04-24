@@ -30,8 +30,7 @@ import type { SocraticQuestion, ExploreContradiction, CausalLoop, GateCheckItem 
 import { ArrowLeft, Check } from "lucide-react";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { KnowledgeRefsPanel } from "@/components/create/KnowledgeRefsPanel";
-// TODO: Replace mockPageKnowledgeRefs with a useKnowledgeRefs hook once a knowledge_refs DB table is created (Sprint 5+)
-import { mockPageKnowledgeRefs } from "@/data/mockKnowledgeRefs";
+// TODO: Replace with useKnowledgeRefs hook once knowledge_refs DB table is created (Sprint 5+)
 
 type TabKey = 'socratic' | 'contradictions' | 'cld';
 
@@ -576,7 +575,8 @@ export default function Explore() {
       </Tabs>
 
       {/* Knowledge Enhancement Panel (WBS 3.4.2) */}
-      <KnowledgeRefsPanel refs={mockPageKnowledgeRefs.explore ?? []} />
+      {/* TODO: Replace with useKnowledgeRefs hook (Sprint 5+) */}
+      <KnowledgeRefsPanel refs={[]} />
 
       {/* Gates */}
       <ExploreGates

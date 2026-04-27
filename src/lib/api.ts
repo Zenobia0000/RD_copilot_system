@@ -876,6 +876,33 @@ export function contradictionDecompose(
   return request<ContradictionDecomposeResponse>(`/contradictions/${cid}/decompose`, body);
 }
 
+// ─── Contradiction Derive SF ─────────────────────────────────────────────────
+
+export interface ContradictionDeriveSFRequest {
+  project_id: string;
+  contradiction_id: string;
+  engineering_statement: string;
+  improving_param: number;
+  worsening_param: number;
+  natural_description?: string;
+}
+
+export interface ContradictionDeriveSFResponse {
+  derived: boolean;
+  sf_substance_1?: string | null;
+  sf_substance_2?: string | null;
+  sf_field?: string | null;
+  sf_interaction?: string | null;
+  sf_completeness?: string | null;
+}
+
+export function contradictionDeriveSF(
+  cid: string,
+  body: ContradictionDeriveSFRequest,
+) {
+  return request<ContradictionDeriveSFResponse>(`/contradictions/${cid}/derive-sf`, body);
+}
+
 // ─── Assumption Extraction ─────────────────────────────────────────────────
 
 export interface AssumptionExtractRequest {
@@ -930,6 +957,10 @@ export type {
 
 export function scamperSubsystemSuggest(body: SubsystemSuggestRequest) {
   return request<SubsystemSuggestResponse>("/scamper/subsystem-suggestions", body, { timeoutMs: 300_000 });
+}
+
+export function subsystemSuggest(body: SubsystemSuggestRequest) {
+  return request<SubsystemSuggestResponse>("/subsystems/suggest", body, { timeoutMs: 300_000 });
 }
 
 // ─── Spatial Overlay / Override / Learned ──────────────────────────────────

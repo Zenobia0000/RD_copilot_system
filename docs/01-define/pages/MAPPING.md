@@ -85,15 +85,15 @@
 | 02 | `02_reset_password.md` | **P02** | auth | — |
 | 03 | `03_project_list.md` | **P03** | list | — |
 | 04 | `04_project_dashboard.md` | **P04** | dashboard | Gate overview |
-| 05 | `05_task_definition.md` | **P05** | form | Gate 1.1 |
-| 06 | `06_explore.md` | **P06** | wizard | Gate 1.2, Phase Gate 1 |
-| 07 | `07_track.md` | **P07** | kanban | Gate 2.1 |
-| 08 | `08_create.md` | **P08** | wizard | Gate 2.2, Phase Gate 2 |
+| 05 | `05_task_definition.md` | **P05** | form | Gate D1 |
+| 06 | `06_explore.md` | **P06** | wizard | Gate D2, Phase Gate D |
+| 07 | `07_track.md` | **P07** | kanban | Gate X1 |
+| 08 | `08_create.md` | **P08** | wizard | Gate X2, Phase Gate X |
 | 09 | `09_pre_cad_review.md` | **P09** | review | Gate P |
 | 10 | `10_cad_in_progress.md` | **P10** | progress | — |
-| 11 | `11_design_review.md` | **P11** | review | Gate 3.1 |
-| 12 | `12_decision_record.md` | **P12** | form | Gate 3.2, Phase Gate 3 |
-| 13 | `13_feynman.md` | **P13** | detail | Gate 8 |
+| 11 | `11_design_review.md` | **P11** | review | Gate V1 |
+| 12 | `12_decision_record.md` | **P12** | form | Gate V2, Phase Gate V |
+| 13 | `13_feynman.md` | **P13** | detail | Gate V4 |
 | 14 | `14_knowledge_base.md` | **P14** | list + detail | — |
 | 15 | `15_constraint_label_dictionary.md` | **P15** | utility | — |
 | 16 | `16_settings.md` | **P16** | form | — |

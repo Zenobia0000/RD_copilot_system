@@ -1,6 +1,66 @@
-# Page-Level Prompt: Feynman 費曼學習 / 知識內化
+# Page-Level Prompt: Feynman 內化與傳達
 
-> AI 自動將專案中的決策記錄、實驗結果、矛盾解法等 6 類知識資產轉化為可重複使用的知識庫條目，實現組織學習的自動化。
+> Phase 3 Converge — AI 自動將決策記錄、實驗結果、矛盾解法等 6 類資產轉化為知識庫條目，實現組織學習自動化。此步驟為全自動（Fully Auto），使用者僅需審閱確認。
+> **對應步驟**：V4（知識回寫）
+
+---
+
+## [CHANGELOG]
+
+| 版本 | 日期 | 變更摘要 |
+|:-----|:-----|:---------|
+| v3.0 | 2026-04-27 | D/X/V 編號化：Step 3.3 → V4；Gate 8 → Gate V4；subtitle 對齊 "Phase 3: Converge > V4（知識回寫自動化）"；移除 AA/SCAMPER/strikethrough 噪音；對齊 code 6 種 asset type 與 hook 清單 |
+
+---
+
+## [WIREFRAME]
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  Phase bar (emerald-500)                                          │
+│  ← 返回  Feynman — 內化與傳達                                    │
+│  Phase 3: Converge > V4（知識回寫自動化）                          │
+├──────────────────────────────────────────────────────────────────┤
+│  SectionIntro (6 類資產自動轉化說明)                               │
+├──────────────────────────────────────────────────────────────────┤
+│  Stats: [N 條目] [N 已寫入] [N 已審閱] [N/6 類資產]              │
+├──────────────────────────────────────────────────────────────────┤
+│  Asset Type Legend                                                 │
+│  ● 決策記錄 (N)  ● 實驗結果 (N)  ● 矛盾解法 (N)                 │
+│  ● 失效模式 (N)  ● 設計規則 (N)  ● 最佳實踐 (N)                 │
+├──────────────────────────────────────────────────────────────────┤
+│  自動化等級：Fully Auto — Knowledge Agent 執行                    │
+├──────────────────────────────────────────────────────────────────┤
+│  Knowledge Entries                                                 │
+│  ┌──────────────────────────────────────────────────────────────┐ │
+│  │ [AI] [KE-001] [決策記錄] [已寫入]                            │ │
+│  │ 磁力耦合傳動系統設計要點                                      │ │
+│  │ (summary text)                                                │ │
+│  │ 來源：...       [確認審閱] [查看知識庫]                       │ │
+│  └──────────────────────────────────────────────────────────────┘ │
+│  ... more entries ...                                              │
+├──────────────────────────────────────────────────────────────────┤
+│  [生成知識條目] (AiButton)                                        │
+├──────────────────────────────────────────────────────────────────┤
+│  KnowledgeRefsPanel                                                │
+├──────────────────────────────────────────────────────────────────┤
+│  Gate V4 完成檢查                                                  │
+│  ☐ 至少 1 條知識條目已生成                                        │
+│  ☐ 6 類資產皆已覆蓋                                               │
+│  ☐ 所有條目已審閱                                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## [DESIGN PRINCIPLES]
+
+| 原則 | 說明 |
+|:-----|:-----|
+| 全自動 (Fully Auto) | AI 自動從決策記錄與實驗結果提取知識，寫入知識庫 |
+| 6 類資產覆蓋 | 決策記錄 / 實驗結果 / 矛盾解法 / 失效模式 / 設計規則 / 最佳實踐 |
+| 人類審閱確認 | 使用者僅需審閱 AI 生成的知識條目，不需手動撰寫 |
+| 費曼學習法 | 將複雜知識轉化為可理解、可重用的知識庫條目 |
 
 ---
 
@@ -8,259 +68,149 @@
 
 - **page_name**: Feynman
 - **route_path**: `/projects/:id/feynman`
-- **page_type**: phase-step (Phase 3 — Converge > Step 3.3)
-- **primary_goal**: 自動化知識回寫，將專案決策與實驗成果轉化為知識庫條目
-- **secondary_goal**: 讓使用者審閱並確認 AI 生成的知識條目，確保品質
-- **target_users**: RD 工程師、專案負責人
-- **entry_point**: 專案 Dashboard 的 Step 3.3 卡片、或上一步驟完成後自動導向
-- **expected_time_on_page**: 3 ~ 10 分鐘
+- **page_type**: detail (knowledge writeback)
+- **primary_goal**: AI 自動將專案決策與驗證成果轉化為 6 類知識資產，寫入組織知識庫
+- **secondary_goal**: 使用者審閱確認知識條目品質，確保知識正確性
+- **target_users**: RD 工程師
+- **entry_point**: DecisionRecord 頁 Phase Gate V 通過後導航，或 Dashboard 直接進入
+- **expected_time_on_page**: 10 ~ 30 分鐘
 
 ---
 
 ## [STRUCTURE: SECTIONS]
 
 1. **Header**
-  - section_type: navigation + branding
-  - section_purpose: 顯示返回按鈕、頁面標題、階段描述與 HelpTooltip
+   - section_type: navigation + status
+   - section_purpose: 返回 Dashboard、頁面標題、subtitle "Phase 3: Converge > V4（知識回寫自動化）"
 2. **SectionIntro**
-  - section_type: guidance
-  - section_purpose: 說明此步驟的功能與使用者僅需審閱確認
-3. **StatsBadges**
-  - section_type: summary
-  - section_purpose: 顯示條目數、已寫入數、已審閱數、資產類型覆蓋率
-4. **AssetTypeLegend**
-  - section_type: legend
-  - section_purpose: 顯示 6 類資產類型及各自條目數量（帶色彩標示）
-5. **AutoBadge**
-  - section_type: info
-  - section_purpose: 標示此步驟的自動化等級為 Fully Auto
-6. **KnowledgeEntriesList**
-  - section_type: content-list
-  - section_purpose: 列出所有知識條目卡片，支援審閱與導航操作
-7. **GenerateButton**
-  - section_type: action
-  - section_purpose: 觸發 AI 生成新知識條目
+   - section_type: context
+   - section_purpose: 說明 6 類資產自動轉化用途
+3. **Stats Bar**
+   - section_type: summary
+   - section_purpose: 條目總數、已寫入、已審閱、資產類型覆蓋率
+4. **Asset Type Legend**
+   - section_type: legend
+   - section_purpose: 6 種資產類型 Badge + 各類計數
+5. **Auto Badge**
+   - section_type: info
+   - section_purpose: 標示自動化等級 Fully Auto
+6. **Knowledge Entries**
+   - section_type: card-list
+   - section_purpose: 知識條目清單，每條含類型、狀態、摘要、來源、操作按鈕
+7. **Generate Button**
+   - section_type: action
+   - section_purpose: AI 生成新知識條目
 8. **KnowledgeRefsPanel**
-  - section_type: enhancement
-  - section_purpose: 知識增強面板，顯示相關知識參考（WBS 3.4.2）
-9. **GateCheck**
-  - section_type: gate
-  - section_purpose: Gate 8 完成檢查，顯示三項通過條件與整體狀態
+   - section_type: reference
+   - section_purpose: 知識參考連結
+9. **Gate V4**
+   - section_type: gate-check
+   - section_purpose: 知識回寫完成檢查
 
 ---
 
 ## [SECTION COMPONENT SPEC]
 
 ### Section: Header
-
-- **layout**: 頂部 emerald-500 色條 (h-1 rounded-full) + flex items-center gap-3
+- **layout**: flex items-center gap-3
 - **elements**:
+  | Element | Type | Required | Description |
+  |:--------|:-----|:---------|:------------|
+  | PhaseBar | `<div>` | required | h-1 w-full rounded-full bg-emerald-500 |
+  | BackButton | `<Button variant="ghost">` | required | ArrowLeft icon，onClick → `/projects/:id` |
+  | Title | `<h1>` | required | "Feynman — 內化與傳達" + HelpTooltip |
+  | Subtitle | `<p>` | required | "Phase 3: Converge > V4（知識回寫自動化）" |
 
-  | Element     | Type               | Required | Description                                                           |
-  | ----------- | ------------------ | -------- | --------------------------------------------------------------------- |
-  | ColorBar    | `<div>`            | required | h-1 w-full rounded-full bg-emerald-500，頂部色條                           |
-  | BackButton  | Button (ghost, sm) | required | ArrowLeft icon + "返回"，導航至 `/projects/:id`                             |
-  | Title       | `<h1>`             | required | "Feynman — 內化與傳達"，text-2xl font-bold tracking-tight                   |
-  | HelpTooltip | HelpTooltip        | required | 說明費曼學習法與 Fully Auto 自動化等級                                             |
-  | PhaseLabel  | `<p>`              | required | "Phase 3: Converge > Step 3.3（知識回寫自動化）"，text-sm text-muted-foreground |
-
-- **states**: 無特殊狀態
-- **copy_constraints**: 標題固定，Phase 描述需與 WBS 一致
-
-### Section: SectionIntro
-
-- **layout**: SectionIntro 元件
-- **elements**:
-
-  | Element   | Type         | Required | Description      |
-  | --------- | ------------ | -------- | ---------------- |
-  | IntroText | SectionIntro | required | 說明 6 類資產的自動化轉化流程 |
-
-- **states**: 無
-- **copy_constraints**: 需列出 6 類資產名稱：決策記錄、驗證實驗結果、矛盾解法、失效模式、設計規則、最佳實踐
-
-### Section: StatsBadges
-
+### Section: Stats Bar
 - **layout**: flex flex-wrap gap-3
 - **elements**:
+  | Element | Type | Description |
+  |:--------|:-----|:------------|
+  | TotalBadge | `<Badge>` primary | "{N} 條目" |
+  | WrittenBadge | `<Badge>` secondary | "{N} 已寫入" |
+  | ReviewedBadge | `<Badge>` green | "{N} 已審閱" |
+  | CoverageBadge | `<Badge>` outline | "{N}/6 類資產" |
 
-  | Element       | Type              | Required | Description                               |
-  | ------------- | ----------------- | -------- | ----------------------------------------- |
-  | EntryCount    | Badge (primary)   | required | "{n} 條目"，總條目數                             |
-  | WrittenCount  | Badge (secondary) | required | "{n} 已寫入"，status 為 written 或 reviewed 的數量 |
-  | ReviewedCount | Badge (green-600) | required | "{n} 已審閱"，status 為 reviewed 的數量           |
-  | AssetCoverage | Badge (outline)   | required | "{n}/{6} 類資產"，已覆蓋的資產類型數                   |
-
-- **states**: 數值動態計算，隨條目狀態變更即時更新
-- **copy_constraints**: 無
-
-### Section: AssetTypeLegend
-
+### Section: Asset Type Legend
 - **layout**: flex flex-wrap gap-2
-- **elements**:
-
-  | Element    | Type               | Required | Description              |
-  | ---------- | ------------------ | -------- | ------------------------ |
-  | AssetBadge | Badge (outline) x6 | required | 每類資產一個，含色彩圓點 + 中文標籤 + 計數 |
-
 - **asset_types**:
+  | Type Key | 標籤 | 顏色 |
+  |:---------|:-----|:-----|
+  | `decision` | 決策記錄 | `#3B82F6` (blue) |
+  | `experiment` | 實驗結果 | `#10B981` (emerald) |
+  | `contradiction` | 矛盾解法 | `#F59E0B` (amber) |
+  | `failure_mode` | 失效模式 | `#EF4444` (red) |
+  | `design_rule` | 設計規則 | `#8B5CF6` (violet) |
+  | `best_practice` | 最佳實踐 | `#EC4899` (pink) |
 
-  | Type          | Label | Color   |
-  | ------------- | ----- | ------- |
-  | decision      | 決策記錄  | #3B82F6 |
-  | experiment    | 實驗結果  | #10B981 |
-  | contradiction | 矛盾解法  | #F59E0B |
-  | failure_mode  | 失效模式  | #EF4444 |
-  | design_rule   | 設計規則  | #8B5CF6 |
-  | best_practice | 最佳實踐  | #EC4899 |
+### Section: Knowledge Entries
+- **layout**: space-y-4, Card per entry
+- **data_source**: `useKnowledgeEntries(id)` (live) with fallback to MOCK_ENTRIES (local)
+- **entry_elements**:
+  | Element | Type | Required | Description |
+  |:--------|:-----|:---------|:------------|
+  | AiBadge | `<Badge>` secondary | always | "AI" 標記 |
+  | IdBadge | `<Badge>` outline mono | always | "KE-001" 格式 |
+  | TypeBadge | `<Badge>` colored | always | 資產類型（依顏色表） |
+  | StatusBadge | `<Badge>` | always | 已審閱 (green) / 已寫入 (primary) / 待處理 (muted) |
+  | Title | `<h3>` | always | 知識條目標題 |
+  | Summary | `<p>` | always | 知識摘要 |
+  | Source | `<span>` | always | 來源說明 |
+  | ReviewButton | `<Button>` outline | conditional | "確認審閱"（status !== 'reviewed' 時顯示） |
+  | KbButton | `<Button>` ghost | always | "查看知識庫" → `/knowledge-base` |
+- **entry_border**: reviewed = border-l-green-600, written = border-l-primary, pending = none
 
-- **states**: 計數動態計算
-- **copy_constraints**: 無
-
-### Section: AutoBadge
-
-- **layout**: Card (border-dashed bg-muted/30) > CardContent (p-3 flex items-center gap-3)
+### Section: Generate Button
 - **elements**:
+  | Element | Type | Required | Description |
+  |:--------|:-----|:---------|:------------|
+  | GenerateButton | `<AiButton>` | required | "生成知識條目"，呼叫 handleGenerate（mock: 2000ms delay） |
 
-  | Element     | Type      | Required | Description                                    |
-  | ----------- | --------- | -------- | ---------------------------------------------- |
-  | Icon        | RefreshCw | required | h-4 w-4 shrink-0                               |
-  | LevelLabel  | `<span>`  | required | "自動化等級：Fully Auto"，font-medium text-foreground |
-  | Description | `<span>`  | required | 說明 AI 自動提取知識並寫入知識庫，由 Knowledge Agent 執行        |
-
-- **states**: 無
-- **copy_constraints**: 無
-
-### Section: KnowledgeEntriesList
-
-- **layout**: space-y-4，每張條目為 Card > CardContent (p-4 space-y-3)
-- **elements**:
-
-  | Element      | Type                 | Required | Description                                                    |
-  | ------------ | -------------------- | -------- | -------------------------------------------------------------- |
-  | AIBadge      | Badge (secondary)    | required | "AI"，text-[10px]，標示條目為 AI 生成                                   |
-  | IdBadge      | Badge (outline)      | required | "KE-{序號}"，font-mono text-[10px]                                |
-  | TypeBadge    | Badge                | required | 資產類型標籤，背景色對應 ASSET_TYPE_CONFIG                                 |
-  | StatusBadge  | Badge                | required | "已審閱" (green-600) / "已寫入" (primary) / "待處理" (muted-foreground) |
-  | Title        | `<h3>`               | required | text-sm font-semibold                                          |
-  | Summary      | `<p>`                | required | text-sm text-muted-foreground leading-relaxed                  |
-  | Source       | `<span>`             | required | "來源：{source}"，text-[10px] text-muted-foreground                |
-  | ReviewButton | Button (outline, sm) | optional | 僅非 reviewed 狀態顯示，CheckCircle icon + "確認審閱"                     |
-  | ViewKBButton | Button (ghost, sm)   | required | BookOpen icon + "查看知識庫"，導航至 `/knowledge-base`                  |
-
-- **states**:
-  - reviewed: Card 左邊框 3px green-600
-  - written: Card 左邊框 3px primary
-  - pending: 無左邊框特殊樣式
-- **copy_constraints**: 無
-
-### Section: GenerateButton
-
-- **layout**: flex flex-wrap gap-3
-- **elements**:
-
-  | Element     | Type     | Required | Description                     |
-  | ----------- | -------- | -------- | ------------------------------- |
-  | GenerateBtn | AiButton | required | "生成知識條目"，loading={isGenerating} |
-
-- **states**:
-  - default: 可點擊
-  - loading: isGenerating=true，顯示載入動畫，模擬 2 秒延遲後新增條目
-- **copy_constraints**: 無
-
-### Section: KnowledgeRefsPanel
-
-- **layout**: KnowledgeRefsPanel 元件
-- **elements**:
-
-  | Element   | Type               | Required | Description                                 |
-  | --------- | ------------------ | -------- | ------------------------------------------- |
-  | RefsPanel | KnowledgeRefsPanel | required | refs={mockPageKnowledgeRefs.feynman}，知識增強面板 |
-
-- **states**: 無
-- **copy_constraints**: 無
-
-### Section: GateCheck
-
-- **layout**: Separator + Card (border-2 border-emerald-500 bg-emerald-50) > CardContent (p-4 space-y-3)
-- **elements**:
-
-  | Element     | Type                 | Required | Description                        |
-  | ----------- | -------------------- | -------- | ---------------------------------- |
-  | GateIcon    | BookOpen             | required | h-5 w-5 text-emerald-500           |
-  | GateTitle   | `<h3>`               | required | "Step 3.3 / Gate 8 完成檢查"           |
-  | StatusBadge | Badge                | required | "完成" (green-600) 或 "待完成" (red-600) |
-  | Criteria1   | CheckCircle / Circle | required | "至少 1 條知識條目已生成"                    |
-  | Criteria2   | CheckCircle / Circle | required | "6 類資產皆已覆蓋 ({n}/{6})"              |
-  | Criteria3   | CheckCircle / Circle | required | "所有條目已審閱 ({n}/{total})"            |
-
-- **states**:
-  - 完成: 三項條件皆滿足，Badge 為 green-600
-  - 待完成: 任一條件未滿足，Badge 為 red-600
-  - 每個條件獨立顯示 CheckCircle (green) 或空心圓
-- **copy_constraints**: 無
+### Section: Gate V4
+- **layout**: Card border-2 border-emerald-500 bg-emerald-50
+- **gate_items**:
+  | # | 檢查項目 | 判定邏輯 |
+  |:--|:---------|:---------|
+  | 1 | 至少 1 條知識條目已生成 | `entries.length > 0` |
+  | 2 | 6 類資產皆已覆蓋 | `coveredAssetTypes >= 6` |
+  | 3 | 所有條目已審閱 | `reviewedCount >= entries.length && entries.length > 0` |
+- **pass_display**: Badge "完成" (bg-green-600)
+- **fail_display**: Badge "待完成" (bg-red-600)
 
 ---
 
-## [INTERACTION & STATE FLOW]
+## [HOOKS]
 
-### 主要互動流程
-
-1. 使用者從專案 Dashboard 進入 `/projects/:id/feynman`
-2. 頁面載入時呼叫 `useKnowledgeEntries(id)` 從 Supabase 取得知識條目
-3. 若 Supabase 有資料 → 使用 livePageEntries；否則 → 使用 MOCK_ENTRIES 作為初始種子
-4. 使用者瀏覽各條目卡片，檢視 AI 生成的知識摘要
-5. 對尚未審閱的條目點擊「確認審閱」→ 呼叫 `useUpdateKnowledgeEntry` 或更新 localEntries → toast.success "已標記為已審閱"
-6. 點擊「生成知識條目」→ isGenerating=true → 模擬 2 秒 → 新增一筆 pending 條目 → toast.success "AI 已生成新知識條目"
-7. 點擊「查看知識庫」→ 導航至 `/knowledge-base`
-8. Gate 8 檢查即時更新：三項條件全部達成時顯示「完成」
-
-### RWD 行為差異
-
-
-| Breakpoint            | Layout               | 差異                                |
-| --------------------- | -------------------- | --------------------------------- |
-| Desktop (>= 1024px)   | page-shell-narrow，單欄 | Stats badges 單行排列                 |
-| Tablet (768 ~ 1023px) | 同 Desktop            | badges 可能換行                       |
-| Mobile (< 768px)      | 同 Desktop            | badges 與 legend 自動換行，flex-wrap 適應 |
-
+| Hook | 來源 | 用途 |
+|:-----|:-----|:-----|
+| `useKnowledgeEntries` | `@/hooks/api/useKnowledge` | 載入知識條目（from Supabase） |
+| `useUpdateKnowledgeEntry` | `@/hooks/api/useKnowledge` | 更新知識條目（標記已審閱） |
 
 ---
 
-## [DATA & API]
+## [SHARED COMPONENTS]
 
-- **uses_api**: true
-- **endpoints**:
-
-  | Action | API Call                         | Payload / Params                                                            |
-  | ------ | -------------------------------- | --------------------------------------------------------------------------- |
-  | 取得知識條目 | `useKnowledgeEntries(projectId)` | 從 Supabase 查詢，回傳 `{ id, title, content, assetType, reviewed, createdAt }[]` |
-  | 更新知識條目 | `useUpdateKnowledgeEntry()`      | `{ id: string, reviewed: boolean }`                                         |
-
-- **fallback**: 若 Supabase 無資料或載入中，使用 MOCK_ENTRIES（6 筆種子資料）
-- **error_cases**:
-  - Supabase 查詢失敗 → 自動降級至 MOCK_ENTRIES
-  - 更新條目失敗 → updateEntry mutation 的 onError 處理
-  - 網路異常 → Skeleton 載入狀態持續顯示
+| 元件 | 來源 | 用途 |
+|:-----|:-----|:-----|
+| `AiButton` | `@/components/ui/ai-button` | AI 操作按鈕（生成知識條目） |
+| `HelpTooltip` | `@/components/ui/help-tooltip` | 說明提示 |
+| `SectionIntro` | `@/components/ui/section-intro` | 區段說明文字 |
+| `KnowledgeRefsPanel` | `@/components/create/KnowledgeRefsPanel` | 知識參考面板 |
 
 ---
 
-## [ACCEPTANCE CRITERIA]
+## [TYPES]
 
-- 頁面頂部顯示 emerald 色條與「返回」按鈕，點擊可回到專案 Dashboard
-- 標題 "Feynman — 內化與傳達" 旁有 HelpTooltip 說明費曼學習法
-- SectionIntro 顯示 6 類資產的自動化說明
-- Stats badges 正確顯示條目數、已寫入數、已審閱數、資產覆蓋率
-- Asset type legend 顯示 6 種資產類型，各自帶對應顏色與計數
-- Fully Auto badge 正確顯示自動化等級說明
-- 知識條目卡片顯示 AI badge、編號、類型 badge、狀態 badge
-- reviewed 條目左邊框為 green-600，written 為 primary，pending 無特殊邊框
-- 非 reviewed 條目顯示「確認審閱」按鈕，點擊後呼叫 API 並 toast 成功
-- 每張卡片的「查看知識庫」按鈕可導航至 `/knowledge-base`
-- 「生成知識條目」按鈕點擊後顯示載入動畫，2 秒後新增條目並 toast
-- KnowledgeRefsPanel 正確渲染知識增強面板
-- Gate 8 三項條件即時計算並以 CheckCircle 或空心圓顯示
-- Gate 8 整體狀態在三項皆滿足時顯示「完成」綠色 badge，否則顯示「待完成」紅色 badge
-- 載入中顯示 Skeleton 佔位符（標題 + 3 張卡片）
-- Supabase 無資料時自動降級至 MOCK_ENTRIES
+| Type | 來源 | 說明 |
+|:-----|:-----|:-----|
+| `KnowledgeAssetType` | local (Feynman.tsx) | 6 種資產類型 union：`decision \| experiment \| contradiction \| failure_mode \| design_rule \| best_practice` |
+| `KnowledgeEntry` | local (Feynman.tsx) | 知識條目（id, title, summary, source, assetType, status, createdAt） |
 
+---
+
+## [NAVIGATION]
+
+| 方向 | 目標 | 觸發 |
+|:-----|:-----|:-----|
+| 返回 | `/projects/:id` | Header BackButton |
+| 查看知識庫 | `/knowledge-base` | Entry "查看知識庫" 按鈕 |

@@ -47,7 +47,7 @@
 
 7. **project_timeline**
    - section_type: timeline
-   - section_purpose: 以時間軸呈現專案歷程事件（建立、Brief 確認、矛盾分析、TRIZ 解法、子系統定義、Pre-CAD 審查等）
+   - section_purpose: 以時間軸呈現專案歷程事件（建立、Brief 確認、矛盾分析、TRIZ 解法、子系統定義、方案整合、Pre-CAD 審查等）
 
 8. **evidence_dialog**
    - section_type: modal_dialog
@@ -216,3 +216,12 @@
 - [ ] ProjectTimeline 整合 Phase 1 + Phase 2 事件並依日期倒序排列
 - [ ] KpiCards 的 "Log Evidence" 按鈕正確觸發 EvidenceEntryDialog 並帶入 kpiId
 - [ ] RWD：Desktop 3 欄 / Tablet 2 欄 / Mobile 1 欄切換正確
+
+---
+
+## CHANGELOG
+
+| 版本 | 日期 | 摘要 |
+|:-----|:-----|:-----|
+| v1.0 | 2026-04-15 | 初版，從 IA v1.0 展開 page-level spec |
+| v3.0 | 2026-04-27 | D/X/V 編號對齊；移除 SCAMPER 描述殘留；Anti-Anchor hook 描述更正為 TRIZ L1 跨域去錨定；useScamperVariants 標記為 legacy |

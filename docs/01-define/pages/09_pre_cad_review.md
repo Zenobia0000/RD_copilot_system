@@ -1,6 +1,15 @@
 # Page-Level Prompt: PreCadReview Pre-CAD 審查
 
-> Phase 2 收尾 — 評估候選方案的五維品質，確認 Gate P 門檻後選擇 存活方案進入 CAD 階段。
+> X5-P2 (Gate P) — 評估候選方案的五維品質，確認 Gate P 門檻後選擇存活方案進入 CAD 階段。
+
+---
+
+## [CHANGELOG]
+
+| 版本 | 日期 | 變更摘要 |
+|:-----|:-----|:---------|
+| v3.0 | 2026-04-27 | D/X/V 編號化：Phase 2 收尾 → X5-P2 (Gate P)；route 確認為 `/projects/:id/pre-cad`；SpatialTraceHover 已實作（移除「實作中」標記）；移除 AA/SCAMPER 殘留；選擇條件由 3-5 條更正為 >=1 條（對齊 code） |
+| v2.0 | 2026-04-20 | 初版 page spec |
 
 ---
 
@@ -8,7 +17,7 @@
 - **page_name**: PreCadReview
 - **route_path**: `/projects/:id/pre-cad`
 - **page_type**: evaluation + approval
-- **primary_goal**: 讓審查者針對每個候選方案完成五維審查（空間約束/解耦程度/可驗證性/主要風險/最小 CAD 工作量），並選擇 存活方案進入 CAD
+- **primary_goal**: 讓審查者針對每個候選方案完成五維審查（空間約束/解耦程度/可驗證性/主要風險/最小 CAD 工作量），並選擇存活方案進入 CAD
 - **secondary_goal**: 確認 Gate P 門檻（Fatal+Major 矛盾 100% 收斂），提供 AI 空間追蹤分析輔助決策
 - **target_users**: RD 工程師、專案主管、審查委員
 - **entry_point**: Create 頁面完成後導航，或 Dashboard 直接進入
@@ -44,7 +53,7 @@
   |:--------|:-----|:---------|:------------|
   | BackButton | `<Button variant="ghost" size="icon">` | required | ArrowLeft icon，onClick 導航至 `/projects/:id` |
   | Title | `<h1>` | required | "Pre-CAD 審查"，text-2xl font-bold tracking-tight，Noto Sans TC 字型 |
-  | Subtitle | `<p>` | required | "評估候選方案，確認 Gate P 門檻後選擇存活方案進入 CAD 階段"，text-sm text-muted-foreground |
+  | Subtitle | `<p>` | required | "評估候選方案，確認 Gate P 門檻後選擇 3-5 條進入 CAD 階段"，text-sm text-muted-foreground |
 - **states**: 無
 - **copy_constraints**: 標題使用繁體中文
 
@@ -58,7 +67,7 @@
   | ConvergenceSummaryCard | Card | required | Fatal/Major/Minor 已解決/總數，分色 Badge 顯示 |
   | ConstraintFeasibilityCard | Card | required | 約束可行性驗證列表（已驗證/存疑/不可行），可捲動 |
 - **states**:
-  - ConfidenceScore: 色碼 — ≥100% emerald，≥50% amber，<50% destructive
+  - ConfidenceScore: 色碼 — >=100% emerald，>=50% amber，<50% destructive
   - GateP: 達標（emerald border + ShieldCheck）/ 未達標（destructive border + ShieldAlert）
   - ConstraintFeasibility: 各約束狀態 Badge 色碼 — verified(emerald)/questionable(amber)/infeasible(red)
 - **copy_constraints**: 公式描述「converged(Fatal+Major) / total(Fatal+Major)」，門檻要求「Fatal+Major 矛盾 Confidence = 100%」
@@ -113,14 +122,14 @@
   | Description | `<p>` | required | 方案描述 |
   | DimensionAccordion | Accordion (type="multiple") | required | 5 個審查維度，預設全部展開 |
   | DimensionLabel | `<span>` | required | 維度標題 + rating icon（pass=Check/concern=AlertTriangle/fail=X） |
-  | SpatialTraceHover | hover-card | optional | 僅空間約束維度顯示，AI 空間追蹤結果（WBS 10.3） |
+  | SpatialTraceHover | `SpatialTraceHover` | optional | 僅空間約束維度顯示，AI 空間追蹤結果（WBS 10.3）；已實作，顯示 spatial_trace + spatial_score |
   | RatingRadioGroup | RadioGroup | required | 三選一：通過/有疑慮/不通過 |
   | SummaryTextarea | Textarea | optional | 評估摘要，maxLength=200 |
   | CompleteButton | Button | required | "完成審查"，需所有維度已評分 |
   | CloseButton | Button | required | "關閉" |
 - **states**:
   - loading: SpatialTraceHover 顯示「空間追蹤計算中...」
-  - done: SpatialTraceHover 顯示分析結果
+  - done: SpatialTraceHover 顯示分析結果（trace + score）
   - error: SpatialTraceHover 顯示「AI 分析失敗」
   - incomplete: 完成審查時 toast.error "請完成所有審查維度的評估"
   - complete: 標記方案為已審查，關閉 Dialog
@@ -133,17 +142,17 @@
 ### 主要互動流程
 1. 使用者進入頁面，載入候選方案、收斂統計、約束條件
 2. 查看四張概覽卡片了解整體狀態（Confidence Score、Gate P、收斂摘要、約束可行性）
-3. 瀏覽候選方案卡片列表，勾選 Checkbox 選擇方案（≥1 條）
+3. 瀏覽候選方案卡片列表，勾選 Checkbox 選擇方案
 4. 點擊「審查」按鈕 → 開啟 ReviewDialog → 同時觸發 `preCadAnalyze` AI 分析
 5. 在 Dialog 中逐一評估五個維度（空間約束/解耦/可驗證性/風險/最小 CAD），選擇 rating + 填寫摘要
 6. 空間約束維度自動顯示 SpatialTraceHover，提供 AI 空間追蹤得分
 7. 完成所有維度評分後點擊「完成審查」→ 方案標記為已審查
 8. 重複步驟 4-7 直到所有方案已審查
-9. 在結論區域填寫備註（選填），確認選擇 ≥1 條方案
+9. 在結論區域填寫備註（選填），確認選擇 3-5 條方案
 10. Gate P 達標 + 全部已審查 + 數量正確 → 點擊「批准審查」→ 導航至 Dashboard
 
 ### RWD 行為差異
-- **Desktop (≥1280px)**: 概覽卡片 4 欄，候選方案 3 欄
+- **Desktop (>=1280px)**: 概覽卡片 4 欄，候選方案 3 欄
 - **Tablet (768-1279px)**: 概覽卡片 2 欄，候選方案 2 欄
 - **Mobile (<768px)**: 概覽卡片 1 欄，候選方案 1 欄，ReviewDialog 全螢幕
 
@@ -170,7 +179,7 @@
 ## [ACCEPTANCE CRITERIA]
 - [ ] 頁面載入時顯示 Loader2 loading 狀態
 - [ ] Confidence Score 卡片正確計算並顯示百分比與 Progress bar
-- [ ] Confidence Score 色碼正確：≥100% emerald，≥50% amber，<50% destructive
+- [ ] Confidence Score 色碼正確：>=100% emerald，>=50% amber，<50% destructive
 - [ ] Gate P 門檻正確判斷：confidenceScore === 100 為達標
 - [ ] 收斂摘要正確顯示 Fatal/Major/Minor 解決數與總數
 - [ ] 約束可行性卡片正確顯示各約束狀態 Badge
@@ -181,7 +190,7 @@
 - [ ] 空間約束維度正確觸發 `preCadAnalyze` 並顯示 SpatialTraceHover
 - [ ] AI 分析狀態正確顯示：loading → done/error
 - [ ] 完成審查需所有維度已評分，否則 toast.error 提示
-- [ ] 批准條件：≥1 條方案 + 全部已審查 + Gate P 達標
+- [ ] 批准條件：3-5 條方案 + 全部已審查 + Gate P 達標
 - [ ] 不滿足條件時 ApproveButton disabled 並顯示對應提示
 - [ ] 批准成功後 toast.success 並導航至 `/projects/:id`
 - [ ] 審查結論備註支援 maxLength=500

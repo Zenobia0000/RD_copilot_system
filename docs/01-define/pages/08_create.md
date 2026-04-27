@@ -88,7 +88,7 @@
 - **primary_goal**: 引導使用者透過 TRIZ 三路徑（含 L1 跨域去錨定）產生候選方案，經決策中心橫向比較後以 MUST 快篩淘汰不可行方案
 - **secondary_goal**: 支援 TRIZ 分層診斷、子系統分解、跨方案收斂分析，為 Pre-CAD 審查做準備
 - **target_users**: RD 工程師、系統架構師
-- **entry_point**: Track 頁面 Gate 2.1 通過後導航，或 Dashboard 直接進入
+- **entry_point**: Track 頁面 Gate X1 通過後導航，或 Dashboard 直接進入
 - **expected_time_on_page**: 30 ~ 120 分鐘（多次進出）
 
 ---
@@ -313,7 +313,7 @@
 4. Step 3（X4）: 決策中心攤平所有方案 → Evidence Coverage Gauge 顯示覆蓋率 → 每張方案卡顯示 CCI Badge → 橫向比較 → 收斂分析 → 人工確認
 5. Step 4（X5-P1）: MUST 快篩淘汰不可行方案
 6. Step 5（X5-P2）: Pre-CAD 五維審查 → 雷達圖比較
-7. 所有步驟完成後 → Gate 2.2 通過 → 導航至 Pre-CAD Review 頁面
+7. 所有步驟完成後 → Gate X2 通過 → 導航至 Pre-CAD Review 頁面
 
 ### RWD 行為差異
 - **Desktop (≥1024px)**: Stepper 水平顯示所有步驟，方案網格 3 欄，雷達圖完整展示

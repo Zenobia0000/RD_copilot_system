@@ -1,6 +1,15 @@
 # Page-Level Prompt: Track 追蹤 / 假設驗證
 
-> Phase 2 Step 2.1 — 透過 Kanban 看板追蹤假設驗證進度，並以「未知集合 U」管理尚未歸類的不確定因素。
+> X1 — 透過 Kanban 看板追蹤假設驗證進度，並以「未知集合 U」管理尚未歸類的不確定因素。
+
+---
+
+## [CHANGELOG]
+
+| 版本 | 日期 | 變更摘要 |
+|:-----|:-----|:---------|
+| v3.0 | 2026-04-27 | D/X/V 編號化：Step 2.1 → X1；Gate 2.1 → Gate X1；移除 AA/SCAMPER 殘留 |
+| v2.0 | 2026-04-20 | 初版 page spec |
 
 ---
 
@@ -8,7 +17,7 @@
 - **page_name**: Track
 - **route_path**: `/projects/:id/track`
 - **page_type**: workflow
-- **primary_goal**: 讓使用者透過拖曳式 Kanban 管理設計假設的驗證狀態（未驗證 → 驗證中 → 已驗證 / 已推翻），通過 Gate 2.1 後進入方案創造
+- **primary_goal**: 讓使用者透過拖曳式 Kanban 管理設計假設的驗證狀態（未驗證 → 驗證中 → 已驗證 / 已推翻），通過 Gate X1 後進入方案創造
 - **secondary_goal**: 收集「未知集合 U」中尚未歸類的不確定因素，支援一鍵轉換為假設進行追蹤
 - **target_users**: RD 工程師、專案負責人
 - **entry_point**: Dashboard 專案卡片進入，或由前一步驟（Explore）自動導航
@@ -37,7 +46,7 @@
    - section_purpose: 顯示與當前頁面相關的知識參考連結（WBS 3.4.2）
 7. **TrackGate**
    - section_type: gate-check
-   - section_purpose: Gate 2.1 檢查項目，通過後可導航至 Create 頁面
+   - section_purpose: Gate X1 檢查項目，通過後可導航至 Create 頁面
 
 ---
 
@@ -52,9 +61,9 @@
   | SaveStatus | `<span>` | optional | 僅非 idle 時顯示。saving: "Saving..."；saved: Check icon + "Saved"（2 秒後回 idle） |
   | AccentBar | `<div>` | required | h-8 w-1 rounded-full bg-amber-500，視覺標記 |
   | Title | `<h1>` | required | "Track — 假設追蹤"，text-2xl font-bold tracking-tight，附 HelpTooltip |
-  | Subtitle | `<p>` | required | "Step 2.1 · 假設 Kanban + 未知集合 U"，text-sm text-muted-foreground |
+  | Subtitle | `<p>` | required | "X1 · 假設 Kanban + 未知集合 U"，text-sm text-muted-foreground |
 - **states**: saveStatus 三態切換 idle/saving/saved
-- **copy_constraints**: HelpTooltip 說明文字需涵蓋「高風險假設需有實驗計畫」及 Gate 2.1 通過條件
+- **copy_constraints**: HelpTooltip 說明文字需涵蓋「高風險假設需有實驗計畫」及 Gate X1 通過條件
 
 ### Section: SectionIntro
 - **layout**: SectionIntro 元件，單行說明文字
@@ -138,10 +147,10 @@
 4. 建立新未知因素 → 呼叫 `useCreateUnknownFactor` mutation
 5. 編輯因素狀態/備註 → 呼叫 `useUpdateUnknownFactor` mutation
 6. 一鍵轉換因素為假設 → 呼叫 `useConvertUnknownToAssumption` mutation → 因素從清單移除，假設出現在 Kanban
-7. Gate 2.1 條件滿足後，點擊下一步 → 導航至 Create 頁面
+7. Gate X1 條件滿足後，點擊下一步 → 導航至 Create 頁面
 
 ### RWD 行為差異
-- **Desktop (≥1024px)**: Kanban 四欄水平排列，Badge 全數顯示
+- **Desktop (>=1024px)**: Kanban 四欄水平排列，Badge 全數顯示
 - **Tablet (768-1023px)**: Kanban 可能需要水平滾動
 - **Mobile (<768px)**: Tab 標籤文字縮小（text-xs），Badge 隱藏（hidden sm:inline-flex），Kanban 欄位堆疊或水平滾動
 
@@ -174,7 +183,7 @@
 - [ ] Tab 切換正確更新 URL hash（#kanban / #unknown）
 - [ ] 可建立、編輯未知因素
 - [ ] 可將未知因素一鍵轉換為假設
-- [ ] Gate 2.1 條件正確計算：至少 1 個假設處於「驗證中」或以上
+- [ ] Gate X1 條件正確計算：至少 1 個假設處於「驗證中」或以上
 - [ ] Gate 未通過時下一步按鈕 disabled
 - [ ] Gate 通過後可正確導航至 `/projects/:id/create`
 - [ ] 儲存狀態指示器正確顯示 saving/saved 狀態

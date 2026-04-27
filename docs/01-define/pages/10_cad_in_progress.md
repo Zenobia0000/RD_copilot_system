@@ -1,6 +1,15 @@
 # Page-Level Prompt: CadInProgress CAD 進行中
 
-> 通過 Pre-CAD 審查的方案在此階段由 RD 進行 CAD 建模，追蹤完成狀態後進入設計審查。
+> Phase 2.5 — 通過 Pre-CAD 審查的方案在此階段由 RD 進行 CAD 建模，追蹤完成狀態後進入設計審查。
+
+---
+
+## [CHANGELOG]
+
+| 版本 | 日期 | 變更摘要 |
+|:-----|:-----|:---------|
+| v3.0 | 2026-04-27 | Phase 2.5 保留（不屬於 D/X/V 範圍）；subtitle 對齊 code；route 確認為 `/projects/:id/cad`；移除 AA/SCAMPER 殘留 |
+| v2.0 | 2026-04-20 | 初版 page spec |
 
 ---
 
@@ -60,7 +69,7 @@
 - **layout**: 單列，標題 + 副標題上下排列
 - **elements**:
   - title: H1 / required / "CAD 繪製階段"，font: 24px/700，附帶 HelpTooltip（內容："通過 Pre-CAD 審查的方案在此階段由 RD 進行 CAD 建模。完成後進入設計審查。"）
-  - phase_label: Body SM / required / "Phase 2.5 . Pre-CAD -> CAD -> Design Review"，灰色次要文字
+  - phase_label: Body SM / required / "Phase 2.5 · Pre-CAD → CAD → Design Review"，灰色次要文字
 - **states**:
   - default: 標題 + 副標題正常顯示
 - **copy_constraints**: 標題固定；副標題最多 50 字

@@ -14,7 +14,7 @@
 - **target_users**:
   - 主要：設計工程師（問題分析與矛盾識別）
   - 次要：團隊成員（審閱矛盾分類與因果圖）
-- **entry_point**: 從 TaskDefinition 頁 Gate 1.1 通過後自動導航 / ProjectDashboard NavCard 點擊 "Explore" / URL 直接存取
+- **entry_point**: 從 TaskDefinition 頁 Gate D1 通過後自動導航 / ProjectDashboard NavCard 點擊 "Explore" / URL 直接存取
 - **expected_time_on_page**: Level A: 30 - 90 分鐘（首次完整引導流）；Level B: 20 - 60 分鐘（原有 3-tab 流程）；追加修訂 5 - 15 分鐘
 
 ---
@@ -60,7 +60,7 @@
 
 3. **gate_section**
    - section_type: gate_check
-   - section_purpose: ExploreGates 元件包含 Gate 1.2 與 Phase Gate 1 兩組退出條件
+   - section_purpose: ExploreGates 元件包含 Gate D2 與 Phase Gate D 兩組退出條件
 
 ### Level A 專屬 Sections（5-step stepper）
 
@@ -123,7 +123,7 @@
   - level_switcher: Button(outline) / required / 顯示當前 Level（如 "Level B · 快速模式"），點擊可切換至 Level A 或 Level B
   - phase_bar: Div / required / `h-8 w-1 rounded-full bg-blue-500` 相位色條
   - title: H1 / required / "Explore — 問題探索" + HelpTooltip
-  - subtitle: P / required / Level A: "Step 0–1.3 · 問題定向 → 功能建模 → 問答 → 矛盾 → 因果圖"；Level B: "Step 1.2–1.3 · 蘇格拉底問答 → 矛盾識別 → 因果迴路圖"
+  - subtitle: P / required / Level A: "D1–D4 · 問題定向 → 功能建模 → 問答 → 矛盾 → 因果圖"；Level B: "D2–D3 · 蘇格拉底問答 → 矛盾識別 → 因果迴路圖"
 - **states**:
   - loading: 整頁替換為 Skeleton（標題 + stepper/tabs 骨架 + 3 組 h-32 內容骨架）
   - default: 完整 header 渲染
@@ -135,17 +135,17 @@
 - **elements**:
   | Element | Type | Required | Description |
   |:--------|:-----|:---------|:------------|
-  | step_0 | step | required | "問題定向" (5Why + KT)，圖標 `<Search>` |
-  | step_1 | step | required | "功能建模" (FA)，圖標 `<GitFork>` |
-  | step_2 | step | required | "問答探索" (Socratic)，圖標 `<MessageSquare>` |
-  | step_3 | step | required | "矛盾識別" (Contradictions)，圖標 `<AlertTriangle>` |
-  | step_4 | step | required | "因果迴路" (CLD)，圖標 `<Workflow>` |
+  | step_0 (D1) | step | required | "問題定向" (5Why + KT)，圖標 `<Search>` |
+  | step_1 (D2 前置) | step | required | "功能建模" (FA)，圖標 `<GitFork>` |
+  | step_2 (D2) | step | required | "問答探索" (Socratic)，圖標 `<MessageSquare>` |
+  | step_3 (D3) | step | required | "矛盾識別" (Contradictions)，圖標 `<AlertTriangle>` |
+  | step_4 (D4) | step | required | "因果迴路" (CLD)，圖標 `<Workflow>` |
 - **states**:
   - pending: 灰色圓圈 + 灰色文字
   - current: 藍色圓圈（pulse 動畫）+ 黑色粗體文字
   - completed: 綠色勾選圓圈 + 灰色文字
   - skipped: 虛線圓圈 + "已跳過" 標記
-- **skip 機制**: 每步底部提供「跳過此步驟」連結。跳過 FA（Step 1）時顯示確認提示：「跳過功能建模可能導致矛盾定義在錯誤粒度，建議完成。確定跳過？」
+- **skip 機制**: 每步底部提供「跳過此步驟」連結。跳過 FA（D2 前置）時顯示確認提示：「跳過功能建模可能導致矛盾定義在錯誤粒度，建議完成。確定跳過？」
 - **copy_constraints**: 步驟名稱使用繁體中文
 
 ### Section: step_0_problem_scoping（Level A only）
@@ -218,13 +218,13 @@
 - **layout**: ContradictionTab 元件，Level A 在 step_3 渲染，Level B 在 TabsContent value="contradictions" 渲染，mt-5 間距
 - **elements**:
   - contradiction_tab: ContradictionTab / required / 傳入 contradictions、onUpdateContradictions、hasAnswers、projectId、mission、constraints、kpis、socraticAnswers
-- **Level A 增強**：若 FA（Step 1）已完成，ContradictionTab 頂部顯示 FA 摘要橫幅：「系統邊界：[boundary]，建議聚焦子系統：[subsystem]。FA 已識別 N 個有害/不足交互。」
+- **Level A 增強**：若 FA（D2 前置）已完成，ContradictionTab 頂部顯示 FA 摘要橫幅：「系統邊界：[boundary]，建議聚焦子系統：[subsystem]。FA 已識別 N 個有害/不足交互。」
 - **states**:
   - default: 矛盾列表，每項顯示類型 Badge（TC / PC / SF）、嚴重度、描述
   - empty: 無矛盾時提示使用者從問答中標記
   - formalizing: AI 自動 formalize 中（improving_param, worsening_param, engineering_statement, SF 模型等）
   - formalize_failed: 顯示 toast 警告 "AI 暫時無法自動分類此矛盾，請至矛盾識別手動指定類型"
-  - fa_hint: Level A 且 FA 未完成時顯示建議提示：「建議先完成功能建模（Step 2），確保矛盾定義在正確粒度」
+  - fa_hint: Level A 且 FA 未完成時顯示建議提示：「建議先完成功能建模（D2 前置），確保矛盾定義在正確粒度」
 - **copy_constraints**: 矛盾工程描述由 AI formalize 產生
 
 ### Section: cld_tab（共用）
@@ -266,15 +266,15 @@
 
 - **layout**: ExploreGates 元件，包含兩組 Gate 檢查
 - **elements**:
-  - explore_gates: ExploreGates / required / 傳入 gate12Items、phaseGate1Items、onNavigateNext、entryLevel
-- **Gate 1.2 條件（共用）**:
+  - explore_gates: ExploreGates / required / 傳入 gateD2Items、phaseGateDItems、onNavigateNext、entryLevel
+- **Gate D2 條件（共用）**:
   - 累計 >= 10 個回答（含 >= 10 假設已辨識）
   - 矛盾已處理（>= 1 個已確認，或確認無矛盾）
   - 7 類問題皆有回答
-- **Gate 1.2 條件（Level A 額外）**:
+- **Gate D2 條件（Level A 額外）**:
   - 5 Why chain 至少 3 層已填寫（或已跳過）
   - FA 至少 1 個 SF 三角已識別（或已跳過）
-- **Phase Gate 1 條件**:
+- **Phase Gate D 條件**:
   - 至少 1 個因果迴路圖已建立
   - 至少 3 個斷路點已標記
   - 所有矛盾已分類為 TC / PC / SF（或無矛盾）
@@ -296,12 +296,12 @@
 
 ### Level A 互動流程
 
-1. **頁面載入** → 平行載入所有資料源 → Loading skeleton → 渲染 5-step stepper，預設在 Step 0
-2. **Step 0 (Problem Scoping)** → 點擊 AI 生成 5Why → 編輯/確認 → 點擊 AI 生成 KT → 編輯/確認 → 根因摘要自動產出 → 「下一步」或「跳過」
-3. **Step 1 (FA)** → 點擊 AI 生成 FA → 組件交互圖 + SF 診斷 → 編輯/確認 → 「下一步」或「跳過」（含警告）
-4. **Step 2 (Socratic)** → 同 Level B 的蘇格拉底問答流程
-5. **Step 3 (Contradictions)** → 同 Level B 的矛盾識別流程（增強：顯示 FA 摘要橫幅）
-6. **Step 4 (CLD)** → 同 Level B 的因果迴路圖流程
+1. **頁面載入** → 平行載入所有資料源 → Loading skeleton → 渲染 5-step stepper，預設在 D1
+2. **D1 (Problem Scoping)** → 點擊 AI 生成 5Why → 編輯/確認 → 點擊 AI 生成 KT → 編輯/確認 → 根因摘要自動產出 → 「下一步」或「跳過」
+3. **D2 前置 (FA)** → 點擊 AI 生成 FA → 組件交互圖 + SF 診斷 → 編輯/確認 → 「下一步」或「跳過」（含警告）
+4. **D2 (Socratic)** → 同 Level B 的蘇格拉底問答流程
+5. **D3 (Contradictions)** → 同 Level B 的矛盾識別流程（增強：顯示 FA 摘要橫幅）
+6. **D4 (CLD)** → 同 Level B 的因果迴路圖流程
 7. **Gate 通過** → 導航至 `/projects/:id/track`
 
 ### Level B 互動流程（v1.0 原有，不變）
@@ -318,7 +318,7 @@
    - 取消矛盾標記 → 從 contradictions 表刪除
 4. **矛盾識別**: ContradictionTab 內部處理 mutation，query 自動 refresh
 5. **因果迴路圖**: CldTab 內部處理節點 / 邊 mutation，query 自動 refresh
-6. **FA 側面板**（選填）：點擊 ToggleButton 展開 → 操作同 Level A Step 1 → 不影響 Gate
+6. **FA 側面板**（選填）：點擊 ToggleButton 展開 → 操作同 Level A D2 前置 → 不影響 Gate
 7. **Gate 通過** → 點擊導航按鈕 → 導航至 `/projects/:id/track`
 
 ### RWD 行為差異
@@ -333,13 +333,13 @@
 
 - **uses_api**: true
 - **endpoints**:
-  - **Entry Grading（新增）**:
-    - `useEntryGrading(projectId)` → 觸發 `POST /analyst/entry-grading`，回傳 `{ level: 'A' | 'B' | 'C', reasoning: string }`
-  - **Problem Scoping（新增，Level A）**:
-    - `useFiveWhy(projectId)` → 觸發 `POST /analyst/five-why`，回傳 5Why chain 結構
-    - `useKtAnalysis(projectId)` → 觸發 `POST /analyst/kt-analysis`，回傳 KT Is/Is Not 矩陣
-  - **Function Analysis（新增，Level A + Level B 側面板）**:
-    - `useFunctionAnalysis(projectId)` → 觸發 `POST /analyst/function-analysis`，回傳組件交互圖 + SF 診斷
+  - **Entry Grading（v2.0 設計中）**:
+    - `useEntryGrading(projectId)` → 觸發 `POST /analyst/entry-grading`，回傳 `{ level: 'A' | 'B' | 'C', reasoning: string }` (v2.0 設計中)
+  - **Problem Scoping（v2.0 設計中，Level A）**:
+    - `useFiveWhy(projectId)` → 觸發 `POST /analyst/five-why`，回傳 5Why chain 結構 (v2.0 設計中)
+    - `useKtAnalysis(projectId)` → 觸發 `POST /analyst/kt-analysis`，回傳 KT Is/Is Not 矩陣 (v2.0 設計中)
+  - **Function Analysis（v2.0 設計中，Level A + Level B 側面板）**:
+    - `useFunctionAnalysis(projectId)` → 觸發 `POST /analyst/function-analysis`，回傳組件交互圖 + SF 診斷 (v2.0 設計中)
   - **Socratic（既有）**:
     - `useSocraticQuestions(id)` → 蘇格拉底問題列表（category, text, answer, taggedAsAssumption, taggedAsContradiction, aiSuggestedTag）
     - `useUpdateSocraticQuestion()` → 更新單一問題
@@ -376,10 +376,10 @@
   - `socraticQaStrings` — 已回答問答格式化字串（傳入 AI formalize）
   - `isBriefStale: boolean` — Brief 更新時間是否晚於最新問題建立時間
   - `causalLoop: CausalLoop | null` — 從 cldNodes + cldEdges 組合而成
-  - `gate12Items: GateCheckItem[]` — Gate 1.2 條件計算結果（依 Level 調整）
-  - `phaseGate1Items: GateCheckItem[]` — Phase Gate 1 條件計算結果
-  - `fiveWhyCompleted: boolean` — Level A Step 0 完成判定
-  - `faCompleted: boolean` — Level A Step 1 完成判定
+  - `gateD2Items: GateCheckItem[]` — Gate D2 條件計算結果（依 Level 調整）
+  - `phaseGateDItems: GateCheckItem[]` — Phase Gate D 條件計算結果
+  - `fiveWhyCompleted: boolean` — Level A D1 完成判定
+  - `faCompleted: boolean` — Level A D2 前置完成判定
   - `stepStatuses: StepStatus[]` — Level A 各步驟狀態（pending / current / completed / skipped）
 - **error_cases**:
   - Entry Grading API 失敗 → 預設為 Level B（最安全 fallback），顯示 toast 提示
@@ -407,13 +407,13 @@
 ### Level A Stepper（新增）
 
 - [ ] stepper 正確顯示 5 步驟，各步驟有完成/當前/待完成/已跳過狀態
-- [ ] Step 0: 5Why AI 生成正確回傳並渲染 chain 卡片
-- [ ] Step 0: KT AI 生成正確回傳並渲染 4×2 矩陣
-- [ ] Step 0: 根因摘要在 5Why + KT 完成後自動產出
-- [ ] Step 1: FA AI 生成正確回傳組件交互圖（節點 + 邊）
-- [ ] Step 1: SF 診斷面板正確標記 S1-Field-S2 狀態
+- [ ] D1: 5Why AI 生成正確回傳並渲染 chain 卡片
+- [ ] D1: KT AI 生成正確回傳並渲染 4×2 矩陣
+- [ ] D1: 根因摘要在 5Why + KT 完成後自動產出
+- [ ] D2 前置: FA AI 生成正確回傳組件交互圖（節點 + 邊）
+- [ ] D2 前置: SF 診斷面板正確標記 S1-Field-S2 狀態
 - [ ] 跳過 FA 時顯示確認提示
-- [ ] Gate 1.2 對 Level A 額外檢查 5Why + FA 條件（已跳過視為通過）
+- [ ] Gate D2 對 Level A 額外檢查 5Why + FA 條件（已跳過視為通過）
 
 ### Level B 原有功能（不變）
 
@@ -436,9 +436,9 @@
 
 ### Gate 條件
 
-- [ ] Gate 1.2 共用條件：>= 10 回答、矛盾已處理、7 類皆有回答
-- [ ] Gate 1.2 Level A 額外條件：5Why >= 3 層 + FA >= 1 SF 三角（已跳過視為通過）
-- [ ] Phase Gate 1 條件：>= 1 CLD、>= 3 斷路點、所有矛盾已分類
+- [ ] Gate D2 共用條件：>= 10 回答、矛盾已處理、7 類皆有回答
+- [ ] Gate D2 Level A 額外條件：5Why >= 3 層 + FA >= 1 SF 三角（已跳過視為通過）
+- [ ] Phase Gate D 條件：>= 1 CLD、>= 3 斷路點、所有矛盾已分類
 - [ ] 零矛盾專案可合法通過 Gate（矛盾相關條件視為通過）
 - [ ] 所有 Gate 通過後可導航至 `/projects/:id/track`
 
@@ -446,3 +446,13 @@
 
 - [ ] Level A stepper：Desktop 水平 / Tablet 簡化 / Mobile 垂直或下拉
 - [ ] Level B tabs：Mobile 下 Tab Badge 隱藏、Tab 文字縮小
+
+---
+
+## CHANGELOG
+
+| 版本 | 日期 | 摘要 |
+|:-----|:-----|:-----|
+| v1.0 | 2026-04-15 | 初版，Level B 3-tab 佈局 |
+| v2.0 | 2026-04-20 | ADR-008 Entry Grading + Level A/B/C Conditional Stepper |
+| v3.0 | 2026-04-27 | D/X/V 編號對齊（Step 0 -> D1, Step 1 -> D2 前置, Step 2 -> D2, Step 3 -> D3, Step 4 -> D4）；subtitle 對齊 code "D2-D3"；v2.0 設計中 hooks 標記 |

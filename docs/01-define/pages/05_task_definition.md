@@ -1,6 +1,6 @@
 # Page-Level Prompt: TaskDefinition 任務定義 / Brief
 
-> Phase 1 Define 的起點頁，結構化定義 Mission、硬約束、軟目標、非目標與 KPI，支援 AI 自動提取與建議，通過 Gate 1.1 可行性驗證後進入探索階段。
+> Phase 1 Define 的起點頁，結構化定義 Mission、硬約束、軟目標、非目標與 KPI，支援 AI 自動提取與建議，通過 Gate D1 可行性驗證後進入探索階段。
 
 ---
 
@@ -9,11 +9,11 @@
 - **page_name**: TaskDefinition
 - **route_path**: `/projects/:id/brief`
 - **page_type**: form
-- **primary_goal**: 引導設計工程師完成結構化任務定義——上傳素材讓 AI 提取約束，定義 Mission Statement、硬約束、軟目標、非目標與 KPI，並通過約束可行性驗證 (Gate 1.1)
+- **primary_goal**: 引導設計工程師完成結構化任務定義——上傳素材讓 AI 提取約束，定義 Mission Statement、硬約束、軟目標、非目標與 KPI，並通過約束可行性驗證 (Gate D1)
 - **secondary_goal**: 透過 AI 改寫建議、約束建議與 KPI 建議降低人工填寫負擔，同時以 5W1H 自動產生任務摘要供團隊對齊
 - **target_users**:
   - 主要：設計工程師（專案初始化時填寫）
-  - 次要：專案主管（審閱 Gate 1.1 通過狀態）
+  - 次要：專案主管（審閱 Gate D1 通過狀態）
 - **entry_point**: 從 ProjectDashboard NavCard 點擊 "Brief" / Quick Stats 空狀態 CTA / URL 直接存取
 - **expected_time_on_page**: 10 - 30 分鐘（首次完整填寫）；2 - 5 分鐘（後續修訂）
 
@@ -67,11 +67,11 @@
 
 12. **feasibility_validation**
     - section_type: validation
-    - section_purpose: 約束可行性驗證（Gate 1），檢查約束間衝突並可覆寫
+    - section_purpose: 約束可行性驗證（Gate D1），檢查約束間衝突並可覆寫
 
 13. **gate_checklist**
     - section_type: gate_check
-    - section_purpose: Gate 1.1 Checklist 作為唯一出口，所有條件通過才可提交進入下一階段
+    - section_purpose: Gate D1 Checklist 作為唯一出口，所有條件通過才可提交進入下一階段
 
 ---
 
@@ -87,12 +87,12 @@
   - save_indicator: Span / conditional / saveStatus 為 saving 時顯示 "Saving..."；saved 時顯示 `<Check>` + "Saved"
   - phase_bar: Div / required / `h-8 w-1 rounded-full bg-phase-1` 相位色條
   - title: H1 / required / "任務定義" + HelpTooltip
-  - subtitle: P / required / "Step 1.1 · 結構化定義 Mission、約束與 KPI，支援 AI 自動提取"
+  - subtitle: P / required / "D1 · 結構化定義 Mission、約束與 KPI，支援 AI 自動提取"
 - **states**:
   - loading: 整頁替換為 Skeleton（標題 + 4 組輸入區骨架）
   - load_error: AlertCircle + "載入失敗" + 重試按鈕
   - backend_checking: RefreshCw 圖標旋轉動畫
-- **copy_constraints**: 標題固定 "任務定義"；步驟編號 "Step 1.1"
+- **copy_constraints**: 標題固定 "任務定義"；步驟編號 "D1"
 
 ### Section: file_upload
 
@@ -220,7 +220,7 @@
 
 - **layout**: GateChecklist 元件，作為頁面唯一出口
 - **elements**:
-  - checklist: GateChecklist / required / 傳入 items（Gate 1.1 條件列表）、onNavigateNext、isSubmitting
+  - checklist: GateChecklist / required / 傳入 items（Gate D1 條件列表）、onNavigateNext、isSubmitting
 - **states**:
   - incomplete: 部分條件未通過，提交按鈕 disabled
   - complete: 所有條件通過，提交按鈕可點擊
@@ -240,7 +240,7 @@
 5. **KPI 編輯** → 手動在列表新增 / 編輯 / 刪除 → 或觸發 "建議 KPI" → AI 產生建議卡片 → 逐張採用或跳過
 6. **5W1H 產生** → Mission 就緒後可觸發 → AI 自動產生 5W1H 摘要
 7. **可行性驗證** → 點擊檢查 → AI 分析約束間衝突 → 通過或列出衝突（可 override）
-8. **Gate 1.1 提交** → 所有 Gate 條件通過 → 點擊提交 → 導航至 Explore 頁面
+8. **Gate D1 提交** → 所有 Gate 條件通過 → 點擊提交 → 導航至 Explore 頁面
 9. **自動儲存** → 表單變更時自動 debounce 儲存至後端
 
 ### RWD 行為差異
@@ -286,7 +286,7 @@
   - `backendStatus: 'ok' | 'down' | 'checking'` — 後端狀態
   - `saveStatus: 'idle' | 'saving' | 'saved'` — 儲存狀態
   - `isSubmitting: boolean` — 提交中狀態
-  - `gateItems: GateCheckItem[]` — Gate 1.1 條件列表
+  - `gateItems: GateCheckItem[]` — Gate D1 條件列表
 - **error_cases**:
   - 頁面載入失敗 → AlertCircle + "載入失敗" + 重試按鈕
   - 後端不可用 → 頂部紅色警告橫幅 + 重新檢查按鈕；AI 功能無法使用
@@ -316,6 +316,6 @@
 - [ ] 5W1H 卡片在 Mission 就緒後可觸發產生
 - [ ] 約束可行性驗證正確執行並顯示衝突或通過狀態
 - [ ] 約束變更後可行性狀態標記為 stale
-- [ ] Gate 1.1 Checklist 所有條件通過才可提交
+- [ ] Gate D1 Checklist 所有條件通過才可提交
 - [ ] 提交成功後導航至下一頁面
 - [ ] 表單變更自動儲存，儲存狀態指示器正確切換 Saving / Saved

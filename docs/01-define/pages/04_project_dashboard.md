@@ -1,3 +1,26 @@
+---
+id: P04
+file_id: "04"
+page_name: ProjectDashboard
+route_path: /projects/:id
+page_type: dashboard
+phase: null
+ia_group: portfolio
+gate: overview
+protected: true
+dev_only: false
+source_component: src/pages/ProjectDashboard.tsx
+spec_version: 1.0
+ia_version: 1.2
+status: stable
+last_updated: 2026-04-24
+api_resources: [projects, brief, kpis, contradictions, gates]
+modules: []
+depends_on: [P03]
+absorbed_specs: []
+optional_sections: []
+---
+
 # Page-Level Prompt: ProjectDashboard 專案儀表板
 
 > 進入專案後的主控台，以 Gate Donut、Phase Progress、KPI 卡片與矛盾收斂為核心，一覽專案全貌並快速導航至各功能模組。
@@ -6,9 +29,6 @@
 
 ## [PAGE META]
 
-- **page_name**: ProjectDashboard
-- **route_path**: `/projects/:id`
-- **page_type**: dashboard
 - **primary_goal**: 以結構化儀表板呈現單一專案的整體進度、Gate 通過率、KPI 現況、矛盾收斂狀態與 Pre-CAD 信心分數，讓設計工程師在 30 秒內掌握專案健康度
 - **secondary_goal**: 透過 6+1 NavCards 提供功能模組入口，以專案歷程時間軸追蹤關鍵里程碑，並支援 Evidence 快速登錄
 - **target_users**:

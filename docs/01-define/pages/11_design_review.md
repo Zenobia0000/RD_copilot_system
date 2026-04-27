@@ -1,3 +1,26 @@
+---
+id: P11
+file_id: "11"
+page_name: DesignReview
+route_path: /projects/:id/review
+page_type: review
+phase: 3
+ia_group: phase3-converge
+gate: V1
+protected: true
+dev_only: false
+source_component: src/pages/DesignReview.tsx
+spec_version: 3.0
+ia_version: 1.2
+status: stable
+last_updated: 2026-04-27
+api_resources: [alternatives, evidence, risks, experiments, attachments]
+modules: [analyst]
+depends_on: [P10]
+absorbed_specs: []
+optional_sections: [wireframe, design_principles, changelog]
+---
+
 # Page-Level Prompt: DesignReview 設計審查
 
 > Phase 3 Converge — CAD 完成後的設計審查。證據矩陣連結自 Track 假設追蹤，風險從高風險假設衍生，最小實驗驗證關鍵假設，附件上傳佐證文件。
@@ -70,9 +93,6 @@
 
 ## [PAGE META]
 
-- **page_name**: DesignReview
-- **route_path**: `/projects/:id/review`
-- **page_type**: review
 - **primary_goal**: CAD 完成後審查設計方案的證據完整性、風險可控性，透過 AI 黑帽質疑發現盲點
 - **secondary_goal**: 規劃最小實驗補足證據缺口，為設計決策提供充分依據
 - **target_users**: RD 工程師、系統架構師

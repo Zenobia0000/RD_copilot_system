@@ -1,3 +1,26 @@
+---
+id: P02
+file_id: "02"
+page_name: ResetPassword
+route_path: /reset-password
+page_type: auth
+phase: null
+ia_group: public
+gate: null
+protected: false
+dev_only: false
+source_component: src/pages/ResetPassword.tsx
+spec_version: 1.0
+ia_version: 1.2
+status: stable
+last_updated: 2026-04-24
+api_resources: []
+modules: []
+depends_on: [P01]
+absorbed_specs: []
+optional_sections: []
+---
+
 # Page-Level Prompt: ResetPassword 重設密碼
 
 > 接收 Email 中的密碼重設連結，讓使用者輸入新密碼完成重設後自動導向首頁。
@@ -5,9 +28,6 @@
 ---
 
 ## [PAGE META]
-- **page_name**: ResetPassword
-- **route_path**: `/reset-password`
-- **page_type**: auth
 - **primary_goal**: 讓使用者透過重設連結安全地更新密碼
 - **secondary_goal**: 對無效連結提供明確的錯誤提示與返回登入導航
 - **target_users**: 已發起忘記密碼流程的使用者

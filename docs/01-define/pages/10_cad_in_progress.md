@@ -1,3 +1,26 @@
+---
+id: P10
+file_id: "10"
+page_name: CadInProgress
+route_path: /projects/:id/cad
+page_type: progress
+phase: 2.5
+ia_group: phase3-converge
+gate: null
+protected: true
+dev_only: false
+source_component: src/pages/CadInProgress.tsx
+spec_version: 3.0
+ia_version: 1.2
+status: stable
+last_updated: 2026-04-27
+api_resources: [alternatives, cad_status]
+modules: []
+depends_on: [P09]
+absorbed_specs: []
+optional_sections: [changelog]
+---
+
 # Page-Level Prompt: CadInProgress CAD 進行中
 
 > Phase 2.5 — 通過 Pre-CAD 審查的方案在此階段由 RD 進行 CAD 建模，追蹤完成狀態後進入設計審查。
@@ -15,9 +38,6 @@
 
 ## [PAGE META]
 
-- **page_name**: CadInProgress
-- **route_path**: `/projects/:id/cad`
-- **page_type**: tracker
 - **primary_goal**: 讓 RD 工程師追蹤已通過 Pre-CAD 審查方案的 CAD 繪製進度，逐一更新狀態（未開始 / 繪製中 / 已完成），至少 1 方案完成後即可進入設計審查
 - **secondary_goal**: 以進度條即時呈現整體 CAD 完成比例，提供明確的階段銜接入口
 - **target_users**:

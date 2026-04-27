@@ -1,3 +1,26 @@
+---
+id: P18
+file_id: "18"
+page_name: NotFound
+route_path: "*"
+page_type: error
+phase: null
+ia_group: system
+gate: null
+protected: false
+dev_only: false
+source_component: src/pages/NotFound.tsx
+spec_version: 1.0
+ia_version: 1.2
+status: stable
+last_updated: 2026-04-24
+api_resources: []
+modules: []
+depends_on: []
+absorbed_specs: []
+optional_sections: []
+---
+
 # Page-Level Prompt: NotFound 404 頁面未找到
 
 > 當使用者訪問不存在的路由時顯示的 404 錯誤頁面，提供返回首頁的連結。
@@ -5,9 +28,6 @@
 ---
 
 ## [PAGE META]
-- **page_name**: NotFound
-- **route_path**: `*` (catch-all)
-- **page_type**: error
 - **primary_goal**: 告知使用者該頁面不存在，引導返回首頁
 - **secondary_goal**: 記錄無效路由訪問至 console 以供除錯
 - **target_users**: 所有使用者（誤訪無效路徑時）

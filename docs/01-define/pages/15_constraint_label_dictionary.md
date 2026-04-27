@@ -1,3 +1,26 @@
+---
+id: P15
+file_id: "15"
+page_name: ConstraintLabelDictionary
+route_path: /projects/:id/constraint-labels
+page_type: utility
+phase: null
+ia_group: knowledge
+gate: null
+protected: true
+dev_only: false
+source_component: src/pages/ConstraintLabelDictionary.tsx
+spec_version: 1.0
+ia_version: 1.2
+status: stable
+last_updated: 2026-04-24
+api_resources: [constraint_labels, classifier]
+modules: []
+depends_on: [P04]
+absorbed_specs: []
+optional_sections: []
+---
+
 # Page-Level Prompt: ConstraintLabelDictionary 約束標籤字典
 
 > 管理與分類專案的硬約束標籤，支援自動分類、合併標籤、版本升級與歷史回滾。
@@ -5,9 +28,6 @@
 ---
 
 ## [PAGE META]
-- **page_name**: ConstraintLabelDictionary
-- **route_path**: `/projects/:id/constraint-labels`
-- **page_type**: utility
 - **primary_goal**: 讓專案擁有者管理硬約束 (Hard Constraints) 的標籤分類映射
 - **secondary_goal**: 提供標籤合併、版本升級、操作歷史回滾與差異預覽功能
 - **target_users**: 專案擁有者 (owner)、系統管理者 (admin)；其他使用者為唯讀模式

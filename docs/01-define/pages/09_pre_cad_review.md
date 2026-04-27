@@ -1,3 +1,26 @@
+---
+id: P09
+file_id: "09"
+page_name: PreCadReview
+route_path: /projects/:id/pre-cad
+page_type: review
+phase: 2
+ia_group: phase2-diverge
+gate: P
+protected: true
+dev_only: false
+source_component: src/pages/PreCadReview.tsx
+spec_version: 3.0
+ia_version: 1.2
+status: stable
+last_updated: 2026-04-27
+api_resources: [alternatives, contradictions, evaluations, spatial]
+modules: [analyst]
+depends_on: [P08]
+absorbed_specs: []
+optional_sections: [changelog]
+---
+
 # Page-Level Prompt: PreCadReview Pre-CAD 審查
 
 > X5-P2 (Gate P) — 評估候選方案的五維品質，確認 Gate P 門檻後選擇存活方案進入 CAD 階段。
@@ -14,9 +37,6 @@
 ---
 
 ## [PAGE META]
-- **page_name**: PreCadReview
-- **route_path**: `/projects/:id/pre-cad`
-- **page_type**: evaluation + approval
 - **primary_goal**: 讓審查者針對每個候選方案完成五維審查（空間約束/解耦程度/可驗證性/主要風險/最小 CAD 工作量），並選擇存活方案進入 CAD
 - **secondary_goal**: 確認 Gate P 門檻（Fatal+Major 矛盾 100% 收斂），提供 AI 空間追蹤分析輔助決策
 - **target_users**: RD 工程師、專案主管、審查委員

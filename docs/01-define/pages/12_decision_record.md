@@ -1,3 +1,26 @@
+---
+id: P12
+file_id: "12"
+page_name: DecisionRecord
+route_path: /projects/:id/decide
+page_type: form
+phase: 3
+ia_group: phase3-converge
+gate: V2
+protected: true
+dev_only: false
+source_component: src/pages/DecisionRecord.tsx
+spec_version: 3.0
+ia_version: 1.2
+status: stable
+last_updated: 2026-04-27
+api_resources: [decision, must_evaluations, want_scores, risks, ac_evaluations, alternatives]
+modules: [analyst]
+depends_on: [P11]
+absorbed_specs: []
+optional_sections: [wireframe, design_principles, changelog]
+---
+
 # Page-Level Prompt: DecisionRecord 決策記錄
 
 > Phase 3 Converge — KT 決策流程完整記錄。整合 MUST/WANT 分析、風險評估、負面後果 (AC) 評估、矛盾收斂摘要，支援方案選定、行動計畫、簽核與報告匯出。
@@ -73,9 +96,6 @@
 
 ## [PAGE META]
 
-- **page_name**: DecisionRecord
-- **route_path**: `/projects/:id/decide`
-- **page_type**: form + review
 - **primary_goal**: 完整記錄設計決策過程（KT 方法），確保決策可追溯、可解釋
 - **secondary_goal**: 支援 MUST/WANT 分析結果呈現、風險評估、行動計畫管理、簽核與報告匯出
 - **target_users**: RD 工程師、RD 主管、PM、品質工程師

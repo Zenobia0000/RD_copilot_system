@@ -1,3 +1,26 @@
+---
+id: P07
+file_id: "07"
+page_name: Track
+route_path: /projects/:id/track
+page_type: kanban
+phase: 2
+ia_group: phase2-diverge
+gate: X1
+protected: true
+dev_only: false
+source_component: src/pages/Track.tsx
+spec_version: 3.0
+ia_version: 1.2
+status: stable
+last_updated: 2026-04-27
+api_resources: [assumptions, unknowns]
+modules: []
+depends_on: [P06]
+absorbed_specs: []
+optional_sections: [changelog]
+---
+
 # Page-Level Prompt: Track 追蹤 / 假設驗證
 
 > X1 — 透過 Kanban 看板追蹤假設驗證進度，並以「未知集合 U」管理尚未歸類的不確定因素。
@@ -14,9 +37,6 @@
 ---
 
 ## [PAGE META]
-- **page_name**: Track
-- **route_path**: `/projects/:id/track`
-- **page_type**: workflow
 - **primary_goal**: 讓使用者透過拖曳式 Kanban 管理設計假設的驗證狀態（未驗證 → 驗證中 → 已驗證 / 已推翻），通過 Gate X1 後進入方案創造
 - **secondary_goal**: 收集「未知集合 U」中尚未歸類的不確定因素，支援一鍵轉換為假設進行追蹤
 - **target_users**: RD 工程師、專案負責人

@@ -1,3 +1,26 @@
+---
+id: P14
+file_id: "14"
+page_name: KnowledgeBase
+route_path: /knowledge-base
+page_type: list-detail
+phase: null
+ia_group: knowledge
+gate: null
+protected: true
+dev_only: false
+source_component: src/pages/KnowledgeBase.tsx
+spec_version: 1.0
+ia_version: 1.2
+status: stable
+last_updated: 2026-04-24
+api_resources: [knowledge_articles]
+modules: [knowledge]
+depends_on: []
+absorbed_specs: []
+optional_sections: []
+---
+
 # Page-Level Prompt: KnowledgeBase 知識庫
 
 > 全域知識庫瀏覽頁面，提供搜尋、分類篩選與文章閱讀功能，非專案範疇。
@@ -5,14 +28,12 @@
 ---
 
 ## [PAGE META]
-- **page_name**: KnowledgeBase
-- **route_path**: `/knowledge-base` (列表) 與 `/knowledge-base/:slug` (詳情)
-- **page_type**: global-utility
 - **primary_goal**: 讓使用者瀏覽並閱讀 Playbook、歷史案例、決策模板與矛盾收斂模式
 - **secondary_goal**: 透過搜尋與分類篩選快速找到所需知識
 - **target_users**: 所有已登入使用者（RD 工程師、專案管理者）
 - **entry_point**: 全域導覽列、Feynman 頁面「查看知識庫」按鈕
 - **expected_time_on_page**: 2 ~ 15 分鐘
+- **route_paths**: `/knowledge-base`（列表）、`/knowledge-base/:slug`（詳情）
 
 ---
 

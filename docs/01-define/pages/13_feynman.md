@@ -1,3 +1,26 @@
+---
+id: P13
+file_id: "13"
+page_name: Feynman
+route_path: /projects/:id/feynman
+page_type: detail
+phase: 3
+ia_group: phase3-converge
+gate: V4
+protected: true
+dev_only: false
+source_component: src/pages/Feynman.tsx
+spec_version: 3.0
+ia_version: 1.2
+status: stable
+last_updated: 2026-04-27
+api_resources: [knowledge_entries, decisions, experiments]
+modules: [knowledge]
+depends_on: [P12]
+absorbed_specs: []
+optional_sections: [wireframe, design_principles, changelog]
+---
+
 # Page-Level Prompt: Feynman 內化與傳達
 
 > Phase 3 Converge — AI 自動將決策記錄、實驗結果、矛盾解法等 6 類資產轉化為知識庫條目，實現組織學習自動化。此步驟為全自動（Fully Auto），使用者僅需審閱確認。
@@ -66,9 +89,6 @@
 
 ## [PAGE META]
 
-- **page_name**: Feynman
-- **route_path**: `/projects/:id/feynman`
-- **page_type**: detail (knowledge writeback)
 - **primary_goal**: AI 自動將專案決策與驗證成果轉化為 6 類知識資產，寫入組織知識庫
 - **secondary_goal**: 使用者審閱確認知識條目品質，確保知識正確性
 - **target_users**: RD 工程師

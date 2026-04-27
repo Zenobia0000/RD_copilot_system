@@ -1,3 +1,26 @@
+---
+id: P05
+file_id: "05"
+page_name: TaskDefinition
+route_path: /projects/:id/brief
+page_type: form
+phase: 1
+ia_group: phase1-define
+gate: D1
+protected: true
+dev_only: false
+source_component: src/pages/TaskDefinition.tsx
+spec_version: 1.0
+ia_version: 1.2
+status: stable
+last_updated: 2026-04-24
+api_resources: [brief, constraints, kpis]
+modules: [analyst]
+depends_on: [P04]
+absorbed_specs: []
+optional_sections: []
+---
+
 # Page-Level Prompt: TaskDefinition 任務定義 / Brief
 
 > Phase 1 Define 的起點頁，結構化定義 Mission、硬約束、軟目標、非目標與 KPI，支援 AI 自動提取與建議，通過 Gate D1 可行性驗證後進入探索階段。
@@ -6,9 +29,6 @@
 
 ## [PAGE META]
 
-- **page_name**: TaskDefinition
-- **route_path**: `/projects/:id/brief`
-- **page_type**: form
 - **primary_goal**: 引導設計工程師完成結構化任務定義——上傳素材讓 AI 提取約束，定義 Mission Statement、硬約束、軟目標、非目標與 KPI，並通過約束可行性驗證 (Gate D1)
 - **secondary_goal**: 透過 AI 改寫建議、約束建議與 KPI 建議降低人工填寫負擔，同時以 5W1H 自動產生任務摘要供團隊對齊
 - **target_users**:

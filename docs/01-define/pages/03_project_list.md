@@ -1,3 +1,26 @@
+---
+id: P03
+file_id: "03"
+page_name: ProjectList
+route_path: /projects
+page_type: list
+phase: null
+ia_group: portfolio
+gate: null
+protected: true
+dev_only: false
+source_component: src/pages/ProjectList.tsx
+spec_version: 1.0
+ia_version: 1.2
+status: stable
+last_updated: 2026-04-24
+api_resources: [projects]
+modules: []
+depends_on: [P01]
+absorbed_specs: []
+optional_sections: []
+---
+
 # Page-Level Prompt: ProjectList 專案列表
 
 > 專案管理主頁面，提供統計概覽、搜尋篩選、專案卡片網格、新增與刪除功能。
@@ -5,9 +28,6 @@
 ---
 
 ## [PAGE META]
-- **page_name**: ProjectList
-- **route_path**: `/projects`
-- **page_type**: list
 - **primary_goal**: 讓使用者瀏覽、搜尋、篩選所有概念設計專案並快速掌握整體狀態
 - **secondary_goal**: 提供新增專案與刪除專案的操作入口
 - **target_users**: 已登入的 RD 工程師、專案管理者

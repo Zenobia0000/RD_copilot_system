@@ -1,3 +1,26 @@
+---
+id: P08
+file_id: "08"
+page_name: Create
+route_path: /projects/:id/create
+page_type: wizard
+phase: 2
+ia_group: phase2-diverge
+gate: X2
+protected: true
+dev_only: false
+source_component: src/pages/Create.tsx
+spec_version: 10.0
+ia_version: 1.2
+status: stable
+last_updated: 2026-04-27
+api_resources: [triz_solutions, subsystems, alternatives, contradictions, brief, constraints, kpis, evidence, oz_ot, sim_matrix, complexity_check]
+modules: [analyst, triz, evidence, spatial]
+depends_on: [P07]
+absorbed_specs: ["02-design/specs/ux/E5x--create-ux-spec.md"]
+optional_sections: [wireframe, design_principles, changelog]
+---
+
 # Page-Level Prompt: Create 創建 / 方案生成
 
 > Phase 2 最複雜頁面 — 方案創造精靈，整合 TRIZ 三路徑（含 L1 跨域去錨定）、子系統定義、決策中心與統一評估，完成概念方案收斂。
@@ -82,9 +105,6 @@
 ---
 
 ## [PAGE META]
-- **page_name**: Create
-- **route_path**: `/projects/:id/create`
-- **page_type**: wizard (multi-step)
 - **primary_goal**: 引導使用者透過 TRIZ 三路徑（含 L1 跨域去錨定）產生候選方案，經決策中心橫向比較後以 MUST 快篩淘汰不可行方案
 - **secondary_goal**: 支援 TRIZ 分層診斷、子系統分解、跨方案收斂分析，為 Pre-CAD 審查做準備
 - **target_users**: RD 工程師、系統架構師

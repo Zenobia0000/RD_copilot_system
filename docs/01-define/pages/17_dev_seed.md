@@ -1,3 +1,26 @@
+---
+id: P17
+file_id: "17"
+page_name: DevSeed
+route_path: /dev/seed
+page_type: utility
+phase: null
+ia_group: dev
+gate: null
+protected: false
+dev_only: true
+source_component: src/pages/DevSeed.tsx
+spec_version: 1.0
+ia_version: 1.2
+status: stable
+last_updated: 2026-04-24
+api_resources: [showcase]
+modules: []
+depends_on: []
+absorbed_specs: []
+optional_sections: []
+---
+
 # Page-Level Prompt: DevSeed 開發種子資料
 
 > 開發環境專用工具頁面，用於快速建立或清除 Supabase 中的展示專案資料。
@@ -5,9 +28,6 @@
 ---
 
 ## [PAGE META]
-- **page_name**: DevSeed
-- **route_path**: `/dev/seed`
-- **page_type**: utility (DEV only)
 - **primary_goal**: 讓開發者一鍵 seed 3 個不同生命週期階段的展示專案
 - **secondary_goal**: 提供清除所有展示資料的功能，保持開發環境整潔
 - **target_users**: 前端/後端開發者（僅開發環境可見）

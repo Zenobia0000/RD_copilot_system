@@ -1,3 +1,26 @@
+---
+id: P16
+file_id: "16"
+page_name: Settings
+route_path: /settings
+page_type: form
+phase: null
+ia_group: system
+gate: null
+protected: true
+dev_only: false
+source_component: src/pages/Settings.tsx
+spec_version: 1.0
+ia_version: 1.2
+status: stable
+last_updated: 2026-04-24
+api_resources: [user_profile]
+modules: []
+depends_on: []
+absorbed_specs: []
+optional_sections: []
+---
+
 # Page-Level Prompt: Settings 設定
 
 > 使用者帳號資料、密碼變更與外觀主題偏好的統一管理頁面。
@@ -5,9 +28,6 @@
 ---
 
 ## [PAGE META]
-- **page_name**: Settings
-- **route_path**: `/settings`
-- **page_type**: settings
 - **primary_goal**: 讓使用者更新個人顯示名稱、變更密碼與切換系統主題
 - **secondary_goal**: 展示帳號 Email（唯讀）與系統版本資訊
 - **target_users**: 所有已登入使用者（RD 工程師、專案管理者）

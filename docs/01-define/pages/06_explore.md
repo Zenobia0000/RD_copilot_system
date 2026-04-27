@@ -1,3 +1,26 @@
+---
+id: P06
+file_id: "06"
+page_name: Explore
+route_path: /projects/:id/explore
+page_type: wizard
+phase: 1
+ia_group: phase1-define
+gate: D2
+protected: true
+dev_only: false
+source_component: src/pages/Explore.tsx
+spec_version: 3.0
+ia_version: 1.2
+status: stable
+last_updated: 2026-04-27
+api_resources: [socratic, contradictions, cld, function_models, brief, constraints, kpis, assumptions, entry_grading, five_why, kt_analysis]
+modules: [analyst]
+depends_on: [P05]
+absorbed_specs: []
+optional_sections: [conditional_rendering, changelog]
+---
+
 # Page-Level Prompt: Explore 探索 / Conditional Stepper
 
 > Phase 1 Define 的深化探索頁。透過 **Entry Grading** 判定問題成熟度，自動切換 **Level A（5-step 引導流）** 或 **Level B（3-tab 快速通道）**，完成問題定向、功能建模、問答探索、矛盾識別與因果迴路圖。
@@ -6,9 +29,6 @@
 
 ## [PAGE META]
 
-- **page_name**: Explore
-- **route_path**: `/projects/:id/explore`
-- **page_type**: conditional workspace（Level A: stepper / Level B: tabs）
 - **primary_goal**: 依問題成熟度自動路由至適當模式 — Level A 引導工程師從問題定向（5Why/KT）→ 功能建模（FA）→ 問答探索 → 矛盾識別 → CLD 完整走完；Level B 維持原 3-tab 快速通道，供已知 TC 的資深 RD 直接操作
 - **secondary_goal**: 自動將問答中標記的假設同步至 Assumption Ledger，將標記的矛盾自動 formalize 為結構化矛盾記錄，並提供知識參考面板輔助決策
 - **target_users**:

@@ -1,3 +1,26 @@
+---
+id: P01
+file_id: "01"
+page_name: Auth
+route_path: /auth
+page_type: auth
+phase: null
+ia_group: public
+gate: null
+protected: false
+dev_only: false
+source_component: src/pages/Auth.tsx
+spec_version: 1.0
+ia_version: 1.2
+status: stable
+last_updated: 2026-04-24
+api_resources: []
+modules: []
+depends_on: []
+absorbed_specs: []
+optional_sections: []
+---
+
 # Page-Level Prompt: Auth 登入/註冊
 
 > 統一的身份驗證頁面，提供登入、註冊與忘記密碼三種視圖切換，使用 Supabase Auth 進行身份管理。
@@ -5,9 +28,6 @@
 ---
 
 ## [PAGE META]
-- **page_name**: Auth
-- **route_path**: `/auth`
-- **page_type**: auth
 - **primary_goal**: 讓使用者透過 Email/Password 登入系統或建立新帳號
 - **secondary_goal**: 提供忘記密碼流程，寄送重設連結至信箱
 - **target_users**: 所有未登入的使用者（RD 工程師、專案管理者）

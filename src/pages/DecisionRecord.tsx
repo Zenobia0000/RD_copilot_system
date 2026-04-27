@@ -23,7 +23,8 @@ import { AiButton } from "@/components/ui/ai-button";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { SectionIntro } from "@/components/ui/section-intro";
 import { KnowledgeRefsPanel } from "@/components/create/KnowledgeRefsPanel";
-// TODO: Replace with useKnowledgeRefs hook once knowledge_refs DB table is created (Sprint 5+)
+// TODO: Replace mockPageKnowledgeRefs with a useKnowledgeRefs hook once a knowledge_refs DB table is created (Sprint 5+)
+import { mockPageKnowledgeRefs } from "@/data/mockKnowledgeRefs";
 import {
   BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, LabelList,
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend
@@ -338,7 +339,7 @@ export default function DecisionRecord() {
   const gate32Passed = gate32Items.every(i => i.passed);
 
   const phaseGate3Items: DecideGateItem[] = useMemo(() => [
-    { label: 'Gate 3.2 已通過', passed: gate32Passed },
+    { label: 'Gate V2 已通過', passed: gate32Passed },
     { label: '決策已確認 (Confirmed)', passed: decision.status === 'confirmed' || decision.status === 'signed' },
     { label: '決策報告已匯出', passed: exported },
   ], [gate32Passed, decision.status, exported]);
@@ -943,8 +944,7 @@ export default function DecisionRecord() {
       </div>
 
       {/* Knowledge Enhancement Panel (WBS 3.4.2) */}
-      {/* TODO: Replace with useKnowledgeRefs hook (Sprint 5+) */}
-      <KnowledgeRefsPanel refs={[]} />
+      <KnowledgeRefsPanel refs={mockPageKnowledgeRefs.decide ?? []} />
 
       {/* ═══════════════════════════════════════════
           Gate Checks
@@ -953,9 +953,9 @@ export default function DecisionRecord() {
       <div className="rounded-lg border p-4 space-y-3">
         <div className="flex items-center gap-3">
           <div className="h-6 w-1 rounded-full bg-primary" />
-          <h3 className="text-sm font-semibold">Gate 3.2 — 決策記錄完整性檢查</h3>
+          <h3 className="text-sm font-semibold">Gate V2 — 決策記錄完整性檢查</h3>
           <Badge className={`text-xs text-primary-foreground ${gate32Passed ? 'bg-primary' : 'bg-destructive'}`}>
-            {gate32Passed ? 'Gate 3.2 Passed' : 'Gate 3.2 未通過'}
+            {gate32Passed ? 'Gate V2 Passed' : 'Gate V2 未通過'}
           </Badge>
         </div>
         <div className="space-y-2">
@@ -971,9 +971,9 @@ export default function DecisionRecord() {
       <div className="rounded-lg border-2 border-primary bg-primary/5 p-4 space-y-3" style={{ borderStyle: 'double' }}>
         <div className="flex items-center gap-3">
           <Flag className="h-5 w-5 text-primary shrink-0" />
-          <h3 className="text-sm font-semibold">Phase Gate 3 — Converge 階段完成檢查</h3>
+          <h3 className="text-sm font-semibold">Phase Gate V — Converge 階段完成檢查</h3>
           <Badge className={`text-xs text-primary-foreground ${phaseGate3Passed ? 'bg-primary' : 'bg-destructive'}`}>
-            {phaseGate3Passed ? 'Phase 3 Passed *' : 'Phase 3 未通過'}
+            {phaseGate3Passed ? 'Phase V Passed *' : 'Phase V 未通過'}
           </Badge>
         </div>
         <div className="space-y-2">
@@ -986,7 +986,7 @@ export default function DecisionRecord() {
         </div>
         {phaseGate3Passed ? (
           <Button onClick={() => navigate(`/projects/${id}/feynman`)} className="bg-primary hover:bg-primary/90 text-primary-foreground text-base px-6 py-2">
-            Phase Gate 3 通過 → 進入 Feynman 內化 <ArrowRight className="h-4 w-4 ml-1" />
+            Phase Gate V 通過 → 進入 Feynman 內化 <ArrowRight className="h-4 w-4 ml-1" />
           </Button>
         ) : (
           <Tooltip>

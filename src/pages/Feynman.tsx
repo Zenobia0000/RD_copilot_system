@@ -13,7 +13,8 @@ import { AiButton } from "@/components/ui/ai-button";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { SectionIntro } from "@/components/ui/section-intro";
 import { KnowledgeRefsPanel } from "@/components/create/KnowledgeRefsPanel";
-// TODO: Replace with useKnowledgeRefs hook once knowledge_refs DB table is created (Sprint 5+)
+// TODO: Replace mockPageKnowledgeRefs with a useKnowledgeRefs hook once a knowledge_refs DB table is created (Sprint 5+)
+import { mockPageKnowledgeRefs } from "@/data/mockKnowledgeRefs";
 import { useKnowledgeEntries, useUpdateKnowledgeEntry } from "@/hooks/api/useKnowledge";
 
 /** 6 asset categories per E2E spec (WBS 4.7.1) */
@@ -272,8 +273,7 @@ export default function Feynman() {
       </div>
 
       {/* Knowledge Enhancement Panel (WBS 3.4.2) */}
-      {/* TODO: Replace with useKnowledgeRefs hook (Sprint 5+) */}
-      <KnowledgeRefsPanel refs={[]} />
+      <KnowledgeRefsPanel refs={mockPageKnowledgeRefs.feynman ?? []} />
 
       {/* Gate */}
       <Separator />

@@ -20,7 +20,8 @@ import { AiButton } from "@/components/ui/ai-button";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { SectionIntro } from "@/components/ui/section-intro";
 import { KnowledgeRefsPanel } from "@/components/create/KnowledgeRefsPanel";
-// TODO: Replace with useKnowledgeRefs hook once knowledge_refs DB table is created (Sprint 5+)
+// TODO: Replace mockPageKnowledgeRefs with a useKnowledgeRefs hook once a knowledge_refs DB table is created (Sprint 5+)
+import { mockPageKnowledgeRefs } from "@/data/mockKnowledgeRefs";
 import { AttachmentsPanel } from "@/components/review/AttachmentsPanel";
 import { supabase } from "@/integrations/supabase/client";
 import type {
@@ -232,7 +233,7 @@ export default function DesignReview() {
     toast.info("實驗刪除功能將在後續版本支援");
   };
 
-  // --- Gate 3.1 (Gate C) — with North Star KPI + MUST revalidation (WBS 4.3/H7/H8) ---
+  // --- Gate V1 — with North Star KPI + MUST revalidation (WBS 4.3/H7/H8) ---
   const northStarKPIs = evidenceRows.filter(r => r.isNorthStar === true);
   const northStarAllE2Plus = northStarKPIs.length > 0 && northStarKPIs.every(r => {
     const lvl = r.currentLevel;
@@ -868,7 +869,7 @@ export default function DesignReview() {
                 return;
               }
               if (!gate31Passed) {
-                toast.error("Gate 3.1 未通過，無法批准審查");
+                toast.error("Gate V1 未通過，無法批准審查");
                 return;
               }
               setIsSubmitting(true);
@@ -886,18 +887,17 @@ export default function DesignReview() {
       </Card>
 
       {/* Knowledge Enhancement Panel (WBS 3.4.2) */}
-      {/* TODO: Replace with useKnowledgeRefs hook (Sprint 5+) */}
-      <KnowledgeRefsPanel refs={[]} />
+      <KnowledgeRefsPanel refs={mockPageKnowledgeRefs.review ?? []} />
 
-      {/* Gate 3.1 */}
+      {/* Gate V1 */}
       <Separator />
       <Card className="border-2 border-primary/30 bg-primary/5">
         <CardContent className="p-4 space-y-3">
           <div className="flex items-center gap-3">
             <Flag className="h-5 w-5 text-primary shrink-0" />
-            <h3 className="text-sm font-semibold">Gate 3.1 — 設計審查完整性檢查</h3>
+            <h3 className="text-sm font-semibold">Gate V1 — 設計審查完整性檢查</h3>
             <Badge className={gate31Passed ? "bg-primary text-primary-foreground" : "bg-destructive text-destructive-foreground"}>
-              {gate31Passed ? 'Gate 3.1 Passed' : 'Gate 3.1 未通過'}
+              {gate31Passed ? 'Gate V1 Passed' : 'Gate V1 未通過'}
             </Badge>
           </div>
           <div className="space-y-2">

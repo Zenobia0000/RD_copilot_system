@@ -35,12 +35,12 @@ export function ExploreGates({ gate12Items, phaseGate1Items, onNavigateNext }: E
     <div className="space-y-4 mt-6">
       <Separator />
 
-      {/* Gate 1.2 */}
+      {/* Gate D2 */}
       <div className="rounded-lg border p-4 space-y-3">
         <div className="flex items-center gap-3">
           <div className="h-6 w-1 rounded-full bg-blue-500" />
-          <h3 className="text-sm font-semibold">Gate 1.2 — 問題空間探索完整性</h3>
-          <GateStatusBadge items={gate12Items} label="Gate 1.2" />
+          <h3 className="text-sm font-semibold">Gate D2 — 問題空間探索完整性</h3>
+          <GateStatusBadge items={gate12Items} label="Gate D2" />
         </div>
         <div className="space-y-2">
           {gate12Items.map((item, i) => (
@@ -57,12 +57,12 @@ export function ExploreGates({ gate12Items, phaseGate1Items, onNavigateNext }: E
         </div>
       </div>
 
-      {/* Phase Gate 1 - milestone style */}
+      {/* Phase Gate D - milestone style */}
       <div className="rounded-lg border-2 border-blue-500 bg-blue-50 dark:bg-blue-950/40 p-4 space-y-3">
         <div className="flex items-center gap-3">
           <Flag className="h-5 w-5 text-blue-500 shrink-0" />
-          <h3 className="text-sm font-semibold">Phase Gate 1 — Define 階段完成度檢查</h3>
-          <GateStatusBadge items={phaseGate1Items} label="Phase Gate 1" />
+          <h3 className="text-sm font-semibold">Phase Gate D — Define 階段完成度檢查</h3>
+          <GateStatusBadge items={phaseGate1Items} label="Phase Gate D" />
         </div>
         <div className="space-y-2">
           {phaseGate1Items.map((item, i) => (

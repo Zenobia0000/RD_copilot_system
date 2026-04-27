@@ -92,10 +92,10 @@ export default function TaskDefinition() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
               任務定義
-              <HelpTooltip text="任務定義是設計流程的起點。上傳素材讓 AI 自動提取約束，定義 Mission、硬約束和 KPI，並通過約束可行性驗證 (Gate 1)。" className="ml-2 align-middle" />
+              <HelpTooltip text="任務定義是設計流程的起點。上傳素材讓 AI 自動提取約束，定義 Mission、硬約束和 KPI，並通過約束可行性驗證 (Gate D1)。" className="ml-2 align-middle" />
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Step 1.1 · 結構化定義 Mission、約束與 KPI，支援 AI 自動提取
+              D1 · 結構化定義 Mission、約束與 KPI，支援 AI 自動提取
             </p>
           </div>
         </div>
@@ -360,7 +360,7 @@ export default function TaskDefinition() {
         onRegenerate={form.handleRegenerate5W1H}
       />
 
-      {/* Section 9: 約束可行性驗證 (Gate 1) */}
+      {/* Section 9: 約束可行性驗證 (Gate D1) */}
       <FeasibilityValidation
         status={form.feasibilityStatus}
         conflicts={form.feasibilityConflicts.map((c, i) => ({ id: `fc-${i}`, ...c }))}
@@ -369,7 +369,7 @@ export default function TaskDefinition() {
         onOverride={form.handleFeasibilityOverride}
       />
 
-      {/* Section 10: Gate 1.1 Checklist — sole exit point */}
+      {/* Section 10: Gate D1 Checklist — sole exit point */}
       <GateChecklist
         items={form.gateItems}
         onNavigateNext={form.handleSubmit}

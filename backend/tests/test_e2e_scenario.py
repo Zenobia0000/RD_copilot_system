@@ -169,6 +169,57 @@ _TRIZ_TC_RESPONSE = json.dumps({
     ],
 })
 
+_SCAMPER_RESPONSE = json.dumps({
+    "variants": [
+        {
+            "action": "Substitute",
+            "description": "Substitute NdFeB magnets with ferrite + Halbach arrangement to reduce cost while maintaining flux density",
+            "potential_benefits": "60% magnet cost reduction, eliminates rare-earth supply risk",
+            "new_contradictions": ["Ferrite has lower remanence, requiring larger magnet volume"],
+        },
+        {
+            "action": "Combine",
+            "description": "Combine motor housing with heatsink — use die-cast aluminum housing with integrated cooling fins",
+            "potential_benefits": "Eliminates separate heatsink, reduces assembly steps",
+            "new_contradictions": ["Die-cast aluminum may have porosity affecting thermal conductivity"],
+        },
+        {
+            "action": "Adapt",
+            "description": "Adapt automotive-grade concentrated winding from EV traction motors to mid-drive eBike scale",
+            "potential_benefits": "Shorter end-turns reduce copper loss by 10%",
+            "new_contradictions": ["Concentrated winding increases torque ripple"],
+        },
+        {
+            "action": "Modify",
+            "description": "Modify stator tooth geometry with tapered tips to optimize flux distribution",
+            "potential_benefits": "2% efficiency improvement at partial load",
+            "new_contradictions": [],
+        },
+        {
+            "action": "Put to other use",
+            "description": "Use motor back-EMF for battery regenerative braking, recovering 5-8% energy on descents",
+            "potential_benefits": "Extended range without additional hardware",
+            "new_contradictions": ["Regenerative braking adds controller complexity"],
+        },
+        {
+            "action": "Eliminate",
+            "description": "Eliminate position sensor by implementing sensorless FOC startup algorithm",
+            "potential_benefits": "Saves $0.80 per unit, improves reliability",
+            "new_contradictions": ["Sensorless startup may have poor low-speed performance"],
+        },
+        {
+            "action": "Reverse",
+            "description": "Reverse rotor-stator arrangement — outer rotor design for higher torque density",
+            "potential_benefits": "30% higher torque density, simplified assembly",
+            "new_contradictions": ["Outer rotor complicates thermal management of inner stator"],
+        },
+    ],
+})
+
+_SCAMPER_FEEDBACK_EXISTING = [
+    {"id": "c-existing-1", "natural_description": "Ferrite has lower remanence requiring larger magnet volume"},
+]
+
 _MUST_EVAL_RESPONSE = json.dumps({
     "criteria_results": [
         {
@@ -287,6 +338,43 @@ def _build_sb_mock(table_map: dict[str, MagicMock]) -> MagicMock:
     return sb
 
 
+def _mock_scamper_feedback_supabase(existing_rows=None):
+    """Build Supabase mock for SCAMPER feedback endpoint."""
+    if existing_rows is None:
+        existing_rows = []
+
+    client = MagicMock()
+
+    select_result = MagicMock()
+    select_result.data = existing_rows
+
+    select_chain = MagicMock()
+    select_chain.eq.return_value = MagicMock(execute=MagicMock(return_value=select_result))
+
+    def make_insert_result(rows):
+        result = MagicMock()
+        result.data = [
+            {**row, "id": row.get("id", str(uuid.uuid4()))} for row in rows
+        ]
+        return result
+
+    insert_chain = MagicMock()
+    insert_chain.execute = MagicMock(
+        side_effect=lambda: make_insert_result(insert_chain._last_rows)
+    )
+
+    def capture_insert(rows):
+        insert_chain._last_rows = rows
+        return insert_chain
+
+    table_mock = MagicMock()
+    table_mock.select.return_value = select_chain
+    table_mock.insert.side_effect = capture_insert
+
+    client.table.return_value = table_mock
+    return client
+
+
 def _make_knowledge_supabase(table_data: dict):
     """Create Supabase mock for knowledge writeback."""
 
@@ -379,8 +467,8 @@ class TestEbikeE2EScenario:
     # -----------------------------------------------------------------------
 
     @patch("app.agents.analyst.call_llm_json")
-    def test_step_d1_extract_brief(self, mock_llm, client):
-        """Phase 1, D1: Extract structured brief from raw eBike requirements."""
+    def test_step01_extract_brief(self, mock_llm, client):
+        """Phase 1, Step 1: Extract structured brief from raw eBike requirements."""
         mock_llm.return_value = _BRIEF_EXTRACT_RESPONSE
 
         resp = client.post("/api/v1/definitions/extract", json={
@@ -419,8 +507,8 @@ class TestEbikeE2EScenario:
         self.__class__._brief = brief
 
     @patch("app.agents.analyst.call_llm_json")
-    def test_step_d2_socratic_questions(self, mock_llm, client):
-        """Phase 1, D2: Generate Socratic questions from extracted brief."""
+    def test_step02_socratic_questions(self, mock_llm, client):
+        """Phase 1, Step 2: Generate Socratic questions from extracted brief."""
         mock_llm.return_value = _SOCRATIC_RESPONSE
         brief = getattr(self.__class__, "_brief", json.loads(_BRIEF_EXTRACT_RESPONSE))
 
@@ -447,8 +535,8 @@ class TestEbikeE2EScenario:
         self.__class__._socratic = socratic
 
     @patch("app.agents.analyst.call_llm_json")
-    def test_step_d3_identify_contradiction_tc(self, mock_llm, client):
-        """Phase 1, D3: Formalize TC contradiction — efficiency vs weight."""
+    def test_step03a_identify_contradiction_tc(self, mock_llm, client):
+        """Phase 1, Step 3a: Formalize TC contradiction — efficiency vs weight."""
         mock_llm.return_value = _CONTRADICTION_FORMALIZE_TC_RESPONSE
 
         resp = client.post("/api/v1/contradictions/c-tc-eff-weight/formalize", json={
@@ -469,8 +557,8 @@ class TestEbikeE2EScenario:
         self.__class__._tc_contradiction = tc
 
     @patch("app.agents.analyst.call_llm_json")
-    def test_step_d3b_identify_contradiction_pc(self, mock_llm, client):
-        """Phase 1, D3b (ADR-007): LLM-emitted PC now coerced to type=null + rationale.
+    def test_step03b_identify_contradiction_pc(self, mock_llm, client):
+        """Phase 1, Step 3b (ADR-007): LLM-emitted PC now coerced to type=null + rationale.
 
         Explore stage is TC-only; when LLM cannot map to 39 params (or returns a legacy
         PC/SF classification), formalize_contradiction returns type=null with rationale
@@ -498,11 +586,9 @@ class TestEbikeE2EScenario:
     # Phase 2: Diverge
     # -----------------------------------------------------------------------
 
-    # v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1
-    @pytest.mark.skip(reason="v3.0: Anti-Anchor retired — de-anchoring merged into TRIZ L1")
     @patch("app.agents.analyst.call_llm_json")
-    def test_step_x1_anti_anchor(self, mock_llm, client):
-        """Phase 2, X1: Generate anti-anchor alternatives to break path dependency."""
+    def test_step04_anti_anchor(self, mock_llm, client):
+        """Phase 2, Step 4: Generate anti-anchor alternatives to break path dependency."""
         mock_llm.return_value = _ANTI_ANCHOR_RESPONSE
         brief = getattr(self.__class__, "_brief", json.loads(_BRIEF_EXTRACT_RESPONSE))
 
@@ -530,8 +616,8 @@ class TestEbikeE2EScenario:
     @patch("app.agents.triz_solver.call_llm_json")
     @patch("app.agents.triz_solver.lookup_matrix", return_value=[35, 28, 1])
     @patch("app.agents.triz_solver.build_triz_tc_context", return_value="<triz_tc_context>")
-    def test_step_x2_triz_solve_tc(self, mock_tc_ctx, mock_matrix, mock_llm, client):
-        """Phase 2, X2: TRIZ TC solve for efficiency vs weight."""
+    def test_step05_triz_solve_tc(self, mock_tc_ctx, mock_matrix, mock_llm, client):
+        """Phase 2, Step 5: TRIZ TC solve for efficiency vs weight."""
         mock_llm.return_value = _TRIZ_TC_RESPONSE
         tc = getattr(self.__class__, "_tc_contradiction", json.loads(_CONTRADICTION_FORMALIZE_TC_RESPONSE))
 
@@ -560,12 +646,75 @@ class TestEbikeE2EScenario:
 
         self.__class__._triz_result = triz
 
-    # V1-V3 (SCAMPER perform + feedback) removed — SCAMPER module retired.
-    # TRIZ 40 principles now cover all SCAMPER actions.
+    @patch("app.agents.triz_solver.call_llm_json")
+    def test_step06_scamper(self, mock_llm, client):
+        """Phase 2, Step 6: SCAMPER 7-action variations on stator subsystem."""
+        mock_llm.return_value = _SCAMPER_RESPONSE
+        triz = getattr(self.__class__, "_triz_result", json.loads(_TRIZ_TC_RESPONSE))
+        affected_module = triz.get("suggestions", json.loads(_TRIZ_TC_RESPONSE)["suggestions"])[0]["affected_modules"][0]
+
+        resp = client.post("/api/v1/scamper/perform", json={
+            "project_id": PROJECT_ID,
+            "subsystem_name": affected_module,
+            "subsystem_description": "Mid-drive motor stator assembly with concentrated windings and ferrite magnets",
+            "related_contradictions": [
+                "Efficiency vs weight",
+                "Power density vs thermal management",
+            ],
+        })
+
+        assert resp.status_code == 200
+        scamper = resp.json()
+
+        assert len(scamper["variants"]) == 7
+        actions = {v["action"] for v in scamper["variants"]}
+        expected_actions = {"Substitute", "Combine", "Adapt", "Modify", "Put to other use", "Eliminate", "Reverse"}
+        assert actions == expected_actions
+
+        # Collect new contradictions for feedback step
+        new_contradictions_from_scamper = []
+        for v in scamper["variants"]:
+            for nc in v.get("new_contradictions", []):
+                new_contradictions_from_scamper.append(nc)
+        assert len(new_contradictions_from_scamper) >= 3
+
+        self.__class__._scamper = scamper
+
+    def test_step07_scamper_feedback_contradictions(self, client):
+        """Phase 2, Step 7: Feed SCAMPER-generated contradictions back."""
+        scamper = getattr(self.__class__, "_scamper", json.loads(_SCAMPER_RESPONSE))
+        new_contradictions = []
+        for v in scamper["variants"]:
+            for nc in v.get("new_contradictions", []):
+                new_contradictions.append({
+                    "description": nc,
+                    "severity": "major",
+                })
+
+        sb_mock = _mock_scamper_feedback_supabase(existing_rows=_SCAMPER_FEEDBACK_EXISTING)
+
+        with patch("app.agents.scamper_feedback.get_supabase", return_value=sb_mock):
+            resp = client.post("/api/v1/scamper/feedback-contradictions", json={
+                "project_id": PROJECT_ID,
+                "new_contradictions": new_contradictions,
+            })
+
+        assert resp.status_code == 200
+        feedback = resp.json()
+
+        assert isinstance(feedback["created_count"], int)
+        assert isinstance(feedback["deduplicated_count"], int)
+        # At least some should be created (not all deduplicated)
+        assert feedback["created_count"] + feedback["deduplicated_count"] == len(new_contradictions)
+        assert feedback["created_count"] >= 1
+        # The ferrite one should be deduplicated against existing
+        assert feedback["deduplicated_count"] >= 1
+
+        self.__class__._feedback = feedback
 
     @patch("app.agents.evaluator.call_llm_json")
-    def test_step_x4_must_evaluate(self, mock_llm, client):
-        """Phase 2, X4: MUST screening of the proposed alternative."""
+    def test_step08_must_evaluate(self, mock_llm, client):
+        """Phase 2, Step 8: MUST screening of the proposed alternative."""
         mock_llm.return_value = _MUST_EVAL_RESPONSE
         brief = getattr(self.__class__, "_brief", json.loads(_BRIEF_EXTRACT_RESPONSE))
 
@@ -615,8 +764,8 @@ class TestEbikeE2EScenario:
         self.__class__._must = must
 
     @patch("app.agents.evaluator.call_llm_json")
-    def test_step_x5_pre_cad_review(self, mock_llm, client):
-        """Phase 2, X5 (Gate X5): Pre-CAD review with AI 5D scoring."""
+    def test_step09_pre_cad_review(self, mock_llm, client):
+        """Phase 2, Step 9: Pre-CAD review with AI 5D scoring."""
         mock_llm.return_value = _PRE_CAD_RESPONSE
         brief = getattr(self.__class__, "_brief", json.loads(_BRIEF_EXTRACT_RESPONSE))
 
@@ -646,8 +795,8 @@ class TestEbikeE2EScenario:
     # -----------------------------------------------------------------------
 
     @patch("app.agents.evaluator.call_llm_json")
-    def test_step_v1_risk_register(self, mock_llm, client):
-        """Phase 3, V1: Register risks for the selected alternative."""
+    def test_step10_risk_register(self, mock_llm, client):
+        """Phase 3, Step 10: Register risks for the selected alternative."""
         mock_llm.return_value = _RISK_ANALYSIS_RESPONSE
 
         resp = client.post("/api/v1/risks/analyze", json={
@@ -679,8 +828,8 @@ class TestEbikeE2EScenario:
         self.__class__._risks = risk
 
     @patch("app.agents.evaluator.call_llm_json")
-    def test_step_v2_convergence_scan(self, mock_llm, client):
-        """Phase 3, V2: Convergence scan for secondary contradictions."""
+    def test_step11_convergence_scan(self, mock_llm, client):
+        """Phase 3, Step 11: Convergence scan for secondary contradictions."""
         mock_llm.return_value = _CONVERGENCE_SCAN_RESPONSE
 
         resp = client.post("/api/v1/convergence/scan", json={
@@ -733,7 +882,7 @@ class TestEbikeE2EScenario:
         self.__class__._convergence = conv
 
     @patch("app.routers.gates.get_supabase")
-    def test_step_gate_d1_check(self, mock_sb, client):
+    def test_step12a_gate_1_1_check(self, mock_sb, client):
         """Phase 3, Gate D1 check — mission + KPIs."""
         briefs_chain = _make_chain(_sb_response(data={"mission": MISSION}))
         kpis_chain = _make_chain(_sb_response(data=[
@@ -756,7 +905,7 @@ class TestEbikeE2EScenario:
         assert all(item["met"] for item in gate["checklist_items"])
 
     @patch("app.routers.gates.get_supabase")
-    def test_step_gate_d3_check(self, mock_sb, client):
+    def test_step12b_gate_1_2_check(self, mock_sb, client):
         """Phase 3, Gate D2 check — assumptions + contradictions."""
         assumptions_data = [
             {"id": f"a{i}", "worst_severity": "critical" if i < 4 else "high" if i < 7 else "medium"}
@@ -782,8 +931,8 @@ class TestEbikeE2EScenario:
 
     @patch("app.agents.knowledge_wb.call_llm_json")
     @patch("app.agents.knowledge_wb.get_supabase")
-    def test_step_v4_knowledge_writeback(self, mock_get_sb, mock_llm, client):
-        """Phase 3, V4: Knowledge writeback — assetize design artifacts."""
+    def test_step13_knowledge_writeback(self, mock_get_sb, mock_llm, client):
+        """Phase 3, Step 13: Knowledge writeback — assetize design artifacts."""
         mock_llm.return_value = _KNOWLEDGE_SYNTHESIS_RESPONSE
 
         table_data = {
@@ -839,8 +988,8 @@ class TestEbikeE2EScenario:
             assert asset["id"]
 
     @patch("app.routers.exports.get_supabase")
-    def test_step_export_project(self, mock_sb, client):
-        """Phase 3, Export: Export project artifacts to Markdown."""
+    def test_step14_export_project(self, mock_sb, client):
+        """Phase 3, Step 14: Export project artifacts to Markdown."""
         sb = _make_export_supabase()
         mock_sb.return_value = sb
 
@@ -870,12 +1019,11 @@ class TestEbikeE2EScenario:
     @patch("app.agents.analyst.call_llm_json")
     def test_full_pipeline_data_flows(self, mock_analyst_llm, mock_tc_ctx, mock_matrix,
                                       mock_triz_llm, mock_eval_llm, client):
-        """Verify end-to-end data flow: brief -> socratic -> TRIZ -> MUST.
+        """Verify end-to-end data flow: brief -> socratic -> TRIZ -> SCAMPER -> MUST.
 
         Each step uses output from the previous step as input.
-        SCAMPER step removed — TRIZ 40 principles now cover all SCAMPER actions.
         """
-        # D1: Extract brief
+        # Step 1: Extract brief
         mock_analyst_llm.return_value = _BRIEF_EXTRACT_RESPONSE
         r1 = client.post("/api/v1/definitions/extract", json={
             "project_id": PROJECT_ID,
@@ -884,7 +1032,7 @@ class TestEbikeE2EScenario:
         assert r1.status_code == 200
         brief = r1.json()
 
-        # D2: Socratic questions — uses constraints from brief
+        # Step 2: Socratic questions — uses constraints from brief
         mock_analyst_llm.return_value = _SOCRATIC_RESPONSE
         r2 = client.post("/api/v1/questions/generate", json={
             "project_id": PROJECT_ID,
@@ -896,7 +1044,7 @@ class TestEbikeE2EScenario:
         socratic = r2.json()
         assert len(socratic["questions"]) >= 1
 
-        # X2: TRIZ solve — uses formalized contradiction params
+        # Step 3: TRIZ solve — uses formalized contradiction params
         mock_triz_llm.return_value = _TRIZ_TC_RESPONSE
         r3 = client.post("/api/v1/triz/solve", json={
             "project_id": PROJECT_ID,
@@ -909,12 +1057,26 @@ class TestEbikeE2EScenario:
         assert r3.status_code == 200
         triz = r3.json()
 
-        # X4: MUST evaluate — uses constraints/KPIs from brief
+        # Step 4: SCAMPER — uses affected_modules from TRIZ
+        mock_triz_llm.return_value = _SCAMPER_RESPONSE
+        affected = triz["suggestions"][0]["affected_modules"][0]
+        secondary = triz["suggestions"][0].get("secondary_contradictions", [])
+        r4 = client.post("/api/v1/scamper/perform", json={
+            "project_id": PROJECT_ID,
+            "subsystem_name": affected,
+            "subsystem_description": f"{affected} assembly for mid-drive motor",
+            "related_contradictions": secondary,
+        })
+        assert r4.status_code == 200
+        scamper = r4.json()
+        assert len(scamper["variants"]) >= 1
+
+        # Step 5: MUST evaluate — uses constraints/KPIs from brief
         mock_eval_llm.return_value = _MUST_EVAL_RESPONSE
-        r4 = client.post("/api/v1/must/evaluate", json={
+        r5 = client.post("/api/v1/must/evaluate", json={
             "project_id": PROJECT_ID,
             "alternative_name": "Axial-Flux Ferrite Mid-Drive",
-            "mechanism": "Based on TRIZ outputs",
+            "mechanism": "Based on TRIZ + SCAMPER outputs",
             "must_criteria": [
                 {"id": "M1", "label": brief["constraints"][0]["description"],
                  "source": "C1", "threshold": brief["kpis"][0]["target_value"] + brief["kpis"][0]["unit"]},
@@ -922,6 +1084,6 @@ class TestEbikeE2EScenario:
             "constraints": [c["description"] for c in brief["constraints"]],
             "kpis": [f"{k['name']} {k['target_value']}{k['unit']}" for k in brief["kpis"]],
         })
-        assert r4.status_code == 200
-        must = r4.json()
+        assert r5.status_code == 200
+        must = r5.json()
         assert must["overall_pass"] is True

@@ -1,5 +1,5 @@
 /**
- * API hooks for the Explore page (Step 1.2–1.3)
+ * API hooks for the Explore page (D2–D3)
  *
  * Covers Socratic Questions, CLD Nodes, CLD Edges,
  * and Explore-level Contradictions.

@@ -438,7 +438,7 @@ that must be completed before this solution can proceed to detailed design.
 """
 
 # ---------------------------------------------------------------------------
-# Brief Quality Review (Gate 1.1 AI evaluator)
+# Brief Quality Review (Gate D1 AI evaluator)
 # ---------------------------------------------------------------------------
 
 BRIEF_QUALITY_REVIEW = """\
@@ -490,7 +490,7 @@ Provide 1–3 concrete suggestions for improvement.
 """
 
 # ---------------------------------------------------------------------------
-# Depth Quality Review (Gate 1.2 AI evaluator)
+# Depth Quality Review (Gate D2 AI evaluator)
 # ---------------------------------------------------------------------------
 
 DEPTH_QUALITY_REVIEW = """\
@@ -539,7 +539,7 @@ List any blind_spots — critical dimensions that are completely unaddressed.
 """
 
 # ---------------------------------------------------------------------------
-# Experiment Coverage Review (Gate 2.1 AI evaluator)
+# Experiment Coverage Review (Gate X1 AI evaluator)
 # ---------------------------------------------------------------------------
 
 EXPERIMENT_COVERAGE_REVIEW = """\

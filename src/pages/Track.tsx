@@ -21,7 +21,8 @@ import { ArrowLeft, Check } from "lucide-react";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { SectionIntro } from "@/components/ui/section-intro";
 import { KnowledgeRefsPanel } from "@/components/create/KnowledgeRefsPanel";
-// TODO: Replace with useKnowledgeRefs hook once knowledge_refs DB table is created (Sprint 5+)
+// TODO: Replace mockPageKnowledgeRefs with a useKnowledgeRefs hook once a knowledge_refs DB table is created (Sprint 5+)
+import { mockPageKnowledgeRefs } from "@/data/mockKnowledgeRefs";
 
 type TabKey = 'kanban' | 'unknown';
 
@@ -131,7 +132,7 @@ export default function Track() {
     refetchFactors();
   }, [convertMutation, displayAssumptions.length, refetchFactors]);
 
-  // Gate 2.1 checks
+  // Gate X1 checks
   const totalAssumptions = displayAssumptions.length;
   const beyondUnverified = displayAssumptions.filter((a) => a.verificationStatus !== 'unverified').length;
   const highRiskAssumptions = displayAssumptions.filter((a) => a.riskLevel === 'H' || a.riskLevel === 'H*');
@@ -190,7 +191,7 @@ export default function Track() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
               Track — 假設追蹤
-              <HelpTooltip text="此階段管理所有設計假設，透過 Kanban 看板追蹤驗證進度。高風險假設必須有實驗計畫，通過 Gate 2.1 後進入方案創造。" className="ml-2 align-middle" />
+              <HelpTooltip text="此階段管理所有設計假設，透過 Kanban 看板追蹤驗證進度。高風險假設必須有實驗計畫，通過 Gate X1 後進入方案創造。" className="ml-2 align-middle" />
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               X1 · 假設 Kanban + 未知集合 U
@@ -246,8 +247,7 @@ export default function Track() {
       </Tabs>
 
       {/* Knowledge Enhancement Panel (WBS 3.4.2) */}
-      {/* TODO: Replace with useKnowledgeRefs hook (Sprint 5+) */}
-      <KnowledgeRefsPanel refs={[]} />
+      <KnowledgeRefsPanel refs={mockPageKnowledgeRefs.track ?? []} />
 
       {/* Gate */}
       <TrackGate

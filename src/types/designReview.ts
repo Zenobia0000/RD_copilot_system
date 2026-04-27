@@ -68,7 +68,7 @@ export const EXP_STATUS_COLOR: Record<ExperimentStatus, string> = {
   Done: '#10B981',
 };
 
-// Gate 3.1
+// Gate V1
 export interface Gate31Item {
   label: string;
   passed: boolean;

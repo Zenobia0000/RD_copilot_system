@@ -18,7 +18,6 @@ from app.core.gate_checks import (
     check_cross_table,
     check_any_status,
     check_manual,
-    check_evidence_coverage,
 )
 
 
@@ -40,13 +39,13 @@ def _register(defn: GateDefinition) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Phase 1
+# Phase D (Define)
 # ---------------------------------------------------------------------------
 
 _register(GateDefinition(
-    gate_id="1.1",
+    gate_id="D1",
     name="Mission + KPI 完整性",
-    phase="1",
+    phase="D",
     ai_evaluator="brief_quality",
     checks=[
         check_field_exists(
@@ -69,9 +68,9 @@ _register(GateDefinition(
 ))
 
 _register(GateDefinition(
-    gate_id="1.2",
+    gate_id="D2",
     name="假設 + 矛盾充分性",
-    phase="1",
+    phase="D",
     ai_evaluator="depth_quality",
     checks=[
         check_table_count(
@@ -98,9 +97,9 @@ _register(GateDefinition(
 ))
 
 _register(GateDefinition(
-    gate_id="PG1",
-    name="Phase Gate 1 — CLD + 矛盾形式化",
-    phase="PG1",
+    gate_id="PG-D",
+    name="Phase Gate D — CLD + 矛盾形式化",
+    phase="PG-D",
     ai_evaluator="convergence",
     checks=[
         check_table_count(
@@ -122,13 +121,13 @@ _register(GateDefinition(
 ))
 
 # ---------------------------------------------------------------------------
-# Phase 2
+# Phase X (Diverge)
 # ---------------------------------------------------------------------------
 
 _register(GateDefinition(
-    gate_id="2.1",
+    gate_id="X1",
     name="高風險假設實驗覆蓋",
-    phase="2",
+    phase="X",
     ai_evaluator="experiment_coverage",
     checks=[
         check_cross_table(
@@ -144,9 +143,9 @@ _register(GateDefinition(
 ))
 
 _register(GateDefinition(
-    gate_id="2.2",
+    gate_id="X2",
     name="方案篩選 (MUST)",
-    phase="2",
+    phase="X",
     ai_evaluator="must",
     checks=[
         check_table_count(
@@ -159,9 +158,9 @@ _register(GateDefinition(
 ))
 
 _register(GateDefinition(
-    gate_id="PG2",
-    name="Phase Gate 2 — Pre-CAD 通過",
-    phase="PG2",
+    gate_id="PG-X",
+    name="Phase Gate X — Pre-CAD 通過",
+    phase="PG-X",
     ai_evaluator="pre_cad",
     checks=[
         check_table_count(
@@ -172,26 +171,17 @@ _register(GateDefinition(
             label_template="Pre-CAD 通過 >= {min}（現有 {actual}）",
             fail_template="尚無方案通過 Pre-CAD 審查",
         ),
-        check_evidence_coverage(
-            min_ratio=0.4,
-            label_template="Evidence 覆蓋率 >= {min_pct}%（現有 {actual_pct}%）",
-            fail_template="Evidence 覆蓋率不足：需要 >= {min_pct}%，目前 {actual_pct}%（警告）",
-        ),
     ],
 ))
 
 # ---------------------------------------------------------------------------
-# Phase 3
+# Phase V (Converge)
 # ---------------------------------------------------------------------------
 
-# TODO: Gate C (V1 → V3, CAD Gate) 未程式化 — 目前依賴人工 Review 頁面流程。
-#       文件定義：北極星 ≥ E2 + Evidence Matrix 所有 row 達標 + Top 10 風險有緩解。
-#       見 E3--ai-agent-detailed-design.md §11.4.3 Gate C 行。
-
 _register(GateDefinition(
-    gate_id="3.2",
+    gate_id="V2",
     name="決策簽核",
-    phase="3",
+    phase="V",
     checks=[
         check_any_status(
             "decisions", "status",
@@ -203,15 +193,15 @@ _register(GateDefinition(
 ))
 
 _register(GateDefinition(
-    gate_id="PG3",
-    name="Phase Gate 3 — 人工確認",
-    phase="PG3",
+    gate_id="PG-V",
+    name="Phase Gate V — 人工確認",
+    phase="PG-V",
     manual=True,
     checks=[
         check_manual(
             label="所有核心 artifacts 已發佈",
             detail="需人工確認",
-            fail_reason="Phase Gate 3 需人工確認所有 artifacts 狀態",
+            fail_reason="Phase Gate V 需人工確認所有 artifacts 狀態",
         ),
     ],
 ))

@@ -5,14 +5,14 @@ import { useProject, useProjectStats } from "@/hooks/api/useProjects";
 import { useBrief, useConstraints, useKpis } from "@/hooks/api/useBrief";
 import { useContradictions } from "@/hooks/api/useContradictions";
 import {
-  useAntiAnchorRoutes,
   useTrizSolutions,
   useSubsystems,
+  useScamperVariants,
   useAlternatives,
 } from "@/hooks/api";
 import { useConceptRoutes } from "@/hooks/api/useConceptRoutes";
 import { useTrackAssumptions } from "@/hooks/api/useTrack";
-import { getNavCards } from "@/lib/navCards";
+import { getMockNavCards } from "@/data/mockNavCards";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,9 +57,9 @@ export default function ProjectDashboard() {
   const { data: contradictions } = useContradictions(id);
 
   // Phase 2 data sources for timeline
-  const antiAnchorRoutes = useAntiAnchorRoutes(id);
   const trizSolutions = useTrizSolutions(id);
   const subsystemsQuery = useSubsystems(id);
+  const scamperVariants = useScamperVariants(id);
   const alternativesQuery = useAlternatives(id);
   const conceptRoutesQuery = useConceptRoutes(id);
   const trackAssumptionsQuery = useTrackAssumptions(id);
@@ -179,20 +179,6 @@ export default function ProjectDashboard() {
     }
 
     // --- Phase 2: Solution Creation ---
-    const aaRoutes = antiAnchorRoutes.data ?? [];
-    if (aaRoutes.length > 0) {
-      const latestDate = aaRoutes.reduce((d, r) => r.createdAt && r.createdAt > d ? r.createdAt : d, aaRoutes[0].createdAt ?? project.createdAt);
-      items.push({
-        id: 'h-antianchor',
-        date: latestDate,
-        title: `跨域去錨定 (TRIZ L1)：${aaRoutes.length} 條非典型架構`,
-        summary: aaRoutes.map(r => r.name).join('、'),
-        author,
-        type: 'task',
-        relatedPage: 'create',
-      });
-    }
-
     const triz = trizSolutions.data ?? [];
     if (triz.length > 0) {
       const adopted = triz.filter(t => t.status === 'adopted');
@@ -217,6 +203,21 @@ export default function ProjectDashboard() {
         date: latestDate,
         title: `子系統定義：${subs.length} 個（${confirmed} 已確認）`,
         summary: subs.map(s => s.name).join('、'),
+        author,
+        type: 'task',
+        relatedPage: 'create',
+      });
+    }
+
+    const scamper = scamperVariants.data ?? [];
+    if (scamper.length > 0) {
+      const adoptedCount = scamper.filter(v => v.adopted).length;
+      const latestDate = scamper.reduce((d, v) => v.createdAt && v.createdAt > d ? v.createdAt : d, scamper[0].createdAt ?? project.createdAt);
+      items.push({
+        id: 'h-scamper',
+        date: latestDate,
+        title: `SCAMPER 變形：${scamper.length} 個變異`,
+        summary: `已採用 ${adoptedCount} 個。${scamper.flatMap(v => v.newContradictions ?? []).filter(nc => nc.severity === 'fatal' || nc.severity === 'major').length > 0 ? '含 Fatal/Major 新矛盾待處理。' : ''}`,
         author,
         type: 'task',
         relatedPage: 'create',
@@ -299,7 +300,7 @@ export default function ProjectDashboard() {
     // Sort newest first
     items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     return items;
-  }, [project, brief, contradictions, kpis, constraints, antiAnchorRoutes.data, trizSolutions.data, subsystemsQuery.data, alternativesQuery.data, conceptRoutesQuery.data, trackAssumptionsQuery.data]);
+  }, [project, brief, contradictions, kpis, constraints, trizSolutions.data, subsystemsQuery.data, scamperVariants.data, alternativesQuery.data, conceptRoutesQuery.data, trackAssumptionsQuery.data]);
 
   // Loading state
   if (isLoading) {
@@ -355,7 +356,7 @@ export default function ProjectDashboard() {
   // Use live stats from DB if available, otherwise fall back to project.quick_stats
   const quickStats = liveStats ?? project.quick_stats;
 
-  const navCards = getNavCards(project.phase_progress);
+  const navCards = getMockNavCards(project.phase_progress);
   const createdDate = new Date(project.createdAt).toLocaleDateString("zh-TW");
   const isZeroData = Object.values(quickStats).every((v) => v === 0);
 

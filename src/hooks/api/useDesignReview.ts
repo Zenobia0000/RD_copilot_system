@@ -1,5 +1,5 @@
 /**
- * API hooks for DesignReview page (Step 3.1 — Review & Decision)
+ * API hooks for DesignReview page (V1 — Review & Decision)
  *
  * Covers: Evidence Matrix, Risks, Experiments.
  *

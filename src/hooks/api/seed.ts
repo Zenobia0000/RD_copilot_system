@@ -151,15 +151,6 @@ async function seedProject1(uid: string): Promise<string> {
     { project_id: pid, from_node: nids[3], to_node: nids[6], polarity: '+' },
   ], 'cld-edges-1');
 
-  // ── Anti-Anchor Routes ──
-  // v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1 flow
-  // Seed data kept for backward compatibility with existing projects
-  await ins('anti_anchor_routes', [
-    { project_id: pid, name: '整合式馬達控制模組', description: '將電力電子直接嵌入馬達定子座，使用 flex-rigid PCB 消除外殼尺寸限制。', is_non_typical: true, source: '腦力激盪' },
-    { project_id: pid, name: '數位孿生熱管理', description: '使用即時數位孿生預測熱負載，允許短暫超溫操作並保證冷卻排程。', is_non_typical: true, source: 'AI 建議' },
-    { project_id: pid, name: '液冷微通道散熱', description: '借鑑伺服器液冷技術，在 PCB 內建微通道液冷管路。', is_non_typical: true, source: 'AI 建議' },
-  ], 'anti-anchor-1');
-
   // ── TRIZ Solutions ──
   await ins('triz_solutions', [
     { project_id: pid, contradiction_id: cids[0], path: 'TC', principle_number: 28, principle_name: '機械替代', suggestion: '以諧振軟切換拓撲替代固定頻率 PWM，高頻且不增加 EMI。將開關損耗降低 60%，同時 EMI 頻譜分散不超過 CISPR 25 限制。', status: 'adopted' },
@@ -176,24 +167,11 @@ async function seedProject1(uid: string): Promise<string> {
     { project_id: pid, name: '散熱結構', reason: '散熱片、TIM、PCB 銅面 — 熱阻路徑關鍵', related_contradictions: [cids[2]], confirmed: true, source: 'rd' },
   ], 'subsystems-1');
 
-  // ── SCAMPER Variants (new_contradictions uses structured format: {id, description, severity, fedBack}) ──
-  await ins('scamper_variants', [
-    { project_id: pid, subsystem_id: subsys[0].id, action: 'S', description: '將 Si MOSFET 替換為 GaN（降低 Rds(on) 40%）', adopted: true, new_contradictions: [
-      { id: 'snc-p1-001', description: 'GaN 單價高於 Si MOSFET $3.20，BOM 超出目標預算', severity: 'major', fedBack: true },
-    ] },
-    { project_id: pid, subsystem_id: subsys[0].id, action: 'C', description: '整合 Gate driver + 電流感測於單一 IC（減少 BOM 3 顆）', adopted: true, new_contradictions: [] },
-    { project_id: pid, subsystem_id: subsys[2].id, action: 'E', description: '移除獨立散熱片，改用 PCB 銅面直接散熱', adopted: false, new_contradictions: [
-      { id: 'snc-p1-002', description: '純 PCB 銅面散熱在持續 500W 負載下熱阻過高，結溫超標', severity: 'fatal', fedBack: false },
-    ] },
-    { project_id: pid, subsystem_id: subsys[2].id, action: 'A', description: '借鑑筆電散熱：使用均溫板（vapor chamber）取代傳統散熱片', adopted: true, new_contradictions: [] },
-    { project_id: pid, subsystem_id: subsys[1].id, action: 'M', description: '將 ADC 採樣率從 10kHz 提升至 100kHz，支援軟切換零電流偵測', adopted: true, new_contradictions: [
-      { id: 'snc-p1-003', description: 'ADC 100kHz 採樣導致 MCU 運算負載增加 40%，可能影響控制迴路即時性', severity: 'major', fedBack: true },
-    ] },
-    { project_id: pid, subsystem_id: subsys[0].id, action: 'R', description: '從降壓型改為升壓型拓撲，在低速高扭矩場景效率更高', adopted: false, new_contradictions: [
-      { id: 'snc-p1-004', description: '升壓拓撲在高速巡航場景效率反而下降 5-8%', severity: 'minor', fedBack: false },
-    ] },
-    { project_id: pid, subsystem_id: subsys[1].id, action: 'P', description: '利用 MCU 空閒週期執行電池 SoC 估測（無需額外處理器）', adopted: true, new_contradictions: [] },
-  ], 'scamper-1');
+  // @deprecated v9: SCAMPER removed — TRIZ 40 principles fully cover SCAMPER actions
+  // await ins('scamper_variants', [
+  //   { project_id: pid, subsystem_id: subsys[0].id, action: 'S', description: '將 Si MOSFET 替換為 GaN（降低 Rds(on) 40%）', adopted: true, new_contradictions: [...] },
+  //   ... (7 entries removed)
+  // ], 'scamper-1');
 
   // ── Alternatives (with full must_scores M1-M6, interface_contract 6D, pre_cad_scores 5D) ──
   const alts = await insRet('alternatives', [
@@ -498,12 +476,6 @@ async function seedProject2(uid: string): Promise<string> {
     { project_id: pid, from_node: nids[1], to_node: nids[4], polarity: '+' },
   ], 'cld-edges-2');
 
-  // v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1 flow
-  await ins('anti_anchor_routes', [
-    { project_id: pid, name: '無線 BMS', description: '使用無線通訊取代均衡線束，消除佈線面積限制。', is_non_typical: true, source: 'AI 建議' },
-    { project_id: pid, name: '超級電容輔助均衡', description: '使用超級電容作為能量中繼，取代變壓器。', is_non_typical: true, source: 'AI 建議' },
-  ], 'anti-anchor-2');
-
   await ins('triz_solutions', [
     { project_id: pid, contradiction_id: cids[0], path: 'TC', principle_number: 17, principle_name: '另一維度', suggestion: '將變壓器從 PCB 平面移至垂直堆疊（3D 封裝），面積不變但容量提升。使用 PoP 封裝技術。', status: 'pending' },
     { project_id: pid, contradiction_id: cids[0], path: 'TC', principle_number: 6, principle_name: '萬用性', suggestion: '使用一個共用變壓器 + 多工切換，取代每串獨立變壓器。', status: 'pending' },
@@ -516,16 +488,10 @@ async function seedProject2(uid: string): Promise<string> {
     { project_id: pid, name: '安全保護', reason: '過充/過放/短路保護電路', related_contradictions: [], confirmed: true, source: 'rd' },
   ], 'subsystems-2');
 
-  await ins('scamper_variants', [
-    { project_id: pid, subsystem_id: subsys[0].id, action: 'S', description: '將被動均衡替換為主動 Flyback 均衡', adopted: true, new_contradictions: [
-      { id: 'snc-p2-001', description: 'Flyback 變壓器佔 PCB 面積增加 40%，可能超出 60×40mm 限制', severity: 'major', fedBack: false },
-    ] },
-    { project_id: pid, subsystem_id: subsys[0].id, action: 'C', description: '將均衡 + 充電 IC 整合為單一晶片', adopted: false, new_contradictions: [
-      { id: 'snc-p2-002', description: '整合 IC 市場選擇僅 2-3 家，供應鏈風險高', severity: 'minor', fedBack: false },
-    ] },
-    { project_id: pid, subsystem_id: subsys[1].id, action: 'A', description: '借鑑電動車 BMS 的 EKF 演算法應用至 E-bike', adopted: true, new_contradictions: [] },
-    { project_id: pid, subsystem_id: subsys[2].id, action: 'M', description: '將保護閾值從固定值改為自適應（基於溫度補償）', adopted: true, new_contradictions: [] },
-  ], 'scamper-2');
+  // @deprecated v9: SCAMPER removed — TRIZ 40 principles fully cover SCAMPER actions
+  // await ins('scamper_variants', [
+  //   ... (4 entries removed)
+  // ], 'scamper-2');
 
   const alts2 = await insRet('alternatives', [
     {
@@ -594,7 +560,7 @@ async function seedProject2(uid: string): Promise<string> {
     { project_id: pid, user_id: uid, name: '均衡 EMI 預掃描', linked_assumptions: ['A-03'], evidence_level: 'E2', method: 'CAN bus BER 測試', success_criteria: 'BER < 10^-6', status: 'Done', result: '軟切換後 BER < 10^-8，通過' },
   ], 'experiments-2');
 
-  // ── Evidence Entries (Gate 2.1 Track 階段量測記錄) ──
+  // ── Evidence Entries (Gate X1 Track 階段量測記錄) ──
   // Query back KPI IDs for linking
   const { data: kpiRows2 } = await getAdminDb().from('kpis').select('id,kpi_name').eq('project_id', pid);
   const kpiMap2: Record<string, string> = {};
@@ -627,7 +593,7 @@ async function seedProject2(uid: string): Promise<string> {
     },
   ], 'evidence-entries-2');
 
-  // ── Concept Routes (Gate 2.2 Create 階段多解組合路線) ──
+  // ── Concept Routes (Gate X2 Create 階段多解組合路線) ──
   await ins('concept_routes', [
     {
       project_id: pid, route_type: 'composite',
@@ -740,22 +706,14 @@ async function seedProject3(uid: string): Promise<string> {
     { project_id: pid, from_node: nids[4], to_node: nids[2], polarity: '+' },
   ], 'cld-edges-3');
 
-  // ── Assumptions (Gate 1.2 Explore — 從 Socratic 標記產生) ──
+  // ── Assumptions (Gate D2 Explore — 從 Socratic 標記產生) ──
   await ins('assumptions', [
     { project_id: pid, code: 'A-01', content: '碳纖維管材的膠合接合強度足以替代鋁焊接，達到 ISO 4210 疲勞標準', source: 'Socratic 提問標記', source_type: 'explore_tag', worst_consequence: '接合處疲勞斷裂', worst_severity: 'critical', status: 'pending', verification_stage: 'planned' },
     { project_id: pid, code: 'A-02', content: '全鋁焊接是唯一可行的接合工藝（可能為經驗偏見）', source: 'Socratic 提問標記', source_type: 'explore_tag', worst_consequence: '忽略更優的複合材料方案', worst_severity: 'high', status: 'pending', verification_stage: 'planned' },
     { project_id: pid, code: 'A-03', content: '管壁減薄至 0.8mm 後局部挫曲風險可透過加肋控制', source: '結構分析推測', source_type: 'manual', worst_consequence: '局部挫曲導致結構失效', worst_severity: 'critical', status: 'pending', verification_stage: 'not_started' },
   ], 'assumptions-3');
 
-  // ── Anti-Anchor Routes (Gate 1.2 Explore — 非典型路線) ──
-  // v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1 flow
-  await ins('anti_anchor_routes', [
-    { project_id: pid, name: '拓撲最佳化車架', description: '使用 FEA 拓撲最佳化算出非傳統管型截面，以最少材料達到剛性目標。類似 F1 單體殼概念。', is_non_typical: true, source: 'AI 建議' },
-    { project_id: pid, name: '碳鋁複合接頭', description: '關鍵應力集中區使用鋁合金接頭，管材使用碳纖維，結合兩者優勢。類似自行車業 lugged carbon 工藝。', is_non_typical: true, source: 'AI 建議' },
-    { project_id: pid, name: '3D 列印鈦合金接頭', description: '使用 SLM 3D 列印鈦合金節點，搭配碳纖維管材膠合。實現自由曲面應力最佳化幾何。', is_non_typical: true, source: 'AI 建議' },
-  ], 'anti-anchor-3');
-
-  // P3 is Phase I — no triz_solutions, subsystems, scamper, alternatives yet (Gate 1.3 矛盾確認尚未開始)
+  // P3 is Phase I — no triz_solutions, subsystems, scamper, alternatives yet (Gate D3 矛盾確認尚未開始)
 
   console.info(`[seed] Project 3 (Frame) created: ${pid}`);
   return pid;

@@ -13,15 +13,15 @@ interface StepDef {
 }
 
 const STEPS: StepDef[] = [
-  { key: "1.1", label: "Brief", phase: 1 },
-  { key: "1.2", label: "Explore", phase: 1 },
-  { key: "1.3", label: "矛盾確認", phase: 1 },
-  { key: "2.1", label: "Track", phase: 2 },
-  { key: "2.2", label: "Create", phase: 2 },
-  { key: "2.3", label: "Pre-CAD", phase: 2 },
-  { key: "3.1", label: "Review", phase: 3 },
-  { key: "3.2", label: "Decide", phase: 3 },
-  { key: "3.3", label: "Feynman", phase: 3 },
+  { key: "D1", label: "Brief", phase: 1 },
+  { key: "D2", label: "Explore", phase: 1 },
+  { key: "PG-D", label: "矛盾確認", phase: 1 },
+  { key: "X1", label: "Track", phase: 2 },
+  { key: "X2", label: "Create", phase: 2 },
+  { key: "PG-X", label: "Pre-CAD", phase: 2 },
+  { key: "V1", label: "Review", phase: 3 },
+  { key: "V2", label: "Decide", phase: 3 },
+  { key: "PG-V", label: "Feynman", phase: 3 },
 ];
 
 const PHASE_LABELS: Record<number, string> = {

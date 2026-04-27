@@ -486,41 +486,6 @@ export function cldGenerate(body: CldGenerateRequest) {
   return request<CldGenerateResponse>("/causal-loops/generate", body);
 }
 
-// ─── Anti-Anchor ────────────────────────────────────────────────────────────
-// v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1 flow
-
-/** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
-export interface AntiAnchorGenerateRequest {
-  project_id: string;
-  mission: string;
-  current_constraints: string[];
-  existing_alternatives?: string[];
-  socraticAnswers?: string[];
-}
-
-/** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
-export interface AntiAnchorRouteResult {
-  name: string;
-  mechanism: string;
-  description: string;
-  is_non_typical: boolean;
-  rationale: string;
-  why_unconventional: string;
-  potential_advantage: string;
-  cross_domain_source: string;
-  validation_passport: Record<string, unknown> | null;
-}
-
-/** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
-export interface AntiAnchorGenerateResponse {
-  routes: AntiAnchorRouteResult[];
-}
-
-/** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
-export function antiAnchorGenerate(body: AntiAnchorGenerateRequest) {
-  return request<AntiAnchorGenerateResponse>("/alternatives/anti-anchor", body, { timeoutMs: 300_000 });
-}
-
 // ─── TRIZ ───────────────────────────────────────────────────────────────────
 
 export interface TrizSolveRequest {
@@ -576,40 +541,6 @@ export function trizSolveLayered(body: SolveTrizLayeredRequest) {
   });
 }
 
-// ─── TRIZ Directed (v8) — Direction-centric flow ────────────────────────────
-// POST /triz/solve-directed  — single contradiction direction solver
-// POST /triz/consolidate     — cross-contradiction consolidation
-
-import type {
-  SolveDirectedRequest,
-  SolveDirectedResponse,
-  ConsolidateRequest,
-  ConsolidateResponse,
-} from "@/types/directedTriz";
-
-export type { SolveDirectedRequest, SolveDirectedResponse, ConsolidateRequest, ConsolidateResponse };
-export type {
-  ContradictionDirectionResult,
-  DirectionGroup,
-  DirectionScore,
-  DirectionSolution,
-  ConsolidationResult,
-  ConflictReport,
-  CompatibilityResult,
-} from "@/types/directedTriz";
-
-export function trizSolveDirected(body: SolveDirectedRequest) {
-  return request<SolveDirectedResponse>("/triz/solve-directed", body, {
-    timeoutMs: 480_000,
-  });
-}
-
-export function trizConsolidate(body: ConsolidateRequest) {
-  return request<ConsolidateResponse>("/triz/consolidate", body, {
-    timeoutMs: 300_000,
-  });
-}
-
 // ─── Su-Field (76 Standard Solutions) ───────────────────────────────────────
 
 export interface SuFieldRequest {
@@ -635,6 +566,39 @@ export interface SuFieldResponse {
 
 export function suFieldAnalyze(body: SuFieldRequest) {
   return request<SuFieldResponse>("/triz/sufield", body, { timeoutMs: 300_000 });
+}
+
+// ─── SCAMPER ────────────────────────────────────────────────────────────────
+
+export interface ScamperTransformRequest {
+  project_id: string;
+  subsystem_name: string;
+  subsystem_description: string;
+  related_contradictions?: string[];
+  /** RD-confirmed 6-dim interface contracts keyed by neighbour name.
+   *  Optional so existing legacy call sites compile unchanged. When set,
+   *  the backend prompt tells the LLM to respect the contract boundaries
+   *  and to declare preserve/modify/break per dimension. (WBS 10.1) */
+  interface_contracts?: InterfaceContractMap;
+  /** Stable djb2 fingerprint of the contract snapshot at RD-confirm time.
+   *  Used by the FE to detect drift and block SCAMPER generation until
+   *  RD re-confirms the subsystem. */
+  contracts_hash?: string;
+}
+
+export interface ScamperVariantResult {
+  action: string;
+  description: string;
+  potential_benefits: string;
+  new_contradictions: string[];
+}
+
+export interface ScamperTransformResponse {
+  variants: ScamperVariantResult[];
+}
+
+export function scamperTransform(body: ScamperTransformRequest) {
+  return request<ScamperTransformResponse>("/scamper/perform", body);
 }
 
 // ─── Risk ───────────────────────────────────────────────────────────────────
@@ -912,33 +876,6 @@ export function contradictionDecompose(
   return request<ContradictionDecomposeResponse>(`/contradictions/${cid}/decompose`, body);
 }
 
-// ─── Contradiction SF Derivation (Plan B hierarchical tree) ────────────────
-
-export interface ContradictionDeriveSFRequest {
-  project_id: string;
-  contradiction_id: string;
-  engineering_statement: string;
-  improving_param: number;
-  worsening_param: number;
-  natural_description?: string;
-}
-
-export interface ContradictionDeriveSFResponse {
-  derived: boolean;
-  sf_substance_1?: string | null;
-  sf_substance_2?: string | null;
-  sf_field?: string | null;
-  sf_interaction?: string | null;
-  sf_completeness?: string | null;
-}
-
-export function contradictionDeriveSF(
-  cid: string,
-  body: ContradictionDeriveSFRequest,
-) {
-  return request<ContradictionDeriveSFResponse>(`/contradictions/${cid}/derive-sf`, body);
-}
-
 // ─── Assumption Extraction ─────────────────────────────────────────────────
 
 export interface AssumptionExtractRequest {
@@ -965,7 +902,7 @@ export function assumptionExtract(body: AssumptionExtractRequest) {
   return request<AssumptionExtractResponse>("/assumptions/extract", body);
 }
 
-// ─── Subsystem Suggestions ────────────────────────────────────────────────
+// ─── SCAMPER Subsystem Suggestions ─────────────────────────────────────────
 
 export interface SubsystemSuggestRequest {
   project_id: string;
@@ -991,17 +928,14 @@ export type {
   BBox,
 } from '@/types/generated/subsystem';
 
-export function subsystemSuggest(body: SubsystemSuggestRequest) {
-  return request<SubsystemSuggestResponse>("/subsystems/suggest", body, { timeoutMs: 300_000 });
+export function scamperSubsystemSuggest(body: SubsystemSuggestRequest) {
+  return request<SubsystemSuggestResponse>("/scamper/subsystem-suggestions", body, { timeoutMs: 300_000 });
 }
-
-/** @deprecated Use subsystemSuggest — kept for call-site migration. */
-export const scamperSubsystemSuggest = subsystemSuggest;
 
 // ─── Spatial Overlay / Override / Learned ──────────────────────────────────
 //
 // Matches the backend contracts in:
-//   - backend/app/routers/subsystems.py → POST /subsystems/spatial-overlay
+//   - backend/app/routers/scamper.py    → POST /scamper/spatial-overlay
 //   - backend/app/routers/spatial.py    → POST /spatial/component-overrides
 //                                       → POST /spatial/learned-components
 // The request/response shapes below mirror the Pydantic models in
@@ -1014,7 +948,7 @@ export const scamperSubsystemSuggest = subsystemSuggest;
 // handleOverlaySubmit) are responsible for translating between the dialog
 // payload and this request shape.
 //
-// `PackageMap` and `BBox` are both re-exported from the subsystem block above
+// `PackageMap` and `BBox` are both re-exported from the SCAMPER block above
 // (`export type { ..., PackageMap, BBox, ... }`) so they're already in scope
 // within this file.
 
@@ -1031,12 +965,9 @@ export interface SpatialOverlayResponse {
   package_map: PackageMap;
 }
 
-export function subsystemSpatialOverlay(body: SpatialOverlayRequest) {
-  return request<SpatialOverlayResponse>("/subsystems/spatial-overlay", body, { timeoutMs: 60_000 });
+export function scamperSpatialOverlay(body: SpatialOverlayRequest) {
+  return request<SpatialOverlayResponse>("/scamper/spatial-overlay", body, { timeoutMs: 60_000 });
 }
-
-/** @deprecated Use subsystemSpatialOverlay — kept for call-site migration. */
-export const scamperSpatialOverlay = subsystemSpatialOverlay;
 
 export interface SpatialComponentOverrideRequest {
   project_id: string;
@@ -1075,6 +1006,23 @@ export interface SpatialLearnedComponentResponse {
 
 export function spatialLearnedComponent(body: SpatialLearnedComponentRequest) {
   return request<SpatialLearnedComponentResponse>("/spatial/learned-components", body);
+}
+
+// ─── SCAMPER Feedback Contradictions ───────────────────────────────────────
+
+export interface ScamperFeedbackRequest {
+  project_id: string;
+  new_contradictions: Record<string, unknown>[];
+}
+
+export interface ScamperFeedbackResponse {
+  created_count: number;
+  deduplicated_count: number;
+  contradiction_ids: string[];
+}
+
+export function scamperFeedbackContradictions(body: ScamperFeedbackRequest) {
+  return request<ScamperFeedbackResponse>("/scamper/feedback-contradictions", body);
 }
 
 // ─── Pre-CAD AI Analysis ───────────────────────────────────────────────────
@@ -1245,124 +1193,6 @@ export interface UnknownFactorDiscoverResponse {
 
 export function unknownFactorDiscover(body: UnknownFactorDiscoverRequest) {
   return request<UnknownFactorDiscoverResponse>("/unknown-factors/discover", body, { timeoutMs: 300_000 });
-}
-
-// ─── Analyst V2 (Auto-TRIZ v2 Layer 2) ─────────────────────────────────────
-
-export interface EntryGradingRequest {
-  project_id: string;
-  problem_description: string;
-}
-
-export interface EntryGradingResponse {
-  level: "A" | "B" | "C";
-  reasoning: string;
-}
-
-export function entryGrading(body: EntryGradingRequest) {
-  return request<EntryGradingResponse>("/analyst/entry-grading", body);
-}
-
-export interface FiveWhyRequest {
-  project_id: string;
-  problem_description: string;
-  context?: string;
-}
-
-export interface FiveWhyPair {
-  why: string;
-  because: string;
-}
-
-export interface FiveWhyResponse {
-  chain: FiveWhyPair[];
-  root_cause: string;
-}
-
-export function fiveWhyAnalysis(body: FiveWhyRequest) {
-  return request<FiveWhyResponse>("/analyst/five-why", body);
-}
-
-export interface KtAnalysisRequest {
-  project_id: string;
-  problem_description: string;
-  context?: string;
-}
-
-export interface KtIsIsNotRow {
-  dimension: string;
-  is: string;
-  is_not: string;
-}
-
-export interface KtIsIsNotResponse {
-  rows: KtIsIsNotRow[];
-  summary: string;
-}
-
-export function ktAnalysis(body: KtAnalysisRequest) {
-  return request<KtIsIsNotResponse>("/analyst/kt-analysis", body);
-}
-
-export interface FunctionAnalysisRequest {
-  project_id: string;
-  problem_description: string;
-  context?: string;
-}
-
-export interface FunctionComponent {
-  name: string;
-  role: string;
-  interactions: string[];
-}
-
-export interface SfDiagnosis {
-  substance_1: string;
-  substance_2: string;
-  field: string;
-  diagnosis: string;
-}
-
-export interface FunctionAnalysisResponse {
-  components: FunctionComponent[];
-  sf_diagnosis: SfDiagnosis;
-  summary: string;
-}
-
-export function functionAnalysis(body: FunctionAnalysisRequest) {
-  return request<FunctionAnalysisResponse>("/analyst/function-analysis", body);
-}
-
-// ─── OZ/OT Analysis (Create V2) ────────────────────────────────────────────
-
-export interface OzOtAnalysisRequest {
-  project_id: string;
-  problem_description: string;
-  contradictions?: string[];
-}
-
-export interface OzOtAnalysisResponse {
-  operating_zone: string;
-  operating_time: string;
-  controllable_params: string[];
-  summary: string;
-}
-
-export function ozOtAnalysis(body: OzOtAnalysisRequest) {
-  return request<OzOtAnalysisResponse>("/analyst/oz-ot-analysis", body);
-}
-
-// ─── Evidence Coverage (GET) ────────────────────────────────────────────────
-
-export interface EvidenceCoverageResponse {
-  project_id: string;
-  coverage_pct: number;
-  total_claims: number;
-  covered_claims: number;
-}
-
-export function evidenceCoverage(projectId: string) {
-  return requestGet<EvidenceCoverageResponse>(`/evidence/coverage/${encodeURIComponent(projectId)}`);
 }
 
 export { ApiError, ApiNetworkError, type RequestOptions };

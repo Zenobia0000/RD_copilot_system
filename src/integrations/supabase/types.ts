@@ -89,37 +89,6 @@ export type Database = {
         }
         Relationships: []
       }
-      /** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
-      anti_anchor_routes: {
-        Row: {
-          id: string
-          project_id: string
-          name: string
-          description: string | null
-          is_non_typical: boolean
-          source: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          project_id: string
-          name: string
-          description?: string | null
-          is_non_typical?: boolean
-          source?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          project_id?: string
-          name?: string
-          description?: string | null
-          is_non_typical?: boolean
-          source?: string | null
-          created_at?: string
-        }
-        Relationships: []
-      }
       assumptions: {
         Row: {
           id: string
@@ -966,6 +935,7 @@ export type Database = {
         }
         Relationships: []
       }
+      /** @deprecated v9: SCAMPER removed — TRIZ 40 principles fully cover SCAMPER actions */
       scamper_variants: {
         Row: {
           id: string

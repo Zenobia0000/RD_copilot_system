@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft, Check, Plus, Sparkles, Loader2, AlertTriangle,
   ArrowRight, Flag, CheckCircle, XCircle, ChevronLeft, ChevronRight, Pencil, Trash2,
-  Shapes, Clock, RefreshCw
+  Shapes
 } from "lucide-react";
 import { AiButton } from "@/components/ui/ai-button";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
@@ -26,15 +26,15 @@ import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer
 } from "recharts";
 import type {
-  AntiAnchorRoute, TrizSolution, Subsystem,
+  TrizSolution, Subsystem, ScamperVariant, ScamperNewContradiction,
   Alternative, AccordionStepStatus, TrizPath, TrizActionStatus, CreateGateItem,
   SubsystemSource, SubsystemLevel
 } from "@/types/create";
-import { DEFAULT_MUST_CRITERIA, PRECAD_DIMENSIONS } from "@/types/create";
+import { DEFAULT_MUST_CRITERIA, PRECAD_DIMENSIONS, SCAMPER_LABELS } from "@/types/create";
 import type { MustCriterion } from "@/types/create";
 import type { InterfaceContractMap } from "@/types/generated/subsystem";
 import { EMPTY_INTERFACE_CONTRACT } from "@/types/generated/subsystem";
-import { useSocraticQuestions } from "@/hooks/api/useExplore";
+
 /**
  * Stage 4 of refactor/subsystem-interface-contracts: convert the manual-form
  * comma-separated "interfaces" text input into an InterfaceContractMap with
@@ -43,7 +43,7 @@ import { useSocraticQuestions } from "@/hooks/api/useExplore";
  *
  * This lets the manual subsystem form feed the same data shape the AI path
  * produces, so downstream consumers (InterfaceContractsPanel, Pre-CAD
- * spatial_score, variant tracking) see a uniform structure.
+ * spatial_score, SCAMPER variant tracking) see a uniform structure.
  */
 function neighbourTextToContractMap(
   text: string,
@@ -61,12 +61,7 @@ function neighbourTextToContractMap(
   }
   return result;
 }
-// TODO: Replace with AI-generated anti-anchor warning via API (Sprint 3+)
 import {
-  useAntiAnchorRoutes,
-  useCreateAntiAnchorRoute,
-  useUpdateAntiAnchorRoute,
-  useDeleteAntiAnchorRoute,
   useTrizSolutions,
   useCreateTrizSolution,
   useUpdateTrizSolution,
@@ -74,6 +69,9 @@ import {
   useCreateSubsystem,
   useUpdateSubsystem,
   useDeleteSubsystem,
+  useScamperVariants,
+  useCreateScamperVariant,
+  useUpdateScamperVariant,
   useAlternatives,
   useCreateAlternative,
   useUpdateAlternative,
@@ -81,20 +79,15 @@ import {
 } from "@/hooks/api";
 import { useContradictions } from "@/hooks/api/useContradictions";
 import { useLayeredTrizSolutions } from "@/hooks/api/useLayeredTrizSolutions";
-import { useDirectedTrizSolutions } from "@/hooks/api/useDirectedTrizSolutions";
-import { useTrizConsolidationResult, upsertConsolidationResult } from "@/hooks/api/useTrizConsolidationResult";
 import type { Contradiction } from "@/types/contradiction";
 import type { Json } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useTrackAssumptions } from "@/hooks/api/useTrack";
 import { useBrief, useConstraints, useKpis } from "@/hooks/api/useBrief";
-import { antiAnchorGenerate, trizSolveLayered, trizSolveDirected, trizConsolidate, riskAnalyze, mustEvaluate, validationPassportGenerate, subsystemSpatialOverlay, spatialComponentOverride, spatialLearnedComponent } from "@/lib/api";
+import { trizSolveLayered, scamperTransform, riskAnalyze, mustEvaluate, validationPassportGenerate, scamperSpatialOverlay, spatialComponentOverride, spatialLearnedComponent } from "@/lib/api";
 import type { LayeredTrizSolution, TrizSeverity, AdoptedLayerId } from "@/types/layeredTriz";
-import type { ContradictionDirectionResult, ConsolidationResult } from "@/types/directedTriz";
 import { LayeredSolutionCard } from "@/components/create/LayeredSolutionCard";
 import type { AdoptionMode } from "@/components/create/LayeredSolutionCard";
-import { DirectionResultCard } from "@/components/create/DirectionResultCard";
-import { ConsolidationPanel } from "@/components/create/ConsolidationPanel";
 import type { LayeredConceptRouteMeta, LayeredLayerSnapshot } from "@/types/conceptRoute";
 import { hashContracts, isContractDriftedSinceConfirm } from "@/lib/subsystemHash";
 import { useQueryClient } from "@tanstack/react-query";
@@ -104,7 +97,8 @@ import type { MustCriterionResult } from "@/lib/api";
 import type { PackageMap } from "@/types/generated/subsystem";
 import { useSubsystemSuggestion } from "@/hooks/api/useSubsystemSuggestion";
 import { useProject } from "@/hooks/api/useProjects";
-// TODO: Replace with useKnowledgeRefs hook once knowledge_refs DB table is created (Sprint 5+)
+// TODO: Replace mockStepKnowledgeRefs with a useKnowledgeRefs hook once a knowledge_refs DB table is created (Sprint 5+)
+import { mockStepKnowledgeRefs } from "@/data/mockKnowledgeRefs";
 import { MissionContext } from "@/components/create/MissionContext";
 import { CreateStepper } from "@/components/create/CreateStepper";
 import { KnowledgeRefsPanel } from "@/components/create/KnowledgeRefsPanel";
@@ -123,7 +117,8 @@ import { HumanReviewPanel } from "@/components/create/HumanReviewPanel";
 import { ArchitectureHaltOverlay } from "@/components/create/ArchitectureHaltOverlay";
 import { MultiSolutionAdoptionPanel } from "@/components/create/MultiSolutionAdoptionPanel";
 import { useConceptRoutes, useCompatibilityPairs } from "@/hooks/api/useConceptRoutes";
-// TODO: Replace with API when available -- AI-generated adoption state, no dedicated DB table yet
+// TODO: Replace with API when available — AI-generated adoption state, no dedicated DB table yet
+import { mockAdoptionState } from "@/data/mockConceptRoutes";
 import type { ConceptRoute, MultiSolutionAdoptionState } from "@/types/conceptRoute";
 
 const RADAR_COLORS = [
@@ -134,16 +129,15 @@ const RADAR_COLORS = [
 ];
 
 const STEPS = [
-  { label: "跨域去錨定 (TRIZ L1)", shortLabel: "去錨定", description: "已整合至 TRIZ L1 — 從約束出發產出非典型架構概念", zone: "reverse" as const }, // v3.0: renamed from Anti-Anchor
-  { label: "正向分析：TRIZ 解矛盾", shortLabel: "TRIZ", description: "從矛盾出發 → 分層 drill-down 診斷（L1 現象 / L2 根因 / L3 結構）→ 子系統分解", zone: "forward" as const },
-  { label: "正向分析：子系統定義", shortLabel: "子系統", description: "識別受矛盾影響的子系統 (System→Module→Component)，聚焦變形範圍", zone: "forward" as const },
-  { label: "候選方案決策中心", shortLabel: "決策中心", description: "攤平兩條路徑的所有方案，橫向比較來源、機制、假設、驗證需求與信心等級", zone: "hub" as const },
+  { label: "TRIZ 解矛盾", shortLabel: "TRIZ", description: "從矛盾出發 → 分層 drill-down 診斷（L1 現象 / L2 根因 / L3 結構）→ 子系統分解 → SCAMPER 創意變形", zone: "forward" as const },
+  { label: "子系統定義", shortLabel: "子系統", description: "識別受矛盾影響的子系統 (System→Module→Component)，聚焦變形範圍", zone: "forward" as const },
+  { label: "SCAMPER 變形", shortLabel: "SCAMPER", description: "對每個子系統執行 7 種創意動作，產出方案候選", zone: "forward" as const },
+  { label: "候選方案決策中心", shortLabel: "決策中心", description: "攤平所有方案，橫向比較來源、機制、假設、驗證需求與信心等級", zone: "hub" as const },
   { label: "MUST 快篩", shortLabel: "MUST", description: "以必要條件（M1-M6）快速淘汰不可行方案", zone: "eval" as const },
   { label: "Pre-CAD 審查", shortLabel: "Pre-CAD", description: "五維審查：MUST/解耦/可驗證性/失效機制/MVP CAD", zone: "eval" as const },
 ];
 
 const ZONE_LABELS: Record<string, { badge: string; color: string }> = {
-  reverse: { badge: "反向路徑", color: "bg-amber-100 text-amber-700" },
   forward: { badge: "正向路徑", color: "bg-blue-100 text-blue-700" },
   hub: { badge: "決策中心", color: "bg-violet-100 text-violet-700" },
   eval: { badge: "統一評估", color: "bg-green-100 text-green-700" },
@@ -160,20 +154,13 @@ const MOCK_MISSION = {
   highRiskCount: 3,
 };
 
-// v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1 flow
-// Mock data kept for backward compatibility
-const MOCK_AI_ANTIANCHOR: AntiAnchorRoute[] = [
-  { id: "aar-ai-001", name: "直驅輪轂方案", description: "完全捨棄傳統中驅+傳動系統，改用輪轂馬達直接驅動後輪，消除傳動效率損失與噪音來源。與競品在物理介面上完全不相容。" },
-  { id: "aar-ai-002", name: "磁力耦合無接觸傳動方案", description: "以磁力耦合器取代機械齒輪嚙合，實現非接觸傳動。消除齒輪磨耗噪音，簡化密封設計，但需克服扭矩傳遞效率問題。" },
-  { id: "aar-ai-003", name: "液壓靜態傳動方案", description: "以微型液壓泵-馬達迴路替代機械傳動鏈，實現無段變速。運轉噪音極低但系統重量與成本需評估。屬非對標路線。" },
-];
 
 export default function Create() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [currentStep, setCurrentStep] = useState(0);
-  const [activeTrack, setActiveTrack] = useState<"reverse" | "forward" | null>("reverse");
+  const [activeTrack, setActiveTrack] = useState<"forward" | null>("forward");
 
   // ── Project data (for must_criteria_config) ──
   const projectQuery = useProject(id);
@@ -188,9 +175,9 @@ export default function Create() {
   const [mustAiResults, setMustAiResults] = useState<Record<string, MustCriterionResult[]>>({});
 
   // ── API Hooks: queries ──
-  const antiAnchorQuery = useAntiAnchorRoutes(id);
   const trizQuery = useTrizSolutions(id);
   const subsystemsQuery = useSubsystems(id);
+  const scamperQuery = useScamperVariants(id);
   const alternativesQuery = useAlternatives(id);
   const conceptRoutesQuery = useConceptRoutes(id);
   const compatibilityPairsQuery = useCompatibilityPairs(id);
@@ -200,20 +187,11 @@ export default function Create() {
   // Supabase `layered_triz_solutions`. Hydrate on mount so page reload / tab
   // switch keeps the drill-down results instead of wiping in-memory state.
   const layeredQuery = useLayeredTrizSolutions(id);
-  // v8 persistence: directed solutions upserted by backend `/triz/solve-directed`
-  // live in Supabase `directed_triz_solutions`. Hydrate on mount so page reload
-  // keeps direction analysis results.
-  const directedQuery = useDirectedTrizSolutions(id);
-  // v8 persistence: consolidation result (migration 012).
-  const consolidationQuery = useTrizConsolidationResult(id);
 
   // ── Phase 1 context ──
   const { data: brief } = useBrief(id);
   const { data: briefConstraints = [] } = useConstraints(id);
   const { data: briefKpis = [] } = useKpis(id);
-
-  // Access Socratic Q&A materials
-  const { data: socraticQuestions = [] } = useSocraticQuestions(id);
 
   const briefMission = brief?.mission || '';
   const constraintStrings = useMemo(
@@ -228,28 +206,20 @@ export default function Create() {
     () => (contradictionsQuery.data || []).map((c) => c.engineeringStatement || c.naturalDescription || '').filter(Boolean),
     [contradictionsQuery.data],
   );
-  const socraticQaStrings = useMemo(
-    () => socraticQuestions
-      .filter((q) => q.answer && q.answer.trim().length > 0)
-      .map((q) => `[${q.category}] Q: ${q.text} → A: ${q.answer}`),
-    [socraticQuestions],
-  );
 
   // ── API Hooks: mutations ──
-  const createAntiAnchorRoute = useCreateAntiAnchorRoute();
-  const updateAntiAnchorRoute = useUpdateAntiAnchorRoute();
-  const deleteAntiAnchorRouteMut = useDeleteAntiAnchorRoute();
   const createTrizSolution = useCreateTrizSolution();
   const updateTrizSolution = useUpdateTrizSolution();
   const createSubsystem = useCreateSubsystem();
   const updateSubsystemMut = useUpdateSubsystem();
   const deleteSubsystemMut = useDeleteSubsystem();
+  const createScamperVariantMut = useCreateScamperVariant();
+  const updateScamperVariant = useUpdateScamperVariant();
   const createAlternative = useCreateAlternative();
   const updateAlternativeMut = useUpdateAlternative();
   const deleteAlternativeMut = useDeleteAlternative();
 
   // ── Derived data from queries (with local overrides for optimistic UI) ──
-  const [localRoutes, setLocalRoutes] = useState<AntiAnchorRoute[]>([]);
   const [localTrizSolutions, setLocalTrizSolutions] = useState<TrizSolution[]>([]);
   // v7 (WP 7.2/7.3/8.x/9.5): layered drill-down state. Keyed by contradiction_id
   // so each contradiction maps to exactly one LayeredTrizSolution card. Only
@@ -264,169 +234,10 @@ export default function Create() {
       setLayeredSolutions((prev) => ({ ...layeredQuery.data, ...prev }));
     }
   }, [layeredQuery.data]);
-  // v8: Hydrate directed TRIZ results from DB on mount / refetch.
-  // Local optimistic updates (from in-flight solve) win via `...prev` last.
-  useEffect(() => {
-    if (directedQuery.data && Object.keys(directedQuery.data).length > 0) {
-      setDirectedResults((prev) => ({ ...directedQuery.data, ...prev }));
-      // Mark DB-loaded results as 'done' in status map (don't overwrite in-flight states)
-      setDirectedStatusMap((prev) => {
-        const next = { ...prev };
-        for (const cid of Object.keys(directedQuery.data!)) {
-          if (!next[cid]) next[cid] = 'done';
-        }
-        return next;
-      });
-    }
-  }, [directedQuery.data]);
-  // v8: Hydrate consolidation result from DB on mount / refetch.
-  useEffect(() => {
-    if (consolidationQuery.data) {
-      setConsolidationResult((prev) => prev ?? consolidationQuery.data);
-    }
-  }, [consolidationQuery.data]);
   // 9.2.4: Per-contradiction independent loading state
   const [solvingIds, setSolvingIds] = useState<Set<string>>(new Set());
   // WP 7.2: per-project quick_mode toggle. Defaults to false.
   const [trizQuickMode, setTrizQuickMode] = useState<boolean>(false);
-
-  // v8: Direction-centric TRIZ solver state
-  const [directedResults, setDirectedResults] = useState<Record<string, ContradictionDirectionResult>>({});
-  const [consolidationResult, setConsolidationResult] = useState<ConsolidationResult | null>(null);
-  const [directedStatusMap, setDirectedStatusMap] = useState<Record<string, 'pending' | 'solving' | 'done' | 'failed'>>({});
-  const [directedErrors, setDirectedErrors] = useState<Record<string, string>>({});
-  const [directedConsolidating, setDirectedConsolidating] = useState(false);
-
-  // v8: Directed TRIZ — solve only top-level TC contradictions
-  // PC and SF are derived internally by the backend from each TC
-  const handleDirectedSolveAll = async () => {
-    if (!id) return;
-    // Only process top-level TC contradictions (no parentContradictionId)
-    const contrs = (contradictionsQuery.data ?? []).filter(c => !c.parentContradictionId);
-    if (contrs.length === 0) {
-      toast.warning("尚未識別任何頂層 TC 矛盾，請先在「深度探索」階段完成矛盾識別");
-      return;
-    }
-    setAiLoading((p) => ({ ...p, directedTriz: true }));
-    // Initialize all as pending; clear previous results
-    const initStatus: Record<string, 'pending' | 'solving' | 'done' | 'failed'> = {};
-    contrs.forEach(c => { initStatus[c.id] = 'pending'; });
-    setDirectedStatusMap(initStatus);
-    setDirectedErrors({});
-    setDirectedResults({});
-    setConsolidationResult(null);
-
-    const results: ContradictionDirectionResult[] = [];
-    for (const c of contrs) {
-      try {
-        setDirectedStatusMap((prev) => ({ ...prev, [c.id]: 'solving' }));
-        const resp = await trizSolveDirected({
-          project_id: id,
-          contradiction_id: c.id,
-          natural_description: c.naturalDescription || c.engineeringStatement || '',
-          severity: (c.severity as 'fatal' | 'major' | 'minor' | 'unknown') || 'unknown',
-          improving_param: c.improvingParam ?? undefined,
-          worsening_param: c.worseningParam ?? undefined,
-        });
-        setDirectedResults((prev) => ({ ...prev, [c.id]: resp.result }));
-        setDirectedStatusMap((prev) => ({ ...prev, [c.id]: 'done' }));
-        results.push(resp.result);
-      } catch (err) {
-        console.error(`directed solve failed for ${c.id}:`, err);
-        const msg = err instanceof Error ? err.message : String(err);
-        setDirectedStatusMap((prev) => ({ ...prev, [c.id]: 'failed' }));
-        setDirectedErrors((prev) => ({ ...prev, [c.id]: msg.slice(0, 200) }));
-      }
-    }
-
-    // Auto-consolidate if we have ≥2 results
-    if (results.length >= 2) {
-      try {
-        setDirectedConsolidating(true);
-        const consResp = await trizConsolidate({ project_id: id, results });
-        setConsolidationResult(consResp.consolidation);
-        toast.success(`跨矛盾整併完成：${consResp.consolidation.status === 'compatible' ? '全部相容 ✓' : consResp.consolidation.status === 'resolved_with_swap' ? '替換後相容' : '存在衝突'}`);
-      } catch (err) {
-        console.error('consolidation failed:', err);
-        toast.error('跨矛盾整併失敗');
-      } finally {
-        setDirectedConsolidating(false);
-      }
-    } else if (results.length === 1) {
-      // Single contradiction: build a local ConsolidationResult so the panel renders
-      const singleResult = results[0];
-      const singleConsolidation: ConsolidationResult = {
-        status: 'compatible',
-        adopted_directions: singleResult.top1
-          ? { [singleResult.contradiction_id]: singleResult.top1 }
-          : {},
-        conflict_report: null,
-        integration_advice: singleResult.top1
-          ? `唯一矛盾「${singleResult.natural_description}」的首選方向：${singleResult.top1.direction_name}。`
-          : '',
-      };
-      setConsolidationResult(singleConsolidation);
-      // Persist to DB so page reload also shows the panel
-      upsertConsolidationResult(id, singleConsolidation).catch((err) =>
-        console.warn('persist single-contradiction consolidation failed:', err),
-      );
-      toast.success('已為 1 條矛盾產出方向分析');
-    } else {
-      toast.error('方向求解全部失敗');
-    }
-    setAiLoading((p) => ({ ...p, directedTriz: false }));
-  };
-
-  // v8: Per-contradiction retry for directed TRIZ solving
-  const handleDirectedSolveSingle = async (contradictionId: string) => {
-    if (!id) return;
-    const c = (contradictionsQuery.data ?? []).find(x => x.id === contradictionId);
-    if (!c) return;
-
-    setDirectedStatusMap((prev) => ({ ...prev, [c.id]: 'solving' }));
-    setDirectedErrors((prev) => { const n = { ...prev }; delete n[c.id]; return n; });
-
-    try {
-      const resp = await trizSolveDirected({
-        project_id: id,
-        contradiction_id: c.id,
-        natural_description: c.naturalDescription || c.engineeringStatement || '',
-        severity: (c.severity as 'fatal' | 'major' | 'minor' | 'unknown') || 'unknown',
-        improving_param: c.improvingParam ?? undefined,
-        worsening_param: c.worseningParam ?? undefined,
-      });
-
-      // Collect all done results for re-consolidation
-      let allResults: ContradictionDirectionResult[] = [];
-      setDirectedResults((prev) => {
-        const next = { ...prev, [c.id]: resp.result };
-        allResults = Object.values(next);
-        return next;
-      });
-      setDirectedStatusMap((prev) => ({ ...prev, [c.id]: 'done' }));
-      toast.success(`${(c.naturalDescription || c.id).slice(0, 30)} 重試成功`);
-
-      // Auto re-consolidate if ≥2 done results
-      if (allResults.length >= 2) {
-        try {
-          setDirectedConsolidating(true);
-          setConsolidationResult(null);
-          const consResp = await trizConsolidate({ project_id: id, results: allResults });
-          setConsolidationResult(consResp.consolidation);
-        } catch (err) {
-          console.error('re-consolidation failed:', err);
-        } finally {
-          setDirectedConsolidating(false);
-        }
-      }
-    } catch (err) {
-      console.error(`directed solve retry failed for ${c.id}:`, err);
-      const msg = err instanceof Error ? err.message : String(err);
-      setDirectedStatusMap((prev) => ({ ...prev, [c.id]: 'failed' }));
-      setDirectedErrors((prev) => ({ ...prev, [c.id]: msg.slice(0, 200) }));
-      toast.error(`${(c.naturalDescription || c.id).slice(0, 30)} 重試失敗`);
-    }
-  };
 
   // WBS 7.4: reusable per-contradiction lazy solve helper.
   const solveSingleContradiction = async (c: ExploreContradiction): Promise<[string, LayeredTrizSolution] | null> => {
@@ -492,33 +303,26 @@ export default function Create() {
     }
   };
   const [localSubsystems, setLocalSubsystems] = useState<Subsystem[]>([]);
+  const [localScamperVariants, setLocalScamperVariants] = useState<ScamperVariant[]>([]);
   const [localAlternatives, setLocalAlternatives] = useState<Alternative[]>([]);
 
   // Sync query data → local state
-  useEffect(() => { setLocalRoutes(antiAnchorQuery.data); }, [antiAnchorQuery.data]);
   useEffect(() => { setLocalTrizSolutions(trizQuery.data); }, [trizQuery.data]);
   useEffect(() => { setLocalSubsystems(subsystemsQuery.data); }, [subsystemsQuery.data]);
+  useEffect(() => { setLocalScamperVariants(scamperQuery.data); }, [scamperQuery.data]);
   useEffect(() => { setLocalAlternatives(alternativesQuery.data); }, [alternativesQuery.data]);
-  // Refetch contradictions on mount AND when returning to this page
-  // (staleTime=30s means Explore deletions may not reflect immediately)
-  useEffect(() => {
-    if (id) {
-      contradictionsQuery.refetch();
-    }
-  }, [id, currentStep]);
+  useEffect(() => {if (id) {contradictionsQuery.refetch(); }}, [id]);
 
   // Use local state as the working data (allows optimistic updates)
-  const routes = localRoutes;
   const trizSolutions = localTrizSolutions;
   const subsystems = localSubsystems;
+  const scamperVariants = localScamperVariants;
   const alternatives = localAlternatives;
 
-  // Derived: true when DB or optimistic routes exist (no separate state needed)
-  const antiAnchorGenerated = routes.length > 0;
   const [selectedAltId, setSelectedAltId] = useState<string | null>(null);
   const [comparedAltIds, setComparedAltIds] = useState<Set<string>>(new Set());
   const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
-  // Phase B is now manually triggered from the Decision Hub (X1),
+  // Phase B is now manually triggered from the Decision Hub (Step 4),
   // NOT auto-triggered when Phase A converges. This prevents the infinite
   // loop caused by TC/PC/SF solutions from the same contradiction conflicting.
 
@@ -594,33 +398,27 @@ export default function Create() {
   const queryClient = useQueryClient();
 
   // Loading state — true while any query is loading
-  const isLoading = antiAnchorQuery.isLoading || trizQuery.isLoading || subsystemsQuery.isLoading || alternativesQuery.isLoading;
+  const isLoading = trizQuery.isLoading || subsystemsQuery.isLoading || scamperQuery.isLoading || alternativesQuery.isLoading;
 
-  // antiAnchorGenerated is now derived from routes.length — no effect needed
-
-  // ── Computed: Multi-Solution Adoption State from DB ──
-  const emptyAdoptionState: MultiSolutionAdoptionState = {
-    matrix: { solutions: [], pairs: [] },
-    recommendedRoutes: [],
-    antiPatternChecks: [],
-  };
+  // ── Computed: Multi-Solution Adoption State from DB (fallback to mock) ──
   const adoptionState: MultiSolutionAdoptionState = useMemo(() => {
     const dbRoutes = conceptRoutesQuery.data;
     const dbPairs = compatibilityPairsQuery.data;
 
+    // If DB has data, build state from it; otherwise fall back to mock
     if (dbRoutes && dbRoutes.length > 0 && dbPairs && dbPairs.length > 0) {
       return {
         matrix: {
           // TODO: Build solutions list from convergence loop output or DB query
-          solutions: [],
+          solutions: mockAdoptionState.matrix.solutions,
           pairs: dbPairs,
         },
         recommendedRoutes: dbRoutes,
         // TODO: Compute anti-pattern checks from routes + pairs via AI API
-        antiPatternChecks: [],
+        antiPatternChecks: mockAdoptionState.antiPatternChecks,
       };
     }
-    return emptyAdoptionState;
+    return mockAdoptionState;
   }, [conceptRoutesQuery.data, compatibilityPairsQuery.data]);
 
   const assumptionMap = useMemo(() => {
@@ -718,13 +516,14 @@ export default function Create() {
   const getMustValues = (a: Alternative) => MUST_KEYS.map((k) => a.mustScores[k] ?? null);
 
   const stepStatuses: AccordionStepStatus[] = useMemo(() => {
-    const s1 = routes.length >= 3 ? "complete" : routes.length > 0 ? "in_progress" : "not_started";
-    // s2: TRIZ convergence — use DB trizSolutions when convergenceLoop hasn't run
+    // s1: TRIZ convergence — use DB trizSolutions when convergenceLoop hasn't run
     const loopDone = convergenceLoop.state.status === "converged";
     const hasTrizData = trizSolutions.length > 0;
-    const s2 = loopDone || hasTrizData ? "complete" : convergenceLoop.state.status !== "idle" ? "in_progress" : "not_started";
+    const s1 = loopDone || hasTrizData ? "complete" : convergenceLoop.state.status !== "idle" ? "in_progress" : "not_started";
     const confirmed = subsystems.filter((s) => s.confirmed).length;
-    const s3 = confirmed > 0 ? "complete" : subsystems.length > 0 ? "in_progress" : "not_started";
+    const s2 = confirmed > 0 ? "complete" : subsystems.length > 0 ? "in_progress" : "not_started";
+    const adoptedSc = scamperVariants.filter((v) => v.adopted).length;
+    const s3 = adoptedSc > 0 ? "complete" : scamperVariants.length > 0 ? "in_progress" : "not_started";
     const s4 = alternatives.length > 0 ? "complete" : "not_started";
     // s5: Only check M1-M6 keys, not the nested bundle fields
     const allMustFilled = alternatives.length > 0 && alternatives.every((a) => getMustValues(a).every((v) => v !== null));
@@ -733,7 +532,7 @@ export default function Create() {
     const allScored = passedMust.length > 0 && passedMust.every((a) => Object.values(a.preCadScores).every((v) => v !== null));
     const s6 = allScored ? "complete" : passedMust.some((a) => Object.values(a.preCadScores).some((v) => v !== null)) ? "in_progress" : "not_started";
     return [s1, s2, s3, s4, s5, s6];
-  }, [routes, convergenceLoop.state.status, trizSolutions, subsystems, alternatives]);
+  }, [convergenceLoop.state.status, trizSolutions, subsystems, scamperVariants, alternatives]);
 
   const autoSave = useCallback(() => {
     setSaveStatus("saving");
@@ -758,65 +557,6 @@ export default function Create() {
     () => [{ label: "≥1 方案 Pre-CAD overall_pass = True", current: preCadPassedAlts.length, target: 1, passed: preCadPassedAlts.length >= 1 }],
     [preCadPassedAlts]
   );
-
-  // Handlers
-  // v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1 flow
-  const handleAiGenAntiAnchor = async () => {
-    if (!id) return;
-    setAiLoading((p) => ({ ...p, antiAnchor: true }));
-    try {
-      // Clear existing routes before regenerating
-      for (const r of routes) {
-        deleteAntiAnchorRouteMut.mutate({ id: r.id });
-      }
-      setLocalRoutes([]);
-
-      const result = await antiAnchorGenerate({
-        project_id: id,
-        mission: briefMission || MOCK_MISSION.problemStatement,
-        current_constraints: constraintStrings.length > 0
-          ? constraintStrings
-          : MOCK_MISSION.contradictions.map((c) => c.description),
-        existing_alternatives: [],
-        socraticAnswers: socraticQaStrings,
-      });
-      // Optimistic: build display data from API result immediately
-      const optimistic: AntiAnchorRoute[] = result.routes.map((route, i) => ({
-        id: `aa-opt-${Date.now()}-${i}`,
-        name: route.name,
-        mechanism: route.mechanism,
-        description: route.description || route.mechanism,
-        whyUnconventional: route.why_unconventional,
-        potentialAdvantage: route.potential_advantage,
-        crossDomainSource: route.cross_domain_source,
-        validationPassport: route.validation_passport as unknown as import("@/types/create").ValidationPassport | null,
-        createdAt: new Date().toISOString(),
-      }));
-      setLocalRoutes(optimistic);
-
-      // Persist to DB in background (query invalidation will replace optimistic IDs)
-      for (const route of result.routes) {
-        createAntiAnchorRoute.mutate({
-          project_id: id,
-          name: route.name,
-          mechanism: route.mechanism,
-          description: route.description,
-          is_non_typical: route.is_non_typical,
-          why_unconventional: route.why_unconventional,
-          potential_advantage: route.potential_advantage,
-          cross_domain_source: route.cross_domain_source,
-          validation_passport: route.validation_passport as unknown as Json,
-          source: 'ai',
-        });
-      }
-      toast.success(`AI 已產出 ${result.routes.length} 條非典型架構概念`);
-    } catch (err) {
-      console.error("Anti-anchor generation failed:", err);
-      toast.error("AI 產出失敗，請確認後端服務是否啟動");
-    } finally {
-      setAiLoading((p) => ({ ...p, antiAnchor: false }));
-    }
-  };
 
   // ── TRIZ layered drill-down generation ──
   const handleAiGenTriz = async () => {
@@ -1090,7 +830,7 @@ export default function Create() {
     if (!ss) return;
     const nextConfirmed = !ss.confirmed;
     // WBS 10.1: when RD flips to confirmed, snapshot the current interface
-    // contract hash into local session state so drift detection can detect
+    // contract hash into local session state so the SCAMPER page can detect
     // post-confirmation edits. When flipping back to unconfirmed, clear it.
     // The mutation hook does not round-trip this field, so it's purely
     // in-memory — acceptable for Wave 6 per the architecture note.
@@ -1169,57 +909,6 @@ export default function Create() {
     });
     resetSsForm();
     setEditingSubsystemId(null);
-  };
-  // v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1 flow
-  const deleteAntiAnchorRoute = (routeId: string) => {
-    const idx = localRoutes.findIndex(r => r.id === routeId);
-    if (idx === -1) return;
-    const removed = localRoutes[idx];
-
-    // Immediately delete from DB and optimistic UI
-    setLocalRoutes(prev => prev.filter(r => r.id !== routeId));
-    deleteAntiAnchorRouteMut.mutate({ id: routeId });
-
-    toast(`已刪除「${removed.name}」`, {
-      duration: 5000,
-      action: {
-        label: "復原",
-        onClick: () => {
-          // Undo = re-insert the removed item
-          createAntiAnchorRoute.mutate({
-            project_id: id!,
-            name: removed.name,
-            description: removed.description || undefined,
-            is_non_typical: true,
-            source: 'ai',
-          });
-          setLocalRoutes(prev => {
-            const next = [...prev];
-            next.splice(Math.min(idx, next.length), 0, removed);
-            return next;
-          });
-        },
-      },
-    });
-  };
-
-  // v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1 flow
-  const promoteAntiAnchorToCandidate = (routeId: string) => {
-    if (!id) return;
-    const route = routes.find(r => r.id === routeId);
-    if (!route) return;
-    createAlternative.mutate({
-      project_id: id,
-      name: route.name,
-      mechanism: route.mechanism || route.description,
-      source: "anti_anchor",
-      key_assumption_ids: [],
-      must_scores: { M1: null, M2: null, M3: null, M4: null, M5: null, M6: null } as unknown as Json,
-      interface_contract: { envelope: '', loadPath: '', signalPath: '', thermalPath: '', datumTolerance: '', serviceability: '' } as unknown as Json,
-      pre_cad_scores: { must: null, decoupling: null, testability: null, failureMech: null, mvpCadEffort: null } as unknown as Json,
-      overall_pass: null,
-    });
-    toast.success(`「${route.name}」已晉升為候選方案（X2）`);
   };
   const deleteSubsystem = (ssId: string) => {
     const idx = localSubsystems.findIndex(s => s.id === ssId);
@@ -1312,7 +1001,7 @@ export default function Create() {
     for (const b of payload.module_mass_budgets) {
       massBudget[b.name] = b.max_mass_g;
     }
-    const resp = await subsystemSpatialOverlay({
+    const resp = await scamperSpatialOverlay({
       project_id: id,
       subsystems: (payload.subsystems ?? []) as unknown[],
       overlay: { zones: zonesDict, mass_budget_g: massBudget },
@@ -1418,8 +1107,19 @@ export default function Create() {
     }
   };
 
+  const toggleScamperAdopt = (svId: string) => {
+    const sv = scamperVariants.find(v => v.id === svId);
+    if (!sv) return;
+    setLocalScamperVariants((prev) => prev.map((v) => (v.id === svId ? { ...v, adopted: !v.adopted } : v)));
+    updateScamperVariant.mutate({ id: svId, adopted: !sv.adopted });
+  };
+
   // WBS 10.1: RD re-confirms a subsystem after editing contracts. Refreshes
-  // the stored hash to the current contract snapshot.
+  // the stored hash to the current contract snapshot and clears any
+  // previously-generated SCAMPER variants for that subsystem from local
+  // state (they were computed against the stale contract boundary). We do
+  // NOT delete the rows from Supabase because there's no delete hook yet;
+  // the local clear is sufficient for within-session drift detection.
   const reconfirmSubsystemContracts = (ssId: string) => {
     const ss = subsystems.find((s) => s.id === ssId);
     if (!ss) return;
@@ -1429,9 +1129,65 @@ export default function Create() {
         s.id === ssId ? { ...s, confirmedContractsHash: newHash } : s,
       ),
     );
-    toast.success('契約已重新確認');
+    setLocalScamperVariants((prev) => prev.filter((v) => v.subsystemId !== ssId));
+    toast.success('契約已重新確認，舊 SCAMPER 變形已清除');
   };
 
+  // WBS 10.1: generate SCAMPER variants for a single confirmed subsystem.
+  // Passes the RD-confirmed 6-dim interface_contracts + stable hash so the
+  // backend can surface contract-respecting transformations and log any
+  // drift between what the FE considers confirmed and what lands on the
+  // server.
+  const SCAMPER_ACTION_LETTER: Record<string, ScamperAction> = {
+    substitute: 'S', combine: 'C', adapt: 'A', modify: 'M',
+    put_to_other_use: 'P', eliminate: 'E', reverse: 'R',
+  };
+  const handleGenerateScamperForSubsystem = async (ssId: string) => {
+    const ss = subsystems.find((s) => s.id === ssId);
+    if (!id || !ss) return;
+    if (isContractDriftedSinceConfirm(ss)) {
+      toast.error('介面契約已變更，請先重新確認後再生成 SCAMPER 變形');
+      return;
+    }
+    const loadKey = `scamper-${ssId}`;
+    setAiLoading((s) => ({ ...s, [loadKey]: true }));
+    try {
+      const hash = ss.confirmedContractsHash ?? hashContracts(ss.interfaceContracts);
+      const resp = await scamperTransform({
+        project_id: id,
+        subsystem_name: ss.name,
+        subsystem_description: ss.reason,
+        related_contradictions: ss.relatedContradictions,
+        interface_contracts: ss.interfaceContracts,
+        contracts_hash: hash,
+      });
+      for (const v of resp.variants) {
+        const letter = SCAMPER_ACTION_LETTER[(v.action || '').toLowerCase().replace(/\s+/g, '_')] ?? 'S';
+        await createScamperVariantMut.mutateAsync({
+          project_id: id,
+          subsystem_id: ssId,
+          action: letter,
+          description: v.description,
+          adopted: false,
+          new_contradictions: (v.new_contradictions ?? []).map((nc, i) => ({
+            id: `nc-${Date.now()}-${i}`,
+            description: nc,
+            severity: 'minor',
+            fedBack: false,
+          })) as unknown as never,
+        });
+      }
+      toast.success(`已為「${ss.name}」生成 ${resp.variants.length} 個 SCAMPER 變形`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`SCAMPER 生成失敗：${msg}`);
+    } finally {
+      setAiLoading((s) => ({ ...s, [loadKey]: false }));
+    }
+  };
+  // SCAMPER is a creative divergence tool.
+  // newContradictions are displayed as risk notes, NOT fed back to convergence loop.
+  // All SCAMPER outputs go directly to the candidate pool for RD comparison in Decision Hub.
   const cycleMust = (altId: string, mustId: string) => {
     const alt = alternatives.find(a => a.id === altId);
     if (!alt) return;
@@ -1540,6 +1296,8 @@ export default function Create() {
     try {
       // Collect adopted TRIZ solutions as candidates
       const adoptedTriz = trizSolutions.filter(ts => ts.status === 'adopted' || ts.status === 'edited');
+      // Collect adopted SCAMPER variants
+      const adoptedScamper = scamperVariants.filter(sv => sv.adopted);
 
       let created = 0;
 
@@ -1567,10 +1325,26 @@ export default function Create() {
         created++;
       }
 
+      // Create alternatives from adopted SCAMPER variants (with validation passport)
+      for (const sv of adoptedScamper) {
+        await createAlternative.mutateAsync({
+          project_id: id,
+          name: `SCAMPER ${sv.action}: ${(sv.description || '').slice(0, 40)}`,
+          mechanism: sv.description || '',
+          source: "scamper",
+          key_assumption_ids: [],
+          must_scores: { M1: null, M2: null, M3: null, M4: null, M5: null, M6: null } as unknown as Json,
+          interface_contract: { envelope: '', loadPath: '', signalPath: '', thermalPath: '', datumTolerance: '', serviceability: '' } as unknown as Json,
+          pre_cad_scores: { must: null, decoupling: null, testability: null, failureMech: null, mvpCadEffort: null } as unknown as Json,
+          overall_pass: null,
+        });
+        created++;
+      }
+
       if (created === 0) {
-        toast.warning("尚無已採用的 TRIZ 解法，請先在 X1-X2 採用解法，或手動新增方案");
+        toast.warning("尚無已採用的 TRIZ 解法或 SCAMPER 變體，請先在 Step 2-4 採用解法，或手動新增方案");
       } else {
-        toast.success(`已從 ${adoptedTriz.length} 條 TRIZ 整合 ${created} 個候選方案`);
+        toast.success(`已從 ${adoptedTriz.length} 條 TRIZ + ${adoptedScamper.length} 條 SCAMPER 整合 ${created} 個候選方案`);
       }
     } catch (err) {
       console.error("AI alternative generation failed:", err);
@@ -1588,22 +1362,32 @@ export default function Create() {
   };
 
   // Unified step navigation — infers track from step index when not explicit
-  const inferTrack = (step: number): "reverse" | "forward" | null => {
-    if (step === 0) return "reverse";
-    if (step >= 1 && step <= 2) return activeTrack === "reverse" ? "reverse" : "forward";
+  const inferTrack = (step: number): "forward" | null => {
+    if (step >= 0 && step <= 2) return "forward";
     return null; // hub, must, pre-cad
   };
-  const navigateTo = (step: number, track?: "reverse" | "forward" | null) => {
+  const navigateTo = (step: number, track?: "forward" | null) => {
     setCurrentStep(step);
     setActiveTrack(track !== undefined ? track : inferTrack(step));
   };
+  // Wave 2: Tab ③ SCAMPER unlock gate.
+  // §8.1 RDConfirmed state machine from Forward_Subsystem_Discovery_Architecture.md
+  // requires at least one RD-confirmed subsystem before SCAMPER can operate —
+  // SCAMPER variant generation keys off `subsystems.filter(s => s.confirmed)`
+  // (see renderScamper() below), so leaving this gate open produces an empty
+  // 7-action grid with a confusing empty-state.
+  const canProceedFromSubsystem = subsystems.some(s => s.confirmed);
 
   const goNext = () => {
-    if (activeTrack === "reverse") {
-      // Reverse (step 0) → jump to Decision Hub
-      navigateTo(3, null);
-    } else if (activeTrack === "forward" && currentStep < 2) {
-      // Forward sub-tabs: TRIZ(1) → Subsystem(2)
+    // Gate: block step 1 → 2 until at least one subsystem is confirmed.
+    // Also mirrored on the footer button's `disabled` prop; this guard is
+    // the defence-in-depth fallback in case the button is bypassed.
+    if (currentStep === 1 && !canProceedFromSubsystem) {
+      toast.error("請至少確認一個子系統後再進入 SCAMPER");
+      return;
+    }
+    if (activeTrack === "forward" && currentStep < 2) {
+      // Forward sub-tabs: TRIZ(0) → Subsystem(1) → SCAMPER(2)
       navigateTo(currentStep + 1, "forward");
     } else if (activeTrack === "forward" && currentStep === 2) {
       // Last forward sub-tab → Decision Hub
@@ -1613,11 +1397,11 @@ export default function Create() {
     }
   };
   const goPrev = () => {
-    if (activeTrack === "forward" && currentStep > 1) {
-      // Forward sub-tabs: Subsystem(2) → TRIZ(1)
+    if (activeTrack === "forward" && currentStep > 0) {
+      // Forward sub-tabs: SCAMPER(2) → Subsystem(1) → TRIZ(0)
       navigateTo(currentStep - 1, "forward");
     } else if (currentStep === 3) {
-      // Decision Hub → back to whichever track was last active (default forward)
+      // Decision Hub → back to forward track
       navigateTo(2, "forward");
     } else {
       navigateTo(Math.max(currentStep - 1, 0));
@@ -1636,15 +1420,16 @@ export default function Create() {
   }
 
   const renderStepContent = () => {
-    // Forward track: show TRIZ/Subsystem as tabbed sub-steps within one E2E view
-    if (activeTrack === "forward" && currentStep >= 1 && currentStep <= 2) {
+    // Forward track: show TRIZ/Subsystem/SCAMPER as tabbed sub-steps within one E2E view
+    if (activeTrack === "forward" && currentStep >= 0 && currentStep <= 2) {
       return (
         <div className="space-y-4">
           {/* Internal sub-step tabs */}
           <div className="flex gap-1 border-b pb-2">
             {[
-              { step: 1, label: "① TRIZ 解矛盾" },
-              { step: 2, label: "② 子系統定義" },
+              { step: 0, label: "① TRIZ 解矛盾" },
+              { step: 1, label: "② 子系統定義" },
+              { step: 2, label: "③ SCAMPER 變形" },
             ].map(({ step, label }) => (
               <button
                 key={step}
@@ -1661,16 +1446,17 @@ export default function Create() {
             ))}
           </div>
           {/* Sub-step content */}
-          {currentStep === 1 && renderTrizConvergence()}
-          {currentStep === 2 && renderSubsystem()}
+          {currentStep === 0 && renderTrizConvergence()}
+          {currentStep === 1 && renderSubsystem()}
+          {currentStep === 2 && renderScamper()}
         </div>
       );
     }
 
     switch (currentStep) {
-      case 0: return renderAntiAnchor();
-      case 1: return renderTrizConvergence();
-      case 2: return renderSubsystem();
+      case 0: return renderTrizConvergence();
+      case 1: return renderSubsystem();
+      case 2: return renderScamper();
       case 3: return renderAlternatives();
       case 4: return renderMust();
       case 5: return renderPreCad();
@@ -1678,364 +1464,12 @@ export default function Create() {
     }
   };
 
-  // ── X1: Anti-Anchor (AI Generated) ──
-  // v3.0 DEPRECATED: Anti-Anchor section retired — de-anchoring merged into TRIZ L1 flow
-  function renderAntiAnchor() {
-    return (
-      <div className="space-y-6">
-        {/* v3.0 DEPRECATED: Anti-Anchor UI retired — de-anchoring merged into TRIZ L1 flow */}
-        <Card className="border-amber-300/50 bg-amber-50/30">
-          <CardContent className="p-4 text-center text-sm text-muted-foreground">
-            Anti-Anchor 功能已整合至 TRIZ L1 跨域去錨定流程。歷史資料仍可檢視，新專案請使用正向分析中的 TRIZ 流程。
-          </CardContent>
-        </Card>
-        {/* v3.0 DEPRECATED: Original AA UI hidden — kept for rollback safety */}
-        {false && (
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        <div>
-        {/* TODO: Replace with AI-generated anti-anchor warning via API (Sprint 3+) */}
-
-        {/* 🧭 新手閱讀指引 — 第一次看到這頁的人必讀 */}
-        <Collapsible defaultOpen={!antiAnchorGenerated}>
-          <Card className="border-primary/30 bg-primary/5">
-            <CollapsibleTrigger asChild>
-              <button className="w-full text-left p-4 flex items-center gap-3 hover:bg-primary/10 transition-colors group">
-                <Sparkles className="h-4 w-4 text-primary shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold">報告怎麼看？（新手指引）</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">第一次看這頁不知道每個欄位代表什麼？點這裡展開 60 秒讀懂每一區塊</p>
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 transition-transform group-data-[state=open]:rotate-90" />
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent className="px-4 pb-4 pt-0 space-y-3 text-xs text-muted-foreground leading-relaxed border-t border-primary/20">
-                <div>
-                  <p className="font-semibold text-foreground mt-3 mb-1">這頁在做什麼？</p>
-                  <p>反向探索（Anti-Anchor）刻意跳過「解矛盾」的正向路徑，直接從物理第一原理逼 AI 想出「與主流競品物理機制不相容」的非典型架構。目的是在你被現有產品綁架之前，先暴露在其他可能的解題方向。每條路線都自帶一張 <strong>Validation Passport</strong>，告訴你「這條路還要驗證什麼才能採用」。</p>
-                </div>
-
-                <div>
-                  <p className="font-semibold text-foreground mt-2 mb-1">每條「路線」的六個區塊</p>
-                  <ul className="space-y-1.5 pl-1">
-                    <li><span className="font-mono text-[10px] bg-muted px-1 rounded mr-1">①</span><strong>Physical Principle</strong>：這條路線背後的物理定律（例如 Lorentz 力、Seebeck 效應）。若只看一行，這裡是核心。</li>
-                    <li><span className="font-mono text-[10px] bg-muted px-1 rounded mr-1">②</span><strong>Causal Chain</strong>：從輸入到輸出的每一步都帶數字（48V 20A → 960W → 80Nm），用來檢查「帳能不能算得通」。</li>
-                    <li><span className="font-mono text-[10px] bg-muted px-1 rounded mr-1">③</span><strong>Boundary Conditions</strong>：在什麼條件下成立？什麼條件下會失效？（例如 T&lt;130°C 以內）</li>
-                    <li><span className="font-mono text-[10px] bg-muted px-1 rounded mr-1">④</span><strong>Why Unconventional</strong>：主流為什麼做不到？產業為什麼還沒採用？不是「這很新」，要說出阻礙的原因。</li>
-                    <li><span className="font-mono text-[10px] bg-muted px-1 rounded mr-1">⑤</span><strong>Potential Advantage</strong>：量化的好處，禁止「大幅、顯著、better」等模糊詞，必須有數字或區間。</li>
-                    <li><span className="font-mono text-[10px] bg-muted px-1 rounded mr-1">⑥</span><strong>Cross-Domain Source</strong>：靈感來自哪個跨領域的具體產品或論文（例如 Tesla Model 3 hairpin 繞組、Magnax AXF225）。</li>
-                  </ul>
-                </div>
-
-                <div>
-                  <p className="font-semibold text-foreground mt-2 mb-1">Validation Passport 是什麼？</p>
-                  <p>每條路線「自我揭露」的風險檔案，包含 4 個子區塊：</p>
-                  <ul className="space-y-1 pl-1 mt-1">
-                    <li>• <strong>Assumptions</strong>：這條路線要成立，哪 2~4 件事必須是真的？每條假設都標一個證據等級 <span className="font-mono bg-muted px-1 rounded">E0–E4</span>（見下）</li>
-                    <li>• <strong>Weak Points</strong>：承認的代價（不是錯，是「我知道有這個缺點」）</li>
-                    <li>• <strong>Required Verifications</strong>：採用前要做的實驗清單，照優先序排列</li>
-                    <li>• <strong>信心 %</strong>：不是 LLM 隨便給的，而是由假設的證據等級分佈自動算：大多 E2+ → ≥70 %；E1/E2 混合 → 40–70 %；大多 E0/E1 → &lt;40 %</li>
-                  </ul>
-                </div>
-
-                <div>
-                  <p className="font-semibold text-foreground mt-2 mb-1">E0 ~ E4 證據等級怎麼讀？</p>
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-1.5">
-                    <div className="rounded bg-red-100 dark:bg-red-950/30 px-2 py-1.5 border border-red-200 dark:border-red-900"><span className="font-mono font-bold text-red-900 dark:text-red-200">E0</span><div className="text-[10px] text-red-900/80 dark:text-red-200/80">純臆測</div></div>
-                    <div className="rounded bg-amber-100 dark:bg-amber-950/30 px-2 py-1.5 border border-amber-200 dark:border-amber-900"><span className="font-mono font-bold text-amber-900 dark:text-amber-200">E1</span><div className="text-[10px] text-amber-900/80 dark:text-amber-200/80">物理推理</div></div>
-                    <div className="rounded bg-yellow-100 dark:bg-yellow-950/30 px-2 py-1.5 border border-yellow-200 dark:border-yellow-900"><span className="font-mono font-bold text-yellow-900 dark:text-yellow-200">E2</span><div className="text-[10px] text-yellow-900/80 dark:text-yellow-200/80">跨領域量測</div></div>
-                    <div className="rounded bg-green-100 dark:bg-green-950/30 px-2 py-1.5 border border-green-200 dark:border-green-900"><span className="font-mono font-bold text-green-900 dark:text-green-200">E3</span><div className="text-[10px] text-green-900/80 dark:text-green-200/80">同類應用測試</div></div>
-                    <div className="rounded bg-emerald-200 dark:bg-emerald-950/40 px-2 py-1.5 border border-emerald-300 dark:border-emerald-900"><span className="font-mono font-bold text-emerald-900 dark:text-emerald-200">E4</span><div className="text-[10px] text-emerald-900/80 dark:text-emerald-200/80">已量產驗證</div></div>
-                  </div>
-                  <p className="mt-1.5">實務上 AI 產出的多半是 E1 ~ E2，這代表「值得做實驗驗證」，不代表「已經成立」。看到 E0 就要特別警覺。</p>
-                </div>
-
-                <div>
-                  <p className="font-semibold text-foreground mt-2 mb-1">看完一條路線後要做什麼？</p>
-                  <ul className="space-y-0.5 pl-1">
-                    <li>✓ 覺得值得繼續驗證 → 點<strong>「晉升為候選方案」</strong>，路線會進入「候選方案決策中心」與 TRIZ 路徑的候選並列比較</li>
-                    <li>✗ 物理不通 / 成本太高 / 不符約束 → 點垃圾桶刪除</li>
-                    <li>↻ 全部都不滿意 → 點「重新生成」讓 AI 重試（已存在的路線會作為「避開」提示傳給 LLM）</li>
-                  </ul>
-                </div>
-
-                <div className="pt-1 text-[10px] text-muted-foreground/70 italic">
-                  完整架構說明見 <code>docs/e2e/Reverse_Anti_Anchor_Architecture.md</code>
-                </div>
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
-
-        {!antiAnchorGenerated ? (
-          <div className="text-center py-16 space-y-4 bg-muted/30 rounded-xl border border-dashed">
-            <Sparkles className="h-10 w-10 text-muted-foreground mx-auto" />
-            <div>
-              <p className="font-medium">AI 將根據問題描述與矛盾句產出 3 條非典型架構</p>
-              <p className="text-sm text-muted-foreground mt-1">至少 1 條必須與競品在物理介面或核心機制上不相容</p>
-            </div>
-            <AiButton loading={aiLoading.antiAnchor} onClick={handleAiGenAntiAnchor} size="lg">
-              生成非典型架構
-            </AiButton>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {routes.map((r, i) => {
-              const confidence = r.validationPassport ? Math.round((r.validationPassport.confidenceLevel ?? 0) * 100) : null;
-              const assumptionCount = r.validationPassport?.assumptions?.length ?? 0;
-              return (
-              <Collapsible key={r.id}>
-                <Card className="overflow-hidden border-l-[3px] border-l-accent">
-                  {/* Collapsed header — always visible */}
-                  <CollapsibleTrigger asChild>
-                    <button className="w-full text-left p-4 flex items-center gap-3 hover:bg-muted/30 transition-colors group">
-                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 transition-transform group-data-[state=open]:rotate-90" />
-                      <Badge variant="outline" className="text-xs font-mono shrink-0">路線 {i + 1}</Badge>
-                      <span className="text-sm font-semibold flex-1 truncate">{r.name}</span>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {confidence !== null && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge variant="outline" className="text-[9px] cursor-help">信心 {confidence}%</Badge>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-xs text-xs leading-relaxed">
-                              由假設的證據等級分佈自動推算：大多 E2+ → ≥70%；E1/E2 混合 → 40–70%；大多 E0/E1 → &lt;40%。不是 LLM 自由寫的。
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                        {assumptionCount > 0 && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge variant="outline" className="text-[9px] cursor-help">{assumptionCount} 假設</Badge>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom" className="max-w-xs text-xs leading-relaxed">
-                              這條路線要成立必須是真的「可證偽命題」。展開後每條假設都會標 E0–E4 證據等級。
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                        <span className="badge-ai text-[9px]">AI</span>
-                      </div>
-                    </button>
-                  </CollapsibleTrigger>
-
-                  {/* Expanded detail */}
-                  <CollapsibleContent>
-                    <CardContent className="px-5 pb-5 pt-0 space-y-4 border-t">
-                      {/* Mechanism — structured */}
-                      {r.mechanism && (
-                        <div className="text-xs space-y-2 bg-muted/40 dark:bg-muted/20 rounded-lg p-3 mt-3">
-                          {(() => {
-                            const text = r.mechanism;
-                            const sections: { label: string; content: string }[] = [];
-                            const markers = [
-                              { re: /Physical principle:\s*/i, label: "Physical Principle" },
-                              { re: /Causal chain:\s*/i, label: "Causal Chain" },
-                              { re: /Boundary conditions?:\s*/i, label: "Boundary Conditions" },
-                            ];
-                            let remaining = text;
-                            for (const { re, label } of markers) {
-                              const idx = remaining.search(re);
-                              if (idx >= 0) {
-                                if (idx > 0 && sections.length === 0) {
-                                  sections.push({ label: "Overview", content: remaining.slice(0, idx).trim() });
-                                }
-                                remaining = remaining.slice(idx).replace(re, '');
-                                let end = remaining.length;
-                                for (const { re: nextRe } of markers) {
-                                  const nextIdx = remaining.search(nextRe);
-                                  if (nextIdx > 0 && nextIdx < end) end = nextIdx;
-                                }
-                                sections.push({ label, content: remaining.slice(0, end).trim() });
-                                remaining = remaining.slice(end);
-                              }
-                            }
-                            if (sections.length === 0) {
-                              sections.push({ label: "Mechanism", content: text });
-                            }
-                            const labelHints: Record<string, string> = {
-                              "Physical Principle": "這條路線背後的物理定律或方程式（例如 Lorentz 力、Maxwell stress、Seebeck 效應）。若只看一行，這裡是核心。",
-                              "Causal Chain": "從輸入到輸出的因果鏈，每一步都要帶數字（48V 20A → 960W @92% η → 5:1 → 80Nm）。用來檢查『帳算不算得通』。",
-                              "Boundary Conditions": "這條路線在什麼條件下成立、什麼條件下會失效（例如 T_winding<130°C、B_gap>0.35T）。用來判斷風險邊界。",
-                              "Overview": "Mechanism 開頭的前言，未被切到三大區塊時的兜底顯示。",
-                              "Mechanism": "AI 沒有依規則切出三個區塊，整段合併顯示。這代表結構化失敗，可以考慮重新生成。",
-                            };
-                            return sections.map((s, si) => (
-                              <div key={si}>
-                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5 flex items-center gap-1">
-                                  {s.label}
-                                  {labelHints[s.label] && <HelpTooltip text={labelHints[s.label]} />}
-                                </p>
-                                <p className="text-muted-foreground leading-relaxed">{s.content}</p>
-                              </div>
-                            ));
-                          })()}
-                        </div>
-                      )}
-
-                      {/* Detail sections — 2-column grid for compact layout */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {r.whyUnconventional && (
-                          <div className="text-xs">
-                            <p className="font-semibold text-muted-foreground mb-1 flex items-center gap-1">
-                              Why Unconventional
-                              <HelpTooltip text="主流為什麼做不到？產業為什麼還沒採用？這裡不接受『這很新』，必須說出阻礙原因（成本？量產成熟度？法規？慣性？）。" />
-                            </p>
-                            <p className="text-muted-foreground leading-relaxed">{r.whyUnconventional}</p>
-                          </div>
-                        )}
-                        {r.potentialAdvantage && (
-                          <div className="text-xs">
-                            <p className="font-semibold text-muted-foreground mb-1 flex items-center gap-1">
-                              Potential Advantage
-                              <HelpTooltip text="量化的好處。Prompt 禁止『高、低、大幅、顯著、better、improved』等模糊詞，必須有數字或區間（例如 BOM cost -40~50% 而非「成本大幅下降」）。" />
-                            </p>
-                            <p className="text-muted-foreground leading-relaxed">{r.potentialAdvantage}</p>
-                          </div>
-                        )}
-                        {r.crossDomainSource && (
-                          <div className="text-xs">
-                            <p className="font-semibold text-muted-foreground mb-1 flex items-center gap-1">
-                              Cross-Domain Source
-                              <HelpTooltip text="靈感來自哪個『具體的』跨領域產品或論文（例如 Magnax AXF225、Tesla Model 3 hairpin winding）。不能只說「參考航太」。這是用來檢查 AI 不是在腦補。" />
-                            </p>
-                            <p className="text-muted-foreground leading-relaxed">{r.crossDomainSource}</p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Validation Passport */}
-                      {r.validationPassport && (
-                        <div className="text-xs space-y-2 border-t pt-3">
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-muted-foreground flex items-center gap-1">
-                              Validation Passport
-                              <HelpTooltip
-                                maxWidth="max-w-sm"
-                                text="這條路線「自我揭露」的風險檔案：包含 Assumptions（必須為真的前提）、Weak Points（承認的代價）、Required Verifications（採用前要做的實驗）、以及由假設證據等級自動算出的信心 %。Anti-Anchor 是目前唯一一條路徑，其路線天生自帶 Passport。"
-                              />
-                            </p>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Badge variant="outline" className="text-[9px] cursor-help">
-                                  信心 {Math.round((r.validationPassport.confidenceLevel ?? 0) * 100)}%
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
-                                Prompt 強制規則：大多 E2+ → ≥70%；E1/E2 混合 → 40–70%；大多 E0/E1 → &lt;40%。LLM 不能自由寫。
-                              </TooltipContent>
-                            </Tooltip>
-                          </div>
-                          {(r.validationPassport.assumptions ?? []).length > 0 && (
-                            <div>
-                              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
-                                Assumptions ({(r.validationPassport.assumptions ?? []).length})
-                                <HelpTooltip
-                                  maxWidth="max-w-sm"
-                                  text="要讓這條路線成立必須為真的「可證偽命題」。每條前面的 E0–E4 代表證據等級：E0 純臆測 / E1 物理推理 / E2 跨領域量測 / E3 同類應用測試 / E4 已量產。AI 產出多半是 E1–E2，代表『值得實驗』而非『已成立』。看到 E0 要警覺。"
-                                />
-                              </p>
-                              <ul className="space-y-1">
-                                {(r.validationPassport.assumptions ?? []).map((a, ai) => {
-                                  const lvl = (a.evidenceLevel ?? '?').toUpperCase();
-                                  const lvlTip: Record<string, string> = {
-                                    'E0': 'E0 — 純臆測（speculation）。風險最高，必須優先驗證。',
-                                    'E1': 'E1 — 第一原理 / 物理推理。有公式支持但未經實測。',
-                                    'E2': 'E2 — 跨領域量測類比。別的領域有測過，在本應用尚未。',
-                                    'E3': 'E3 — 同類應用已有測試資料。風險較低。',
-                                    'E4': 'E4 — 已在本應用量產驗證。幾乎是事實。',
-                                  };
-                                  return (
-                                    <li key={ai} className="flex items-start gap-1.5 text-muted-foreground">
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <span className="text-[9px] font-mono bg-muted rounded px-1 shrink-0 mt-0.5 cursor-help">{lvl}</span>
-                                        </TooltipTrigger>
-                                        <TooltipContent side="left" className="max-w-xs text-xs leading-relaxed">
-                                          {lvlTip[lvl] ?? '未知證據等級'}
-                                        </TooltipContent>
-                                      </Tooltip>
-                                      <span className="leading-relaxed">{a.content}</span>
-                                    </li>
-                                  );
-                                })}
-                              </ul>
-                            </div>
-                          )}
-                          {(r.validationPassport.weakPoints ?? []).length > 0 && (
-                            <div>
-                              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
-                                Weak Points
-                                <HelpTooltip text="這條路線「承認的代價」—— 不是錯，是『我知道有這個缺點』。它們不會變成假設被驗證，而是跟著方案一輩子（例如 +15% 重量、NRE 工具費）。" />
-                              </p>
-                              <ul className="list-disc list-inside space-y-0.5 text-muted-foreground">
-                                {(r.validationPassport.weakPoints ?? []).map((wp, wi) => <li key={wi}>{wp}</li>)}
-                              </ul>
-                            </div>
-                          )}
-                          {(r.validationPassport.requiredVerifications ?? []).length > 0 && (
-                            <div>
-                              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
-                                Required Verifications
-                                <HelpTooltip text="採用前必須做的實驗清單，已按優先序排列。每條實驗的完整細節（方法、天數、成功判據、成本等級）寫在對應的 Assumption 的 suggested_experiment 欄位。" />
-                              </p>
-                              <ol className="list-decimal list-inside space-y-0.5 text-muted-foreground">
-                                {(r.validationPassport.requiredVerifications ?? []).map((rv, ri) => <li key={ri}>{rv}</li>)}
-                              </ol>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="flex items-center gap-2 pt-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs gap-1.5"
-                          onClick={() => promoteAntiAnchorToCandidate(r.id)}
-                        >
-                          <ArrowRight className="h-3 w-3" />
-                          晉升為候選方案
-                        </Button>
-                        <button onClick={() => deleteAntiAnchorRoute(r.id)} className="p-1.5 rounded hover:bg-destructive/10" title="刪除此路線">
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </button>
-                      </div>
-                    </CardContent>
-                  </CollapsibleContent>
-                </Card>
-              </Collapsible>
-              );
-            })}
-            <AiButton aiVariant="outline" size="sm" loading={aiLoading.antiAnchor} onClick={handleAiGenAntiAnchor} className="text-xs">
-              重新生成
-            </AiButton>
-          </div>
-        )}
-
-        <Card className="bg-muted/30">
-          <CardContent className="p-4 flex items-center gap-3">
-            {routes.length >= 3
-              ? <><CheckCircle className="h-5 w-5 text-primary shrink-0" /><span className="text-sm">Gate 2.2.1: ≥3 非典型架構已產出，含至少 1 條非對標路線</span></>
-              : <><XCircle className="h-5 w-5 text-muted-foreground shrink-0" /><span className="text-sm text-muted-foreground">Gate 2.2.1: 需 AI 產出至少 3 條非典型架構概念</span></>}
-          </CardContent>
-        </Card>
-
-        <KnowledgeRefsPanel refs={[] /* TODO: useKnowledgeRefs (Sprint 5+) */} />
-        </div>
-        )}
-      </div>
-    );
-  }
-
-  // ── X2: TRIZ 解矛盾 — 分層 drill-down 診斷（v8: Phase A retired）──
+  // ── Step 2: TRIZ 解矛盾 — 分層 drill-down 診斷（v8: Phase A retired）──
   function renderTrizConvergence() {
     // v8: startPhaseA removed — L1 critic per-card replaces global Phase A scan
     const { state, confirmSeverity, forceContinue, retryBranch } = convergenceLoop;
     const contradictionsList = contradictionsQuery.data ?? [];
-    // v8: 方向導向分析只處理頂層 TC 矛盾，PC/SF 由後端內部從 TC 衍生
-    // 條件：無 parent + type 為 TC 或 null（舊資料可能沒設 type）
-    const topLevelTCs = contradictionsList.filter(c => !c.parentContradictionId && (!c.type || c.type === 'TC'));
-    const canStart = !!id && topLevelTCs.length > 0;
+    const canStart = !!id && contradictionsList.length > 0;
 
     const PATH_COLORS: Record<string, string> = { TC: 'bg-blue-100 text-blue-700', PC: 'bg-violet-100 text-violet-700', SF: 'bg-teal-100 text-teal-700' };
     const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
@@ -2056,107 +1490,164 @@ export default function Create() {
           />
         )}
 
-        {/* ── v8 方向導向分析 (Direction-Centric Flow) ── */}
-        <div className="space-y-3" data-testid="triz-directed-section">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <h3 className="text-sm font-semibold">🎯 方向導向分析（TC → PC → SF → 方向分群 → 評分 → 整併）</h3>
-              <p className="text-xs text-muted-foreground">
-                對每條矛盾執行 TC/PC/SF 三路求解，合併所有解法後用 LLM 分群為「實現方向」，
-                評分選出 Top1/Top2，最後跨矛盾檢查方向相容性。
-              </p>
-            </div>
-          </div>
+        {/* ── Section A: TRIZ candidate generation (v7/v8 layered drill-down) ── */}
+          <div className="space-y-3" data-testid="triz-layered-section">
+            {/* v8: ConvergenceDashboard removed from Tab ① — Phase A retired,
+                per-card L1 critic badge replaces global scan. Dashboard only
+                appears in Decision Hub after Phase B runs. */}
 
-          {Object.keys(directedStatusMap).length === 0 ? (
-            <Card className="border-dashed border-2 border-green-300">
-              <CardContent className="p-6 text-center space-y-3">
-                <div className="mx-auto w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                  <Sparkles className="h-5 w-5 text-green-600" />
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {topLevelTCs.length === 0
-                    ? '前置條件：需先在「深度探索」完成矛盾識別'
-                    : `已識別 ${topLevelTCs.length} 條頂層 TC 矛盾（共 ${contradictionsList.length} 條含衍生 PC/SF），可執行方向導向分析`}
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold">分層 Drill-Down 診斷（L1 現象 / L2 根因 / L3 結構）</h3>
+                <p className="text-xs text-muted-foreground">
+                  對每條矛盾同時產出 L1 (TC) 表象解、L2 (PC) 根因解（條件觸發）與 L3 (SF) 結構旁路。
+                  差異面板建議採納路線，RD 選擇 `採納推薦` / `自訂組合` / `只採 L1`。
                 </p>
-                <AiButton
-                  loading={!!aiLoading.directedTriz}
-                  onClick={handleDirectedSolveAll}
-                  disabled={!canStart}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  {aiLoading.directedTriz ? '方向分析中...' : 'AI 方向導向分析（TC+PC+SF → 方向 → 整併）'}
-                </AiButton>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {/* Progressive Task List — 四態矛盾清單 */}
-              {topLevelTCs.map((c) => {
-                const status = directedStatusMap[c.id] || 'pending';
-                const result = directedResults[c.id];
-                const error = directedErrors[c.id];
-                const label = c.naturalDescription || c.engineeringStatement || c.id.slice(0, 12);
-                return (
-                  <div key={c.id} className="space-y-1">
-                    <div className={cn(
-                      "flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors",
-                      status === 'pending' && "bg-muted/50",
-                      status === 'solving' && "bg-blue-50 dark:bg-blue-950/30",
-                      status === 'done' && "bg-green-50/50 dark:bg-green-950/20",
-                      status === 'failed' && "bg-red-50 dark:bg-red-950/30",
-                    )}>
-                      {status === 'pending' && <Clock className="h-4 w-4 text-muted-foreground shrink-0" />}
-                      {status === 'solving' && <Loader2 className="h-4 w-4 animate-spin text-blue-600 shrink-0" />}
-                      {status === 'done' && <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />}
-                      {status === 'failed' && <XCircle className="h-4 w-4 text-red-500 shrink-0" />}
-                      <span className="flex-1 line-clamp-1">{label}</span>
-                      {status === 'failed' && (
-                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1" onClick={() => handleDirectedSolveSingle(c.id)}>
-                          <RefreshCw className="h-3 w-3" /> 重試
+              </div>
+              <label className="flex items-center gap-1.5 text-[11px] shrink-0">
+                <input
+                  type="checkbox"
+                  checked={trizQuickMode}
+                  onChange={(e) => setTrizQuickMode(e.target.checked)}
+                  className="h-3 w-3"
+                />
+                quick_mode（minor 跳 L2）
+              </label>
+            </div>
+
+            {Object.keys(layeredSolutions).length === 0 ? (
+              <Card className="border-dashed border-2 border-primary/30">
+                <CardContent className="p-6 text-center space-y-3">
+                  <div className="mx-auto w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {contradictionsList.length === 0
+                      ? '前置條件：需先完成矛盾識別'
+                      : `已識別 ${contradictionsList.length} 條矛盾，可產出分層 drill-down 診斷`}
+                  </p>
+                  <AiButton loading={!!aiLoading.trizGen} onClick={handleAiGenTriz} disabled={!canStart}>
+                    {aiLoading.trizGen ? '分層求解中...' : 'AI 產出分層 drill-down 診斷'}
+                  </AiButton>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {/* 9.2.3: Group results by parent TC with child PCs indented */}
+                {topLevelContradictions.map(tc => {
+                  const tcSolution = layeredSolutions[tc.id];
+                  const children = childrenMap.get(tc.id) ?? [];
+                  // Skip TCs that have no solution AND no child solutions
+                  // WBS 7.4: show all TCs (with lazy-solve buttons for unsolved ones)
+                  // Only skip if there's zero user interest and no results at all
+                  const hasAnySolution = tcSolution || children.some(ch => layeredSolutions[ch.id]);
+                  const hasAnySolving = solvingIds.has(tc.id) || children.some(ch => solvingIds.has(ch.id));
+                  void hasAnySolution; void hasAnySolving; // used below
+                  return (
+                    <div key={tc.id} className="space-y-2">
+                      {/* Parent TC header */}
+                      <p className="text-[11px] font-medium text-muted-foreground truncate" title={tc.engineeringStatement || tc.naturalDescription}>
+                        TC: {tc.engineeringStatement || tc.naturalDescription || tc.id.slice(0, 8)}
+                      </p>
+                      {/* TC loading indicator */}
+                      {solvingIds.has(tc.id) && !tcSolution && (
+                        <Card className="border-dashed border animate-pulse"><CardContent className="p-3 text-xs text-muted-foreground flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin" />求解中...</CardContent></Card>
+                      )}
+                      {/* WBS 7.4: per-row lazy solve button */}
+                      {!tcSolution && !solvingIds.has(tc.id) && (
+                        <Button size="sm" variant="outline" className="text-[11px] gap-1" onClick={() => handleSolveSingle(tc.id)}>
+                          <Sparkles className="h-3 w-3" />
+                          求解此矛盾
                         </Button>
                       )}
+                      {/* TC solve result */}
+                      {tcSolution && (
+                        <LayeredSolutionCard
+                          solution={tcSolution}
+                          onAdopt={(mode, layers) => handleLayeredAdopt(tcSolution, mode, layers)}
+                          onForceDeepenL2={() => handleForceDeepenL2(tc.id)}
+                          onEditDeepenLink={(edits) => {
+                            // WBS 8.7: re-solve with edited parameters
+                            console.log('editDeepenLink for', tc.id, edits);
+                            handleForceDeepenL2(tc.id);
+                          }}
+                        />
+                      )}
+                      {/* 9.2.3: Child PC results indented with category color bar */}
+                      {children.map(child => {
+                        const childSolution = layeredSolutions[child.id];
+                        const catColorMap: Record<string, string> = {
+                          time: 'border-l-blue-500',
+                          space: 'border-l-green-500',
+                          condition: 'border-l-orange-500',
+                          whole_part: 'border-l-purple-500',
+                        };
+                        const borderClass = catColorMap[child.separationCategory ?? ''] ?? 'border-l-gray-400';
+                        return (
+                          <div key={child.id} className={cn("ml-8 border-l-4 pl-4", borderClass)}>
+                            <p className="text-[10px] text-muted-foreground mb-1 truncate" title={child.derivedParameter ?? child.naturalDescription}>
+                              PC: {child.derivedParameter ?? child.naturalDescription}{child.separationCategory ? ` (${child.separationCategory})` : ''}
+                            </p>
+                            {solvingIds.has(child.id) && !childSolution && (
+                              <Card className="border-dashed border animate-pulse"><CardContent className="p-3 text-xs text-muted-foreground flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin" />求解中...</CardContent></Card>
+                            )}
+                            {/* WBS 7.4: per-child lazy solve */}
+                            {!childSolution && !solvingIds.has(child.id) && (
+                              <Button size="sm" variant="ghost" className="text-[10px] gap-1" onClick={() => handleSolveSingle(child.id)}>
+                                <Sparkles className="h-3 w-3" />
+                                求解此 PC
+                              </Button>
+                            )}
+                            {childSolution && (
+                              <LayeredSolutionCard
+                                solution={childSolution}
+                                onAdopt={(mode, layers) => handleLayeredAdopt(childSolution, mode, layers)}
+                                onForceDeepenL2={() => handleForceDeepenL2(child.id)}
+                                onEditDeepenLink={(edits) => {
+                                  console.log('editDeepenLink for', child.id, edits);
+                                  handleForceDeepenL2(child.id);
+                                }}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                    {status === 'done' && result && (
-                      <DirectionResultCard result={result} />
-                    )}
-                    {status === 'failed' && error && (
-                      <p className="text-xs text-red-500 px-3 pb-1">{error}</p>
-                    )}
-                  </div>
-                );
-              })}
+                  );
+                })}
+                {/* Render standalone contradictions (no parent, not a parent themselves) that have solutions */}
+                {Object.entries(layeredSolutions)
+                  .filter(([cid]) => {
+                    const c = contradictionsList.find(x => x.id === cid);
+                    if (!c) return true; // unknown contradiction, show anyway
+                    // Already rendered as a top-level TC or as a child
+                    if (!c.parentContradictionId && topLevelContradictions.some(tc => tc.id === cid)) return false;
+                    if (c.parentContradictionId) return false;
+                    return true;
+                  })
+                  .map(([cid, lts]) => (
+                    <LayeredSolutionCard
+                      key={cid}
+                      solution={lts}
+                      onAdopt={(mode, layers) => handleLayeredAdopt(lts, mode, layers)}
+                      onForceDeepenL2={() => handleForceDeepenL2(cid)}
+                    />
+                  ))
+                }
+                <AiButton aiVariant="outline" size="sm" loading={!!aiLoading.trizGen} onClick={handleAiGenTriz} className="text-xs">
+                  重新產出分層診斷
+                </AiButton>
+              </div>
+            )}
+          </div>
 
-              {/* Consolidation */}
-              {directedConsolidating && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-blue-50 dark:bg-blue-950/30 text-sm">
-                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                  跨矛盾方向整併中...
-                </div>
-              )}
-              {consolidationResult && (
-                <ConsolidationPanel consolidation={consolidationResult} />
-              )}
-
-              <AiButton
-                aiVariant="outline"
-                size="sm"
-                loading={!!aiLoading.directedTriz}
-                onClick={handleDirectedSolveAll}
-                className="text-xs"
-              >
-                重新執行方向導向分析
-              </AiButton>
-            </div>
-          )}
-        </div>
-
-        <KnowledgeRefsPanel refs={[] /* TODO: useKnowledgeRefs (Sprint 5+) */} />
+        {/* v8: Phase A section retired — L1 critic per-card replaces global scan. */}
+        <KnowledgeRefsPanel refs={mockStepKnowledgeRefs[1] ?? []} />
       </div>
     );
   }
 
-  // ── X3: Subsystem ──
+  // ── Step 3: Subsystem ──
   function renderSubsystem() {
     const confirmedCount = subsystems.filter(s => s.confirmed).length;
     const rdCount = subsystems.filter(s => s.source === "rd").length;
@@ -2273,7 +1764,7 @@ export default function Create() {
               {rdCount > 0 && <><Badge variant="outline" className="text-[9px] mx-1 bg-primary/15 text-primary border-primary/30">RD {rdCount}</Badge></>}
               {aiCount > 0 && <><Badge variant="outline" className="text-[9px] mx-1 bg-muted border-muted-foreground/30">AI {aiCount}</Badge></>}
               {aiEditedCount > 0 && <><Badge variant="outline" className="text-[9px] mx-1 bg-accent/15 text-accent-foreground border-accent/30">AI+RD {aiEditedCount}</Badge></>}
-              。已確認的子系統將作為正向分析的目標範圍。
+              。已確認的子系統將作為 SCAMPER 變形的目標範圍。
             </p>
             {rdCount === 0 && (
               <p className="text-xs text-primary mt-1">💡 建議 RD 先定義已知的核心子系統，AI 將補充可能遺漏的部分。</p>
@@ -2356,7 +1847,7 @@ export default function Create() {
           <PackageMapPanel packageMap={packageMap} />
         </section>
 
-        <KnowledgeRefsPanel refs={[] /* TODO: useKnowledgeRefs (Sprint 5+) */} />
+        <KnowledgeRefsPanel refs={mockStepKnowledgeRefs[2] ?? []} />
 
         {/* Wave 2: What-if Overlay dialog. Stateless relative to the main
             Package Map — onSubmit does NOT update `packageMap` state. */}
@@ -2419,14 +1910,160 @@ export default function Create() {
     );
   }
 
-  // ── X3: Alternatives (Decision Hub) ──
+  // ── Step 4: SCAMPER ──
+  function renderScamper() {
+    const confirmedSubs = subsystems.filter((s) => s.confirmed);
+    if (confirmedSubs.length === 0) {
+      return (
+        <div className="text-center py-16 space-y-3">
+          <p className="text-muted-foreground">請先在「子系統定義」中確認至少一個子系統</p>
+          <Button variant="secondary" onClick={() => navigateTo(1)}>
+            <ChevronLeft className="h-4 w-4 mr-1" /> 回到子系統定義
+          </Button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-8">
+        {confirmedSubs.map((ss) => {
+          const variants = scamperVariants.filter((v) => v.subsystemId === ss.id);
+          const drifted = isContractDriftedSinceConfirm(ss);
+          const loadKey = `scamper-${ss.id}`;
+          const generating = !!aiLoading[loadKey];
+          return (
+            <div key={ss.id} className="space-y-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                <h4 className="text-sm font-semibold">{ss.name}</h4>
+                <Badge variant="secondary" className="text-[10px]">{variants.filter(v => v.adopted).length}/{variants.length} 已採用</Badge>
+                <div className="ml-auto">
+                  <AiButton
+                    size="sm"
+                    aiVariant="outline"
+                    className="text-xs"
+                    loading={generating}
+                    disabled={drifted || generating}
+                    onClick={() => handleGenerateScamperForSubsystem(ss.id)}
+                  >
+                    <Sparkles className="h-3.5 w-3.5 mr-1" />
+                    {variants.length > 0 ? '重新生成 SCAMPER' : '生成 SCAMPER 變形'}
+                  </AiButton>
+                </div>
+              </div>
+              {drifted && (
+                <Card className="border-red-400 bg-red-50 dark:bg-red-950/30">
+                  <CardContent className="p-3 flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-red-700 dark:text-red-400">
+                        契約已變更 — 請重新確認後再生成 SCAMPER 變形
+                      </p>
+                      <p className="text-[10px] text-red-600/80 dark:text-red-400/80 mt-0.5">
+                        介面契約自 RD 確認後已被編輯，既有變形可能不再符合邊界條件。
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="text-xs shrink-0"
+                      onClick={() => reconfirmSubsystemContracts(ss.id)}
+                    >
+                      重新確認並刷新雜湊
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {variants.map((v) => (
+                  <Card key={v.id} className={`transition-all ${v.adopted ? "border-primary/30 bg-primary/[0.03]" : ""}`}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Badge className="text-[10px] bg-accent text-accent-foreground">{v.action}</Badge>
+                        <span className="text-xs text-muted-foreground">{SCAMPER_LABELS[v.action]?.zh ?? v.action}</span>
+                        <Badge variant="secondary" className="text-[9px] ml-auto">AI</Badge>
+                      </div>
+                      <p className="text-sm leading-relaxed">{v.description}</p>
+                      <Button
+                        size="sm"
+                        variant={v.adopted ? "default" : "outline"}
+                        className="text-xs"
+                        onClick={() => toggleScamperAdopt(v.id)}
+                      >
+                        {v.adopted ? <><Check className="h-3 w-3 mr-1" />已採用</> : "採用"}
+                      </Button>
+                      {/* SCAMPER risk notes (informational — no re-scan feedback) */}
+                      {v.newContradictions && v.newContradictions.length > 0 && (
+                        <div className="mt-2 space-y-1.5">
+                          <p className="text-[9px] text-muted-foreground uppercase tracking-wider">潛在風險（供決策中心參考）</p>
+                          {v.newContradictions.map((nc) => {
+                            const borderColor = nc.severity === 'fatal' ? 'border-red-400' : nc.severity === 'major' ? 'border-orange-400' : 'border-muted';
+                            const bgColor = nc.severity === 'fatal' ? 'bg-red-50 dark:bg-red-950/30' : nc.severity === 'major' ? 'bg-orange-50 dark:bg-orange-950/30' : 'bg-muted/30';
+                            const sevBadge = nc.severity === 'fatal'
+                              ? <Badge variant="destructive" className="text-[9px] shrink-0">Fatal</Badge>
+                              : nc.severity === 'major'
+                              ? <Badge className="text-[9px] bg-orange-500 text-white shrink-0">Major</Badge>
+                              : <Badge variant="secondary" className="text-[9px] shrink-0">Minor</Badge>;
+                            return (
+                              <div key={nc.id} className={`p-2 rounded-md border ${borderColor} ${bgColor}`}>
+                                <div className="flex items-start gap-1.5">
+                                  <AlertTriangle className={`h-3 w-3 shrink-0 mt-0.5 ${nc.severity === 'fatal' ? 'text-red-500' : nc.severity === 'major' ? 'text-orange-500' : 'text-muted-foreground'}`} />
+                                  <div className="flex-1 min-w-0">
+                                    {sevBadge}
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">{nc.description}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* SCAMPER confirmation — creative tool, no convergence feedback needed */}
+        {confirmedSubs.length > 0 && scamperVariants.some(v => v.adopted) && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="p-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <div className="flex-1">
+                  <p className="text-sm font-medium">確認 SCAMPER 變形結果</p>
+                  <p className="text-xs text-muted-foreground">
+                    已採用 {scamperVariants.filter(v => v.adopted).length} 個創意變形。
+                    潛在風險已標記，將在決策中心統一評估。確認後進入候選方案決策中心。
+                  </p>
+                </div>
+                <Button
+                  onClick={() => {
+                    toast.success('SCAMPER 變形結果已確認');
+                    goNext();
+                  }}
+                  className="shrink-0"
+                >
+                  <Check className="h-4 w-4 mr-1" /> 確認並繼續
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        <KnowledgeRefsPanel refs={mockStepKnowledgeRefs[3] ?? []} />
+      </div>
+    );
+  }
+
+  // ── Step 5: Alternatives ──
   function renderAlternatives() {
     // ── Candidate pool: aggregate from all sources ──
     const SOURCE_BADGE: Record<string, { label: string; cls: string }> = {
-      anti_anchor: { label: '跨域去錨定 (TRIZ L1)', cls: 'bg-amber-100 text-amber-700' }, // v3.0: renamed from Anti-Anchor
       triz_tc: { label: '正向/TRIZ-TC', cls: 'bg-blue-100 text-blue-700' },
       triz_pc: { label: '正向/TRIZ-PC', cls: 'bg-blue-100 text-blue-700' },
       triz_sf: { label: '正向/TRIZ-SF', cls: 'bg-blue-100 text-blue-700' },
+      scamper: { label: '正向/SCAMPER', cls: 'bg-blue-100 text-blue-700' },
       manual: { label: '手動', cls: 'bg-muted text-muted-foreground' },
       ai_integrated: { label: 'AI 整合', cls: 'bg-violet-100 text-violet-700' },
     };
@@ -2441,7 +2078,7 @@ export default function Create() {
           <div>
             <h3 className="text-sm font-semibold">候選方案池</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              匯集跨域去錨定（TRIZ L1）與正向（TRIZ）所有候選。RD 確認後執行 Phase B 交叉檢查。
+              匯集 TRIZ / SCAMPER 所有候選。RD 確認後執行 Phase B 交叉檢查。
             </p>
           </div>
           <div className="flex gap-2">
@@ -2482,17 +2119,15 @@ export default function Create() {
             <LayoutGrid className="h-8 w-8 text-muted-foreground mx-auto" />
             <p className="text-muted-foreground font-medium">候選池為空</p>
             <p className="text-xs text-muted-foreground">
-              點擊「自動匯入候選」從已採用的 TRIZ 解法中自動匯入，<br />
-              或從去錨定步驟晉升方案，或手動新增。
+              點擊「自動匯入候選」從已採用的 TRIZ 解法和 SCAMPER 變形中自動匯入，或手動新增。
             </p>
           </div>
         ) : (
           <div className="grid gap-3">
             {alternatives.map((alt, i) => {
               const srcBadge = getSourceBadge(alt.source);
-              const isReverse = alt.source === 'anti_anchor';
               return (
-                <Card key={alt.id} className={cn("border-l-[3px] transition-all", isReverse ? "border-l-amber-400" : "border-l-blue-400")}>
+                <Card key={alt.id} className={cn("border-l-[3px] transition-all", "border-l-blue-400")}>
                   <CardContent className="p-4 space-y-2">
                     {/* First eye: name + source + badges */}
                     <div className="flex items-center justify-between gap-2">
@@ -2615,12 +2250,12 @@ export default function Create() {
           </Card>
         )}
 
-        <KnowledgeRefsPanel refs={[] /* TODO: useKnowledgeRefs (Sprint 5+) */} />
+        <KnowledgeRefsPanel refs={mockStepKnowledgeRefs[4] ?? []} />
       </div>
     );
   }
 
-  // ── X4: MUST ──
+  // ── Step 6: MUST ──
   function renderMust() {
     if (alternatives.length === 0) {
       return (
@@ -2742,12 +2377,12 @@ export default function Create() {
             );
           })}
         </div>
-        <KnowledgeRefsPanel refs={[] /* TODO: useKnowledgeRefs (Sprint 5+) */} />
+        <KnowledgeRefsPanel refs={mockStepKnowledgeRefs[5] ?? []} />
       </div>
     );
   }
 
-  // ── X5: Pre-CAD ──
+  // ── Step 7: Pre-CAD ──
   function renderPreCad() {
     const eligible = alternatives.filter((a) => !Object.values(a.mustScores).includes("fail") && Object.values(a.mustScores).some((v) => v !== null));
     if (eligible.length === 0) {
@@ -2895,14 +2530,14 @@ export default function Create() {
             </CardContent>
           </Card>
         )}
-        <KnowledgeRefsPanel refs={[] /* TODO: useKnowledgeRefs (Sprint 5+) */} />
+        <KnowledgeRefsPanel refs={mockStepKnowledgeRefs[6] ?? []} />
       </div>
     );
   }
 
   // ── Gate section ──
   function renderGates() {
-    if (currentStep < 4) return null;
+    if (currentStep < 5) return null;
 
     return (
       <div className="space-y-4 mt-2">
@@ -2910,7 +2545,7 @@ export default function Create() {
         <Card className="border-border">
           <CardContent className="p-5 space-y-3">
             <div className="flex items-center gap-3">
-              <h3 className="text-sm font-semibold">Gate 2.2 — 方案創造完整性</h3>
+              <h3 className="text-sm font-semibold">Gate X2 — 方案創造完整性</h3>
               <Badge className={gate22Items.every((i) => i.passed) ? "bg-primary text-primary-foreground" : "bg-destructive text-destructive-foreground"} >
                 {gate22Items.every((i) => i.passed) ? "Passed" : "未通過"}
               </Badge>
@@ -2932,7 +2567,7 @@ export default function Create() {
             <CardContent className="p-5 space-y-3">
               <div className="flex items-center gap-3">
                 <Flag className="h-5 w-5 text-accent shrink-0" />
-                <h3 className="text-sm font-semibold">Phase Gate 2 — Diverge 完成</h3>
+                <h3 className="text-sm font-semibold">Phase Gate X — Diverge 完成</h3>
                 <Badge className={phaseGate2Items.every((i) => i.passed) ? "bg-primary text-primary-foreground" : "bg-destructive text-destructive-foreground"}>
                   {phaseGate2Items.every((i) => i.passed) ? "Phase 2 Passed *" : "未通過"}
                 </Badge>
@@ -2948,7 +2583,7 @@ export default function Create() {
               </div>
               {gate22Items.every((i) => i.passed) && phaseGate2Items.every((i) => i.passed) ? (
                 <Button onClick={() => navigate(`/projects/${id}/cad`)} className="w-full sm:w-auto mt-2">
-                  通過 Phase Gate 2 → 進入 CAD 繪製 <ArrowRight className="h-4 w-4 ml-1.5" />
+                  通過 Phase Gate X → 進入 CAD 繪製 <ArrowRight className="h-4 w-4 ml-1.5" />
                 </Button>
               ) : (
                 <Tooltip>
@@ -2992,9 +2627,9 @@ export default function Create() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
           方案創造
-          <HelpTooltip text="雙軌分析 → 候選方案決策中心 → 統一評估。跨域去錨定（TRIZ L1，原 Anti-Anchor）與正向路徑（TRIZ 解矛盾 → 子系統定義），所有方案在決策中心攤平比較、Phase B 交叉檢查後進入 MUST 快篩。" className="ml-2 align-middle" />
+          <HelpTooltip text="TRIZ 解矛盾 → 子系統定義 → SCAMPER 變形 → 候選方案決策中心 → MUST 快篩 → Pre-CAD 審查。所有方案在決策中心攤平比較、Phase B 交叉檢查後進入統一評估。" className="ml-2 align-middle" />
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">雙軌分析 · 方案匯流 · 統一評估</p>
+        <p className="text-sm text-muted-foreground mt-1">系統化分析 · 方案匯流 · 統一評估</p>
       </div>
 
       <CreateStepper
@@ -3009,40 +2644,28 @@ export default function Create() {
         <div className="flex items-center gap-3">
           <div className={cn(
             "h-8 w-8 rounded-full flex items-center justify-center text-sm font-semibold",
-            activeTrack === "reverse" ? "bg-amber-500 text-white" :
             activeTrack === "forward" ? "bg-blue-500 text-white" :
             "bg-primary text-primary-foreground"
           )}>
-            {activeTrack === "reverse" ? "⚡" :
-             activeTrack === "forward" ? "🎯" :
+            {activeTrack === "forward" ? "🎯" :
              currentStep === 3 ? "⬡" : currentStep - 2}
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-semibold flex items-center gap-1">
-                {activeTrack === "reverse" ? "跨域去錨定 (TRIZ L1)" :
-                 activeTrack === "forward" ? "正向分析" :
+                {activeTrack === "forward" ? "正向分析" :
                  STEPS[currentStep].label}
-                {activeTrack === "reverse" && (
-                  <HelpTooltip
-                    maxWidth="max-w-sm"
-                    text="跨域去錨定（原 Anti-Anchor）：已整合至 TRIZ L1 實例化流程。從約束出發產出非典型架構概念，破路徑依賴。歷史資料仍可檢視，新專案請使用正向分析中的 TRIZ 流程。"
-                  />
-                )}
               </h2>
               <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                activeTrack === "reverse" ? ZONE_LABELS.reverse.color :
                 activeTrack === "forward" ? ZONE_LABELS.forward.color :
                 ZONE_LABELS[STEPS[currentStep].zone].color
               }`}>
-                {activeTrack === "reverse" ? ZONE_LABELS.reverse.badge :
-                 activeTrack === "forward" ? ZONE_LABELS.forward.badge :
+                {activeTrack === "forward" ? ZONE_LABELS.forward.badge :
                  ZONE_LABELS[STEPS[currentStep].zone].badge}
               </span>
             </div>
             <p className="text-sm text-muted-foreground">
-              {activeTrack === "reverse" ? "從約束出發，AI 產出非典型架構概念，每條自帶 Validation Passport" :
-               activeTrack === "forward" ? "TRIZ 矛盾解 → 子系統分解 — 系統化產出候選方案" :
+              {activeTrack === "forward" ? "TRIZ 矛盾解 → 子系統分解 → SCAMPER 變形 — 系統化產出候選方案" :
                STEPS[currentStep].description}
             </p>
           </div>
@@ -3066,9 +2689,15 @@ export default function Create() {
           <div className="flex flex-col items-end gap-1">
             <Button
               onClick={goNext}
+              disabled={currentStep === 1 && !canProceedFromSubsystem}
             >
               下一步 <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
+            {currentStep === 1 && !canProceedFromSubsystem && (
+              <span className="text-[10px] text-muted-foreground">
+                請至少確認一個子系統後再進入 SCAMPER
+              </span>
+            )}
           </div>
         ) : (
           <div />

@@ -88,21 +88,22 @@ export type {
 export type {
   AccordionStepStatus,
   CreateStepProgress,
-  /** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
-  AntiAnchorRoute,
   TrizPath,
   TrizActionStatus,
   TrizSolution,
   SubsystemSource,
   Subsystem,
+  ScamperAction,
+  ScamperNewContradiction,
+  ScamperVariant,
   InterfaceContract,
-  /** @deprecated v3.0: 'anti_anchor' source retired, de-anchoring merged into TRIZ L1 */
   AlternativeSource,
   Alternative,
   MustCriterion,
   CreateGateItem,
 } from './create';
 export {
+  SCAMPER_LABELS,
   INTERFACE_CONTRACT_DIMS,
   EMPTY_INTERFACE_CONTRACT,
   DEFAULT_MUST_CRITERIA,
@@ -163,7 +164,7 @@ export type {
 export { CATEGORY_CONFIG } from './explore';
 
 // --- knowledge.ts ---
-export type { KnowledgeRef, KnowledgeArticle } from './knowledge';
+export type { KnowledgeArticle } from './knowledge';
 
 // --- preCadReview.ts ---
 export type {

@@ -1,6 +1,6 @@
 """Tests for Gate checking logic — WP-6.1.
 
-Covers gates 1.1, 1.2, 2.2 and invalid gate_id handling.
+Covers gates D1, D2, X2 and invalid gate_id handling.
 All Supabase queries are mocked to return controlled data.
 """
 
@@ -236,7 +236,7 @@ class TestGate22:
 
 class TestGateInvalid:
     def test_invalid_gate_id_returns_400(self, client):
-        resp = client.get("/api/v1/gates/INVALID/check", params={"project_id": "p1"})
+        resp = client.get("/api/v1/gates/9.9/check", params={"project_id": "p1"})
         assert resp.status_code == 400
 
     def test_missing_project_id_returns_422(self, client):
@@ -249,10 +249,10 @@ class TestGateInvalid:
 # ---------------------------------------------------------------------------
 
 
-class TestGatePG3:
+class TestGatePGV:
     @patch("app.routers.gates.get_supabase")
-    def test_pg3_always_fails(self, mock_sb, client):
-        """PG3 always returns passed=False (requires manual confirmation)."""
+    def test_pgv_always_fails(self, mock_sb, client):
+        """PG-V always returns passed=False (requires manual confirmation)."""
         sb = MagicMock()
         mock_sb.return_value = sb
 
@@ -288,14 +288,17 @@ class TestAiReviewBackwardCompat:
 
     @patch("app.routers.gates.get_supabase")
     def test_ai_review_null_for_gate_without_evaluator(self, mock_sb, client):
-        """Gate V2 has no AI evaluator — ai_review stays null even when requested."""
-        decisions_chain = _make_chain(_sb_response(data=[
-            {"id": "d1", "status": "confirmed"},
+        """Gate D1 has no AI evaluator — ai_review stays null even when requested."""
+        briefs_chain = _make_chain(_sb_response(data={"mission": "OK"}))
+        kpis_chain = _make_chain(_sb_response(data=[
+            {"id": "k1", "measurement_method": "m1"},
+            {"id": "k2", "measurement_method": "m2"},
+            {"id": "k3", "measurement_method": "m3"},
         ]))
-        sb = _build_sb_mock({"decisions": decisions_chain})
+        sb = _build_sb_mock({"briefs": briefs_chain, "kpis": kpis_chain})
         mock_sb.return_value = sb
 
-        resp = client.get("/api/v1/gates/V2/check", params={
+        resp = client.get("/api/v1/gates/D1/check", params={
             "project_id": "p1",
             "include_ai_review": "true",
         })
@@ -305,7 +308,7 @@ class TestAiReviewBackwardCompat:
 
 
 class TestAiReviewIntegration:
-    @patch("app.routers.gates.run_ai_review")
+    @patch("app.routers.gates._run_ai_review")
     @patch("app.routers.gates.get_supabase")
     def test_ai_review_called_for_gate_22(self, mock_sb, mock_ai, client):
         """Gate X2 has ai_evaluator='must' — should call _run_ai_review when requested."""
@@ -331,7 +334,7 @@ class TestAiReviewIntegration:
         assert body["ai_review"]["evaluator"] == "must"
         mock_ai.assert_called_once_with("must", sb, "p1")
 
-    @patch("app.routers.gates.run_ai_review", side_effect=Exception("LLM failed"))
+    @patch("app.routers.gates._run_ai_review", side_effect=Exception("LLM failed"))
     @patch("app.routers.gates.get_supabase")
     def test_ai_review_failure_returns_error_result(self, mock_sb, mock_ai, client):
         """AI review failure should not crash — returns error AiReviewResult."""

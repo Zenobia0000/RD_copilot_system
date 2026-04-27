@@ -35,7 +35,7 @@ export const queryKeys = {
     stats: (id: string | undefined) => ['projects', k(id), 'stats'] as const,
   },
 
-  // Layer 1: D1 — Problem Definition
+  // Layer 1: Step 1 — Problem Definition
   briefs: {
     all: ['briefs'] as const,
     detail: (projectId: string | undefined) => ['briefs', k(projectId)] as const,
@@ -58,7 +58,7 @@ export const queryKeys = {
     detail: (id: string | undefined) => ['contradictions', 'detail', k(id)] as const,
   },
 
-  // Layer 2: D2 — Assumption Management
+  // Layer 2: Step D2 — Assumption Management
   assumptions: {
     all: ['assumptions'] as const,
     byProject: (projectId: string | undefined) => ['assumptions', k(projectId)] as const,
@@ -73,12 +73,7 @@ export const queryKeys = {
     byProject: (projectId: string | undefined) => ['cld_edges', k(projectId)] as const,
   },
 
-  // Layer 3: X1–X2 — Solution Exploration
-  /** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
-  anti_anchor_routes: {
-    all: ['anti_anchor_routes'] as const,
-    byProject: (projectId: string | undefined) => ['anti_anchor_routes', k(projectId)] as const,
-  },
+  // Layer 3: Step 2 — Solution Exploration
   triz_solutions: {
     all: ['triz_solutions'] as const,
     byProject: (projectId: string | undefined) => ['triz_solutions', k(projectId)] as const,
@@ -87,18 +82,11 @@ export const queryKeys = {
     all: ['layered_triz_solutions'] as const,
     byProject: (projectId: string | undefined) => ['layered_triz_solutions', k(projectId)] as const,
   },
-  directed_triz_solutions: {
-    all: ['directed_triz_solutions'] as const,
-    byProject: (projectId: string | undefined) => ['directed_triz_solutions', k(projectId)] as const,
-  },
-  triz_consolidation_results: {
-    all: ['triz_consolidation_results'] as const,
-    byProject: (projectId: string | undefined) => ['triz_consolidation_results', k(projectId)] as const,
-  },
   subsystems: {
     all: ['subsystems'] as const,
     byProject: (projectId: string | undefined) => ['subsystems', k(projectId)] as const,
   },
+  /** @deprecated v9: SCAMPER removed — TRIZ 40 principles fully cover SCAMPER actions */
   scamper_variants: {
     all: ['scamper_variants'] as const,
     byProject: (projectId: string | undefined) => ['scamper_variants', k(projectId)] as const,
@@ -117,7 +105,7 @@ export const queryKeys = {
     byProject: (projectId: string | undefined) => ['compatibility_pairs', k(projectId)] as const,
   },
 
-  // Layer 4: X3–X5 — Review & Decision
+  // Layer 4: Step 3 — Review & Decision
   evidence_matrix: {
     all: ['evidence_matrix'] as const,
     byProject: (projectId: string | undefined) => ['evidence_matrix', k(projectId)] as const,

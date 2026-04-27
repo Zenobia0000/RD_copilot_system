@@ -12,7 +12,6 @@ import { useMemo } from 'react';
 import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 import { queryKeys } from './useQueryConfig';
 import type {
-  AntiAnchorRoute,
   TrizSolution,
   TrizPath,
   TrizActionStatus,
@@ -33,22 +32,6 @@ import type { Json } from '@/integrations/supabase/types';
 // ---------------------------------------------------------------------------
 // Row types (DB snake_case)
 // ---------------------------------------------------------------------------
-
-/** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
-interface AntiAnchorRouteRow {
-  id: string;
-  project_id: string;
-  name: string;
-  description: string | null;
-  mechanism: string | null;
-  is_non_typical: boolean;
-  why_unconventional: string | null;
-  potential_advantage: string | null;
-  cross_domain_source: string | null;
-  validation_passport: Json | null;
-  source: string | null;
-  created_at: string;
-}
 
 interface TrizSolutionRow {
   id: string;
@@ -77,6 +60,7 @@ interface SubsystemRow {
   created_at: string;
 }
 
+/** @deprecated v9: SCAMPER removed — TRIZ 40 principles fully cover SCAMPER actions */
 interface ScamperVariantRow {
   id: string;
   project_id: string;
@@ -124,21 +108,6 @@ function mapValidationPassport(raw: Record<string, unknown> | null): ValidationP
     requiredVerifications: Array.isArray(raw.required_verifications ?? raw.requiredVerifications) ? (raw.required_verifications ?? raw.requiredVerifications) as string[] : [],
     crossDomainSource: (raw.cross_domain_source ?? raw.crossDomainSource ?? '') as string,
     confidenceLevel: Number(raw.confidence_level ?? raw.confidenceLevel ?? 0),
-  };
-}
-
-/** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
-function mapAntiAnchorRoute(row: AntiAnchorRouteRow): AntiAnchorRoute {
-  return {
-    id: row.id,
-    name: row.name,
-    mechanism: row.mechanism ?? '',
-    description: row.description ?? '',
-    whyUnconventional: row.why_unconventional ?? '',
-    potentialAdvantage: row.potential_advantage ?? '',
-    crossDomainSource: row.cross_domain_source ?? '',
-    validationPassport: mapValidationPassport(row.validation_passport as Record<string, unknown> | null),
-    createdAt: row.created_at,
   };
 }
 
@@ -193,6 +162,7 @@ function mapSubsystem(row: SubsystemRow): Subsystem {
   };
 }
 
+/** @deprecated v9: SCAMPER removed — TRIZ 40 principles fully cover SCAMPER actions */
 function mapScamperVariant(row: ScamperVariantRow): ScamperVariant {
   return {
     id: row.id,
@@ -234,76 +204,6 @@ function mapAlternative(row: AlternativeRow): Alternative {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
-}
-
-// ---------------------------------------------------------------------------
-// Anti-Anchor Routes
-// v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1 flow
-// ---------------------------------------------------------------------------
-
-/** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
-export function useAntiAnchorRoutes(projectId: string | undefined) {
-  const result = useSupabaseQuery<AntiAnchorRouteRow[]>({
-    table: 'anti_anchor_routes',
-    queryKey: queryKeys.anti_anchor_routes.byProject(projectId),
-    filters: projectId ? [{ column: 'project_id', operator: 'eq', value: projectId }] : [],
-    orderBy: { column: 'created_at', ascending: true },
-    enabled: !!projectId,
-  });
-
-  // Memoize mapped data to avoid new array reference on every render
-  const data = useMemo(
-    () => result.data?.map(mapAntiAnchorRoute) ?? [],
-    [result.data],
-  );
-
-  return { ...result, data };
-}
-
-/** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
-export function useCreateAntiAnchorRoute() {
-  return useSupabaseMutation<AntiAnchorRouteRow, {
-    project_id: string;
-    name: string;
-    mechanism?: string;
-    description?: string;
-    is_non_typical?: boolean;
-    why_unconventional?: string;
-    potential_advantage?: string;
-    cross_domain_source?: string;
-    validation_passport?: Json;
-    source?: string;
-  }>({
-    table: 'anti_anchor_routes',
-    type: 'insert',
-    invalidateKeys: [queryKeys.anti_anchor_routes.all],
-    successMessage: '已新增 Anti-Anchor 路線',
-  });
-}
-
-/** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
-export function useUpdateAntiAnchorRoute() {
-  return useSupabaseMutation<AntiAnchorRouteRow, {
-    id: string;
-    name?: string;
-    description?: string;
-    is_non_typical?: boolean;
-    source?: string;
-  }>({
-    table: 'anti_anchor_routes',
-    type: 'update',
-    invalidateKeys: [queryKeys.anti_anchor_routes.all],
-    successMessage: 'Anti-Anchor 路線已更新',
-  });
-}
-
-/** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
-export function useDeleteAntiAnchorRoute() {
-  return useSupabaseMutation<unknown, { id: string }>({
-    table: 'anti_anchor_routes',
-    type: 'delete',
-    invalidateKeys: [queryKeys.anti_anchor_routes.all],
-  });
 }
 
 // ---------------------------------------------------------------------------
@@ -425,8 +325,10 @@ export function useDeleteSubsystem() {
 
 // ---------------------------------------------------------------------------
 // SCAMPER Variants
+// @deprecated v9: SCAMPER removed — TRIZ 40 principles fully cover SCAMPER actions
 // ---------------------------------------------------------------------------
 
+/** @deprecated v9: SCAMPER removed */
 export function useScamperVariants(projectId: string | undefined) {
   const result = useSupabaseQuery<ScamperVariantRow[]>({
     table: 'scamper_variants',
@@ -440,6 +342,7 @@ export function useScamperVariants(projectId: string | undefined) {
   return { ...result, data };
 }
 
+/** @deprecated v9: SCAMPER removed */
 export function useCreateScamperVariant() {
   return useSupabaseMutation<ScamperVariantRow, {
     project_id: string;
@@ -456,6 +359,7 @@ export function useCreateScamperVariant() {
   });
 }
 
+/** @deprecated v9: SCAMPER removed */
 export function useUpdateScamperVariant() {
   return useSupabaseMutation<ScamperVariantRow, {
     id: string;

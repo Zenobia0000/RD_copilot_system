@@ -30,8 +30,8 @@ import type { SocraticQuestion, ExploreContradiction, CausalLoop, GateCheckItem 
 import { ArrowLeft, Check } from "lucide-react";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { KnowledgeRefsPanel } from "@/components/create/KnowledgeRefsPanel";
-import { EntryGradingModal } from "@/components/explore/EntryGradingModal";
-// TODO: Replace with useKnowledgeRefs hook once knowledge_refs DB table is created (Sprint 5+)
+// TODO: Replace mockPageKnowledgeRefs with a useKnowledgeRefs hook once a knowledge_refs DB table is created (Sprint 5+)
+import { mockPageKnowledgeRefs } from "@/data/mockKnowledgeRefs";
 
 type TabKey = 'socratic' | 'contradictions' | 'cld';
 
@@ -439,7 +439,7 @@ export default function Explore() {
   const sfCount = contradictions.filter((c) => c.type === 'SF').length;
   const breakpointsCount = causalLoop?.nodes.filter((n) => n.isBreakpoint).length ?? 0;
 
-  // Gate 1.2 check
+  // Gate D2 check
   const confirmedContradictions = contradictions.filter((c) => c.status === 'confirmed').length;
   // A project may legitimately have 0 contradictions after thorough exploration.
   // Gate passes if at least 1 confirmed OR no contradictions were identified at all.
@@ -450,7 +450,7 @@ export default function Explore() {
     { label: '7 類問題皆有回答', current: new Set(questions.filter((q) => q.answer && q.answer.trim().length >= 5).map((q) => q.category)).size, target: 7, passed: new Set(questions.filter((q) => q.answer && q.answer.trim().length >= 5).map((q) => q.category)).size >= 7 },
   ], [answeredCount, confirmedContradictions, contradictions.length, contradictionCheckPassed, questions]);
 
-  // Phase Gate 1 check
+  // Phase Gate D check
   // Allow zero-contradiction projects to pass — classification check only applies when contradictions exist
   const allContradictionsClassified = contradictions.length === 0 || contradictions.every((c) => c.type === 'TC' || c.type === 'PC' || c.type === 'SF');
   const phaseGate1Items: GateCheckItem[] = useMemo(() => [
@@ -508,8 +508,6 @@ export default function Explore() {
               D2–D3 · 蘇格拉底問答 → 矛盾識別 → 因果迴路圖
             </p>
           </div>
-          {/* Auto-TRIZ v2: Entry Grading (WBS 8.5.2) */}
-          <EntryGradingModal projectId={id || ''} />
         </div>
       </div>
 
@@ -578,8 +576,7 @@ export default function Explore() {
       </Tabs>
 
       {/* Knowledge Enhancement Panel (WBS 3.4.2) */}
-      {/* TODO: Replace with useKnowledgeRefs hook (Sprint 5+) */}
-      <KnowledgeRefsPanel refs={[]} />
+      <KnowledgeRefsPanel refs={mockPageKnowledgeRefs.explore ?? []} />
 
       {/* Gates */}
       <ExploreGates

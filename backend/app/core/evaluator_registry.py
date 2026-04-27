@@ -185,7 +185,7 @@ def _ai_convergence_review(sb, project_id: str) -> AiReviewResult:
 
 @register_evaluator("brief_quality")
 def _ai_brief_quality_review(sb, project_id: str) -> AiReviewResult:
-    """Gate 1.1 — assess mission clarity and KPI measurability."""
+    """Gate D1 — assess mission clarity and KPI measurability."""
     from app.agents.evaluator import review_brief_quality
 
     brief = sb.table("briefs").select("mission").eq("project_id", project_id).maybe_single().execute()
@@ -223,7 +223,7 @@ def _ai_brief_quality_review(sb, project_id: str) -> AiReviewResult:
 
 @register_evaluator("depth_quality")
 def _ai_depth_quality_review(sb, project_id: str) -> AiReviewResult:
-    """Gate 1.2 — assess assumption/contradiction depth and coverage."""
+    """Gate D2 — assess assumption/contradiction depth and coverage."""
     from app.agents.evaluator import review_depth_quality
 
     brief = sb.table("briefs").select("mission").eq("project_id", project_id).maybe_single().execute()
@@ -263,7 +263,7 @@ def _ai_depth_quality_review(sb, project_id: str) -> AiReviewResult:
 
 @register_evaluator("experiment_coverage")
 def _ai_experiment_coverage_review(sb, project_id: str) -> AiReviewResult:
-    """Gate 2.1 — assess whether experiments actually address high-risk assumptions."""
+    """Gate X1 — assess whether experiments actually address high-risk assumptions."""
     from app.agents.evaluator import review_experiment_coverage
 
     assumptions_rows = (

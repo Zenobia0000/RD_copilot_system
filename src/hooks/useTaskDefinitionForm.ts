@@ -415,7 +415,7 @@ export function useTaskDefinitionForm(projectId: string | undefined) {
     return () => clearTimeout(timer);
   }, [kpis, seeded, isLoading, projectId]);
 
-  // ── Gate 1.1 check ────────────────────────────────────────────────
+  // ── Gate D1 check ────────────────────────────────────────────────
   const missionReady = mission.trim().length >= 10;
   const hasConstraint = constraints.some((c) => c.description.trim().length >= 2);
   const hasKpi = kpis.some(

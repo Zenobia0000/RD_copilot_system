@@ -3,9 +3,9 @@
 export type AccordionStepStatus = 'complete' | 'in_progress' | 'not_started';
 
 export interface CreateStepProgress {
-  antiAnchor: AccordionStepStatus;
   triz: AccordionStepStatus;
   subsystem: AccordionStepStatus;
+  scamper: AccordionStepStatus;
   alternatives: AccordionStepStatus;
   must: AccordionStepStatus;
   preCad: AccordionStepStatus;
@@ -30,20 +30,6 @@ export interface ValidationPassport {
   requiredVerifications: string[];
   crossDomainSource: string;
   confidenceLevel: number; // 0-1
-}
-
-// Anti-Anchor
-/** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
-export interface AntiAnchorRoute {
-  id: string;
-  name: string;
-  mechanism: string;
-  description: string;
-  whyUnconventional: string;
-  potentialAdvantage: string;
-  crossDomainSource: string;
-  validationPassport: ValidationPassport | null;
-  createdAt?: string;
 }
 
 // TRIZ solutions
@@ -91,7 +77,9 @@ export interface Subsystem {
 }
 
 // SCAMPER
+/** @deprecated v9: SCAMPER removed — TRIZ 40 principles fully cover SCAMPER actions */
 export type ScamperAction = 'S' | 'C' | 'A' | 'M' | 'P' | 'E' | 'R';
+/** @deprecated v9: SCAMPER removed — TRIZ 40 principles fully cover SCAMPER actions */
 export const SCAMPER_LABELS: Record<ScamperAction, { en: string; zh: string }> = {
   S: { en: 'Substitute', zh: '替代' },
   C: { en: 'Combine', zh: '結合' },
@@ -102,6 +90,7 @@ export const SCAMPER_LABELS: Record<ScamperAction, { en: string; zh: string }> =
   R: { en: 'Rearrange', zh: '重排' },
 };
 
+/** @deprecated v9: SCAMPER removed — TRIZ 40 principles fully cover SCAMPER actions */
 export interface ScamperNewContradiction {
   id: string;
   description: string;
@@ -109,6 +98,7 @@ export interface ScamperNewContradiction {
   fedBack: boolean;  // 是否已回饋至收斂圖
 }
 
+/** @deprecated v9: SCAMPER removed — TRIZ 40 principles fully cover SCAMPER actions */
 export interface ScamperVariant {
   id: string;
   subsystemId: string;
@@ -131,8 +121,7 @@ export {
 } from '@/types/generated/subsystem';
 
 // Alternative (concept route)
-/** @deprecated v3.0: 'anti_anchor' source retired, de-anchoring merged into TRIZ L1 */
-export type AlternativeSource = 'triz_tc' | 'triz_pc' | 'triz_sf' | 'manual' | 'ai_integrated' | 'anti_anchor';
+export type AlternativeSource = 'triz_tc' | 'triz_pc' | 'triz_sf' | 'scamper' | 'manual' | 'ai_integrated';
 
 export interface Alternative {
   id: string;

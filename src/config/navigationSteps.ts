@@ -60,14 +60,14 @@ export const phaseLabels: Record<number, string> = {
 
 /** Map each sidebar step to the phase_progress keys it covers */
 export const stepProgressKeys: Record<string, (keyof PhaseProgress)[]> = {
-  brief:     ["1.1"],
-  explore:   ["1.2", "1.3"],
-  track:     ["2.1"],
-  create:    ["2.2"],
-  "pre-cad": ["2.3"],
-  review:    ["3.1"],
-  decide:    ["3.2"],
-  feynman:   ["3.3"],
+  brief:     ["D1"],
+  explore:   ["D2", "PG-D"],
+  track:     ["X1"],
+  create:    ["X2"],
+  "pre-cad": ["PG-X"],
+  review:    ["V1"],
+  decide:    ["V2"],
+  feynman:   ["PG-V"],
 };
 
 // ── Helpers ────────────────────────────────────────────────────────

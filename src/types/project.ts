@@ -3,15 +3,15 @@ export type ProjectStatus = "in_progress" | "completed" | "archived";
 export type StepStatus = "passed" | "in_progress" | "not_started";
 
 export interface PhaseProgress {
-  "1.1": StepStatus;
-  "1.2": StepStatus;
-  "1.3": StepStatus;
-  "2.1": StepStatus;
-  "2.2": StepStatus;
-  "2.3": StepStatus;
-  "3.1": StepStatus;
-  "3.2": StepStatus;
-  "3.3": StepStatus;
+  "D1": StepStatus;
+  "D2": StepStatus;
+  "PG-D": StepStatus;
+  "X1": StepStatus;
+  "X2": StepStatus;
+  "PG-X": StepStatus;
+  "V1": StepStatus;
+  "V2": StepStatus;
+  "PG-V": StepStatus;
 }
 
 export interface QuickStats {

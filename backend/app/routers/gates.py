@@ -2,7 +2,7 @@
 
 SOW Module: Gate 檢查 (gates)
 SOW Endpoints:
-  - GET /gates/{gate_id}/check  ← 8 gate variants (1.1, 1.2, PG1, 2.1, 2.2, PG2, 3.2, PG3)
+  - GET /gates/{gate_id}/check  ← 8 gate variants (D1, D2, PG-D, X1, X2, PG-X, V2, PG-V)
 
 Gate definitions are declarative — see app/core/gate_registry.py.
 AI evaluators are registered in app/core/evaluator_registry.py (extensible).
@@ -33,7 +33,7 @@ def gates_check(
 ):
     """Check whether a project passes the specified quality gate.
 
-    gate_id: 1.1 | 1.2 | PG1 | 2.1 | 2.2 | PG2 | 3.2 | PG3
+    gate_id: D1 | D2 | PG-D | X1 | X2 | PG-X | V2 | PG-V
     include_ai_review: when True, gates with an AI evaluator run additional analysis.
     """
     defn = GATE_REGISTRY.get(gate_id)

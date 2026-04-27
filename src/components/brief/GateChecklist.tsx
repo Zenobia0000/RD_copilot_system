@@ -21,12 +21,12 @@ export function GateChecklist({ items, onNavigateNext, isSubmitting = false }: G
         {/* Phase 1 blue top band */}
         <div className="flex items-center gap-3">
           <div className="h-6 w-1 rounded-full bg-phase-1" />
-          <h3 className="text-sm font-semibold">Gate 1.1 — 任務定義完整性檢查</h3>
+          <h3 className="text-sm font-semibold">Gate D1 — 任務定義完整性檢查</h3>
           <Badge
             variant={allPassed ? "default" : "destructive"}
             className="ml-auto text-xs"
           >
-            {allPassed ? "Gate 1.1 Passed" : "Gate 1.1 未通過"}
+            {allPassed ? "Gate D1 Passed" : "Gate D1 未通過"}
           </Badge>
         </div>
 

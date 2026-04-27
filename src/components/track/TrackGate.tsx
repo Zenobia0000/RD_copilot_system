@@ -20,11 +20,11 @@ export function TrackGate({ items, onNavigateNext }: TrackGateProps) {
       <div className="rounded-lg border p-4 space-y-3">
         <div className="flex items-center gap-3">
           <div className="h-6 w-1 rounded-full bg-amber-500" />
-          <h3 className="text-sm font-semibold">Gate 2.1 — 假設追蹤完整性檢查</h3>
+          <h3 className="text-sm font-semibold">Gate X1 — 假設追蹤完整性檢查</h3>
           <Badge
             className={`text-xs text-white ${allPassed ? 'bg-green-600' : 'bg-red-600'}`}
           >
-            {allPassed ? 'Gate 2.1 Passed' : 'Gate 2.1 未通過'}
+            {allPassed ? 'Gate X1 Passed' : 'Gate X1 未通過'}
           </Badge>
         </div>
 

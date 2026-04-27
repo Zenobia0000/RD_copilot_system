@@ -12,7 +12,7 @@ export { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 // Seed utilities (dev only)
 export { seedDemoProject, clearDemoData, seedShowcaseProjects, clearAllShowcaseData } from './seed';
 
-// --- Sprint 1: Projects + D1 ---
+// --- Sprint 1: Projects + Step 1 ---
 export { useProjects, useProject, useCreateProject, useUpdateProject, useDeleteProject, useProjectStats } from './useProjects';
 export {
   useBrief,
@@ -48,12 +48,6 @@ export {
 // TRIZ Layered Drill-Down persistence (migration 010)
 export { useLayeredTrizSolutions } from './useLayeredTrizSolutions';
 
-// TRIZ Directed Solutions persistence (migration 011)
-export { useDirectedTrizSolutions } from './useDirectedTrizSolutions';
-
-// TRIZ Consolidation Result persistence (migration 012)
-export { useTrizConsolidationResult, upsertConsolidationResult } from './useTrizConsolidationResult';
-
 // --- Sprint 1.2: Assumptions + CLD ---
 export {
   useAssumptions,
@@ -81,17 +75,8 @@ export {
   useTrackExperiments,
 } from './useTrack';
 
-// --- Sprint 2: X2 Solution Exploration ---
-// v3.0 DEPRECATED: Anti-Anchor hooks retired — de-anchoring merged into TRIZ L1 flow
+// --- Sprint 2: Step 2 Solution Exploration ---
 export {
-  /** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
-  useAntiAnchorRoutes,
-  /** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
-  useCreateAntiAnchorRoute,
-  /** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
-  useUpdateAntiAnchorRoute,
-  /** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
-  useDeleteAntiAnchorRoute,
   useTrizSolutions,
   useCreateTrizSolution,
   useUpdateTrizSolution,
@@ -99,6 +84,9 @@ export {
   useCreateSubsystem,
   useUpdateSubsystem,
   useDeleteSubsystem,
+  useScamperVariants,
+  useCreateScamperVariant,
+  useUpdateScamperVariant,
   useAlternatives,
   useCreateAlternative,
   useUpdateAlternative,
@@ -117,7 +105,7 @@ export { useSolutions, useCreateSolution, useUpdateSolution, useConvergenceGraph
 // Pre-CAD Review page hooks
 export { usePreCadSolutions, usePreCadConvergenceStats, useUpdatePreCadReview } from './usePreCadReview';
 
-// --- Sprint 3: V1 Review & Decision ---
+// --- Sprint 3: Step 3 Review & Decision ---
 export {
   useEvidenceMatrix,
   useCreateEvidenceRow,
@@ -151,20 +139,6 @@ export {
   useUpdateActionItem,
   useDeleteActionItem,
 } from './useDecisionRecord';
-
-// --- Auto-TRIZ v2: Analyst hooks (WBS 8.5) ---
-export {
-  useEntryGrading,
-  useFiveWhy,
-  useKtAnalysis,
-  useFunctionAnalysis,
-} from './useAnalystV2';
-
-// --- Auto-TRIZ v2: Create V2 hooks (WBS 8.6) ---
-export {
-  useOzOtAnalysis,
-  useEvidenceCoverage,
-} from './useCreateV2';
 
 // --- Evidence Entries (structured measurement logs) ---
 export {

@@ -367,19 +367,14 @@ curl -X POST http://localhost:8000/api/v1/assumptions/extract \
 
 ---
 
-## 6. Alternatives (Anti-Anchor) — RETIRED (v3.0)
+## 6. Alternatives (Anti-Anchor)
 
-> **v3.0 RETIRED**: Anti-Anchor has been retired. Its de-anchoring functionality
-> has been merged into the TRIZ solver as a built-in "cross-domain de-anchoring"
-> UX step within TRIZ L1 instantiation. The endpoint below is no longer served.
-> Use the TRIZ solver (Section 7) instead.
+### 6.1 Anti-Anchor Sprint
 
-### ~~6.1 Anti-Anchor Sprint~~
-
-~~Generate 3+ non-typical architecture concepts to break path dependency.~~
+Generate 3+ non-typical architecture concepts to break path dependency.
 
 ```
-POST /api/v1/alternatives/anti-anchor   ← RETIRED (v3.0)
+POST /api/v1/alternatives/anti-anchor
 ```
 
 **Request Body**
@@ -398,11 +393,10 @@ POST /api/v1/alternatives/anti-anchor   ← RETIRED (v3.0)
 | `routes` | `AntiAnchorRoute[]` (name, description, is_non_typical, rationale) |
 
 ```bash
-# RETIRED (v3.0) — this endpoint is no longer active
-# curl -X POST http://localhost:8000/api/v1/alternatives/anti-anchor \
-#   -H "Authorization: Bearer $TOKEN" \
-#   -H "Content-Type: application/json" \
-#   -d '{"project_id":"uuid","mission":"Design motor controller","current_constraints":["Weight <= 2kg"]}'
+curl -X POST http://localhost:8000/api/v1/alternatives/anti-anchor \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"project_id":"uuid","mission":"Design motor controller","current_constraints":["Weight <= 2kg"]}'
 ```
 
 ---
@@ -447,20 +441,46 @@ curl -X POST http://localhost:8000/api/v1/triz/solve \
 
 ---
 
-## 8. Subsystems
+## 8. SCAMPER
 
-> **Migration note**: These endpoints were previously under `/scamper/`. The
-> old paths (`/scamper/subsystem-suggestions`, `/scamper/spatial-overlay`)
-> return HTTP 308 redirects for backward compatibility. The `/scamper/perform`
-> and `/scamper/feedback-contradictions` endpoints have been retired — TRIZ 40
-> principles cover all SCAMPER actions.
+### 8.1 Perform SCAMPER
 
-### 8.1 Subsystem Suggestions
-
-AI suggests subsystems suitable for design analysis.
+Apply SCAMPER 7-action transformation to a subsystem.
 
 ```
-POST /api/v1/subsystems/suggest
+POST /api/v1/scamper/perform
+```
+
+**Request Body**
+
+| Field | Type | Required |
+|-------|------|----------|
+| `project_id` | string | yes |
+| `subsystem_name` | string | yes |
+| `subsystem_description` | string | yes |
+| `related_contradictions` | string[] | no |
+
+**Response** `ScamperResponse`
+
+| Field | Type |
+|-------|------|
+| `variants` | `ScamperVariant[]` (action, description, potential_benefits, new_contradictions) |
+
+Actions: `Substitute`, `Combine`, `Adapt`, `Modify`, `Put to other use`, `Eliminate`, `Reverse`
+
+```bash
+curl -X POST http://localhost:8000/api/v1/scamper/perform \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"project_id":"uuid","subsystem_name":"Cooling System","subsystem_description":"Passive heatsink"}'
+```
+
+### 8.2 Subsystem Suggestions
+
+AI suggests subsystems suitable for SCAMPER analysis.
+
+```
+POST /api/v1/scamper/subsystem-suggestions
 ```
 
 **Request Body**
@@ -471,28 +491,26 @@ POST /api/v1/subsystems/suggest
 | `mission` | string | yes |
 | `contradictions` | string[] | no |
 | `existing_subsystems` | string[] | no |
-| `layered_triz_solutions` | `LayeredTrizSolution[]` | no |
 
 **Response** `SubsystemSuggestResponse`
 
 | Field | Type |
 |-------|------|
-| `subsystems` | `SuggestedSubsystem[]` (name, level, reason, related_contradictions, children, interface_contracts) |
-| `package_map` | `PackageMap` or null |
+| `subsystems` | `SuggestedSubsystem[]` (name, reason, related_contradictions) |
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/subsystems/suggest \
+curl -X POST http://localhost:8000/api/v1/scamper/subsystem-suggestions \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"project_id":"uuid","mission":"Design motor controller"}'
 ```
 
-### 8.2 Spatial Overlay
+### 8.3 Feedback Contradictions
 
-Apply a what-if spatial overlay to a subsystem tree.
+Feed SCAMPER-generated contradictions back to contradiction management.
 
 ```
-POST /api/v1/subsystems/spatial-overlay
+POST /api/v1/scamper/feedback-contradictions
 ```
 
 **Request Body**
@@ -500,20 +518,21 @@ POST /api/v1/subsystems/spatial-overlay
 | Field | Type | Required |
 |-------|------|----------|
 | `project_id` | string | yes |
-| `subsystems` | `SuggestedSubsystem[]` | no |
-| `overlay` | dict | no |
+| `new_contradictions` | dict[] | no |
 
-**Response** `SpatialOverlayResponse`
+**Response** `ScamperFeedbackResponse`
 
 | Field | Type |
 |-------|------|
-| `package_map` | `PackageMap` |
+| `created_count` | int |
+| `deduplicated_count` | int |
+| `contradiction_ids` | string[] |
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/subsystems/spatial-overlay \
+curl -X POST http://localhost:8000/api/v1/scamper/feedback-contradictions \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"project_id":"uuid","subsystems":[],"overlay":{"zones":{"downtube":{"x_mm":400}}}}'
+  -d '{"project_id":"uuid","new_contradictions":[{"description":"New thermal issue","severity":"major"}]}'
 ```
 
 ---
@@ -758,7 +777,7 @@ GET /api/v1/gates/{gate_id}/check?project_id={project_id}
 
 | Param | Description |
 |-------|-------------|
-| `gate_id` | One of: `1.1`, `1.2`, `PG1`, `2.1`, `2.2`, `PG2`, `3.2`, `PG3` |
+| `gate_id` | One of: `D1`, `D2`, `PG-D`, `X1`, `X2`, `PG-X`, `V2`, `PG-V` |
 
 **Query Parameters**
 
@@ -779,17 +798,17 @@ GET /api/v1/gates/{gate_id}/check?project_id={project_id}
 
 | Gate | Condition |
 |------|-----------|
-| 1.1 | Mission defined + >= 3 KPIs with measurement method |
-| 1.2 | >= 10 assumptions + >= 3 high-risk + >= 3 contradictions |
-| PG1 | >= 1 CLD + >= 3 breakpoints |
-| 2.1 | >= 3 high-risk assumptions with experiments |
-| 2.2 | >= 3 alternatives |
-| PG2 | >= 1 alternative passed Pre-CAD |
-| 3.2 | Decision record signed |
-| PG3 | All core artifacts released (manual) |
+| D1 | Mission defined + >= 3 KPIs with measurement method |
+| D2 | >= 10 assumptions + >= 3 high-risk + >= 3 contradictions |
+| PG-D | >= 1 CLD + >= 3 breakpoints |
+| X1 | >= 3 high-risk assumptions with experiments |
+| X2 | >= 3 alternatives |
+| PG-X | >= 1 alternative passed Pre-CAD |
+| V2 | Decision record signed |
+| PG-V | All core artifacts released (manual) |
 
 ```bash
-curl -X GET "http://localhost:8000/api/v1/gates/1.1/check?project_id=uuid" \
+curl -X GET "http://localhost:8000/api/v1/gates/D1/check?project_id=uuid" \
   -H "Authorization: Bearer $TOKEN"
 ```
 

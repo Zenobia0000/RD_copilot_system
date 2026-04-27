@@ -21,9 +21,9 @@ const statusVariantMap: Record<string, "default" | "secondary" | "outline"> = {
 
 /** Phase color band segments */
 const PHASE_STEPS: { phase: 1 | 2 | 3; keys: (keyof PhaseProgress)[] }[] = [
-  { phase: 1, keys: ["1.1", "1.2", "1.3"] },
-  { phase: 2, keys: ["2.1", "2.2", "2.3"] },
-  { phase: 3, keys: ["3.1", "3.2", "3.3"] },
+  { phase: 1, keys: ["D1", "D2", "PG-D"] },
+  { phase: 2, keys: ["X1", "X2", "PG-X"] },
+  { phase: 3, keys: ["V1", "V2", "PG-V"] },
 ];
 
 const phaseColors: Record<number, string> = {

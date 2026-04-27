@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any, Iterator
 
 from anthropic import Anthropic
@@ -24,6 +25,36 @@ from anthropic import Anthropic
 from app.harness.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# WorkerStatus state machine — observable lifecycle of one stream() call
+#
+# SPAWNING → RUNNING → FINISHED        (happy path)
+# SPAWNING → RUNNING → FAILED          (AgentLoopError)
+#
+# Borrowed from claw-code's WorkerStatus pattern (rust/crates/runtime/), but
+# collapsed: we always start with a prompt, so "ReadyForPrompt" is redundant.
+# Status is emitted on the stream as WorkerStatusEvent. Persistent state file
+# (`.claude/context/triz/.worker-state.json`) is deferred — multi-session
+# write conflicts need a per-session-id schema first.
+# ────────────────────────────────────────────────────────────────────────────
+
+
+class WorkerStatus(str, Enum):
+    """Lifecycle states of an AgentLoop.stream() invocation."""
+
+    SPAWNING = "spawning"
+    """Loop entered. Tool registry / system prompt assembled. No API call yet."""
+
+    RUNNING = "running"
+    """Actively making API calls and dispatching tools. Sticks for entire loop."""
+
+    FINISHED = "finished"
+    """Terminal: stream ended cleanly (end_turn or max_tokens)."""
+
+    FAILED = "failed"
+    """Terminal: AgentLoopError raised — unexpected stop_reason or iteration cap."""
 
 
 @dataclass(frozen=True)
@@ -109,6 +140,18 @@ class ErrorEvent:
     type: str = "error"
 
 
+@dataclass(frozen=True)
+class WorkerStatusEvent:
+    """A WorkerStatus transition. Emitted at well-defined lifecycle points
+    so observers (frontend, observability) can render `spawning... running...
+    finished/failed` indicators independent of model output."""
+
+    status: str
+    """One of WorkerStatus values (string for SSE serialization)."""
+
+    type: str = "worker_status"
+
+
 HarnessEvent = (
     TextDeltaEvent
     | ToolUseEvent
@@ -116,6 +159,7 @@ HarnessEvent = (
     | IterationEndEvent
     | DoneEvent
     | ErrorEvent
+    | WorkerStatusEvent
 )
 
 
@@ -224,17 +268,30 @@ class AgentLoop:
 
     def stream(self, user_message: str) -> Iterator[HarnessEvent]:
         """Streaming variant of run(). Yields HarnessEvents as they happen:
-        text deltas as the model generates, tool_use/tool_result around each
-        dispatch, iteration_end after each model call, and a terminal done
-        or error.
+        worker_status lifecycle transitions, text deltas, tool_use/tool_result
+        around each dispatch, iteration_end after each model call, and a
+        terminal done or error.
+
+        Status sequence on happy path:
+            worker_status(SPAWNING) → worker_status(RUNNING) →
+            [text_delta / tool_use / tool_result / iteration_end ...] →
+            worker_status(FINISHED) → done
+
+        On failure (AgentLoopError):
+            worker_status(SPAWNING) → worker_status(RUNNING) →
+            ... → worker_status(FAILED) → error
 
         Same control flow as run() — the only difference is we use
         messages.stream() and emit events instead of returning AgentResult
-        at the end. AgentLoopError becomes a final ErrorEvent.
+        at the end. AgentLoopError becomes a terminal pair of FAILED + error.
         """
+        # SPAWNING: emitted before any API work. Lets observers render
+        # "starting up..." while we assemble tool schemas etc.
+        yield WorkerStatusEvent(status=WorkerStatus.SPAWNING.value)
         try:
             yield from self._stream_impl(user_message)
         except AgentLoopError as exc:
+            yield WorkerStatusEvent(status=WorkerStatus.FAILED.value)
             yield ErrorEvent(message=str(exc))
 
     def _stream_impl(self, user_message: str) -> Iterator[HarnessEvent]:
@@ -243,6 +300,11 @@ class AgentLoop:
         ]
         tool_schemas = self._registry.to_anthropic_schemas(only=self._allowed)
         tool_calls = 0
+
+        # RUNNING: emitted once, just before the first API call. Sticks for
+        # the entire loop — IterationEndEvent already provides per-iteration
+        # granularity, so we don't re-emit RUNNING per iteration.
+        yield WorkerStatusEvent(status=WorkerStatus.RUNNING.value)
 
         for iteration in range(1, self._max_iterations + 1):
             logger.debug("agent stream iter %d (model=%s)", iteration, self._model)
@@ -270,6 +332,9 @@ class AgentLoop:
             yield IterationEndEvent(iteration=iteration, stop_reason=stop or "unknown")
 
             if stop == "end_turn" or stop == "max_tokens":
+                # FINISHED: emitted before DoneEvent so observers can flip
+                # status indicator before the terminal payload arrives.
+                yield WorkerStatusEvent(status=WorkerStatus.FINISHED.value)
                 yield DoneEvent(
                     final_text=_extract_text(final.content),
                     iterations=iteration,

@@ -18,6 +18,8 @@ from app.harness.agent import (
     TextDeltaEvent,
     ToolResultEvent,
     ToolUseEvent,
+    WorkerStatus,
+    WorkerStatusEvent,
 )
 from app.harness.tools.base import Tool, ToolResult
 from app.harness.tools.registry import ToolRegistry
@@ -78,18 +80,25 @@ class TestStreamSingleShot:
 
         events = list(loop.stream("hi"))
 
-        # Order: 2× TextDelta → IterationEnd → Done
+        # Order: status(spawning) → status(running) → 2× TextDelta →
+        # IterationEnd → status(finished) → Done
         assert [type(e) for e in events] == [
+            WorkerStatusEvent,
+            WorkerStatusEvent,
             TextDeltaEvent,
             TextDeltaEvent,
             IterationEndEvent,
+            WorkerStatusEvent,
             DoneEvent,
         ]
-        assert events[0].text == "hello "
-        assert events[1].text == "world"
-        assert events[2].iteration == 1
-        assert events[2].stop_reason == "end_turn"
-        done: DoneEvent = events[3]
+        assert events[0].status == WorkerStatus.SPAWNING.value
+        assert events[1].status == WorkerStatus.RUNNING.value
+        assert events[2].text == "hello "
+        assert events[3].text == "world"
+        assert events[4].iteration == 1
+        assert events[4].stop_reason == "end_turn"
+        assert events[5].status == WorkerStatus.FINISHED.value
+        done: DoneEvent = events[6]
         assert done.final_text == "hello world"
         assert done.iterations == 1
         assert done.tool_calls == 0
@@ -107,7 +116,13 @@ class TestStreamSingleShot:
         )
         events = list(_make_loop(client).stream("hi"))
 
-        assert [type(e) for e in events] == [IterationEndEvent, DoneEvent]
+        assert [type(e) for e in events] == [
+            WorkerStatusEvent,  # spawning
+            WorkerStatusEvent,  # running
+            IterationEndEvent,
+            WorkerStatusEvent,  # finished
+            DoneEvent,
+        ]
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -136,24 +151,29 @@ class TestStreamToolUse:
         events = list(_make_loop(client).stream("call echo"))
 
         types = [type(e) for e in events]
-        # iter1: text → iter_end(tool_use) → tool_use → tool_result
-        # iter2: text → iter_end(end_turn) → done
+        # status(spawning) → status(running) →
+        # iter1: text → iter_end(tool_use) → tool_use → tool_result →
+        # iter2: text → iter_end(end_turn) → status(finished) → done
         assert types == [
+            WorkerStatusEvent,
+            WorkerStatusEvent,
             TextDeltaEvent,
             IterationEndEvent,
             ToolUseEvent,
             ToolResultEvent,
             TextDeltaEvent,
             IterationEndEvent,
+            WorkerStatusEvent,
             DoneEvent,
         ]
-        tu: ToolUseEvent = events[2]
+        # Filter to non-status events for content assertions
+        tu = next(e for e in events if isinstance(e, ToolUseEvent))
         assert tu.id == "tu_1" and tu.name == "Echo" and tu.input == {"msg": "hi"}
-        tr: ToolResultEvent = events[3]
+        tr = next(e for e in events if isinstance(e, ToolResultEvent))
         assert tr.tool_use_id == "tu_1"
         assert tr.content == "echo:hi"
         assert tr.is_error is False
-        done: DoneEvent = events[6]
+        done = next(e for e in events if isinstance(e, DoneEvent))
         assert done.iterations == 2
         assert done.tool_calls == 1
 
@@ -258,6 +278,97 @@ class TestStreamStopReasons:
         events = list(loop.stream("go"))
         assert isinstance(events[-1], ErrorEvent)
         assert "2 iterations" in events[-1].message
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# WorkerStatus lifecycle — observable transitions for frontend
+# ────────────────────────────────────────────────────────────────────────────
+
+class TestStreamWorkerStatus:
+    """Pin the WorkerStatus emission contract:
+
+        Happy: SPAWNING → RUNNING → ... → FINISHED → DoneEvent
+        Failed: SPAWNING → RUNNING → ... → FAILED → ErrorEvent
+    """
+
+    def test_happy_path_emits_spawning_running_finished_in_order(self):
+        client = FakeAnthropicClient.with_responses(
+            FakeResponse(
+                content=[FakeTextBlock(text="ok")],
+                stop_reason="end_turn",
+                stream_events=[FakeTextEvent(text="ok")],
+            )
+        )
+        events = list(_make_loop(client).stream("hi"))
+        statuses = [e.status for e in events if isinstance(e, WorkerStatusEvent)]
+        assert statuses == [
+            WorkerStatus.SPAWNING.value,
+            WorkerStatus.RUNNING.value,
+            WorkerStatus.FINISHED.value,
+        ]
+
+    def test_failed_path_emits_spawning_running_failed_with_error(self):
+        client = FakeAnthropicClient.with_responses(
+            FakeResponse(
+                content=[FakeTextBlock(text="x")],
+                stop_reason="refusal",  # unexpected → AgentLoopError
+                stream_events=[FakeTextEvent(text="x")],
+            )
+        )
+        events = list(_make_loop(client).stream("hi"))
+
+        statuses = [e.status for e in events if isinstance(e, WorkerStatusEvent)]
+        assert statuses == [
+            WorkerStatus.SPAWNING.value,
+            WorkerStatus.RUNNING.value,
+            WorkerStatus.FAILED.value,
+        ]
+        # FAILED must immediately precede the ErrorEvent
+        idx_failed = next(
+            i for i, e in enumerate(events)
+            if isinstance(e, WorkerStatusEvent) and e.status == WorkerStatus.FAILED.value
+        )
+        assert isinstance(events[idx_failed + 1], ErrorEvent)
+
+    def test_max_iterations_cap_triggers_failed_then_error(self):
+        infinite = [
+            FakeResponse(
+                content=[FakeToolUseBlock(id=f"t{i}", name="Echo", input={"msg": "x"})],
+                stop_reason="tool_use",
+                stream_events=[],
+            )
+            for i in range(5)
+        ]
+        client = FakeAnthropicClient.with_responses(*infinite)
+        events = list(_make_loop(client, max_iterations=2).stream("go"))
+
+        # Last two events are FAILED + ErrorEvent
+        assert isinstance(events[-1], ErrorEvent)
+        assert isinstance(events[-2], WorkerStatusEvent)
+        assert events[-2].status == WorkerStatus.FAILED.value
+
+    def test_spawning_emitted_before_first_api_call(self):
+        """SPAWNING must arrive BEFORE the first messages.stream() invocation
+        so observers can show a 'starting up' indicator while we assemble
+        tool schemas etc."""
+        client = FakeAnthropicClient.with_responses(
+            FakeResponse(
+                content=[FakeTextBlock(text="ok")],
+                stop_reason="end_turn",
+                stream_events=[FakeTextEvent(text="ok")],
+            )
+        )
+        events = []
+        gen = _make_loop(client).stream("hi")
+        # Pull one event — should be SPAWNING and no API call yet
+        first = next(gen)
+        events.append(first)
+        assert isinstance(first, WorkerStatusEvent)
+        assert first.status == WorkerStatus.SPAWNING.value
+        assert client.messages.calls == []  # no API call yet
+        # Drain the rest
+        events.extend(gen)
+        assert len(client.messages.calls) == 1
 
 
 # ────────────────────────────────────────────────────────────────────────────

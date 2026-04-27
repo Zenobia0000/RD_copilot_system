@@ -357,12 +357,17 @@ def run_command_stream(
     """Server-Sent Events variant of /run.
 
     Each agent event becomes one SSE message:
+      event: worker_status | data: {"status": "spawning"|"running"|"finished"|"failed"}
       event: text_delta    | data: {"text": "…"}
       event: tool_use      | data: {"id": "tu_…", "name": "Read", "input": {…}}
       event: tool_result   | data: {"tool_use_id": "tu_…", "content": "…", "is_error": false}
       event: iteration_end | data: {"iteration": 1, "stop_reason": "tool_use"}
       event: done          | data: {"final_text": "…", "iterations": 2, …}
       event: error         | data: {"message": "…"}
+
+    Lifecycle (worker_status sequence):
+      spawning → running → finished → done       (happy path)
+      spawning → running → failed → error        (AgentLoopError)
 
     The connection stays open until done or error fires. Frontends should
     close the EventSource on either terminal event.

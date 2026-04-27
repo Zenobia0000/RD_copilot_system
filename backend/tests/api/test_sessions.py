@@ -443,13 +443,25 @@ class TestRunStreamHappyPath:
 
         events = _parse_sse(resp.text)
         names = [e["event"] for e in events]
-        assert names == ["text_delta", "text_delta", "iteration_end", "done"]
-        assert events[0]["data"]["text"] == "hello "
-        assert events[1]["data"]["text"] == "world"
-        assert events[2]["data"]["stop_reason"] == "end_turn"
-        assert events[3]["data"]["final_text"] == "hello world"
-        assert events[3]["data"]["iterations"] == 1
-        assert events[3]["data"]["tool_calls"] == 0
+        # spawning + running before model output; finished before done.
+        assert names == [
+            "worker_status",  # spawning
+            "worker_status",  # running
+            "text_delta",
+            "text_delta",
+            "iteration_end",
+            "worker_status",  # finished
+            "done",
+        ]
+        assert events[0]["data"]["status"] == "spawning"
+        assert events[1]["data"]["status"] == "running"
+        assert events[2]["data"]["text"] == "hello "
+        assert events[3]["data"]["text"] == "world"
+        assert events[4]["data"]["stop_reason"] == "end_turn"
+        assert events[5]["data"]["status"] == "finished"
+        assert events[6]["data"]["final_text"] == "hello world"
+        assert events[6]["data"]["iterations"] == 1
+        assert events[6]["data"]["tool_calls"] == 0
 
     def test_tool_use_emits_tool_use_then_tool_result_events(
         self, client, fake_project, fake_harness,
@@ -482,20 +494,28 @@ class TestRunStreamHappyPath:
 
         events = _parse_sse(resp.text)
         names = [e["event"] for e in events]
-        # iter1: iter_end(tool_use) → tool_use → tool_result
-        # iter2: text_delta → iter_end(end_turn) → done
+        # status(spawning) + status(running) →
+        # iter1: iter_end(tool_use) → tool_use → tool_result →
+        # iter2: text_delta → iter_end(end_turn) → status(finished) → done
         assert names == [
+            "worker_status",  # spawning
+            "worker_status",  # running
             "iteration_end",
             "tool_use",
             "tool_result",
             "text_delta",
             "iteration_end",
+            "worker_status",  # finished
             "done",
         ]
-        assert events[1]["data"]["name"] == "Glob"
-        assert events[2]["data"]["tool_use_id"] == "tu_1"
-        assert events[2]["data"]["is_error"] is False
-        assert events[5]["data"]["tool_calls"] == 1
+        # Filter to specific event types for content assertions
+        tool_use_events = [e for e in events if e["event"] == "tool_use"]
+        tool_result_events = [e for e in events if e["event"] == "tool_result"]
+        done_events = [e for e in events if e["event"] == "done"]
+        assert tool_use_events[0]["data"]["name"] == "Glob"
+        assert tool_result_events[0]["data"]["tool_use_id"] == "tu_1"
+        assert tool_result_events[0]["data"]["is_error"] is False
+        assert done_events[0]["data"]["tool_calls"] == 1
 
     def test_records_run_in_session_history(self, client, fake_project, fake_harness):
         fake_harness.responses.append(

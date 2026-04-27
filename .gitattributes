@@ -1,3 +1,7 @@
+# Default: treat as text and normalize line endings to LF on checkout.
+# Prevents WSL <-> Windows EOL drift across the whole repo.
+* text=auto eol=lf
+
 # Force LF for shell scripts so WSL/bash hooks don't break on Windows checkouts
 *.sh        text eol=lf
 *.bash      text eol=lf
@@ -5,3 +9,17 @@
 # Common LF-only files
 Makefile    text eol=lf
 *.mk        text eol=lf
+
+# Binary files (do not touch)
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.pdf       binary
+*.zip       binary
+*.gz        binary
+*.woff      binary
+*.woff2     binary
+*.ttf       binary
+*.eot       binary

@@ -8,10 +8,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import health, sessions
-from app.core.config import settings
-from app.core.logging import setup_logging
 from app.middleware.error_handler import register_error_handlers
 from app.middleware.request_id import RequestIDMiddleware
+from app.settings import settings, setup_logging
 
 setup_logging()
 

@@ -13,7 +13,7 @@
 | E2  | TR2  | [E2--statement-of-work](E2--statement-of-work.md)                                                                         | Approved |
 | E3  | TR3  | [E3--architecture-and-design](E3--architecture-and-design.md) — Part 1: 架構總覽 (C4, Tech Stack, NFR)                        | Active   |
 | E3  | TR3  | [E3--ai-agent-detailed-design](E3--ai-agent-detailed-design.md) — Part 2: AI Agent 協作架構 (§11)                             | Active   |
-| E3  | TR3  | `diagrams/` — SA 視角附錄: [A](diagrams/appendix-a--forward-subsystem-discovery.md) / [B](diagrams/appendix-b--forward-triz-solver.md) / ~~[C](diagrams/appendix-c--reverse-anti-anchor.md)~~ *(已退役，AA 併入 TRIZ L1 跨域去錨定)* / [D](diagrams/appendix-d--state-machine.md) / [E](diagrams/appendix-e--triz-scamper-flow.md) | Active   |
+| E3  | TR3  | `diagrams/` — SA 視角附錄: [A](diagrams/appendix-a--forward-subsystem-discovery.md) / [B](diagrams/appendix-b--forward-triz-solver.md) / ~~[C](diagrams/appendix-c--reverse-anti-anchor.md)~~ *(已退役，AA 併入 TRIZ L1 跨域去錨定)* / [D](diagrams/appendix-d--state-machine.md) / [E](diagrams/appendix-e--triz-layered-flow.md) | Active   |
 | E3  | TR3  | [E3--system-interaction-flow](E3--system-interaction-flow.md) — 3 scenarios: Forward TRIZ / ~~Reverse Anti-Anchor~~ *(已退役)* / Pre-CAD | Active   |
 | E4  | TR3  | [diagrams/E4--erd](diagrams/E4--erd.md) — Supabase migration 權威 ERD (36 tables, 41 FK, RLS)                               | Draft    |
 
@@ -31,7 +31,7 @@
 | [Appendix B](diagrams/appendix-b--forward-triz-solver.md) | Forward TRIZ Solver Architecture | ~1374 |
 | ~~[Appendix C](diagrams/appendix-c--reverse-anti-anchor.md)~~ | ~~Reverse Anti-Anchor Architecture~~ *(已退役，AA 併入 TRIZ L1 跨域去錨定)* | ~~~966~~ |
 | [Appendix D](diagrams/appendix-d--state-machine.md) | State Machine (Process + Artifact) | ~226 |
-| [Appendix E](diagrams/appendix-e--triz-scamper-flow.md) | TRIZ Flow + 雙軌決策中心 | ~408 |
+| [Appendix E](diagrams/appendix-e--triz-layered-flow.md) | TRIZ Flow + 雙軌決策中心 | ~408 |
 
 
 ---

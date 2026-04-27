@@ -2,8 +2,8 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.1`
-**最後更新 (Last Updated):** `2026-04-24`
+**文件版本 (Document Version):** `v1.2`
+**最後更新 (Last Updated):** `2026-04-27`
 **主要作者 (Lead Author):** `UX / Frontend Lead`
 **狀態 (Status):** `Active`
 **對應 VibeCoding 模板:** `17_frontend_information_architecture_template.md`
@@ -38,7 +38,7 @@
 
 ## 2. 核心設計原則
 
-- **任務導向**：以 RD 核心任務（解矛盾、探索反向、審查 gate）為分區。
+- **任務導向**：以 RD 核心任務（解矛盾、跨域去錨定、審查 gate）為分區。
 - **Progressive disclosure**：複雜流程以 Tab + drill-down 分層揭露。
 - **可追溯**：URL 可還原精確狀態（project_id / tab / contradiction_id 等）。
 - **最短路徑**：核心兩流程（TRIZ 含跨域去錨定 / Pre-CAD）從 dashboard 最多 2 次點擊抵達。
@@ -55,25 +55,25 @@ RD Design Copilot
 │   ├── /projects            (ProjectList)
 │   └── /projects/:id        (ProjectDashboard)
 ├── 5D 階段流程
-│   ├── /projects/:id/task-definition   (Define: Brief + 5W1H)
+│   ├── /projects/:id/brief             (Define: Brief + 5W1H)
 │   ├── /projects/:id/explore           (Explore: TRIZ L1 跨域去錨定 + L2/L3)
 │   ├── /projects/:id/create            (Design: TRIZ + Subsystem + 3 tier tree)
 │   │   ├── ?tab=triz        Tab ①
 │   │   ├── ?tab=subsystem   Tab ②
 │   │   ├── ?tab=decision    Tab ③
 │   │   └── ?tab=tree        Tab ④
-│   ├── /projects/:id/pre-cad-review/:rid (Review Gate)
-│   ├── /projects/:id/decision-record     (KT 決策)
-│   ├── /projects/:id/track               (假設追蹤 / 實驗)
-│   ├── /projects/:id/cad-in-progress     (CAD 階段佔位)
-│   └── /projects/:id/design-review
+│   ├── /projects/:id/track             (假設追蹤 / 實驗)
+│   ├── /projects/:id/pre-cad           (Review Gate)
+│   ├── /projects/:id/cad               (CAD 階段佔位)
+│   ├── /projects/:id/review            (設計審查)
+│   └── /projects/:id/decide            (KT 決策)
 ├── 知識庫 / 輔助
 │   ├── /knowledge-base
-│   ├── /constraint-label-dictionary
-│   └── /feynman                  (learning / explainer)
+│   ├── /projects/:id/constraint-labels
+│   └── /projects/:id/feynman           (learning / explainer)
 ├── 系統
 │   ├── /settings
-│   └── /dev-seed                 (dev only)
+│   └── /dev/seed                       (dev only)
 └── /* (NotFound)
 ```
 
@@ -85,20 +85,20 @@ RD Design Copilot
 | Journey | E3x | 路由軌跡 |
 |:--------|:----|:---------|
 | Forward TRIZ | §2 | `/projects` → `/:id` → `/:id/create?tab=triz` |
-| ~~Reverse Anti-Anchor~~ TRIZ L1 跨域去錨定 | §3 | `/:id` → `/:id/create` (Step 0) → `/:id/track` |
-| Pre-CAD Gate | §4 | `/:id` → `/:id/pre-cad-review/:rid` → `/:id/decision-record` |
+| TRIZ L1 跨域去錨定具體化 | §3 | `/:id` → `/:id/create?tab=triz` → `/:id/track` |
+| Pre-CAD Gate | §4 | `/:id` → `/:id/pre-cad` → `/:id/decide` |
 
 ## 5. 網站地圖與導航結構
 
 ### 全域導航
 - **Topbar**：Logo / Project picker / User menu / Theme toggle。
-- **Sidebar**（專案內）：Dashboard / Task Definition / Explore / Create / Pre-CAD Review / Decision Record / Track / Knowledge Base / Settings。
+- **Sidebar**（專案內）：Dashboard / Brief / Explore / Create / Track / Pre-CAD / CAD / Review / Decide / Feynman / Settings。
 - **Breadcrumb**：`Projects > [Name] > [Stage]`。
 
 ### 底層結構
 - 所有 `/projects/:id/*` 受 `ProtectedRoute` + project ownership 檢查保護。
 - `/auth`、`/reset-password` 為 public。
-- `/dev-seed` dev-only。
+- `/dev/seed` dev-only。
 
 ## 6. 頁面詳細規格
 
@@ -141,7 +141,7 @@ RD Design Copilot
 
 | 欄位 | 內容 |
 |---|---|
-| **URL** | `/projects/:id/task-definition` |
+| **URL** | `/projects/:id/brief` |
 | **Purpose** | Brief 凍結 + 5W1H + 素材上傳 → Constraints / KPIs / Contradictions 提取 |
 | **Key Components** | `ConstraintsTable`, `KpiList`, `AITaskDefinitionCard`, `GateChecklist`, `AISuggestionCard`, `EvidenceRefsInline`, `FileUploadZone`, `AIExtractionResults`, `FeasibilityValidation`, `MultiItemInput` |
 | **State** | `useTaskDefinitionForm` (react-hook-form)；`useBrief` server state |
@@ -156,7 +156,7 @@ RD Design Copilot
 | **Purpose** | Conditional Stepper：依入口分級（Level A/B/C）切換模式 — Level A 5-step 引導（Problem Scoping → FA → Socratic → Contradictions → CLD）；Level B 原有 3-tab 快速通道；Level C 導向 Create SF-only |
 | **Key Components** | `EntryGradingModal` (v2.0 新增), `ConditionalStepper` (v2.0 新增), `ProblemScopingStep` (v2.0 新增), `FunctionAnalysisStep` (v2.0 新增), `SocraticTab`, `ContradictionTab`, `CldTab`, `ExploreGates`, `KnowledgeRefsPanel` |
 | **State** | `entryLevel: A\|B\|C\|null`（from DB）；Level A: `currentStep: 0-4`；Level B: Tab 狀態（URL `?tab=`）；`useExplore` server state |
-| **Related API** | `/analyst/entry-grading` (v2.0 新增), `/analyst/five-why` (v2.0 新增), `/analyst/kt-analysis` (v2.0 新增), `/analyst/function-analysis` (v2.0 新增), ~~`/alternatives/anti-anchor`~~ *(v10 退役)*, `/unknown-factors/*`, `/causal-loops/*` |
+| **Related API** | `/analyst/entry-grading` (v2.0 新增), `/analyst/five-why` (v2.0 新增), `/analyst/kt-analysis` (v2.0 新增), `/analyst/function-analysis` (v2.0 新增), `/unknown-factors/*`, `/causal-loops/*` |
 | **Source** | `src/pages/Explore.tsx` |
 
 ### 6.6 Create
@@ -175,7 +175,7 @@ RD Design Copilot
 
 | 欄位 | 內容 |
 |---|---|
-| **URL** | `/projects/:id/pre-cad-review/:rid` |
+| **URL** | `/projects/:id/pre-cad` |
 | **Purpose** | Pre-CAD Gate 六維評分 + MUST 判定 + 簽核 |
 | **Key Components** | `SpatialTraceHover`（實作中）；TBD `MustChecklist`, `QualitativeScoreTable`, `CitationDrawer` — `TBD — <fe-lead TBD> by 2026-05-15 TBD`。目前主要使用 `Accordion`, `RadioGroup`, `Progress`, `Dialog` 組件 |
 | **State** | `usePreCadReview` server state；local form state |
@@ -187,7 +187,7 @@ RD Design Copilot
 
 | 欄位 | 內容 |
 |---|---|
-| **URL** | `/projects/:id/decision-record` |
+| **URL** | `/projects/:id/decide` |
 | **Purpose** | KT 決策記錄 + Evidence Matrix + Action/Risk 關聯 |
 | **Key Components** | `KnowledgeRefsPanel`；TBD `KtDecisionTable`, `EvidenceMatrixTable`, `ActionRiskList` — `TBD — <fe-lead TBD> by 2026-05-15 TBD`。目前使用 `Table`, `Accordion`, `Dialog` |
 | **State** | `useDecisionRecord` server state |
@@ -209,7 +209,7 @@ RD Design Copilot
 
 | 欄位 | 內容 |
 |---|---|
-| **URL** | `/projects/:id/design-review` |
+| **URL** | `/projects/:id/review` |
 | **Purpose** | CAD Gate 後的設計審查（黑帽質疑、Evidence 複核） |
 | **Key Components** | `KnowledgeRefsPanel`, `AttachmentsPanel`；TBD `BlackHatPanel` — `TBD — <fe-lead TBD> by 2026-06-15 TBD` |
 | **State** | `useDesignReview` server state |
@@ -220,7 +220,7 @@ RD Design Copilot
 
 | 欄位 | 內容 |
 |---|---|
-| **URL** | `/projects/:id/cad-in-progress` |
+| **URL** | `/projects/:id/cad` |
 | **Purpose** | CAD 繪製階段佔位頁（顯示候選 alternatives 進度） |
 | **Key Components** | 僅 `Button`, `Card`, `Progress`, `Badge`, `HelpTooltip`（無 feature 組件） |
 | **State** | `useAlternatives`, `useUpdateAlternative` |
@@ -243,7 +243,7 @@ RD Design Copilot
 
 | 欄位 | 內容 |
 |---|---|
-| **URL** | `/constraint-label-dictionary` |
+| **URL** | `/projects/:id/constraint-labels` |
 | **Purpose** | 約束標籤（hard/soft、領域）字典管理 |
 | **Key Components** | UI primitives only (`Select`, `Badge`, `Card`, `Skeleton`) |
 | **State** | local filter state + `useSupabaseQuery` |
@@ -254,7 +254,7 @@ RD Design Copilot
 
 | 欄位 | 內容 |
 |---|---|
-| **URL** | `/feynman` |
+| **URL** | `/projects/:id/feynman` |
 | **Purpose** | 知識沉澱 / 內化教學介面（將決策 explainer 化） |
 | **Key Components** | `KnowledgeRefsPanel`, `AiButton`, `HelpTooltip`, `SectionIntro` |
 | **State** | local content state |
@@ -276,7 +276,7 @@ RD Design Copilot
 
 | Page | URL | Purpose | Key Components | State | Related API |
 |---|---|---|---|---|---|
-| **DevSeed** | `/dev-seed` | Dev-only 資料種入工具 | `Button`, `Card`（+ seed script hooks） | local | `/seed/*` (dev) |
+| **DevSeed** | `/dev/seed` | Dev-only 資料種入工具 | `Button`, `Card`（+ seed script hooks） | local | `/seed/*` (dev) |
 | **NotFound** | `/*` | 404 fallback | 靜態頁 | — | — |
 
 > Wireframe / 完整互動細節：除 Create 已在 [`specs/ux/E5x--create-ux-spec.md`](specs/ux/E5x--create-ux-spec.md) 定案外，其餘頁面 `TBD — <fe-lead TBD> by 2026-05-15 TBD`。
@@ -288,7 +288,7 @@ RD Design Copilot
 - **Cross-link 規則**：
   - Contradiction 卡 → 可跳 Create Tab ① 對應 contradiction。
   - TRIZ L1 跨域去錨定路線 → 可跳 Track 頁對應 Validation Passport。
-  - Pre-CAD 評分 → 可跳 Decision Record 當前 gate。
+  - Pre-CAD 評分 → 可跳 Decide 頁當前 gate。
 - **Command Menu**：`TBD — <fe-lead TBD> by 2026-Q3 TBD`（cmd+k 全局搜尋）。
 
 ## 8. 數據流與狀態管理
@@ -302,7 +302,7 @@ RD Design Copilot
 ## 9. URL 結構與路由規範
 
 - **Pattern**：`/projects/:projectId/:stage[/:resourceId][?tab=X&...]`
-- **stage** ∈ `task-definition | explore | create | pre-cad-review | decision-record | track | design-review | cad-in-progress`。
+- **stage** ∈ `brief | explore | create | track | pre-cad | cad | review | decide | feynman | constraint-labels`。
 - **Query params**：`tab`, `contradictionId`, `subsystemId`, `view`；均需為 URL-safe (kebab / short slug)。
 - **404 fallback**：`NotFound.tsx`。
 

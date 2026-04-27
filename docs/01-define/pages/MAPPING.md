@@ -3,7 +3,7 @@
 > **用途：** 作為 `docs/02-design/E5x--frontend-information-architecture.md`（IA 18 頁定義）與本目錄 `pages/*.md`（18 份 page spec）之間的**雙向對照索引**。
 > **維護原則：** IA 新增/刪除頁面時同步更新本檔；新增 spec 檔時新增對應列。
 >
-> **最後更新：** 2026-04-27 · **版本：** v3.0 · **對應 IA 版本：** v1.1 · **對應前端架構版本：** v1.1 · **對應 API 規格版本：** v1.2
+> **最後更新：** 2026-04-27 · **版本：** v3.1 · **對應 IA 版本：** v1.2 · **對應前端架構版本：** v1.1 · **對應 API 規格版本：** v1.2
 
 ---
 
@@ -130,7 +130,7 @@
 | IA | Spec |
 |:---|:-----|
 | P07 Track / 假設追蹤 | `07_track.md` |
-| P08 Create / 方案創造（7-step wizard） | `08_create.md` |
+| P08 Create / 方案創造（5-step wizard） | `08_create.md` |
 | P09 PreCadReview / Pre-CAD 審查 | `09_pre_cad_review.md` |
 
 ### 4.5 Phase 3 Converge — 收斂決策（4 頁 / 4 檔）
@@ -167,7 +167,7 @@
 | Journey | E3x 章節 | 涉及 Spec |
 |:--------|:---------|:----------|
 | Forward TRIZ 解矛盾 | §2 | `01` → `03` → `04` → `08` |
-| ~~Reverse Anti-Anchor~~ *(已退役，併入 TRIZ L1 跨域去錨定)* | ~~§3~~ | ~~`04` → `08` → `07`~~ |
+| TRIZ 跨域去錨定具體化 | §3 | `04` → `08` → `07` |
 | Pre-CAD Gate | §4 | `04` → `09` → `12` |
 | 完整 8-Gate Happy Path | §1 | `01` → `03` → … → `13`（全 13 頁） |
 | 知識庫查詢 | — | `14` |

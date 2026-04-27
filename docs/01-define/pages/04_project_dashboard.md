@@ -184,10 +184,8 @@
   - `useConstraints(id)` → 約束條件列表（type, description）
   - `useKpis(id)` → KPI 列表（kpiName, targetValue, currentValue, currentStatus, unit）
   - `useContradictions(id)` → 矛盾列表（severity, resolved, createdAt）
-  - ~~`useAntiAnchorRoutes(id)` → Anti-Anchor 非典型架構路線~~ **(已退役，Anti-Anchor 併入 TRIZ L1 跨域去錨定)**
-  - `useTrizSolutions(id)` → TRIZ 解法（status, path: TC/PC/SF）
+  - `useTrizSolutions(id)` → TRIZ 解法（status, path: TC/PC/SF；L1 路線含跨域去錨定標記）
   - `useSubsystems(id)` → 子系統定義（name, confirmed）
-  - ~~`useScamperVariants(id)`~~ → ~~SCAMPER 變異~~ **(v9 移除)**
   - `useAlternatives(id)` → 概念方案（name, mustScores, overallPass）
   - `useConceptRoutes(id)` → Concept Routes（type: composite/single）
   - `useTrackAssumptions(id)` → 假設追蹤（verificationStatus）

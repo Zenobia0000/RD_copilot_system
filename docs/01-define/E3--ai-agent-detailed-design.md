@@ -8,7 +8,7 @@ status: Active
 parent: E3--architecture-and-design.md
 
 > **上游文件**：[E3--architecture-and-design.md](E3--architecture-and-design.md) (Part 1 架構總覽)
-> **下游文件**：`diagrams/` — [Appendix A](diagrams/appendix-a--forward-subsystem-discovery.md) / [B](diagrams/appendix-b--forward-triz-solver.md) / ~~[C](diagrams/appendix-c--reverse-anti-anchor.md)~~（v3.0 退役，已移至 `_superseded/`） / [D](diagrams/appendix-d--state-machine.md) / [E](diagrams/appendix-e--triz-scamper-flow.md)
+> **下游文件**：`diagrams/` — [Appendix A](diagrams/appendix-a--forward-subsystem-discovery.md) / [B](diagrams/appendix-b--forward-triz-solver.md) / ~~[C](diagrams/appendix-c--reverse-anti-anchor.md)~~（v3.0 退役，已移至 `_superseded/`） / [D](diagrams/appendix-d--state-machine.md) / [E](diagrams/appendix-e--triz-layered-flow.md)
 
 # Part 2 · 詳細設計
 

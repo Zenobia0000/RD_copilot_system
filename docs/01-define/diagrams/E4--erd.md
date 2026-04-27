@@ -64,6 +64,11 @@
 - `concept_routes` — 概念路線組合
 - `compatibility_pairs` — 解耦相容性檢查結果
 
+### 2.4b ADR-008 新增（Layer 3 擴充）
+- `function_models` — D3 功能建模輸出（component_interactions JSONB, sf_diagnosis JSONB, subsystem_boundary JSONB）
+- `evidence_claims` — 跨步驟證據聲明自動註冊（claim_text, status VERIFIED/APPROXIMATE/UNVERIFIED, verification_sources JSONB）
+- `sim_matrices` — SIM 交互矩陣（contradiction_ids JSONB, matrix JSONB, optimal_combination JSONB, rounds_used INT）
+
 ### 2.5 Review & Decision（Layer 4）
 - `evidence_matrix` — E0–E5 evidence level 矩陣
 - `evidence_entries` — 量測值 entry（FK 到 kpis / experiments）
@@ -202,6 +207,9 @@ erDiagram
     projects ||--o{ alternatives : has
     projects ||--o{ concept_routes : has
     projects ||--o{ compatibility_pairs : has
+    projects ||--o{ function_models : has
+    projects ||--o{ evidence_claims : has
+    projects ||--o{ sim_matrices : has
     contradictions ||--o{ triz_solutions : "contradiction_id"
     subsystems ||--o{ subsystems : "parent_id"
     %% subsystems ||--o{ scamper_variants : "subsystem_id"  %% v9 移除
@@ -255,6 +263,28 @@ erDiagram
         UUID project_id FK
         TEXT solution_a_id
         TEXT solution_b_id
+    }
+    function_models {
+        UUID id PK
+        UUID project_id FK
+        JSONB component_interactions
+        JSONB sf_diagnosis
+        JSONB subsystem_boundary
+    }
+    evidence_claims {
+        UUID claim_id PK
+        UUID project_id FK
+        TEXT claim_text
+        TEXT status "VERIFIED / APPROXIMATE / UNVERIFIED"
+        JSONB verification_sources
+    }
+    sim_matrices {
+        UUID id PK
+        UUID project_id FK
+        JSONB contradiction_ids
+        JSONB matrix
+        JSONB optimal_combination
+        INTEGER rounds_used
     }
 ```
 
@@ -420,6 +450,9 @@ erDiagram
 | 39 | `project_component_overrides.project_id`           | `projects.id`                      | CASCADE       | migration 007；UNIQUE(project_id, component_key) |
 | 40 | `learned_components.origin_project`                | `projects.id`                      | SET NULL      | migration 007                       |
 | 41 | `profiles.user_id`                                 | `auth.users.id` (logical)          | —             | 由 `handle_new_user()` trigger 填入 |
+| 42 | `function_models.project_id`                       | `projects.id`                      | CASCADE       | ADR-008；D3 FA 輸出 |
+| 43 | `evidence_claims.project_id`                       | `projects.id`                      | CASCADE       | ADR-008；跨步驟證據聲明 |
+| 44 | `sim_matrices.project_id`                          | `projects.id`                      | CASCADE       | ADR-008；X2 SIM 矩陣 |
 
 **FK-by-name 節點**（非 DB FK 約束但語意上指向）：
 - `layered_triz_solutions.contradiction_id` → `contradictions.id`（TEXT 型別）
@@ -458,6 +491,9 @@ erDiagram
 | `unknown_factors`               | `authenticated` 皆可管理                      |
 | `contradiction_assumption_links`| `authenticated` SELECT/INSERT/DELETE（無 UPDATE）|
 | `layered_triz_solutions`        | `authenticated` SELECT/INSERT/UPDATE/DELETE 全開 |
+| `function_models`               | `authenticated` SELECT/INSERT/UPDATE/DELETE 全開（ADR-008） |
+| `evidence_claims`               | `authenticated` SELECT/INSERT/UPDATE/DELETE 全開（ADR-008） |
+| `sim_matrices`                  | `authenticated` SELECT/INSERT/UPDATE/DELETE 全開（ADR-008） |
 
 ### 5.4 特例
 
@@ -496,3 +532,4 @@ erDiagram
 |---------|------------|------------|---------------------------------------------|
 | v1.0    | 2026-04-15 | Backend TBD | 初稿：依 migration 000–010 抽出 36 張表、41 條 FK、5 張子 ERD、RLS 矩陣 |
 | v1.1    | 2026-04-27 | — | `anti_anchor_routes` 標記為 v3.0 退役（Anti-Anchor 併入 TRIZ L1 跨域去錨定）；表定義保留供歷史參照 |
+| v1.2    | 2026-04-27 | — | 補齊 ADR-008 新增 3 表：`function_models`、`evidence_claims`、`sim_matrices`；新增 FK #42-44；新增 RLS 政策 |

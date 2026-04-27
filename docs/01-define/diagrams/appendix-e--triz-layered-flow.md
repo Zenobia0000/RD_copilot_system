@@ -62,8 +62,9 @@ flowchart TB
             F1["F1: TRIZ 解矛盾 (v11 分層化)<br/>solve_triz_layered orchestrator<br/>L1 (TC 必跑) + L2 (PC 條件觸發) + L3 (SF 必跑旁路)<br/>輸出: LayeredTrizSolution[] + differential_analysis<br/>Architecture Health Monitor"]
             F2["F2: 子系統定義<br/>System→Module→Component 3 層<br/>+ 6 維介面契約"]
             F2S["F2.5: Spatial Discovery Validator<br/>Reference library 覆寫 + 算術<br/>→ Package Map (SVG)<br/>(overlay 為 optional，不限制創意)"]
+            SIM{"SIM 矩陣<br/>≥2 TC 時觸發<br/>+1/0/-1 交互評分<br/>-1 衝突回 D4 重構"}
             FP["正向路徑候選池<br/>LayeredTrizSolution[]"]
-            F1 --> F2 --> F2S --> FP
+            F1 --> SIM --> F2 --> F2S --> FP
         end
 
         subgraph HUB["候選方案決策中心"]
@@ -85,10 +86,11 @@ flowchart TB
     GATE["Phase Gate 2<br/>≥1 alternative overallPass"]
     PRECAD --> GATE
 
-    style REVERSE fill:#FEF3C7,stroke:#F59E0B
-    style FORWARD fill:#DBEAFE,stroke:#3B82F6
-    style HUB fill:#F3E8FF,stroke:#8B5CF6
-    style GATE fill:#F0FDF4,stroke:#22C55E
+    style REVERSE fill:#78350F,color:#fff,stroke:#F59E0B,stroke-width:2px
+    style FORWARD fill:#1E3A8A,color:#fff,stroke:#3B82F6,stroke-width:2px
+    style HUB fill:#581C87,color:#fff,stroke:#8B5CF6,stroke-width:2px
+    style GATE fill:#065F46,color:#fff,stroke:#22C55E,stroke-width:2px
+    style SIM fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
 ```
 
 

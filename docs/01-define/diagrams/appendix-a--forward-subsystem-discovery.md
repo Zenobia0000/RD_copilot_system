@@ -479,9 +479,9 @@ graph TB
     M1 --> C2
     M1 --> C3
 
-    style TreeSys fill:#dbeafe,stroke:#1e3a8a,stroke-width:2px,color:#000
-    style TreeMod fill:#bfdbfe,stroke:#1e3a8a,stroke-width:2px,color:#000
-    style TreeComp fill:#93c5fd,stroke:#1e3a8a,stroke-width:2px,color:#000
+    style TreeSys fill:#1E3A8A,color:#fff,stroke:#3B82F6,stroke-width:2px
+    style TreeMod fill:#1E40AF,color:#fff,stroke:#3B82F6,stroke-width:2px
+    style TreeComp fill:#2563EB,color:#fff,stroke:#3B82F6,stroke-width:2px
 ```
 
 
@@ -528,10 +528,10 @@ flowchart TB
     Q3 -->|是| COMP[標為 component level]
     Q3 -->|否| REJ[拒絕此節點<br/>要求重新拆解]
 
-    style SYS fill:#dbeafe,stroke:#1e3a8a,stroke-width:2px,color:#000
-    style MOD fill:#bfdbfe,stroke:#1e3a8a,stroke-width:2px,color:#000
-    style COMP fill:#93c5fd,stroke:#1e3a8a,stroke-width:2px,color:#000
-    style REJ fill:#fecaca,stroke:#7f1d1d,stroke-width:2px,color:#000
+    style SYS fill:#1E3A8A,color:#fff,stroke:#3B82F6,stroke-width:2px
+    style MOD fill:#1E40AF,color:#fff,stroke:#3B82F6,stroke-width:2px
+    style COMP fill:#2563EB,color:#fff,stroke:#3B82F6,stroke-width:2px
+    style REJ fill:#B91C1C,color:#fff,stroke:#EF4444,stroke-width:2px
 ```
 
 
@@ -561,8 +561,8 @@ graph LR
     M2 --> Children2[MOSFET/Heatsink]
     M3 --> Children3[Tube/Bracket]
 
-    style C1 fill:#fef3c7,stroke:#92400e,stroke-width:2px,color:#000
-    style C2 fill:#fef3c7,stroke:#92400e,stroke-width:2px,color:#000
+    style C1 fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
+    style C2 fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
 ```
 
 
@@ -635,7 +635,7 @@ graph TB
     D5 --> C
     D6 --> C
 
-    style C fill:#bbf7d0,stroke:#14532d,stroke-width:2px,color:#000
+    style C fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
 ```
 
 
@@ -895,11 +895,11 @@ flowchart LR
     D4 --> D5[D5 算術驗證<br/>AABB clash + 質量加總]
     D5 --> OUT[可信輸出]
 
-    style D1 fill:#e0f2fe,stroke:#0c4a6e,stroke-width:2px,color:#000
-    style D2 fill:#bae6fd,stroke:#0c4a6e,stroke-width:2px,color:#000
-    style D3 fill:#7dd3fc,stroke:#0c4a6e,stroke-width:2px,color:#000
-    style D4 fill:#38bdf8,stroke:#0c4a6e,stroke-width:2px,color:#000
-    style D5 fill:#0ea5e9,stroke:#0c4a6e,stroke-width:2px,color:#fff
+    style D1 fill:#0E7490,color:#fff,stroke:#06B6D4,stroke-width:2px
+    style D2 fill:#155E75,color:#fff,stroke:#06B6D4,stroke-width:2px
+    style D3 fill:#164E63,color:#fff,stroke:#06B6D4,stroke-width:2px
+    style D4 fill:#0C4A6E,color:#fff,stroke:#06B6D4,stroke-width:2px
+    style D5 fill:#083344,color:#fff,stroke:#06B6D4,stroke-width:2px
 ```
 
 
@@ -930,11 +930,11 @@ flowchart TB
     L4 -->|miss| L5[Layer 5<br/>llm_estimate]
     L5 --> OUT5[保留 LLM 數字<br/>confidence: estimate]
 
-    style L1 fill:#dcfce7,stroke:#14532d,stroke-width:2px,color:#000
-    style L2 fill:#bbf7d0,stroke:#14532d,stroke-width:2px,color:#000
-    style L3 fill:#fef3c7,stroke:#92400e,stroke-width:2px,color:#000
-    style L4 fill:#fde68a,stroke:#92400e,stroke-width:2px,color:#000
-    style L5 fill:#fecaca,stroke:#7f1d1d,stroke-width:2px,color:#000
+    style L1 fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
+    style L2 fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
+    style L3 fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
+    style L4 fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
+    style L5 fill:#B91C1C,color:#fff,stroke:#EF4444,stroke-width:2px
 ```
 
 
@@ -996,8 +996,8 @@ graph LR
     DH --> E[介面契約比較]
     DH --> Cmp[與基線對比]
 
-    style F2 fill:#dbeafe,stroke:#1e3a8a,stroke-width:2px,color:#000
-    style DH fill:#fef3c7,stroke:#92400e,stroke-width:2px,color:#000
+    style F2 fill:#1E40AF,color:#fff,stroke:#3B82F6,stroke-width:2px
+    style DH fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
 ```
 
 
@@ -1023,8 +1023,8 @@ graph TB
     Good --> G2[二次矛盾可被算術偵測]
     Good --> G3[Pre-CAD 評分可被算術產出]
 
-    style Bad fill:#fecaca,stroke:#7f1d1d,stroke-width:2px,color:#000
-    style Good fill:#bbf7d0,stroke:#14532d,stroke-width:2px,color:#000
+    style Bad fill:#B91C1C,color:#fff,stroke:#EF4444,stroke-width:2px
+    style Good fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
 ```
 
 
@@ -1127,8 +1127,8 @@ flowchart LR
     F -.->|未來：CAD 回灌| G[learned_components]
     G -.->|被未來專案查詢| A
 
-    style F fill:#fde68a,stroke:#92400e,stroke-width:2px,color:#000
-    style G fill:#bbf7d0,stroke:#14532d,stroke-width:2px,color:#000
+    style F fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
+    style G fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
 ```
 
 
@@ -1160,7 +1160,7 @@ flowchart LR
 | `E3--ai-agent-detailed-design.md` v1.4                                     | TRIZ Solver Agent 的「子系統拆解（三層階層）」職責即本文件 §5                |
 | `_domain-knowledge/DK-01--design-philosophy-and-process.md` v1.6           | 本文件補充 F2.5 作為 F2 的後置子步                                   |
 | [Appendix D](appendix-d--state-machine.md) v1.6                        | 子系統 Artifact 狀態機見本文件 §8.1                                |
-| [Appendix E](appendix-e--triz-scamper-flow.md) v11                         | 本文件是該流程圖的 SA 視角文字化；F1 分層輸出與 SIM/CCI 規則見該檔 v11 摘要（~~Phase B 已 v9 ���役~~） |
+| [Appendix E](appendix-e--triz-layered-flow.md) v11                         | 本文件是該流程圖的 SA 視角文字化；F1 分層輸出與 SIM/CCI 規則見該檔 v11 摘要（~~Phase B 已 v9 ���役~~） |
 | `../../02-design/specs/triz/E5x--triz-layered-drilldown-optimization.md` v1.0 | F1→F2 hand-off、`LayeredTrizSolution` 與本文件 §3.1、§6.4.4 對齊 |
 | `../_domain-knowledge/DK-01--design-philosophy-and-process.md` §X5         | spatial_score 算術化，見本文件 §10                               |
 

@@ -724,6 +724,6 @@ Radix UI 提供 WAI-ARIA 基礎；a11y 審計 — **TBD — UX Owner TBD by v1.1
 | ---------------------------------------------------------------------- | ------------------------------------------------------- | -------- |
 | **E3--architecture-and-design.md** (本文)                                | Part 1: 架構總覽 (C4, Tech Stack, Data, NFR, Risk, Roadmap) | ~634     |
 | [E3--ai-agent-detailed-design.md](E3--ai-agent-detailed-design.md)     | Part 2: AI Agent 協作架構詳細設計 (§11)                         | ~625     |
-| `diagrams/appendix-a~e`                                                | SA 視角附錄 ([A](diagrams/appendix-a--forward-subsystem-discovery.md) / [B](diagrams/appendix-b--forward-triz-solver.md) / ~~[C](diagrams/appendix-c--reverse-anti-anchor.md)~~（v3.0 退役至 `_superseded/`） / [D](diagrams/appendix-d--state-machine.md) / [E](diagrams/appendix-e--triz-scamper-flow.md)) | ~4157    |
+| `diagrams/appendix-a~e`                                                | SA 視角附錄 ([A](diagrams/appendix-a--forward-subsystem-discovery.md) / [B](diagrams/appendix-b--forward-triz-solver.md) / ~~[C](diagrams/appendix-c--reverse-anti-anchor.md)~~（v3.0 退役至 `_superseded/`） / [D](diagrams/appendix-d--state-machine.md) / [E](diagrams/appendix-e--triz-layered-flow.md)) | ~4157    |
 
 

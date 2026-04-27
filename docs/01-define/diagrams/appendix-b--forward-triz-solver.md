@@ -490,10 +490,10 @@ graph TB
     SKIP --> LTS
     L3 --> LTS
 
-    style L1 fill:#dbeafe,stroke:#1e3a8a,stroke-width:2px,color:#000
-    style L2 fill:#fef3c7,stroke:#92400e,stroke-width:2px,color:#000
-    style L3 fill:#bbf7d0,stroke:#14532d,stroke-width:2px,color:#000
-    style LTS fill:#F3E8FF,stroke:#8B5CF6,stroke-width:2px,color:#000
+    style L1 fill:#1E40AF,color:#fff,stroke:#3B82F6,stroke-width:2px
+    style L2 fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
+    style L3 fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
+    style LTS fill:#6B21A8,color:#fff,stroke:#A855F7,stroke-width:2px
 ```
 
 
@@ -527,8 +527,8 @@ graph LR
     M[矛盾矩陣<br/>cell 1,14] --> P[候選原理<br/>例: 1, 8, 15, 40]
     P --> LLM[LLM 把抽象原理<br/>具體化為工程建議]
 
-    style M fill:#dbeafe,stroke:#1e3a8a,stroke-width:2px,color:#000
-    style P fill:#bfdbfe,stroke:#1e3a8a,stroke-width:2px,color:#000
+    style M fill:#1E40AF,color:#fff,stroke:#3B82F6,stroke-width:2px
+    style P fill:#1E3A8A,color:#fff,stroke:#3B82F6,stroke-width:2px
 ```
 
 
@@ -561,11 +561,11 @@ graph TB
     S3 --> P3[相關原理<br/>15, 35, 36, 37, 38, 39]
     S4 --> P4[相關原理<br/>1, 5, 6, 7, 31, 40]
 
-    style PC fill:#fef3c7,stroke:#92400e,stroke-width:2px,color:#000
-    style S1 fill:#fef3c7,stroke:#92400e,stroke-width:2px,color:#000
-    style S2 fill:#fef3c7,stroke:#92400e,stroke-width:2px,color:#000
-    style S3 fill:#fef3c7,stroke:#92400e,stroke-width:2px,color:#000
-    style S4 fill:#fef3c7,stroke:#92400e,stroke-width:2px,color:#000
+    style PC fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
+    style S1 fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
+    style S2 fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
+    style S3 fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
+    style S4 fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
 ```
 
 
@@ -598,13 +598,13 @@ graph TB
     ST -->|measurement<br/>感測問題| C4[Class 4<br/>偵測與量測]
     ST -->|simplify<br/>簡化| C5[Class 5<br/>簡化策略]
 
-    style SF fill:#bbf7d0,stroke:#14532d,stroke-width:2px,color:#000
-    style C1 fill:#dcfce7,stroke:#14532d,stroke-width:2px,color:#000
-    style C12 fill:#dcfce7,stroke:#14532d,stroke-width:2px,color:#000
-    style C13 fill:#dcfce7,stroke:#14532d,stroke-width:2px,color:#000
-    style C23 fill:#dcfce7,stroke:#14532d,stroke-width:2px,color:#000
-    style C4 fill:#dcfce7,stroke:#14532d,stroke-width:2px,color:#000
-    style C5 fill:#dcfce7,stroke:#14532d,stroke-width:2px,color:#000
+    style SF fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
+    style C1 fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
+    style C12 fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
+    style C13 fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
+    style C23 fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
+    style C4 fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
+    style C5 fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
 ```
 
 
@@ -632,7 +632,7 @@ graph TB
     PC2 --> R
     SF2 --> R
 
-    style R fill:#F3E8FF,stroke:#8B5CF6,stroke-width:2px,color:#000
+    style R fill:#6B21A8,color:#fff,stroke:#A855F7,stroke-width:2px
 ```
 
 
@@ -953,9 +953,9 @@ graph LR
         SF1[infer system_state] --> SF2[filter classes<br/>regex 提取] --> SF3[LLM<br/>套標準解]
     end
 
-    style TCPath fill:#dbeafe,stroke:#1e3a8a,stroke-width:2px,color:#000
-    style PCPath fill:#fef3c7,stroke:#92400e,stroke-width:2px,color:#000
-    style SFPath fill:#bbf7d0,stroke:#14532d,stroke-width:2px,color:#000
+    style TCPath fill:#1E40AF,color:#fff,stroke:#3B82F6,stroke-width:2px
+    style PCPath fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
+    style SFPath fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
 ```
 
 
@@ -985,11 +985,11 @@ graph TB
     AGG --> DIFF[differential_analyzer<br/>跨層比較 + 推薦路線]
     DIFF --> OUT[LayeredTrizSolution<br/>+ differential_analysis]
 
-    style ORCH fill:#F3E8FF,stroke:#8B5CF6,stroke-width:2px,color:#000
-    style L1 fill:#dbeafe,stroke:#1e3a8a,stroke-width:2px,color:#000
-    style L2 fill:#fef3c7,stroke:#92400e,stroke-width:2px,color:#000
-    style L3 fill:#bbf7d0,stroke:#14532d,stroke-width:2px,color:#000
-    style OUT fill:#D1FAE5,stroke:#059669,stroke-width:2px,color:#000
+    style ORCH fill:#6B21A8,color:#fff,stroke:#A855F7,stroke-width:2px
+    style L1 fill:#1E40AF,color:#fff,stroke:#3B82F6,stroke-width:2px
+    style L2 fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
+    style L3 fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
+    style OUT fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
 ```
 
 
@@ -1069,11 +1069,11 @@ flowchart LR
     KB --> SF[SF 路徑<br/>≈ 1500 tokens]
     KB --> Bad[全塞策略<br/>≈ 25000 tokens<br/>不採用]
 
-    style KB fill:#dbeafe,stroke:#1e3a8a,stroke-width:2px,color:#000
-    style TC fill:#bfdbfe,stroke:#1e3a8a,stroke-width:2px,color:#000
-    style PC fill:#fef3c7,stroke:#92400e,stroke-width:2px,color:#000
-    style SF fill:#bbf7d0,stroke:#14532d,stroke-width:2px,color:#000
-    style Bad fill:#fecaca,stroke:#7f1d1d,stroke-width:2px,color:#000
+    style KB fill:#1E40AF,color:#fff,stroke:#3B82F6,stroke-width:2px
+    style TC fill:#1E3A8A,color:#fff,stroke:#3B82F6,stroke-width:2px
+    style PC fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
+    style SF fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
+    style Bad fill:#B91C1C,color:#fff,stroke:#EF4444,stroke-width:2px
 ```
 
 
@@ -1088,10 +1088,10 @@ flowchart TB
     L2 --> L3[Layer 3: Regex 子集提取<br/>只保留相關原理或 Class]
     L3 --> OUT[最小化 prompt context]
 
-    style L1 fill:#e0f2fe,stroke:#0c4a6e,stroke-width:2px,color:#000
-    style L2 fill:#7dd3fc,stroke:#0c4a6e,stroke-width:2px,color:#000
-    style L3 fill:#0ea5e9,stroke:#0c4a6e,stroke-width:2px,color:#fff
-    style OUT fill:#bbf7d0,stroke:#14532d,stroke-width:2px,color:#000
+    style L1 fill:#0E7490,color:#fff,stroke:#06B6D4,stroke-width:2px
+    style L2 fill:#0E7490,color:#fff,stroke:#06B6D4,stroke-width:2px
+    style L3 fill:#0E7490,color:#fff,stroke:#06B6D4,stroke-width:2px
+    style OUT fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
 ```
 
 
@@ -1120,8 +1120,8 @@ graph LR
     LLM2 --> M3[預測二次矛盾]
     LLM2 --> M4[預測 affected modules]
 
-    style Rule fill:#dbeafe,stroke:#1e3a8a,stroke-width:2px,color:#000
-    style LLM2 fill:#fef3c7,stroke:#92400e,stroke-width:2px,color:#000
+    style Rule fill:#1E40AF,color:#fff,stroke:#3B82F6,stroke-width:2px
+    style LLM2 fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
 ```
 
 
@@ -1153,10 +1153,10 @@ graph LR
     F2 --> E[介面契約<br/>套用 drill-down 組合的影響]
     F2 --> Cmp[secondary 矛盾<br/>進入新一輪 F1]
 
-    style F1 fill:#dbeafe,stroke:#1e3a8a,stroke-width:2px,color:#000
-    style F2 fill:#fef3c7,stroke:#92400e,stroke-width:2px,color:#000
-    style LTS fill:#F3E8FF,stroke:#8B5CF6,stroke-width:2px,color:#000
-    style DIFF fill:#D1FAE5,stroke:#059669,stroke-width:2px,color:#000
+    style F1 fill:#1E40AF,color:#fff,stroke:#3B82F6,stroke-width:2px
+    style F2 fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
+    style LTS fill:#6B21A8,color:#fff,stroke:#A855F7,stroke-width:2px
+    style DIFF fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
 ```
 
 
@@ -1187,8 +1187,8 @@ graph TB
     Good --> G2[每個模組可 trace<br/>到原始矛盾]
     Good --> G3[secondary 矛盾<br/>有明確歸屬]
 
-    style Bad fill:#fecaca,stroke:#7f1d1d,stroke-width:2px,color:#000
-    style Good fill:#bbf7d0,stroke:#14532d,stroke-width:2px,color:#000
+    style Bad fill:#B91C1C,color:#fff,stroke:#EF4444,stroke-width:2px
+    style Good fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
 ```
 
 
@@ -1198,6 +1198,53 @@ graph TB
 每條 TrizSuggestion 都可能引發新矛盾，這些 secondary 矛盾透過 `is_confirmatory` 語意去重在 schema 層級追蹤，不再觸發獨立的收斂掃描。Secondary 矛盾在 SIM 矩陣（ADR-008 D5）的跨 TC 交互評分中前置處理（~~Phase B 已於 v9 退役~~）。
 
 
+
+---
+
+### §10.4 Architecture Health Monitor（架構健康度監控）
+
+> **對齊**：E3--ai-agent-detailed-design.md §11.2b
+
+TRIZ 解矛盾過程中，系統持續監控矛盾節點總數。當節點累積過多，代表問題粒度不正確或根因假設有誤，需要回退修正。
+
+#### 觸發條件與回退路徑
+
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+flowchart TD
+    X2["X2 TRIZ 解矛盾<br/>（含 SIM 矩陣）"]
+    Check{"淨矛盾節點 > 5？<br/>（扣除 SIM 已收斂 TC 對）"}
+    OK["繼續 → X3/X4"]
+    D3["回退 D3<br/>重建功能模型 / 根因分析"]
+    D3Check{"D3 修正後<br/>仍無法收斂？"}
+    D1["回退 D1<br/>重新問題界定"]
+
+    X2 --> Check
+    Check -->|"≤ 5"| OK
+    Check -->|"> 5"| D3
+    D3 --> D3Check
+    D3Check -->|"收斂"| X2
+    D3Check -->|"仍發散"| D1
+
+    style X2 fill:#1E40AF,color:#fff,stroke:#3B82F6,stroke-width:2px
+    style Check fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
+    style OK fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
+    style D3 fill:#B91C1C,color:#fff,stroke:#EF4444,stroke-width:2px
+    style D1 fill:#7F1D1D,color:#fff,stroke:#DC2626,stroke-width:2px
+    style D3Check fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
+```
+
+| 觸發條件 | 回退策略 |
+|----------|----------|
+| **矛盾節點 > 5**（扣除 SIM 已收斂 TC 對後的淨節點數） | ① 回 D3 重建功能模型/根因分析 → ② 仍無法收斂則回 D1 |
+| **結構性循環矛盾**（組件 A↔B 互為因果） | 回 D3 重建功能模型 |
+| **框架性循環矛盾**（問題定義自相矛盾） | 回 D3 或 D1 |
+
+> **設計理由**：D3（5Why/KT + FA/SF）提供了比 D1 更精準的修正入口。上游功能模型或根因假設的缺陷是架構健康度異常的最常見原因，直接回 D1 浪費已完成的有效分析。
+
+#### 與 SIM 矩陣的協作
+
+SIM 矩陣（§B.0.1）在 ≥2 TC 場景下會前置識別跨矛盾衝突（-1 交互），其中部分衝突可透過 SIM 最優組合收斂。AHM 的「淨節點數」計算 = 總矛盾節點 − SIM 已收斂的 TC 對數。這確保 SIM 成功收斂的矛盾不會觸發誤報。
 
 ---
 
@@ -1311,9 +1358,9 @@ flowchart LR
     E -.->|新發現的矛盾| F[D4 矛盾識別]
     F --> A
 
-    style A fill:#dbeafe,stroke:#1e3a8a,stroke-width:2px,color:#000
-    style B fill:#fef3c7,stroke:#92400e,stroke-width:2px,color:#000
-    style E fill:#bbf7d0,stroke:#14532d,stroke-width:2px,color:#000
+    style A fill:#1E40AF,color:#fff,stroke:#3B82F6,stroke-width:2px
+    style B fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
+    style E fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
 ```
 
 
@@ -1350,7 +1397,7 @@ flowchart LR
 | `E3--ai-agent-detailed-design.md` v1.4                                     | TRIZ Solver Agent §1.1 與本文件 §5 對應    |
 | `_domain-knowledge/DK-01--design-philosophy-and-process.md` v1.6           | 本文件補充 F1 內部三條路徑的細節                   |
 | [Appendix D](appendix-d--state-machine.md) v1.6                        | 本文件 §8 補充矛盾與建議的狀態流轉                  |
-| [Appendix E](appendix-e--triz-scamper-flow.md)                             | 本文件是該流程圖中 F1 節點的 SA 視角文字化；分層化設計與本文同步 |
+| [Appendix E](appendix-e--triz-layered-flow.md)                             | 本文件是該流程圖中 F1 節點的 SA 視角文字化；分層化設計與本文同步 |
 | [Appendix A](appendix-a--forward-subsystem-discovery.md) v2.0                        | 本文件是 F1 → F2 hand-off 的上游側，與該文件互補    |
 | `TRIZ_Multi_Solution_Adoption_Strategy.md`                                 | 本文件 §10 採用流程的上游                      |
 | `../../02-design/specs/triz/E5x--triz-layered-drilldown-optimization.md` v1.0 | 本文件 v1.1 的方法論依據（蘇格拉底診斷與分層架構提案）       |

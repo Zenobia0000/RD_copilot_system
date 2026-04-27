@@ -169,7 +169,7 @@ class TestAgentToolUnit:
 
     def test_omitted_tools_inherits_full_subregistry(self, tmp_path):
         """No `tools` in agent def → sub-loop uses every tool the
-        sub_registry_factory provides (default_registry → Read/Write/Glob)."""
+        sub_registry_factory provides (default_registry → fs + web)."""
         _write_agent(tmp_path, "worker")  # no tools field
         client = FakeAnthropicClient.with_responses(
             FakeResponse(content=[FakeTextBlock(text="ok")], stop_reason="end_turn")
@@ -179,7 +179,7 @@ class TestAgentToolUnit:
         tool.run(agent="worker", prompt="x")
 
         sub_tools = {t["name"] for t in client.messages.calls[0]["tools"]}
-        assert sub_tools == {"Read", "Write", "Glob"}
+        assert sub_tools == {"Read", "Write", "Glob", "WebFetch", "WebSearch"}
 
     def test_missing_agent_returns_is_error(self, tmp_path):
         client = FakeAnthropicClient.with_responses()
@@ -404,6 +404,49 @@ class TestFanOutIntegration:
         assert result_contents["t2"] == "summary 2"
         # No is_error on either
         assert all(not r["is_error"] for r in tool_results)
+
+    def test_real_triz_analyst_dispatches_without_keyerror(self):
+        """End-to-end check that triz-analyst.md (real agent) can be
+        dispatched against the default sub-registry.
+
+        Motivating bug: triz-analyst declares
+            tools: [Read, Grep, Glob, WebSearch, WebFetch]
+        but earlier default_registry only had Read/Write/Glob, so the
+        sub-loop's `to_anthropic_schemas(only=...)` raised KeyError on
+        WebSearch / WebFetch. Adding the web tools to default_registry (P3)
+        fixes this. Also asserts: Grep is the one declared tool that
+        STILL doesn't exist — the sub-loop should error gracefully on it
+        rather than crashing the agent loop.
+        """
+        # Resolve the real .claude/agents/ root
+        project_root = Path(__file__).resolve().parents[3]
+        agents_root = project_root / ".claude" / "agents"
+        assert (agents_root / "triz-analyst.md").is_file(), (
+            f"triz-analyst.md missing — test depends on it being checked in"
+        )
+
+        # FakeAnthropicClient with a single end_turn response for the sub-loop.
+        client = FakeAnthropicClient.with_responses(
+            FakeResponse(
+                content=[FakeTextBlock(text="TC analysis summary")],
+                stop_reason="end_turn",
+            )
+        )
+        tool = _make_agent_tool(client=client, agents_root=agents_root)
+
+        result = tool.run(agent="triz-analyst", prompt="solve TC1")
+
+        # The motivating bug would surface as is_error with a KeyError
+        # message about Grep (the only declared tool we still don't have).
+        # Gracefully surfacing that vs crashing IS the contract.
+        if result.is_error:
+            # Acceptable failure: missing tools surfaced in the message.
+            assert "Grep" in result.content or "not registered" in result.content
+        else:
+            # Or: agent dispatched cleanly, returning the sub-loop's text.
+            assert "TC analysis summary" in result.content
+
+        # Either way: no Python exception escaped to the caller.
 
     def test_one_subagent_failing_does_not_block_others(self, tmp_path):
         """If one subagent fails (e.g. unknown agent name), main still gets

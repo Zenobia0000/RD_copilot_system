@@ -318,6 +318,7 @@ class TestToolRegistry:
         with pytest.raises(KeyError, match="not registered"):
             reg.to_anthropic_schemas(only=["Read", "GhostTool"])
 
-    def test_default_registry_has_fs_tools(self):
+    def test_default_registry_has_standard_tools(self):
+        """Default registry: fs (Read/Write/Glob) + web (WebFetch/WebSearch)."""
         reg = default_registry()
-        assert set(reg.names()) == {"Read", "Write", "Glob"}
+        assert set(reg.names()) == {"Read", "Write", "Glob", "WebFetch", "WebSearch"}

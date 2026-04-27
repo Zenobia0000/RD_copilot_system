@@ -165,6 +165,19 @@ class AgentTool(Tool):
                 content=f"Subagent {agent!r} failed: {exc}",
                 is_error=True,
             )
+        except KeyError as exc:
+            # ToolRegistry.to_anthropic_schemas raises KeyError when the
+            # agent's `tools:` whitelist references a tool not in the
+            # sub-registry. Surface visibly — agent definition needs fixing
+            # OR sub_registry_factory needs to add the tool.
+            return ToolResult(
+                content=(
+                    f"Subagent {agent!r} declares tool(s) not in sub-registry: "
+                    f"{exc}. Either add the tool to default_registry or "
+                    f"remove it from .claude/agents/{agent}.md frontmatter."
+                ),
+                is_error=True,
+            )
 
         # The contract is "subagent returns a summary" — sub-loop's final_text
         # IS that summary (the subagent was instructed to produce a concise

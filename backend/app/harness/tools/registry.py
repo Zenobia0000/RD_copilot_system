@@ -9,6 +9,7 @@ from anthropic import Anthropic
 
 from app.harness.tools.base import Tool, ToolResult
 from app.harness.tools.fs import GlobTool, ReadTool, WriteTool
+from app.harness.tools.web import WebFetchTool, WebSearchTool
 
 
 class ToolRegistry:
@@ -65,15 +66,27 @@ class ToolRegistry:
 
 
 def default_registry() -> ToolRegistry:
-    """Registry pre-loaded with the fs tool subset (Read/Write/Glob).
+    """Registry pre-loaded with the standard tool surface:
+    Read / Write / Glob (fs) + WebFetch / WebSearch (web).
 
-    Note: this registry deliberately omits the Agent tool. Use
+    These are the tools available to subagents by default. Per-agent
+    whitelisting (in `.claude/agents/*.md` frontmatter `tools:`) narrows the
+    surface for any specific subagent.
+
+    Note: this registry deliberately omits the Agent tool itself. Use
     `default_registry_with_agent()` for the main loop, and pass `default_registry`
-    itself as the sub_registry_factory so subagents can't recurse."""
+    itself as the sub_registry_factory so subagents can't recurse.
+
+    WebSearch is registered unconditionally — at run() time it returns
+    is_error if tavily-python or TAVILY_API_KEY is missing, so the agent
+    knows to skip web verification rather than crashing the loop.
+    """
     reg = ToolRegistry()
     reg.register(ReadTool())
     reg.register(WriteTool())
     reg.register(GlobTool())
+    reg.register(WebFetchTool())
+    reg.register(WebSearchTool())
     return reg
 
 

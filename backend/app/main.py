@@ -1,14 +1,13 @@
-"""FastAPI application entry point — v2 skeleton.
+"""FastAPI application entry point — v2 skeleton (post-P2).
 
-This is the post-v1 cleanup state. There are NO domain routers mounted here
-yet; the only endpoint is /api/v1/health. P2 will add /api/sessions to wire
-the harness in. Until then this app exists only to verify the surrounding
-plumbing (CORS, middleware, auth) still loads cleanly.
+P1 cleared v1. P2 adds the /api/v1 router structure: /health (public) and
+/sessions (auth-protected, returns 501 until P3 wires the harness in).
 """
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api import health, sessions
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.middleware.error_handler import register_error_handlers
@@ -31,7 +30,5 @@ app.add_middleware(
 
 API_PREFIX = "/api/v1"
 
-
-@app.get(f"{API_PREFIX}/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok"}
+app.include_router(health.router, prefix=API_PREFIX)
+app.include_router(sessions.router, prefix=API_PREFIX)

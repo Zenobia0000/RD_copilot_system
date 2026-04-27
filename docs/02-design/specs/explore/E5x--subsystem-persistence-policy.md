@@ -10,7 +10,7 @@
 
 | 寫入情境                              | 寫入方                                 | 觸發                                                                                              | 備註                                      |
 | --------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------- |
-| AI 建議產出                           | **前端（useSubsystemSuggestion hook）** | UC1 `POST /scamper/subsystem-suggestions` 回傳 → FE 收到完整樹 → clear 舊 AI rows → batch insert 新 rows | 後端**不**直接寫 Supabase；只回傳 JSON 讓 FE 決定持久化 |
+| AI 建議產出                           | **前端（useSubsystemSuggestion hook）** | UC1 `POST /subsystems/suggest` 回傳 → FE 收到完整樹 → clear 舊 AI rows → batch insert 新 rows *(v9: 原 `/scamper/subsystem-suggestions`)* | 後端**不**直接寫 Supabase；只回傳 JSON 讓 FE 決定持久化 |
 | RD 手動新增                           | **前端**                              | `createSubsystem()` mutation                                                                    | 單筆 insert                               |
 | RD 編輯六維                           | **前端**                              | `updateSubsystem()` mutation（`RDEdited` 狀態）                                                     | 逐節點 patch                               |
 | RD 勾選「已確認」                        | **前端**                              | checkbox → `updateSubsystem({confirmed: true})`                                                 | 不觸發後端副作用                                |
@@ -27,7 +27,7 @@
 
 ## 例外與警示
 
-- ❌ **不得**在後端任何 router（`/scamper/`*）內直接 `supabase.table("subsystems").upsert(...)`
+- ❌ **不得**在後端任何 router（`/subsystems/`*）內直接 `supabase.table("subsystems").upsert(...)` *(v9: 原 `/scamper/`)*
 - ❌ **不得**在 FE 以 raw SQL 或 service role key 寫 `project_component_overrides` / `learned_components`
 - ⚠️ 若日後需要 **後端接管** subsystems 寫入（例如要加寫入時的 server-side 驗證），必須：
   1. 移除所有 FE 的 direct write mutation

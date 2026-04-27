@@ -1,12 +1,14 @@
-# Module Spec: ScamperFeedbackAgent
+# ~~Module Spec: ScamperFeedbackAgent~~ (v9 移除)
+
+> **v9 移除說明 (2026-04-27)**：SCAMPER 已於 v9 移除 — 其 7 動作為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋。本模組及對應的 `scamper_feedback.py` agent 已退役。
 
 ---
 
-**文件版本 (Document Version):** `v1.0`
-**最後更新 (Last Updated):** `2026-04-15`
+**文件版本 (Document Version):** `v1.0` → `v9-deprecated`
+**最後更新 (Last Updated):** `2026-04-27`
 **主要作者 (Lead Author):** `Backend AI Agents Team`
 **審核者 (Reviewers):** `Tech Lead, QA Lead`
-**狀態 (Status):** `Active (Pilot)`
+**狀態 (Status):** ~~`Active (Pilot)`~~ → `Deprecated (v9)`
 **對應 VibeCoding 模板:** `07_module_specification_and_tests.md`
 
 ---

@@ -1,6 +1,7 @@
-## Appendix E: TRIZ → SCAMPER Flow
+## Appendix E: TRIZ Flow + 雙軌決策中心
 
-> 錨點：`#appendix-e-triz-to-scamper-flow`
+> 錨點：`#appendix-e-triz-to-scamper-flow`（保留向後相容）
+> **v9 移除說明**：SCAMPER 已於 v9 移除 — 其 7 動作為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋。原標題「TRIZ → SCAMPER Flow」更名。F3 SCAMPER 節點已移除。
 > **相關文件**：`../../02-design/specs/triz/E5x--triz-layered-drilldown-optimization.md`
 
 ## 雙軌分析 → 候選方案決策中心：設計概念與流程圖
@@ -61,9 +62,8 @@ flowchart TB
             F1["F1: TRIZ 解矛盾 (v11 分層化)<br/>solve_triz_layered orchestrator<br/>L1 (TC 必跑) + L2 (PC 條件觸發) + L3 (SF 必跑旁路)<br/>輸出: LayeredTrizSolution[] + differential_analysis<br/>Architecture Health Monitor"]
             F2["F2: 子系統定義<br/>System→Module→Component 3 層<br/>+ 6 維介面契約"]
             F2S["F2.5: Spatial Discovery Validator<br/>Reference library 覆寫 + 算術<br/>→ Package Map (SVG)<br/>(overlay 為 optional，不限制創意)"]
-            F3["F3: SCAMPER 變形（創意工具）<br/>7 創意行動 × 子系統<br/>風險標註，不觸發 re-scan"]
-            FP["正向路徑候選池<br/>LayeredTrizSolution[]<br/>+ SCAMPER 候選"]
-            F1 --> F2 --> F2S --> F3 --> FP
+            FP["正向路徑候選池<br/>LayeredTrizSolution[]"]
+            F1 --> F2 --> F2S --> FP
         end
 
         subgraph HUB["候選方案決策中心"]
@@ -100,7 +100,7 @@ flowchart TB
 | ------------------------- | --------------------------------------------------------------------------------- |
 | **方法獨立**                  | 反向（創意）和正向（演繹）是兩種本質不同的方法，不應讓創意工具再跑演繹收斂                                             |
 | **正向路徑分層** (v11)          | F1 內部 TC/PC/SF 是同一矛盾的三層 drill-down，不是互斥三選一。由 `solve_triz_layered` orchestrator 調度 |
-| **反向路徑簡化**                | Anti-Anchor 自帶 Validation Passport，直接進候選池。不需要 R2-R4（TRIZ/子系統/SCAMPER）             |
+| **反向路徑簡化**                | Anti-Anchor 自帶 Validation Passport，直接進候選池。不需要 R2-R3（TRIZ/子系統）                     |
 | **產出與選擇分離**               | 正向路徑：TRIZ 步驟產出 `LayeredTrizSolution`（含 Architecture Health Monitor），採納在決策中心       |
 | **SIM 前置衝突檢查** (v9)       | 跨矛盾衝突在 TRIZ 求解階段由 SIM 矩陣 -1 評分前置捕捉（ADR-008 D5），不再需要後置交叉檢查                       |
 | **CCI 品質判定** (v9)          | 每條解法附 CCI [0,1] 指標（ADR-008 D4），Decision Hub 顯示 Evolution/Weak Evolution/Patch       |
@@ -222,34 +222,9 @@ flowchart TB
 
 ---
 
-### 5. SCAMPER 定位：創意發散工具（不回饋收斂迴圈）
+### ~~5. SCAMPER 定位~~ (v9 移除)
 
-**設計意圖**：SCAMPER 與 Anti-Anchor 同屬**創意發散工具**。潛在風險以標註方式顯示，不自動觸發 re-scan。所有產出直接進入候選方案池，在決策中心由 RD 統一評估。
-
-```mermaid
-%%{init: {'theme': 'neutral'}}%%
-flowchart TB
-    A["SCAMPER Variant 採用"] --> B{"AI 標註潛在風險?"}
-    B -->|"否"| C["直接進入候選池"]
-    B -->|"是"| D["風險標註<br/>（severity badge + 描述）<br/>供決策中心參考"]
-    D --> C
-    C --> E["候選方案決策中心<br/>CCI 標籤 + 橫向比較 + MUST 快篩"]
-
-    style A fill:#D1FAE5,stroke:#10B981
-    style D fill:#FEF3C7,stroke:#F59E0B
-    style E fill:#F3E8FF,stroke:#8B5CF6
-```
-
-
-
-**與 v7 的差異**：
-
-
-|                   | v7（舊）                                               | v8（現在）                            |
-| ----------------- | --------------------------------------------------- | --------------------------------- |
-| newContradictions | fatal/major → 自動 addContradiction + re-scan         | 顯示為風險標註，不觸發 re-scan               |
-| 確認流程              | 有未回饋矛盾 → 警告阻擋                                       | 無阻擋，所有風險在決策中心統一處理                 |
-| 定位                | 分析工具（產出需要收斂驗證）                                      | **創意工具**（產出直接進池，與 Anti-Anchor 同級） |
+> **v9 移除說明**：SCAMPER 已於 v9 移除 — 其 7 動作為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋。原 F3 SCAMPER 節點從正向路徑流程中移除。候選池現僅匯聚 TRIZ + Anti-Anchor 兩個來源。
 
 
 ---
@@ -262,7 +237,7 @@ flowchart TB
 | #   | 要素    | 欄位                                                            | 說明                                                                           |
 | --- | ----- | ------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | 1   | 來源路徑  | `track: 'reverse' | 'forward'`                                | 從哪條分析鏈來                                                                      |
-| 2   | 來源步驟  | `source: triz_tc | triz_pc | triz_sf | scamper | anti_anchor` | 具體產出步驟                                                                       |
+| 2   | 來源步驟  | `source: triz_tc | triz_pc | triz_sf | anti_anchor` | 具體產出步驟 ~~(v9: 移除 `scamper`)~~                                                |
 | 3   | 解的矛盾  | `contradiction_ids: string[]`                                 | 追溯至原始矛盾                                                                      |
 | 4   | 涉及子系統 | `subsystem_ids: string[]`                                     | 影響範圍                                                                         |
 | 5   | 基於假設  | `validation_passport.assumptions[]`                           | 方案成立的前提。每項含 `evidence_level` (E0-E4)、`is_falsifiable`、`falsification_method` |
@@ -290,10 +265,10 @@ flowchart TB
 
 | 階段                   | 輸入                          | 處理                                                                                      | 輸出                                                       | 連鎖效果                             |
 | -------------------- | --------------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------- | -------------------------------- |
-| Anti-Anchor 生成       | mission + constraints       | AI 產出非典型架構（創意工具，自帶 Validation Passport）                                                 | `AntiAnchorRoute[].length ≥ 3`                           | **直接進反向候選池**，不經 TRIZ/子系統/SCAMPER |
+| Anti-Anchor 生成       | mission + constraints       | AI 產出非典型架構（創意工具，自帶 Validation Passport）                                                 | `AntiAnchorRoute[].length ≥ 3`                           | **直接進反向候選池**，不經 TRIZ/子系統 |
 | **TRIZ 分層求解** (v11)  | 矛盾集 + severity              | `solve_triz_layered`：L1 必跑 + L3 必跑 + L2 critic 觸發 + deepen_link + differential_analyzer | `LayeredTrizSolution[]`（含 L1/L2?/L3 + recommended_route） | SIM 矩陣（≥2 TC 時）                  |
-| 子系統定義                | TRIZ 矛盾親和性                  | RD/AI 定義 System→Module→Component 3 層 + 6 維介面契約                                          | `Subsystem[confirmed]`                                   | 解鎖 SCAMPER                       |
-| SCAMPER 展開           | 已確認子系統                      | 7 行動 × N 子系統（創意工具，不觸發 re-scan）                                                          | `ScamperVariant[adopted]` + 風險標註                         | 直接進候選池                           |
+| 子系統定義                | TRIZ 矛盾親和性                  | RD/AI 定義 System→Module→Component 3 層 + 6 維介面契約                                          | `Subsystem[confirmed]`                                   | 進入決策中心                       |
+| ~~SCAMPER 展開~~       | ~~已確認子系統~~                  | ~~7 行動 × N 子系統~~ **(v9 移除 — TRIZ 40 原理完全覆蓋)**                                            |                                                          |                              |
 | **決策中心採納** (v11)     | 所有候選池                       | **RD 採納 LTS 推薦組合 / 自訂組合 / 單層 + CCI 標籤**                                                  | adopted Alternative[]（標註層級 + CCI）                        | —                                |
 | MUST 篩選              | adopted Alternative + M1-M6 | AI + RD 評分                                                                              | pass / fail / marginal                                   | 淘汰不可行方案                          |
 | Pre-CAD 審查           | 通過 MUST 的方案                 | 五維評分                                                                                    | overallPass                                              | Phase Gate 2 判定                  |
@@ -324,7 +299,7 @@ flowchart TB
 | **反向路徑**       | Anti-Anchor routes.length ≥ 3（完成即可，無後續步驟）    |
 | 正向: F1 TRIZ    | health != critical/circular 且 trizSolutions.length > 0 |
 | 正向: F2 子系統     | confirmed subsystems > 0                     |
-| 正向: F3 SCAMPER | SCAMPER adopted > 0                          |
+| ~~正向: F3 SCAMPER~~ | ~~SCAMPER adopted > 0~~ **(v9 移除)**          |
 
 
 #### 決策中心 Gate

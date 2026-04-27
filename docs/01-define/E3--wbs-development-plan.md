@@ -83,9 +83,9 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 
 ### 專案範圍要點
 
-- **核心價值**：AI 驅動的早期概念設計決策平台，整合 SCAMPER/TRIZ 發散 + KT 決策收斂 + 證據驅動 8-Gate 流程
+- **核心價值**：AI 驅動的早期概念設計決策平台，整合 TRIZ 發散 + KT 決策收斂 + 證據驅動 8-Gate 流程（~~SCAMPER v9 移除~~）
 - **量化目標**：架構級 rework 3–5 次/專案 → ≤2；設計審查 3–4h → ≤2h；假設驗證覆蓋 <30% → ≥80%；方案探索 1–2 → ≥3；決策可追溯性 → 100%
-- **交付物範圍**：31 個 API 端點（backend 20 routers）、7 AI agents（analyst/evaluator/knowledge/knowledge_wb/scamper_feedback/triz_solver/triz_critic，共用 base.py）、18 個前端頁面（20 react-query hooks、3 contexts）、29 個 DB tables、11 個 migrations、8 個 Gate、6 類 Artifact（Constraint/Contradiction/Breakpoint/ConceptRoute/Evidence/Risk）、6 類 Knowledge Asset
+- **交付物範圍**：31 個 API 端點（backend 20 routers）、6 AI agents（analyst/evaluator/knowledge/knowledge_wb/triz_solver/triz_critic，共用 base.py；~~scamper_feedback v9 移除~~）、18 個前端頁面（20 react-query hooks、3 contexts）、29 個 DB tables、11 個 migrations、8 個 Gate、6 類 Artifact（Constraint/Contradiction/Breakpoint/ConceptRoute/Evidence/Risk）、6 類 Knowledge Asset
 
 > **Note (ARCH review 2026-04-15)**：原草稿將 router 計為 21、agents 計為 8，已修正為實際倉儲計數 20/7。
 
@@ -278,7 +278,7 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 | 3.2.5 | `/contradictions/{cid}/formalize` router | BE | 8 | ✅ | 2026-03-05 | 3.2.1 | WS-A A-2.12 |
 | 3.2.6 | `/assumptions/extract` + `/unknown-factors/discover` | BE | 12 | ✅ | 2026-03-06 | 3.2.1 | WS-A A-2.13, A-3.8 |
 | 3.2.7 | `/gates/{gate_id}/check` 8-Gate engine 初版（Gate 1.1, 1.2, PG1 僅 Phase 1 依賴） | BE | 12 | ✅ | 2026-03-08 | 3.2.2..6 | WS-A A-2.14 |
-| 3.2.8 | 8-Gate engine Phase 2/3 back-edge（Gate 2.1, 2.2, PG2, 3.2, PG3 接入 TRIZ/SCAMPER/Evidence/Decision） | BE | 8 | ✅ | 2026-04-03 | 3.2.7, 3.3.7, 3.4.4 | WS-A A-2.14 |
+| 3.2.8 | 8-Gate engine Phase 2/3 back-edge（Gate 2.1, 2.2, PG2, 3.2, PG3 接入 TRIZ/Evidence/Decision） | BE | 8 | ✅ | 2026-04-03 | 3.2.7, 3.3.7, 3.4.4 | WS-A A-2.14 |
 
 #### 3.3 Phase 2 Diverge 模組 [Week 6–10]
 
@@ -289,7 +289,7 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 | 3.3.3 | TRIZ critic (TC→PC drill-down trigger) | BE | 12 | ✅ | 2026-03-18 | 3.3.1 | - | - |
 | 3.3.4 | TRIZ layered drill-down (migration 010) | BE / Data | 16 | ✅ | 2026-04-03 | 3.3.3 | - | - |
 | 3.3.5 | `/alternatives/anti-anchor` + `/alternatives/validation-passport` | BE | 16 | ✅ | 2026-03-20 | 3.2.1 | - | WS-A A-3.1..2, B-6.5 |
-| 3.3.6 | SCAMPER router + scamper_feedback agent | BE | 20 | ✅ | 2026-03-22 | 3.3.1 | - | WS-A A-3.5..7, B-6.7.1 |
+| 3.3.6 | ~~SCAMPER router + scamper_feedback agent~~ *(v9 移除)* | BE | 20 | ✅ | 2026-03-22 | 3.3.1 | - | WS-A A-3.5..7, B-6.7.1 |
 | 3.3.7 | `/convergence/scan` 二次矛盾偵測 | BE | 8 | ✅ | 2026-03-24 | 3.2.7 | - | WS-A A-3.9 |
 | 3.3.8 | Evaluator agent (risk/convergence/MUST/pre-CAD) | BE | 20 | ✅ | 2026-03-26 | 3.1.5 | - | - |
 | 3.3.9 | `/must/evaluate` MUST Go/No-Go | BE | 8 | ✅ | 2026-03-27 | 3.3.8 | - | WS-A A-3.10 |
@@ -340,7 +340,7 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 | 4.2.7 | Brief 頁 (TaskDefinition) + useBrief hook | FE | 20 | ✅ | 2026-02-28 | 3.2.2 | WS-C C-1.2 |
 | 4.2.8 | Explore 頁 + Socratic/Contradiction hooks | FE | 24 | ✅ | 2026-03-05 | 3.2.3..5 | WS-C C-1.3 |
 | 4.2.9 | Track 頁 + Assumptions/Unknown-factors hooks | FE | 20 | ✅ | 2026-03-10 | 3.2.6 | WS-C C-1.4, C-2.1 |
-| 4.2.10 | Create 頁 + TRIZ/SCAMPER/Subsystem hooks | FE | 32 | ✅ | 2026-03-20 | 3.3.* | WS-C C-2.2..3 |
+| 4.2.10 | Create 頁 + TRIZ/Subsystem hooks（~~SCAMPER v9 移除~~） | FE | 32 | ✅ | 2026-03-20 | 3.3.* | WS-C C-2.2..3 |
 | 4.2.11 | Convergence + SolutionExplorer 頁 | FE | 16 | ✅ | 2026-03-25 | 3.3.7 | WS-C C-2.4..5 |
 | 4.2.12 | PreCadReview + CadInProgress 頁 | FE | 16 | ✅ | 2026-03-28 | 3.3.10 | WS-C C-2.6 |
 | 4.2.13 | DesignReview 頁 (Evidence/Risks) | FE | 16 | ✅ | 2026-03-30 | 3.4.1 | WS-C C-3.1..2 |
@@ -372,7 +372,7 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 | 5.1.1 | pytest 框架 + conftest mock fixtures | QA | 8 | ✅ | 2026-02-15 | 3.1.1 |
 | 5.1.2 | Pydantic schema 測試 | QA | 6 | ✅ | 2026-02-18 | 5.1.1, 3.1.4 |
 | 5.1.3 | 21 router 端點測試（34 test modules，~9,000 lines） | QA / BE | 40 | ✅ | 2026-04-07 | 5.1.2, 3.2..4 |
-| 5.1.4 | TRIZ + SCAMPER + Gate 業務邏輯測試 | BE | 20 | ✅ | 2026-04-05 | 5.1.3 |
+| 5.1.4 | TRIZ + Gate 業務邏輯測試（~~SCAMPER v9 移除~~） | BE | 20 | ✅ | 2026-04-05 | 5.1.3 |
 | 5.1.5 | Vitest 前端組件測試（12 tests） | QA / FE | 16 | ✅ | 2026-04-07 | 4.1.4 |
 
 #### 5.2 整合測試
@@ -604,7 +604,7 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 | 9.5.1 | `knowledge.py` + `knowledge_wb.py` 轉換 (2 fns) | BE | 4 | ✅ | 2026-04-24 | 9.4.3 | ADR-006 |
 | 9.5.2 | `triz_critic.py` 轉換 (helper fns) | BE | 4 | ✅ | 2026-04-24 | 9.4.3 | ADR-006 |
 | 9.5.3 | `evaluator.py` 轉換 (9 fns) | BE | 8 | ✅ | 2026-04-24 | 9.4.3 | ADR-006 |
-| 9.5.4 | `scamper_feedback.py` — 無 LLM 呼叫，不需轉換 | BE | 0 | N/A | — | 9.4.3 | ADR-006 |
+| 9.5.4 | ~~`scamper_feedback.py`~~ *(v9 移除)* | BE | 0 | N/A | — | 9.4.3 | ADR-006 |
 | 9.5.5 | `analyst.py` 轉換 (23 fns) | BE | 16 | ✅ | 2026-04-24 | 9.4.3 | ADR-006 |
 | 9.5.6 | 全 agent 轉換後迴歸測試（67 harness tests 全綠） | QA | 4 | ✅ | 2026-04-24 | 9.5.1-5 | — |
 

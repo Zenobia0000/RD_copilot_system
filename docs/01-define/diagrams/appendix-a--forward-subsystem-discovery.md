@@ -42,7 +42,7 @@ E-bike RD 在 CAD 階段才發現幾何衝突、熱路徑被破壞、零件對�
 
 #### 1.2 系統使命
 
-> **建立一個「LLM 負責創造、純算術負責驗證、資料庫負責累積」的子系統定義系統，讓每一次 RD 的設計決策都比上一次更接近真實，並把產出資料以可被 SCAMPER 變形與 Pre-CAD 評分直接消費的結構提供下游。**
+> **建立一個「LLM 負責創造、純算術負責驗證、資料庫負責累積」的子系統定義系統，讓每一次 RD 的設計決策都比上一次更接近真實，並把產出資料以可被決策中心與 Pre-CAD 評分直接消費的結構提供下游。**
 
 #### 1.3 三個關鍵約束
 
@@ -50,7 +50,7 @@ E-bike RD 在 CAD 階段才發現幾何衝突、熱路徑被破壞、零件對�
 |---------|------|
 | **資料準確性** | LLM 數字必須可被真值覆寫；引用幻覺必須能被偵測；anchor 與 bbox 必須分離保護 |
 | **冷啟動** | 第一次跑就要能用；Seed 不需要完整；退化路徑永遠保證有結果 |
-| **下游可用性** | SCAMPER 變形需要結構化契約；Pre-CAD 需要算術驗證的分數；Package Map 需要可比對的基線 |
+| **下游可用性** | 決策中心需要結構化契約；Pre-CAD 需要算術驗證的分數；Package Map 需要可比對的基線 |
 
 
 
@@ -64,13 +64,13 @@ E-bike RD 在 CAD 階段才發現幾何衝突、熱路徑被破壞、零件對�
 | Actor                            | 類型            | 與系統的關係                                                                                                        |
 | -------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------- |
 | **RD 工程師**                       | 主要人類 actor    | 觸發子系統定義、檢視 Package Map、做 inline override、簽核估計值                                                                |
-| **AI Orchestrator**              | 系統內 actor     | 在 E2E 流程中銜接 F1（分層 TRIZ）與 F3（SCAMPER），以 `LayeredTrizSolution[]`（或退化輸入）+ Brief 觸發 F2                            |
+| **AI Orchestrator**              | 系統內 actor     | 在 E2E 流程中銜接 F1（分層 TRIZ）與決策中心，以 `LayeredTrizSolution[]`（或退化輸入）+ Brief 觸發 F2                            |
 | **TRIZ Solver Agent**            | 系統內 LLM actor | 消費 F1 分層產出與 Brief，產生子系統樹（System / Module / Component）與六維介面契約；prompt 應優先使用採納路線上的 PC 根因與 SF 結構診斷（見 §3.1、§6.4.4） |
 | **Spatial Validator**            | 系統內純算術 actor  | 計算 Package Map，不呼叫 LLM                                                                                        |
 | **Layered Spatial Resolver**     | 系統內查詢 actor   | 跨五層查找真值                                                                                                       |
 | **Web Search Provider (Tavily)** | 外部系統          | 提供 datasheet 即時抓取                                                                                             |
 | **Supabase**                     | 外部系統          | 持久化所有 artifact 與 learned 資料                                                                                   |
-| **下游消費者：SCAMPER Agent**          | 系統內 actor     | 消費結構化介面契約進行變形                                                                                                 |
+| ~~**下游消費者：SCAMPER Agent**~~      | ~~系統內 actor~~ | ~~消費結構化介面契約進行變形~~ **(v9 移除 — TRIZ 40 原理完全覆蓋)**                                                                |
 | **下游消費者：Pre-CAD Evaluator**      | 系統內 actor     | 消費 Package Map 與 spatial 評分                                                                                   |
 
 
@@ -88,7 +88,7 @@ graph LR
         UC3[UC3: 做 RD inline override]
         UC4[UC4: 推升至 learned components]
         UC5[UC5: 執行 What-if Overlay]
-        UC6[UC6: 提供契約給 SCAMPER]
+        UC6[UC6: 提供契約給決策中心]
         UC7[UC7: 提供 Package Map 給 Pre-CAD]
     end
 
@@ -121,7 +121,7 @@ graph LR
 | UC3 | RD inline override | RD 對單一 component 寫死 bbox + mass                                    | 寫入 `project_component_overrides`             |
 | UC4 | 推升 learned         | RD 確認某估計可信 → 推升至全域表                                                | 寫入 `learned_components`, `confirmed_count++` |
 | UC5 | What-if Overlay    | RD 套上假設性車架 envelope 試 trade-off                                    | 回傳 overlay PackageMap，原始不變                   |
-| UC6 | 餵 SCAMPER          | F3 讀取結構化介面契約做變形                                                    | 機器可讀的影響範圍                                    |
+| UC6 | 餵決策中心             | 決策中心讀取結構化介面契約進行比較                                                  | 機器可讀的影響範圍                                    |
 | UC7 | 餵 Pre-CAD          | 評分階段讀 Package Map 算 spatial_score                                  | Deterministic 評分                             |
 
 
@@ -139,7 +139,7 @@ graph TB
     end
 
     F1[F1: TRIZ 解矛盾<br/>輸出 LayeredTrizSolution[]<br/>+ differential_analysis]
-    F3[F3: SCAMPER 變形<br/>下游：消費介面契約]
+    DH[決策中心<br/>下游：消費介面契約]
     PreCAD[Pre-CAD 五維評分<br/>下游：消費 Package Map]
 
     Tavily[Tavily Web Search<br/>外部 SaaS]
@@ -148,7 +148,7 @@ graph TB
 
     RD <--> F2
     F1 -->|LayeredTrizSolution[]<br/>+ Brief| F2
-    F2 -->|結構化子系統樹<br/>+ 介面契約 + Package Map| F3
+    F2 -->|結構化子系統樹<br/>+ 介面契約 + Package Map| DH
     F2 -->|Package Map<br/>+ spatial 評分| PreCAD
     F2 <-->|datasheet 抓取| Tavily
     F2 <-->|讀寫 artifact| Supabase
@@ -191,7 +191,7 @@ graph TB
     end
 
     subgraph Backend[Backend Container - FastAPI]
-        API[API Layer<br/>routers/scamper.py<br/>routers/spatial.py]
+        API[API Layer<br/>routers/subsystems.py<br/>routers/spatial.py]
         AGENT[Agent Layer<br/>triz_solver.suggest_subsystems]
         RESOLVER[Layered Spatial Resolver<br/>spatial_lookup.py]
         VALIDATOR[Spatial Validator<br/>spatial_validator.py<br/>純算術]
@@ -245,8 +245,8 @@ graph TB
 %%{init: {'theme': 'neutral'}}%%
 graph TB
     subgraph API[API Layer]
-        R1[POST /scamper/<br/>subsystem-suggestions]
-        R2[POST /scamper/<br/>spatial-overlay]
+        R1[POST /subsystems/<br/>suggest]
+        R2[POST /subsystems/<br/>spatial-overlay]
         R3[POST /spatial/<br/>component-overrides]
         R4[POST /spatial/<br/>learned-components]
     end
@@ -445,7 +445,7 @@ erDiagram
 
 ### §6.4 三層樹（System / Module / Component）的定義來源
 
-「三層樹」不是任意分層，而是一個刻意設計的拆解框架，目的是讓 **TRIZ 矛盾、SCAMPER 變形、Pre-CAD 評分** 三個下游階段都有對應的操作粒度。
+「三層樹」不是任意分層，而是一個刻意設計的拆解框架，目的是讓 **TRIZ 矛盾、決策中心比較、Pre-CAD 評分** 三個下游階段都有對應的操作粒度。
 
 > **命名提醒**：此處三階為 **F2 子系統樹（tree tier）**，與 F1 `LayeredTrizSolution` 的 TC/PC/SF **分析層**（TRIZ 文件中的 L1/L2/L3）為不同維度；下文圖中子圖標題使用「樹階」以避免與 F1 代號混淆。
 
@@ -487,11 +487,11 @@ graph TB
 
 
 
-| 層級               | 數量約束              | 對應 TRIZ 角色 | 對應 SCAMPER 操作          | 對應 Pre-CAD 評分      |
+| 層級               | 數量約束              | 對應 TRIZ 角色 | 對應決策中心操作              | 對應 Pre-CAD 評分      |
 | ---------------- | ----------------- | ---------- | ---------------------- | ------------------ |
 | **System 系統**    | 2-4 個             | 矛盾分佈的最高觀察層 | 不直接被變形（會牽動全機）          | 整機 envelope 與總質量   |
-| **Module 模組**    | 每個 system 下 2-4 個 | 矛盾的承載單位    | **SCAMPER 七動作的主要操作對象** | 模組 bbox 與 clash 偵測 |
-| **Component 元件** | 每個 module 下 2-5 個 | 矛盾的根因單位    | 不被 SCAMPER 操作（粒度太細）    | 不單獨評分              |
+| **Module 模組**    | 每個 system 下 2-4 個 | 矛盾的承載單位    | **候選方案比較的主要操作對象**     | 模組 bbox 與 clash 偵測 |
+| **Component 元件** | 每個 module 下 2-5 個 | 矛盾的根因單位    | 粒度太細，不直接操作             | 不單獨評分              |
 
 
 #### 6.4.2 拆解規則（由 prompt 強制）
@@ -511,7 +511,7 @@ graph TB
 
 - **System 上限 4**：太多 system 會讓矛盾分佈過於分散，TRIZ 收斂困難
 - **Module 下限 2**：少於 2 個 module 的 system 沒有「介面契約」可言（沒有鄰居）
-- **Module 上限 4**：超過 4 個會讓 SCAMPER 變形組合爆炸（C(7,2) × N²）
+- **Module 上限 4**：超過 4 個會讓候選方案比較組合爆炸
 - **Component 上限 5**：超過 5 個代表 module 拆得不夠細，應該升級為新 module
 - **Component 不參與介面契約**：契約只在 module 層存在，避免層級錯亂
 
@@ -522,7 +522,7 @@ graph TB
 flowchart TB
     Brief[Brief + F1 產出<br/>LayeredTrizSolution[]<br/>或退化：矛盾清單] --> Q1{是否為<br/>能量轉換 / 控制 / 結構<br/>三大功能群?}
     Q1 -->|是| SYS[標為 system level]
-    Q1 -->|否| Q2{是否為<br/>可被 SCAMPER 整體替換的<br/>功能單元?}
+    Q1 -->|否| Q2{是否為<br/>可被整體替換的<br/>功能單元?}
     Q2 -->|是| MOD[標為 module level]
     Q2 -->|否| Q3{是否為<br/>無法獨立替換的<br/>實體零件?}
     Q3 -->|是| COMP[標為 component level]
@@ -540,14 +540,14 @@ flowchart TB
 
 每個節點都帶 `related_contradictions` 欄位，列出與該節點相關的**矛盾 ID**。在分層 TRIZ 管線下，綁定規則對齊 `../../02-design/specs/triz/E5x--triz-layered-drilldown-optimization.md` §8.1：
 
-1. **主綁定（給 SCAMPER / 二次矛盾預測用）**：預設僅將節點關聯到 RD 已採納路線（`adopted_route`，若尚未採納則用 `differential_analysis.recommended_route`）上所標示的**承載模組 / 根因元件**。同一 `LayeredTrizSolution` 內未採納的層（例如僅作說明的 L1 折衷解）**不**自動等同於「待變形依據」，避免 SIM 矩陣與 F2 預測誤把 drill-down 堆疊當成互斥多解。
-2. **追溯與說明（可選欄位）**：可另存 `related_contradictions_context`（或等價結構）記錄「同矛盾下其餘層曾提及的模組／元件」，僅供 UI 與稽核，不參與預設 SCAMPER 影響範圍計算。
+1. **主綁定（給決策中心 / 二次矛盾預測用）**：預設僅將節點關聯到 RD 已採納路線（`adopted_route`，若尚未採納則用 `differential_analysis.recommended_route`）上所標示的**承載模組 / 根因元件**。同一 `LayeredTrizSolution` 內未採納的層（例如僅作說明的 L1 折衷解）**不**自動等同於「待變形依據」，避免 SIM 矩陣與 F2 預測誤把 drill-down 堆疊當成互斥多解。
+2. **追溯與說明（可選欄位）**：可另存 `related_contradictions_context`（或等價結構）記錄「同矛盾下其餘層曾提及的模組／元件」，僅供 UI 與稽核，不參與預設影響範圍計算。
 3. **向後相容**：若輸入僅有扁平矛盾清單而無 `LayeredTrizSolution`，`related_contradictions` 維持「該節點曾由舊版 F1 關聯到的矛盾 ID 清單」語意，不區分主綁定與 context。
 
 此設計支援兩個既有目標：
 
 1. **TRIZ 反向追蹤**：給定一個矛盾，能立刻找到所有受影響的 module（與採納路線一致時最精準）。
-2. **SCAMPER 影響範圍預測**：對某 module 做變形時，以**主綁定**矛盾預測是否牽動已採納的跨層設計，降低與「同 LTS 跨層合法組合」的語意衝突。
+2. **影響範圍預測**：對某 module 做變形時，以**主綁定**矛盾預測是否牽動已採納的跨層設計，降低與「同 LTS 跨層合法組合」的語意衝突。
 
 ```mermaid
 %%{init: {'theme': 'neutral'}}%%
@@ -600,7 +600,7 @@ mindmap
 | 維度                 | 物理意義                           | 為什麼要存在                         | 沒有它會發生什麼                 |
 | ------------------ | ------------------------------ | ------------------------------ | ------------------------ |
 | **envelope**       | 包絡尺寸 / mounting                | 對應 spatial validator 的 bbox 輸入 | CAD 才發現幾何衝突              |
-| **loadPath**       | 力 / 力矩 / 電流路徑                  | SCAMPER 替代材料後鄰居承不住負載           | 馬達換 GaN 後峰值電流燒掉 BMS      |
+| **loadPath**       | 力 / 力矩 / 電流路徑                  | 替代材料後鄰居承不住負載                   | 馬達換 GaN 後峰值電流燒掉 BMS      |
 | **signalPath**     | 控制 / 感測 / 通訊（CAN/SPI/I²C/Hall） | 重排控制板後 latency / 雜訊耦合超出容忍      | MCU 與 Gate driver SPI 拍頻 |
 | **thermalPath**    | 熱從哪裡進、經過誰、從哪裡出                 | 散熱片被消除後熱流改走 PCB                | 鄰居電容被烤掉                  |
 | **datumTolerance** | 基準與公差（datum + tolerance）       | 機械對位錯位會造成裝配良率崩潰                | 馬達軸對齒輪箱同軸度沒講清楚，量產良率崩     |
@@ -668,7 +668,7 @@ graph LR
 **為什麼一定要綁定對象**：
 
 - 同一個 module 對不同鄰居的契約是不同的（馬達對齒輪箱有 loadPath，對電池只有 signalPath）
-- SCAMPER 變形時要知道「替換馬達會破壞它對哪些鄰居的契約」
+- 候選方案比較時要知道「替換馬達會破壞它對哪些鄰居的契約」
 - 如果只描述自身屬性，下游無法計算影響範圍
 
 #### 6.5.5 六維 + spatial：v10 的擴充
@@ -702,7 +702,7 @@ sequenceDiagram
     participant DB as Supabase
 
     RD->>FE: 點「Suggest Subsystems」
-    FE->>API: POST /scamper/subsystem-suggestions<br/>{project_id, mission,<br/>layered_triz_solutions?, contradictions?}
+    FE->>API: POST /subsystems/suggest<br/>{project_id, mission,<br/>layered_triz_solutions?, contradictions?}
     API->>AG: suggest_subsystems(req)
 
     Note over AG,RES: Phase 1：詞彙準備（下列 L1–L4 為 spatial 查詢層級，非 F1 TRIZ 分層）
@@ -809,7 +809,7 @@ sequenceDiagram
 
     RD->>FE: 已看完 discovery package map
     RD->>FE: 想試「下管只有 380mm」
-    FE->>API: POST /scamper/spatial-overlay<br/>{subsystems, overlay: {zones, mass_budget}}
+    FE->>API: POST /subsystems/spatial-overlay<br/>{subsystems, overlay: {zones, mass_budget}}
     API->>VAL: discover_package(subsystems)
     VAL-->>API: 重算的 base package
     API->>VAL: apply_overlay(pkg, overlay)
@@ -837,8 +837,8 @@ stateDiagram-v2
     AIGenerated --> RDEdited: RD 編輯介面契約
     AIGenerated --> RDConfirmed: RD 不修改直接確認
     RDEdited --> RDConfirmed: 確認
-    RDConfirmed --> Frozen: F3 SCAMPER 開跑後鎖定
-    Frozen --> RDEdited: 解鎖重編輯<br/>(會 invalidate F3 結果)
+    RDConfirmed --> Frozen: 進入決策中心後鎖定
+    Frozen --> RDEdited: 解鎖重編輯<br/>(會 invalidate 下游結果)
     RDConfirmed --> [*]: 進入 Pre-CAD 評分
 ```
 
@@ -975,9 +975,11 @@ gantt
 
 ---
 
-### §10 對下游 SCAMPER 的契約
+### §10 對下游的契約
 
-#### 10.1 F2 → F3 hand-off 三件套
+> **v9 變更**：原 F3 SCAMPER 已移除，子系統定義直接服務決策中心與 Pre-CAD。
+
+#### 10.1 F2 → 決策中心 hand-off 三件套
 
 ```mermaid
 %%{init: {'theme': 'neutral'}}%%
@@ -986,26 +988,26 @@ graph LR
     F2 --> B[機器可讀介面契約<br/>6 維 + spatial]
     F2 --> C[Package Map 基線<br/>SVG + clash + envelope]
 
-    A --> F3[F3 SCAMPER 變形]
-    B --> F3
-    C --> F3
+    A --> DH[決策中心]
+    B --> DH
+    C --> DH
 
-    F3 --> D[新 module 組合]
-    F3 --> E[新介面契約]
-    F3 --> Cmp[與基線對比]
+    DH --> D[候選方案組合]
+    DH --> E[介面契約比較]
+    DH --> Cmp[與基線對比]
 
     style F2 fill:#dbeafe,stroke:#1e3a8a,stroke-width:2px,color:#000
-    style F3 fill:#fef3c7,stroke:#92400e,stroke-width:2px,color:#000
+    style DH fill:#fef3c7,stroke:#92400e,stroke-width:2px,color:#000
 ```
 
 
 
 
-| Hand-off 物件    | SCAMPER 如何使用                                               |
+| Hand-off 物件    | 決策中心如何使用                                                   |
 | -------------- | ---------------------------------------------------------- |
-| 結構化子系統樹        | 7 個變形動作的操作對象（哪個 module 被 substitute / combine / eliminate） |
-| 6 維介面契約        | 變形後判斷哪些 path 被破壞、產生哪些二次矛盾                                  |
-| Package Map 基線 | 變形後重算 package map，與基線對比決定是否更好                              |
+| 結構化子系統樹        | 候選方案的操作對象（哪個 module 被替換 / 合併 / 消除）                        |
+| 6 維介面契約        | 方案變更後判斷哪些 path 被破壞、產生哪些二次矛盾                                |
+| Package Map 基線 | 方案變更後重算 package map，與基線對比決定是否更好                            |
 
 
 #### 10.2 為什麼介面契約不能只有自然語言
@@ -1013,7 +1015,7 @@ graph LR
 ```mermaid
 %%{init: {'theme': 'neutral'}}%%
 graph TB
-    Bad[只有自然語言契約] --> B1[SCAMPER 替換 module 後<br/>無法計算對鄰居影響]
+    Bad[只有自然語言契約] --> B1[替換 module 後<br/>無法計算對鄰居影響]
     Bad --> B2[二次矛盾無法被機器偵測]
     Bad --> B3[Pre-CAD 評分變成 LLM 拍腦袋]
 
@@ -1117,7 +1119,7 @@ mindmap
 ```mermaid
 %%{init: {'theme': 'neutral'}}%%
 flowchart LR
-    A[F2 子系統定義] --> B[F3 SCAMPER 變形]
+    A[F2 子系統定義] --> B[決策中心]
     B --> C[Pre-CAD 評分]
     C --> D[RD 簽核]
     D --> E[實際 CAD 設計]
@@ -1145,7 +1147,7 @@ flowchart LR
 | Pre-CAD 評分拍腦袋  | validator 算術接管                      | §10     |
 | 預算上限限制創意       | discovery 與 overlay 分離              | §7.4    |
 | Validator 失敗會炸 | try/except + 永遠回傳                   | §4.1 §5 |
-| SCAMPER 無法機器驗證 | 結構化契約 + 基線對比                        | §10     |
+| 候選方案無法機器驗證   | 結構化契約 + 基線對比                        | §10     |
 
 
 ---
@@ -1173,7 +1175,7 @@ flowchart LR
 - `backend/app/services/reference_library.py` (seed 層)
 - `backend/app/services/package_svg.py` (SVG 渲染)
 - `backend/app/routers/spatial.py` (RD override + learned 推升 API)
-- `backend/app/routers/scamper.py` (主入口 + overlay 端點)
+- `backend/app/routers/subsystems.py` (主入口 + overlay 端點) *(v9: 原 `scamper.py` 遷移)*
 - `backend/app/models/schemas.py` (BBox / SpatialEstimate / PackageMap / ...)
 - `supabase/migrations/006_spatial_estimate.sql`
 - `supabase/migrations/007_learned_components.sql`

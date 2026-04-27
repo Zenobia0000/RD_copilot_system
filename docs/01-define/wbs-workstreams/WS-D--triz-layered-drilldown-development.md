@@ -38,7 +38,7 @@
 - TS typecheck 本次新增零錯誤
 
 **測試綠燈**：
-- Backend `tests/test_triz_layered.py`：**18/18** passed + 擴大回歸 (triz_solver + subsystem + tab1_to_tab2_e2e + scamper_contract) **68/68** passed（2 pre-existing 失敗與本案無關）
+- Backend `tests/test_triz_layered.py`：**18/18** passed + 擴大回歸 (triz_solver + subsystem + tab1_to_tab2_e2e + subsystem_contract) **68/68** passed（2 pre-existing 失敗與本案無關）
 - FE `vitest run`：**10 suites / 91 tests passed**（含 `LayeredSolutionCard.test.tsx` 9 項 + create __tests__ 41 項）
 - TS typecheck 本次新增檔案：**無錯誤**
 
@@ -88,7 +88,7 @@
 > - `docs/e2e/TRIZ_Multi_Solution_Adoption_Strategy.md` v1.1（§2 M6 情境、§4.2 Concept Route `layered` type）
 > - `docs/e2e/module/Forward_TRIZ_Solver_Architecture.md`（現有三條 solver primitive 作為底層）
 > - `docs/e2e/module/Forward_Subsystem_Discovery_Architecture.md` v2.1 §3.1 §6.4.4（F1→F2 hand-off 契約）
-> - `docs/diagrams/triz-to-scamper-flow.md`（Phase B 掃描邏輯修訂目標）
+> - `docs/diagrams/triz-to-scamper-flow.md`（Phase B 掃描邏輯修訂目標）*(v9: SCAMPER 移除，文件更名為 triz-flow)*
 
 ---
 
@@ -301,7 +301,7 @@ F2 subsystem-suggestions 以 adopted_route 為 related_contradictions 主綁定
 
 | 任務 ID | 工作項 | 交付物 / 完成準則 | 依賴 | 狀態 |
 |---------|--------|-------------------|------|------|
-| 11.1 | **F2 hand-off 升級**：`POST /scamper/subsystem-suggestions` 請求體新增 `layered_triz_solutions[]`（§8.1.1） | 向後相容：同時支援扁平 `contradictions[]` fallback | 6.2 | ✅ `SubsystemSuggestRequest.layered_triz_solutions: list[LayeredTrizSolution]` 新增（default=[]），向後相容 `contradictions[]` 保留；smoke test 驗證 serialize round-trip |
+| 11.1 | **F2 hand-off 升級**：`POST /subsystems/suggest` 請求體新增 `layered_triz_solutions[]`（§8.1.1） *(v9: 原 `/scamper/subsystem-suggestions`)* | 向後相容：同時支援扁平 `contradictions[]` fallback | 6.2 | ✅ `SubsystemSuggestRequest.layered_triz_solutions: list[LayeredTrizSolution]` 新增（default=[]），向後相容 `contradictions[]` 保留；smoke test 驗證 serialize round-trip |
 | 11.2 | F2 內部以 **`adopted_route`**（or `recommended_route` 若未採納）作為 `related_contradictions` 主綁定（F2 SA §6.4.4） | 整合測試：L2+L3 採納 → subsystem 綁定到此組合 | 11.1 | ✅ `backend/app/agents/triz_solver.py::_serialize_layered_triz_for_f2_prompt` 把 LTS 序列化為 prompt bullet（含 `recommended_route.primary`、`rationale`、每層具體 mechanism + deepen_link derived_param + Su-Field state）；`suggest_subsystems` 把 LTS 行放在 `contradictions` 之前；`tests/test_f2_layered_handoff.py` 5 項全綠（serialisation + 整合 + legacy back-compat）|
 | 11.3 | ~~Phase A 回饋迴路~~（v8 退役）：L2 `secondary_contradictions` 透過 `is_confirmatory` 語意去重追蹤，不再觸發自動 re-scan | — | — | ❌ v8 退役 |
 | 11.4 | **MUST 快篩**：layered Concept Route 的 MUST 檢查對整張卡片（而非每層獨立）判 pass/fail | 每層 assumptions 匯總為卡片層級 evidence_level_floor | 10.1 | ⏳ 待 MUST evaluator 讀取 `layered_solution` 並整合 |
@@ -331,7 +331,7 @@ F2 subsystem-suggestions 以 adopted_route 為 related_contradictions 主綁定
 | 涵蓋 | 不涵蓋（另開 WBS 或文件） |
 |------|---------------------------|
 | Tab ① TRIZ 分層 drill-down（L1/L2/L3 + deepen_link + differential_analysis） | Tab ② 子系統介面契約與 Spatial Discovery（見 `Subsystem_Interface_Development_WBS.md`） |
-| `LayeredTrizSolution` schema + orchestrator + endpoint | 反向 Anti-Anchor 與 SCAMPER 本身的實作（各自 WBS） |
+| `LayeredTrizSolution` schema + orchestrator + endpoint | 反向 Anti-Anchor 實作（另有 WBS）；~~SCAMPER~~ (v9 移除) |
 | 決策中心 `layered` 卡片類型 + Phase B SKIP 修訂 | MUST / Pre-CAD 評估引擎細節（僅介面層對齊） |
 | F1→F2 hand-off 升級為 `layered_triz_solutions`（前端請求 + F2 消費） | F2 內部子系統生成邏輯 |
 | Feature flag 灰度、§6 三份文件同步 | TRIZ Knowledge Base 重新訓練或擴充 |
@@ -397,9 +397,9 @@ F2 subsystem-suggestions 以 adopted_route 為 related_contradictions 主綁定
 - [ ] LayeredSolutionCard 於 Tab ① 區塊 B 可渲染 L1/L2/L3 垂直堆疊 + deepen_link 箭頭 + differential 面板
 - [ ] 採納三按鈕（推薦 / 自訂 / 只採 L1）產出 Concept Route 正確落入 `type=layered|single|composite`
 - [ ] Phase B 於「同矛盾同 LTS 跨層採納」情境下 converged，**無** 同矛盾多路徑警告（6.3–6.5）
-- [ ] F2 `POST /scamper/subsystem-suggestions` 同時支援 `layered_triz_solutions[]` 與扁平 `contradictions[]` fallback（11.1 契約測）
+- [ ] F2 `POST /subsystems/suggest` 同時支援 `layered_triz_solutions[]` 與扁平 `contradictions[]` fallback（11.1 契約測）*(v9: 原 `/scamper/subsystem-suggestions`)*
 - [ ] 決策中心 layered 卡片三眼呈現（徽章 / mechanism / 溯源）與 UX v7 範例一致
-- [ ] `§6` 三份文件（Forward_TRIZ_Solver_Architecture / triz-to-scamper-flow / TRIZ_Multi_Solution_Adoption_Strategy）章節級同步完畢，「TC/PC/SF 互斥」語句清零（12.8）
+- [ ] `§6` 三份文件（Forward_TRIZ_Solver_Architecture / triz-flow *(v9: 原 triz-to-scamper-flow)* / TRIZ_Multi_Solution_Adoption_Strategy）章節級同步完畢，「TC/PC/SF 互斥」語句清零（12.8）
 - [ ] 可觀測性 Dashboard 可見各層耗時、critic 觸發率、recommended_route 分布（12.7）
 
 ---

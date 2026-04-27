@@ -247,13 +247,13 @@ Anti-Anchor 的定位是啟發工具（打破路徑依賴），但 v1.0/v1.1 的
 ### 4.1 Decision Hub 品質評估（RD 張三 主導）
 
 > **角色**: Persona 1 RD 張三
-> **觸發**: Decision Hub 已匯流 3+ 條路線（含 TRIZ-only + AA-seeded TRIZ + SCAMPER）
+> **觸發**: Decision Hub 已匯流 3+ 條路線（含 TRIZ-only + AA-seeded TRIZ）
 > **對齊痛點**: PP-3 風險後置
 > **對應**: E3 Appendix D State Machine + Appendix E Decision Hub
 
 ```mermaid
 flowchart TD
-    Start(["Step 5d 候選池匯流"]) --> Hub["Decision Hub<br/>TRIZ ∥ AA-seeded TRIZ ∥ SCAMPER"]
+    Start(["Step 5d 候選池匯流"]) --> Hub["Decision Hub<br/>TRIZ ∥ AA-seeded TRIZ"]
     Hub --> Adopt["RD 採納方案<br/>+ CCI 標籤 (Evolution/Weak/Patch)<br/>+ 橫向比較"]
 
     Adopt --> SimDedup["SIM 去重:<br/>扣除 SIM 已收斂 TC 對"]
@@ -336,7 +336,7 @@ flowchart TD
 | 5-0→5a | 以 AA 概念為 seed 啟動 TRIZ | Forward TRIZ (seeded) | Analyst + TRIZ Solver | Route: generated → seeded_to_triz; LayeredTrizSolution: — → generated | Appendix B + C |
 | 5a | 啟動 TRIZ 三路徑 | Forward TRIZ | TRIZ Solver | LayeredTrizSolution: — → generated | Appendix B |
 | 5b | 定義子系統 | Forward Subsystem Discovery | Analyst | Subsystem: — → Draft (3-level) | Appendix A |
-| 5c | SCAMPER 變形 | Forward Subsystem | TRIZ Solver + Knowledge | SCAMPER Candidate: — → generated | Appendix E |
+| ~~5c~~ | ~~SCAMPER 變形~~ | — | — | *(v9 移除)* | — |
 | 5d | Decision Hub 採納 | 決策中心 | Evaluator | SolutionCandidate: — → adopted | Appendix E |
 | 5e | MUST 快篩 | — | Evaluator | Concept Route: Draft → Reviewed | §11.2 逐步自動化分級 |
 | P | Pre-CAD 審查 | — | Evaluator + Human | Concept Route: Reviewed → Verified；**Phase II → III** | Appendix D |

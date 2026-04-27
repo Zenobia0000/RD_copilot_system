@@ -406,7 +406,7 @@ classDiagram
 ## 9. 附錄
 
 - **完整 schema 清單**：參考 `backend/app/models/schemas.py`（~80+ 類別），並透過 `/openapi.json` 檢視 OpenAPI。
-- **更詳細類別圖**：可按需拆分「SCAMPER 子圖」「Pre-CAD 評分子圖」等子系統類別圖 — `TBD — <be-lead TBD>`。
+- **更詳細類別圖**：可按需拆分「Pre-CAD 評分子圖」等子系統類別圖 — `TBD — <be-lead TBD>`。*(v9: SCAMPER 子圖已移除)*
 
 ---
 

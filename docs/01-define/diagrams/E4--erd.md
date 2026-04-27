@@ -59,7 +59,7 @@
 - `triz_solutions` — TRIZ 經典解矛盾輸出
 - `layered_triz_solutions` — v7 分層 drill-down（L1/L2/L3 JSONB，見 010 migration）
 - `subsystems` — 子系統樹（`parent_id` 自參照、interfaces）
-- `scamper_variants` — SCAMPER 七動作變體
+- ~~`scamper_variants`~~ — ~~SCAMPER 七動作變體~~ **(v9 移除 — TRIZ 40 原理完全覆蓋)**
 - `alternatives` — 備選方案（MUST/WANT scores、pre_cad_scores、CAD status）
 - `concept_routes` — 概念路線組合
 - `compatibility_pairs` — 解耦相容性檢查結果
@@ -204,7 +204,7 @@ erDiagram
     projects ||--o{ compatibility_pairs : has
     contradictions ||--o{ triz_solutions : "contradiction_id"
     subsystems ||--o{ subsystems : "parent_id"
-    subsystems ||--o{ scamper_variants : "subsystem_id"
+    %% subsystems ||--o{ scamper_variants : "subsystem_id"  %% v9 移除
 
     anti_anchor_routes {
         UUID id PK
@@ -238,11 +238,12 @@ erDiagram
         JSONB pre_cad_scores
         BOOLEAN overall_pass
     }
-    scamper_variants {
-        UUID id PK
-        UUID subsystem_id FK
-        TEXT action
-    }
+    %% scamper_variants — v9 移除（TRIZ 40 原理完全覆蓋）
+    %% scamper_variants {
+    %%     UUID id PK
+    %%     UUID subsystem_id FK
+    %%     TEXT action
+    %% }
     concept_routes {
         UUID id PK
         UUID project_id FK
@@ -396,7 +397,7 @@ erDiagram
 | 17 | `triz_solutions.project_id` / `contradiction_id`   | `projects.id` / `contradictions.id`| CASCADE / (default) |                               |
 | 18 | `layered_triz_solutions.project_id`                | `projects.id`                      | CASCADE       | migration 010；`contradiction_id` 是 TEXT FK-by-name |
 | 19 | `subsystems.project_id` / `parent_id`              | `projects.id` / `subsystems.id`    | CASCADE / (default) | 樹狀層級                      |
-| 20 | `scamper_variants.project_id` / `subsystem_id`     | `projects.id` / `subsystems.id`    | CASCADE / (default) |                               |
+| ~~20~~ | ~~`scamper_variants.project_id` / `subsystem_id`~~ | ~~`projects.id` / `subsystems.id`~~ | ~~CASCADE / (default)~~ | **(v9 移除)** |
 | 21 | `alternatives.project_id`                          | `projects.id`                      | CASCADE       |                                     |
 | 22 | `concept_routes.project_id`                        | `projects.id`                      | CASCADE       |                                     |
 | 23 | `compatibility_pairs.project_id`                   | `projects.id`                      | CASCADE       | `solution_a_id`/`solution_b_id` 是 TEXT FK-by-name |
@@ -432,7 +433,7 @@ erDiagram
 
 ### 5.1 統一 project-child 模式（24 張表）
 
-套用於：`briefs, constraints, kpis, socratic_questions, contradictions, assumptions, cld_nodes, cld_edges, anti_anchor_routes, triz_solutions, subsystems, scamper_variants, alternatives, concept_routes, compatibility_pairs, evidence_matrix, risks, decisions, want_criteria, want_scores, adverse_consequences, signatures, action_items, knowledge_entries`
+套用於：`briefs, constraints, kpis, socratic_questions, contradictions, assumptions, cld_nodes, cld_edges, anti_anchor_routes, triz_solutions, subsystems, alternatives, concept_routes, compatibility_pairs, evidence_matrix, risks, decisions, want_criteria, want_scores, adverse_consequences, signatures, action_items, knowledge_entries` *(v9: `scamper_variants` 已移除)*
 
 | Action | Policy                                                                                 |
 |--------|----------------------------------------------------------------------------------------|

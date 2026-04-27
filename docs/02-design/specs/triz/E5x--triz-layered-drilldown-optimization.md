@@ -146,7 +146,7 @@ TC 快速掃描（看有沒有現成原理可套）
 **詰問**：
 
 - 反向（Anti-Anchor 創意）與正向（TRIZ 演繹）的二分本身是對的。但是**正向路徑內部**的「演繹分層」（現象 → 本質 → 結構）在哪裡？
-- 主流程圖畫的是 F1（TRIZ）→ F2（子系統）→ F3（SCAMPER）**水平三步**。F1 內部的垂直深度（TC 淺層 → PC 深層 → SF 旁路結構診斷）**沒有任何機制**。
+- 主流程圖畫的是 F1（TRIZ）→ F2（子系統）→ 決策中心 **水平步驟** *(v9: F3 SCAMPER 已移除)*。F1 內部的垂直深度（TC 淺層 → PC 深層 → SF 旁路結構診斷）**沒有任何機制**。
 - RD 拿到一堆並列的 pending 候選，只能**在自己的腦袋裡做 drill-down** — 這違反了 Copilot「把專家思路工程化」的核心承諾。
 
 **診斷**：主流程有水平拆分，沒有垂直分層。F1 內部沒有「如果 TC 解顯然不夠深，自動觸發 PC 深挖」的邏輯。
@@ -383,7 +383,7 @@ LayeredTrizSolution:
 | §0 第一性原理               | **重寫** | 「為什麼三路徑不能同時收斂」論述錯誤。改為：「同矛盾多層 drill-down 是正常路徑；Phase B 的衝突應限縮為跨矛盾檢查」                                            |
 | §1 主流程圖                | 修訂     | F1 節點的產出標註改為 `LayeredTrizSolution[]`；決策中心的「RD 挑選：每矛盾選一條路徑」改為「RD 採納：分層組合或單層」                                    |
 | §3 Phase B 收斂邏輯        | 修訂     | 檢查項 5「同矛盾多路徑風險」改為「跨矛盾解法衝突（同矛盾的分層組合不計入）」                                                                        |
-| §5 SCAMPER 定位          | 不變     | 與本次診斷無關                                                                                                        |
+| ~~§5 SCAMPER 定位~~      | ~~不變~~ | *(v9: SCAMPER 已移除，§5 改為移除說明)*                                                                                  |
 | §7 完整狀態轉換表             | 修訂     | TRIZ 產出候選一列的「全部 pending」→「以 `LayeredTrizSolution` 聚合 pending」；決策中心選擇一列的「RD 挑選每矛盾一條路徑」→「RD 採納 drill-down 組合或單層」 |
 | §11（新增 v10 → v11 差異摘要） | 新增     | 完整列出分層化的變更                                                                                                     |
 
@@ -534,7 +534,7 @@ F2 行為變化：
 #### §8.1.1 與 `Forward_Subsystem_Discovery_Architecture.md`（F2 SA）的用語與資料銜接
 
 - **兩套「層級」不可混用**：本文件 **L1 / L2 / L3** 僅表示 **F1** 的 TC 現象層、PC 本質層、SF 結構旁路。F2 文件中的 **System / Module / Component** 是 **子系統樹階（tree tier）**；該文件已將 Mermaid 子圖改為「樹階 — …」標題，避免與本處代號對撞。
-- `**related_contradictions`（F2）**：以 **採納路線**（`adopted_route`，未採納前用 `recommended_route`）作為**主綁定**；同一 `LayeredTrizSolution` 內其餘層可進 `related_contradictions_context` 類欄位供說明，預設不當成 SCAMPER 影響範圍的多條互斥解。詳見 F2 文件 §6.4.4。
+- `**related_contradictions`（F2）**：以 **採納路線**（`adopted_route`，未採納前用 `recommended_route`）作為**主綁定**；同一 `LayeredTrizSolution` 內其餘層可進 `related_contradictions_context` 類欄位供說明，預設不當成影響範圍的多條互斥解。詳見 F2 文件 §6.4.4。*(v9: SCAMPER 影響範圍已無需計算)*
 - **Orchestrator 輸入**：F2 的 `suggest_subsystems` 請求體應優先攜帶 `layered_triz_solutions`（與 Brief）；僅有扁平 `contradictions` 時為向後相容路徑。
 
 ### §8.2 F1 → 候選方案決策中心

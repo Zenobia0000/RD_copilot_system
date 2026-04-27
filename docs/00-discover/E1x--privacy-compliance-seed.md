@@ -15,7 +15,7 @@
 |------|------|---------|------|
 | **客戶 IP (Customer Intellectual Property)** | 客戶上傳的設計文件、CAD 參數、專有技術資料 | **機密 (Confidential)** | 馬達規格書、減速機設計參數、專利相關描述 |
 | **設計決策紀錄 (Design Decision Records)** | 系統內產生的矛盾分析、KT 決策表、Evidence Matrix | **內部 (Internal)** | TRIZ 矛盾解法、方案比較表、假設台帳 |
-| **AI 生成內容 (AI-Generated Content)** | LLM 產出的建議、摘要、知識回寫內容 | **內部 (Internal)** | AI 建議的發明原理、SCAMPER 變形方案 |
+| **AI 生成內容 (AI-Generated Content)** | LLM 產出的建議、摘要、知識回寫內容 | **內部 (Internal)** | AI 建議的發明原理、TRIZ 候選方案 |
 | **使用遙測 (Usage Telemetry)** | 產品使用行為數據 (匿名化) | **一般 (General)** | 功能使用頻率、Session 時長、錯誤率 |
 
 ---

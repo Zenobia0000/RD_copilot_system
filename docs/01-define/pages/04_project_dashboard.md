@@ -47,7 +47,7 @@
 
 7. **project_timeline**
    - section_type: timeline
-   - section_purpose: 以時間軸呈現專案歷程事件（建立、Brief 確認、矛盾分析、TRIZ 解法、SCAMPER 變形、Pre-CAD 審查等）
+   - section_purpose: 以時間軸呈現專案歷程事件（建立、Brief 確認、矛盾分析、TRIZ 解法、子系統定義、Pre-CAD 審查等）
 
 8. **evidence_dialog**
    - section_type: modal_dialog
@@ -187,7 +187,7 @@
   - `useAntiAnchorRoutes(id)` → Anti-Anchor 非典型架構路線
   - `useTrizSolutions(id)` → TRIZ 解法（status, path: TC/PC/SF）
   - `useSubsystems(id)` → 子系統定義（name, confirmed）
-  - `useScamperVariants(id)` → SCAMPER 變異（adopted, newContradictions）
+  - ~~`useScamperVariants(id)`~~ → ~~SCAMPER 變異~~ **(v9 移除)**
   - `useAlternatives(id)` → 概念方案（name, mustScores, overallPass）
   - `useConceptRoutes(id)` → Concept Routes（type: composite/single）
   - `useTrackAssumptions(id)` → 假設追蹤（verificationStatus）

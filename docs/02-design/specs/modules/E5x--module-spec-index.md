@@ -29,9 +29,9 @@
 | 3   | `EvaluatorAgent`                             | `agents/evaluator.py`                           | MUST/WANT/AC 六維評分                 | Appendix D     | ✓ `[evaluator.md](evaluator.md)`                                  |
 | 4   | `TrizCriticAgent`                            | `agents/triz_critic.py`                         | L1 層信心度評估、觸發 drill-down           | Appendix B     | (subsumed by TrizSolver pilot)                                    |
 | 5   | `KnowledgeAgent` / `KnowledgeWritebackAgent` | `agents/knowledge.py`, `agents/knowledge_wb.py` | RAG + 知識回寫                        | Appendix A §3  | ✓ `[knowledge.md](knowledge.md)` (search + ingest; writeback TBD) |
-| 6   | `ScamperFeedbackAgent`                       | `agents/scamper_feedback.py`                    | SCAMPER → 新矛盾反饋                   | Appendix E     | ✓ `[scamper-feedback.md](scamper-feedback.md)`                    |
+| ~~6~~ | ~~`ScamperFeedbackAgent`~~                 | ~~`agents/scamper_feedback.py`~~                | ~~SCAMPER → 新矛盾反饋~~ **(v9 移除)** | Appendix E     | ~~`[scamper-feedback.md](scamper-feedback.md)`~~ (deprecated)     |
 | 7   | `AntiAnchorAgent`                            | (embedded in router `anti_anchor.py`)           | 反向路線生成                            | Appendix C     | ✓ `[anti-anchor.md](anti-anchor.md)`                              |
-| 8   | `SubsystemDecomposerAgent`                   | (service in `scamper.py` + `spatial_`*)         | 子系統發現與介面契約                        | Appendix A + E | ✓ `[subsystem-decomposer.md](subsystem-decomposer.md)`            |
+| 8   | `SubsystemDecomposerAgent`                   | (service in `subsystems.py` + `spatial_`*) *(v9: 原 `scamper.py`)* | 子系統發現與介面契約                        | Appendix A + E | ✓ `[subsystem-decomposer.md](subsystem-decomposer.md)`            |
 
 
 ### Backend Harness (`backend/app/harness/`) — v1.1 新增（ADR-006）

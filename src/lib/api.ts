@@ -632,39 +632,6 @@ export function suFieldAnalyze(body: SuFieldRequest) {
   return request<SuFieldResponse>("/triz/sufield", body, { timeoutMs: 300_000 });
 }
 
-// ─── SCAMPER ────────────────────────────────────────────────────────────────
-
-export interface ScamperTransformRequest {
-  project_id: string;
-  subsystem_name: string;
-  subsystem_description: string;
-  related_contradictions?: string[];
-  /** RD-confirmed 6-dim interface contracts keyed by neighbour name.
-   *  Optional so existing legacy call sites compile unchanged. When set,
-   *  the backend prompt tells the LLM to respect the contract boundaries
-   *  and to declare preserve/modify/break per dimension. (WBS 10.1) */
-  interface_contracts?: InterfaceContractMap;
-  /** Stable djb2 fingerprint of the contract snapshot at RD-confirm time.
-   *  Used by the FE to detect drift and block SCAMPER generation until
-   *  RD re-confirms the subsystem. */
-  contracts_hash?: string;
-}
-
-export interface ScamperVariantResult {
-  action: string;
-  description: string;
-  potential_benefits: string;
-  new_contradictions: string[];
-}
-
-export interface ScamperTransformResponse {
-  variants: ScamperVariantResult[];
-}
-
-export function scamperTransform(body: ScamperTransformRequest) {
-  return request<ScamperTransformResponse>("/scamper/perform", body);
-}
-
 // ─── Risk ───────────────────────────────────────────────────────────────────
 
 export interface RiskAnalyzeRequest {
@@ -993,7 +960,7 @@ export function assumptionExtract(body: AssumptionExtractRequest) {
   return request<AssumptionExtractResponse>("/assumptions/extract", body);
 }
 
-// ─── SCAMPER Subsystem Suggestions ─────────────────────────────────────────
+// ─── Subsystem Suggestions ────────────────────────────────────────────────
 
 export interface SubsystemSuggestRequest {
   project_id: string;
@@ -1019,14 +986,17 @@ export type {
   BBox,
 } from '@/types/generated/subsystem';
 
-export function scamperSubsystemSuggest(body: SubsystemSuggestRequest) {
-  return request<SubsystemSuggestResponse>("/scamper/subsystem-suggestions", body, { timeoutMs: 300_000 });
+export function subsystemSuggest(body: SubsystemSuggestRequest) {
+  return request<SubsystemSuggestResponse>("/subsystems/suggest", body, { timeoutMs: 300_000 });
 }
+
+/** @deprecated Use subsystemSuggest — kept for call-site migration. */
+export const scamperSubsystemSuggest = subsystemSuggest;
 
 // ─── Spatial Overlay / Override / Learned ──────────────────────────────────
 //
 // Matches the backend contracts in:
-//   - backend/app/routers/scamper.py    → POST /scamper/spatial-overlay
+//   - backend/app/routers/subsystems.py → POST /subsystems/spatial-overlay
 //   - backend/app/routers/spatial.py    → POST /spatial/component-overrides
 //                                       → POST /spatial/learned-components
 // The request/response shapes below mirror the Pydantic models in
@@ -1039,7 +1009,7 @@ export function scamperSubsystemSuggest(body: SubsystemSuggestRequest) {
 // handleOverlaySubmit) are responsible for translating between the dialog
 // payload and this request shape.
 //
-// `PackageMap` and `BBox` are both re-exported from the SCAMPER block above
+// `PackageMap` and `BBox` are both re-exported from the subsystem block above
 // (`export type { ..., PackageMap, BBox, ... }`) so they're already in scope
 // within this file.
 
@@ -1056,9 +1026,12 @@ export interface SpatialOverlayResponse {
   package_map: PackageMap;
 }
 
-export function scamperSpatialOverlay(body: SpatialOverlayRequest) {
-  return request<SpatialOverlayResponse>("/scamper/spatial-overlay", body, { timeoutMs: 60_000 });
+export function subsystemSpatialOverlay(body: SpatialOverlayRequest) {
+  return request<SpatialOverlayResponse>("/subsystems/spatial-overlay", body, { timeoutMs: 60_000 });
 }
+
+/** @deprecated Use subsystemSpatialOverlay — kept for call-site migration. */
+export const scamperSpatialOverlay = subsystemSpatialOverlay;
 
 export interface SpatialComponentOverrideRequest {
   project_id: string;
@@ -1097,23 +1070,6 @@ export interface SpatialLearnedComponentResponse {
 
 export function spatialLearnedComponent(body: SpatialLearnedComponentRequest) {
   return request<SpatialLearnedComponentResponse>("/spatial/learned-components", body);
-}
-
-// ─── SCAMPER Feedback Contradictions ───────────────────────────────────────
-
-export interface ScamperFeedbackRequest {
-  project_id: string;
-  new_contradictions: Record<string, unknown>[];
-}
-
-export interface ScamperFeedbackResponse {
-  created_count: number;
-  deduplicated_count: number;
-  contradiction_ids: string[];
-}
-
-export function scamperFeedbackContradictions(body: ScamperFeedbackRequest) {
-  return request<ScamperFeedbackResponse>("/scamper/feedback-contradictions", body);
 }
 
 // ─── Pre-CAD AI Analysis ───────────────────────────────────────────────────

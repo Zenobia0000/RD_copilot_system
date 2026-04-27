@@ -6,7 +6,6 @@ export interface CreateStepProgress {
   antiAnchor: AccordionStepStatus;
   triz: AccordionStepStatus;
   subsystem: AccordionStepStatus;
-  scamper: AccordionStepStatus;
   alternatives: AccordionStepStatus;
   must: AccordionStepStatus;
   preCad: AccordionStepStatus;
@@ -131,7 +130,7 @@ export {
 } from '@/types/generated/subsystem';
 
 // Alternative (concept route)
-export type AlternativeSource = 'triz_tc' | 'triz_pc' | 'triz_sf' | 'scamper' | 'manual' | 'ai_integrated' | 'anti_anchor';
+export type AlternativeSource = 'triz_tc' | 'triz_pc' | 'triz_sf' | 'manual' | 'ai_integrated' | 'anti_anchor';
 
 export interface Alternative {
   id: string;

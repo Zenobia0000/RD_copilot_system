@@ -14,7 +14,7 @@ from app.middleware.auth import get_current_user
 from app.middleware.error_handler import register_error_handlers
 from app.middleware.request_id import RequestIDMiddleware
 from app.routers import (
-    brief, socratic, cld, anti_anchor, triz, scamper,
+    brief, socratic, cld, anti_anchor, triz, scamper, subsystems,
     risk, action, convergence, must,
     contradictions, assumptions, pre_cad, want, gates, exports, knowledge_wb,
     validation, unknown_factors, spatial, observability,
@@ -80,7 +80,8 @@ app.include_router(contradictions.router, prefix=API_PREFIX, tags=["矛盾管理
 app.include_router(assumptions.router, prefix=API_PREFIX, tags=["假設台帳 assumptions"], dependencies=_auth)
 app.include_router(anti_anchor.router, prefix=API_PREFIX, tags=["方案管理 alternatives"], dependencies=_auth)
 app.include_router(triz.router, prefix=API_PREFIX, tags=["TRIZ 求解 triz"], dependencies=_auth)
-app.include_router(scamper.router, prefix=API_PREFIX, tags=["SCAMPER scamper"], dependencies=_auth)
+app.include_router(scamper.router, prefix=API_PREFIX, tags=["SCAMPER scamper (deprecated)"], dependencies=_auth)
+app.include_router(subsystems.router, prefix=API_PREFIX, tags=["子系統發現 subsystems"], dependencies=_auth)
 app.include_router(risk.router, prefix=API_PREFIX, tags=["風險登錄 risks"], dependencies=_auth)
 app.include_router(action.router, prefix=API_PREFIX, tags=["行動建議 actions"], dependencies=_auth)
 app.include_router(convergence.router, prefix=API_PREFIX, tags=["收斂掃描 convergence"], dependencies=_auth)

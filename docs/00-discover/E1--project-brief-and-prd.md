@@ -30,7 +30,7 @@
 ### 1.3 產品願景
 
 在產品開發早期階段（概念設計），協助 RD 團隊：
-- **結構化發散**：用 SCAMPER/TRIZ + Anti-Anchor Sprint 擴大可能性空間，打破路徑依賴
+- **結構化發散**：用 TRIZ + Anti-Anchor Sprint 擴大可能性空間，打破路徑依賴
 - **嚴格收斂**：用 KT Decision Analysis + Evidence Matrix 做可審查的決策
 - **最小驗證**：用假設台帳 + 最小實驗 + 證據補齊迴圈降低後期返工
 - **知識增強**：用企業知識庫 RAG + 網路文獻搜尋自動注入佐證
@@ -126,7 +126,7 @@
 | 痛點 | 現象 | 後果 |
 |------|------|------|
 | **經驗鎖定** | RD 傾向用熟悉的方案 | 錯過更好的架構 |
-| **腦內庫存有限** | 創意依賴個人經驗 | SCAMPER/TRIZ 問得出來，答不出來 |
+| **腦內庫存有限** | 創意依賴個人經驗 | TRIZ 問得出來，答不出來 |
 | **假設隱藏** | 前提沒被翻出來 | 後期才發現假設是錯的 |
 | **風險後置** | 問題拖到 prototype 才爆 | 返工成本最高 |
 | **決策不可追溯** | 當初為什麼選這個方案？ | 經驗無法沉澱 |
@@ -272,7 +272,7 @@
   - [ ] 若任一 MUST = Fail → UI 阻擋 "Sign & Pass Gate"
 
 #### UAT-09（對應 US-09）：Citation 可追溯
-- **Given** 頁面顯示任何 AI 建議（TRIZ / SCAMPER / Pre-CAD / Knowledge panel）
+- **Given** 頁面顯示任何 AI 建議（TRIZ / Pre-CAD / Knowledge panel）
 - **When** 使用者點 citation 標籤（KB-xxx 或 WEB-xxx）
 - **Then**：
   - [ ] 跳 side-panel 顯示 snippet、source_url（若 web）、retrieved_at

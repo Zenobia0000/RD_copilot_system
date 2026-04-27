@@ -150,7 +150,7 @@ OpenAPI 文件由 FastAPI runtime 自動產出，不再手寫 `openapi.yaml`。
 | 路徑 | 類型 | Owner | 上次審查 |
 |------|------|-------|----------|
 | `docs/_domain-knowledge/DK-01--design-philosophy-and-process.md` | Methodology | Tech Lead | 2026-04-21 |
-| `docs/_domain-knowledge/DK-02--triz-scamper-divergence-engine.md` | Methodology | Tech Lead | 2026-04-21 |
+| `docs/_domain-knowledge/DK-02--triz-scamper-divergence-engine.md` | Methodology (~~SCAMPER v9 移除~~) | Tech Lead | 2026-04-27 |
 | `docs/_domain-knowledge/DK-03--kt-decision-framework.md` | Methodology | Tech Lead | 2026-04-21 |
 | `docs/_domain-knowledge/DK-04--data-model-and-gate-reference.md` | Methodology | Tech Lead | 2026-04-21 |
 | `docs/01-define/VC00--workflow-manual.md` | Process | Tech Lead | 2026-04-15 |
@@ -168,7 +168,7 @@ OpenAPI 文件由 FastAPI runtime 自動產出，不再手寫 `openapi.yaml`。
 #### 1. Structure and Organization
 - 每份文件開頭 metadata 表：文件版本 / 最後更新 / 狀態 / 擁有者
 - H1 為文件主標題（對應檔名），H2 分章節
-- 內文使用繁體中文（面向內部）；專有名詞保留英文（TRIZ, SCAMPER, Supabase, RLS）
+- 內文使用繁體中文（面向內部）；專有名詞保留英文（TRIZ, Supabase, RLS）
 
 #### 2. Content Guidelines
 - **Be Concise**：E1 / E2 已壓縮至 PRD / SOW 核心；避免重複
@@ -280,7 +280,7 @@ v1.0 先落地 M1-M4（皆可從 repo 量測，無須外部平台）；M5 於 Mk
 graph TD
     A[Brief] --> B[Socratic]
     B --> C[Contradiction]
-    C --> D[TRIZ / SCAMPER]
+    C --> D[TRIZ]
     D --> E[Gate]
 ```
 

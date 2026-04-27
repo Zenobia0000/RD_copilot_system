@@ -13,7 +13,7 @@
 | 階段 | 目的 | 涵蓋頁面 |
 |------|------|----------|
 | **Define** | 釐清任務、提取約束條件與 KPI、發現隱藏假設 | Dashboard, Brief |
-| **Diverge** | 產生多元方案、TRIZ 求解、SCAMPER 變形 | Explore, Track |
+| **Diverge** | 產生多元方案、TRIZ 求解、子系統定義 *(v9: SCAMPER 已移除)* | Explore, Track |
 | **Converge** | MUST/WANT 評估、Pre-CAD 審查、風險分析、最終決策 | Create, Review, Decide |
 
 ---
@@ -130,8 +130,8 @@ Docker Compose 會同時啟動前後端服務，無需分別安裝依賴。
 操作步驟：
 1. 使用「Anti-Anchor Sprint」產生 3+ 個非典型方案，打破路徑依賴
 2. 對每個矛盾使用 TRIZ 求解（TC 或 PC 路徑）
-3. 選擇子系統進行 SCAMPER 7 動作變形
-4. SCAMPER 發現的新矛盾自動回饋至矛盾清單
+3. ~~選擇子系統進行 SCAMPER 7 動作變形~~ *(v9: 已移除，TRIZ 40 原理完全覆蓋)*
+4. ~~SCAMPER 發現的新矛盾自動回饋至矛盾清單~~ *(v9: 已移除)*
 5. Gate 2.2 檢查：方案 >= 3
 
 ### 3.6 Review（審查）
@@ -229,7 +229,7 @@ Evidence（證據）是支持假設驗證、KPI 達成的關鍵資料。可從�
 
 ### Q3: LLM 回應超時怎麼辦？
 
-AI 呼叫（如 TRIZ 求解、SCAMPER 變形）可能因 Anthropic API 回應延遲而超時。解決方式：
+AI 呼叫（如 TRIZ 求解、子系統建議）可能因 Anthropic API 回應延遲而超時。解決方式：
 
 1. **重試**：大多數情況下重新點擊即可成功
 2. **檢查 API Key**：確認 `.env` 中的 `ANTHROPIC_API_KEY` 正確且有足夠額度

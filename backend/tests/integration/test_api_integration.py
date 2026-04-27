@@ -126,6 +126,8 @@ _SCAMPER_RESPONSE = json.dumps({
         },
     ],
 })
+# NOTE: _SCAMPER_RESPONSE kept for backward-compat test of scamper_transform()
+# internal function. The /scamper/perform endpoint has been removed.
 
 _MUST_EVAL_RESPONSE = json.dumps({
     "criteria_results": [
@@ -241,14 +243,17 @@ class TestPhase1Flow:
 
 
 class TestPhase2Flow:
-    """End-to-end Phase 2: solve TRIZ, SCAMPER transform, MUST evaluate."""
+    """End-to-end Phase 2: solve TRIZ, MUST evaluate.
+
+    SCAMPER step removed — TRIZ 40 principles now cover all SCAMPER actions.
+    """
 
     @patch("app.agents.evaluator.call_llm_json")
     @patch("app.agents.triz_solver.call_llm_json")
     @patch("app.agents.triz_solver.lookup_matrix", return_value=[35, 1, 28])
     @patch("app.agents.triz_solver.build_triz_tc_context", return_value="<tc_context>")
     def test_full_phase2_flow(self, mock_tc_ctx, mock_matrix, mock_triz_llm, mock_eval_llm, client):
-        """Chain: TRIZ solve -> SCAMPER -> MUST evaluate."""
+        """Chain: TRIZ solve -> MUST evaluate."""
 
         # Step 1: Solve TRIZ contradiction
         mock_triz_llm.return_value = _TRIZ_TC_RESPONSE
@@ -265,25 +270,9 @@ class TestPhase2Flow:
         assert len(triz_result["suggestions"]) >= 1
         assert triz_result["candidate_principles"] == [35, 1, 28]
 
-        # Step 2: SCAMPER transform on affected subsystem
-        mock_triz_llm.return_value = _SCAMPER_RESPONSE
-        affected_module = triz_result["suggestions"][0]["affected_modules"][0]
-        resp2 = client.post("/api/v1/scamper/perform", json={
-            "project_id": "proj-integration-2",
-            "subsystem_name": affected_module,
-            "subsystem_description": "Motor stator with copper windings",
-            "related_contradictions": ["Weight vs power density"],
-        })
-        assert resp2.status_code == 200
-        scamper_result = resp2.json()
-        assert len(scamper_result["variants"]) == 2
-        actions = {v["action"] for v in scamper_result["variants"]}
-        assert "Substitute" in actions
-        assert "Combine" in actions
-
-        # Step 3: MUST evaluation on proposed alternative
+        # Step 2: MUST evaluation on proposed alternative
         mock_eval_llm.return_value = _MUST_EVAL_RESPONSE
-        resp3 = client.post("/api/v1/must/evaluate", json={
+        resp2 = client.post("/api/v1/must/evaluate", json={
             "project_id": "proj-integration-2",
             "alternative_name": "High-density aluminium winding motor",
             "mechanism": "Replace copper with aluminium, integrate controller",
@@ -304,37 +293,11 @@ class TestPhase2Flow:
             "constraints": ["Rated power >= 250W", "Weight <= 4kg"],
             "kpis": ["Efficiency >= 92%"],
         })
-        assert resp3.status_code == 200
-        must_result = resp3.json()
+        assert resp2.status_code == 200
+        must_result = resp2.json()
         assert must_result["overall_pass"] is True
         assert len(must_result["criteria_results"]) == 2
         assert all(cr["passed"] for cr in must_result["criteria_results"])
-
-    @patch("app.agents.triz_solver.call_llm_json")
-    @patch("app.agents.triz_solver.lookup_matrix", return_value=[35])
-    @patch("app.agents.triz_solver.build_triz_tc_context", return_value="<ctx>")
-    def test_triz_to_scamper_data_flows(self, mock_ctx, mock_matrix, mock_llm, client):
-        """Verify TRIZ output feeds correctly into SCAMPER input."""
-        mock_llm.return_value = _TRIZ_TC_RESPONSE
-        resp1 = client.post("/api/v1/triz/solve", json={
-            "project_id": "p3",
-            "contradiction_id": "c1",
-            "natural_description": "Test",
-            "improving_param": 9,
-            "worsening_param": 1,
-            "type": "TC",
-        })
-        triz = resp1.json()
-        secondary = triz["suggestions"][0].get("secondary_contradictions", [])
-
-        mock_llm.return_value = _SCAMPER_RESPONSE
-        resp2 = client.post("/api/v1/scamper/perform", json={
-            "project_id": "p3",
-            "subsystem_name": triz["suggestions"][0]["affected_modules"][0],
-            "subsystem_description": "Test subsystem",
-            "related_contradictions": secondary,
-        })
-        assert resp2.status_code == 200
 
 
 # ---------------------------------------------------------------------------
@@ -386,8 +349,8 @@ class TestCrossPhaseEdgeCases:
 
     @patch("app.agents.triz_solver.call_llm_json")
     @patch("app.agents.triz_solver.build_triz_pc_context", return_value="<ctx>")
-    def test_triz_pc_then_scamper(self, mock_ctx, mock_llm, client):
-        """PC path TRIZ result also feeds into SCAMPER correctly."""
+    def test_triz_pc_solve(self, mock_ctx, mock_llm, client):
+        """PC path TRIZ solve returns suggestions with affected modules."""
         mock_llm.return_value = json.dumps({
             "suggestions": [
                 {
@@ -409,13 +372,5 @@ class TestCrossPhaseEdgeCases:
         })
         assert resp1.status_code == 200
         triz = resp1.json()
-
-        mock_llm.return_value = _SCAMPER_RESPONSE
-        resp2 = client.post("/api/v1/scamper/perform", json={
-            "project_id": "p6",
-            "subsystem_name": triz["suggestions"][0]["affected_modules"][0],
-            "subsystem_description": "Motor housing with thermal management",
-            "related_contradictions": [triz["suggestions"][0]["suggestion"]],
-        })
-        assert resp2.status_code == 200
-        assert len(resp2.json()["variants"]) > 0
+        assert len(triz["suggestions"]) >= 1
+        assert triz["suggestions"][0]["affected_modules"] == ["housing"]

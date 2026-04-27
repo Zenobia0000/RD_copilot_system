@@ -27,10 +27,10 @@
 - 決定 E2E 是對真後端還是 stub：
   - **(a) 真後端**：需要 `.env.test`、seed Supabase schema、LLM mock（Anthropic 測試 key 或 httpx hook）
   - **(b) MSW（推薦）**：瀏覽器端攔截 `fetch` 讓 E2E 不依賴 backend 實例
-- 若選 (b)：`src/mocks/handlers.ts` 定義 `POST /scamper/subsystem-suggestions` 等 endpoint 的 canned 回應
+- 若選 (b)：`src/mocks/handlers.ts` 定義 `POST /subsystems/suggest` 等 endpoint 的 canned 回應 *(v9: 原 `/scamper/subsystem-suggestions`)*
 - 若選 (a)：建立 `backend/scripts/seed_e2e.py` 產生固定 brief / contradictions / project
 
-### 必測流程（從 WBS 11.3 原始描述：Suggest → Map → Override → Confirm → SCAMPER enabled）
+### 必測流程（從 WBS 11.3 原始描述：Suggest → Map → Override → Confirm → 決策中心 enabled）*(v9: 原 SCAMPER enabled)*
 
 1. **登入 / 進 project**
   - 已有 `id` 的 project landing 頁可直達 `/create?projectId=...`
@@ -38,7 +38,7 @@
   - 用 canned brief + 至少 1 個矛盾跳到 Tab ②
 3. **Suggest**
   - 點「AI 建議子系統」
-  - 等待 `POST /scamper/subsystem-suggestions` 完成
+  - 等待 `POST /subsystems/suggest` 完成 *(v9: 原 `/scamper/subsystem-suggestions`)*
   - 斷言三層樹渲染、至少 1 個 module 可見
 4. **Package Map**
   - 斷言 `PackageMapPanel` 的 inline SVG 存在
@@ -49,16 +49,16 @@
   - 斷言該 module 的 badge 變「RD 簽核」或 reference_source 有 `rd_override:` 前綴
 6. **Confirm**
   - 勾選 ≥1 個 module 的 confirmed checkbox
-7. **SCAMPER 解鎖**
+7. **決策中心解鎖** *(v9: 原 SCAMPER 解鎖)*
   - 斷言「下一步」按鈕 `disabled === false`
-  - 點下一步，斷言成功進入 step 3 `renderScamper()`
+  - 點下一步，斷言成功進入決策中心步驟
 
 ### 次要流程
 
 - Overlay 對話框開啟 → 填 zone → 試算 → 關閉 → 主 Package Map 不變
 - 推升 learned → toast 成功
 - 無 spatial 資料時 PackageMapPanel 顯示佔位符不報錯
-- SCAMPER 解鎖閘：未確認任何 module 時「下一步」`disabled === true` + 提示文字
+- 決策中心解鎖閘：未確認任何 module 時「下一步」`disabled === true` + 提示文字 *(v9: 原 SCAMPER 解鎖閘)*
 
 ### 非功能性
 
@@ -83,7 +83,7 @@
 
 ## 依賴
 
-- 本 WBS 10.1（SCAMPER 讀契約）完成後 E2E 流程才能走到最後一步的 enabled 斷言
+- 本 WBS 10.1（決策中心讀契約，v9: 原 SCAMPER）完成後 E2E 流程才能走到最後一步的 enabled 斷言
 - 本 WBS 10.3（PreCadReview wiring）若未完成，Pre-CAD 相關 E2E 需 skip 或僅測 trace 為 null 的佔位表現
 
 ---

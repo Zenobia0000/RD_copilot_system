@@ -53,10 +53,10 @@
 │                                                                              │
 │   POST  /triz/solve-layered         → LayeredTrizSolution                    │
 │   POST  /triz/phase-b               → 跨矛盾交叉檢查                         │
-│   POST  /scamper/subsystem-suggestions → SuggestedSubsystem[]                │
+│   POST  /subsystems/suggest          → SuggestedSubsystem[] (v9: 原 /scamper/) │
 │   PATCH /subsystems/{id}            → RD edit / confirm                      │
 │   POST  /explore/tc-decompose       → MultiPC tree                           │
-│   POST  /export, /knowledge/writeback, /scamper/feedback                     │
+│   POST  /export, /knowledge/writeback                                        │
 │   ...                                                                        │
 │                                                                              │
 │   Pydantic schemas (single source of truth)                                  │
@@ -83,7 +83,7 @@
 | Spec | 解決的問題 | 對應前端區塊 | 對應後端端點 |
 |------|-----------|-------------|-------------|
 | [`specs/explore/E5x--tc-to-multipc-type-alignment.md`](specs/explore/E5x--tc-to-multipc-type-alignment.md) | Backend Pydantic ↔ Frontend TS 欄位對照 | 全域 adapter 層 | (型別契約) |
-| [`specs/explore/E5x--subsystem-persistence-policy.md`](specs/explore/E5x--subsystem-persistence-policy.md) | 凍結「誰寫 `subsystems` 表」，防雙寫競態 | Create Tab ② useSubsystemSuggestion | `/scamper/subsystem-suggestions` |
+| [`specs/explore/E5x--subsystem-persistence-policy.md`](specs/explore/E5x--subsystem-persistence-policy.md) | 凍結「誰寫 `subsystems` 表」，防雙寫競態 | Create Tab ② useSubsystemSuggestion | `/subsystems/suggest` *(v9: 原 `/scamper/subsystem-suggestions`)* |
 | [`specs/explore/E5x--three-tier-tree-review-checklist.md`](specs/explore/E5x--three-tier-tree-review-checklist.md) | 三層樹 + 六維契約 PR review 清單 | Create Tab ④ | (review gate) |
 
 ### §3.3 UX / IA

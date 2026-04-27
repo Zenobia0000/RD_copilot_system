@@ -2,8 +2,8 @@
 
 Locks the wire contract for four FastAPI endpoints that the FE depends on:
 
-    POST /scamper/subsystem-suggestions
-    POST /scamper/spatial-overlay
+    POST /subsystems/suggest             (migrated from /scamper/subsystem-suggestions)
+    POST /subsystems/spatial-overlay     (migrated from /scamper/spatial-overlay)
     POST /spatial/component-overrides
     POST /spatial/learned-components
 
@@ -13,7 +13,7 @@ The goal is NOT to re-test business logic — that belongs in
 1. If anyone renames a request/response field (e.g. ``component_key`` →
    ``componentKey``) the schema snapshot will fail loudly.
 2. If the response envelope shape changes (e.g. someone returns a bare
-   ``PackageMap`` from ``/scamper/spatial-overlay`` instead of
+   ``PackageMap`` from ``/subsystems/spatial-overlay`` instead of
    ``{package_map: PackageMap}``) the field-level guard will fail.
 3. The router happy-path must remain callable with a realistic payload and
    the body must parse cleanly back into the declared response model.
@@ -160,7 +160,7 @@ def _make_supabase_stub(existing_learned_rows=None):
 
 
 class TestSubsystemSuggestionsContract:
-    """Lock the wire contract for POST /scamper/subsystem-suggestions."""
+    """Lock the wire contract for POST /subsystems/suggest."""
 
     # v7 (WBS 11.1): added optional `layered_triz_solutions` field on top of
     # the legacy shape. Default value is an empty list, so legacy callers stay
@@ -216,11 +216,11 @@ class TestSubsystemSuggestionsContract:
     def test_happy_path_round_trip(self, client):
         canned = _canned_suggestion_response()
         with patch(
-            "app.routers.scamper.suggest_subsystems",
+            "app.routers.subsystems.suggest_subsystems",
             return_value=canned,
         ) as stub:
             r = client.post(
-                f"{API}/scamper/subsystem-suggestions",
+                f"{API}/subsystems/suggest",
                 json=self.EXPECTED_REQUEST,
             )
         assert r.status_code == 200, r.text
@@ -234,11 +234,11 @@ class TestSubsystemSuggestionsContract:
         """Fields the FE reads directly — any rename breaks the UI."""
         canned = _canned_suggestion_response()
         with patch(
-            "app.routers.scamper.suggest_subsystems",
+            "app.routers.subsystems.suggest_subsystems",
             return_value=canned,
         ):
             body = client.post(
-                f"{API}/scamper/subsystem-suggestions",
+                f"{API}/subsystems/suggest",
                 json=self.EXPECTED_REQUEST,
             ).json()
 
@@ -262,7 +262,7 @@ class TestSubsystemSuggestionsContract:
 
 
 class TestSpatialOverlayContract:
-    """Lock the wire contract for POST /scamper/spatial-overlay.
+    """Lock the wire contract for POST /subsystems/spatial-overlay.
 
     Critical: the response MUST be wrapped as ``{package_map: PackageMap}``,
     not a bare ``PackageMap``.
@@ -308,14 +308,14 @@ class TestSpatialOverlayContract:
     def test_happy_path_round_trip(self, client):
         canned_pkg = _canned_package_map()
         with patch(
-            "app.routers.scamper.discover_package",
+            "app.routers.subsystems.discover_package",
             return_value=canned_pkg,
         ) as discover_stub, patch(
-            "app.routers.scamper.apply_overlay",
+            "app.routers.subsystems.apply_overlay",
             return_value=canned_pkg,
         ) as overlay_stub:
             r = client.post(
-                f"{API}/scamper/spatial-overlay",
+                f"{API}/subsystems/spatial-overlay",
                 json={
                     "project_id": "p1",
                     "subsystems": [],
@@ -331,14 +331,14 @@ class TestSpatialOverlayContract:
     def test_regression_guard_wrapped_not_bare(self, client):
         """If someone ever returns the PackageMap unwrapped this blows up."""
         with patch(
-            "app.routers.scamper.discover_package",
+            "app.routers.subsystems.discover_package",
             return_value=_canned_package_map(),
         ), patch(
-            "app.routers.scamper.apply_overlay",
+            "app.routers.subsystems.apply_overlay",
             return_value=_canned_package_map(),
         ):
             body = client.post(
-                f"{API}/scamper/spatial-overlay",
+                f"{API}/subsystems/spatial-overlay",
                 json={"project_id": "p1", "subsystems": [], "overlay": {}},
             ).json()
         # Top-level must have exactly "package_map" — no bare "nodes" leak

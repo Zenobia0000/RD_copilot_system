@@ -94,9 +94,6 @@ export type {
   TrizSolution,
   SubsystemSource,
   Subsystem,
-  ScamperAction,
-  ScamperNewContradiction,
-  ScamperVariant,
   InterfaceContract,
   AlternativeSource,
   Alternative,
@@ -104,7 +101,6 @@ export type {
   CreateGateItem,
 } from './create';
 export {
-  SCAMPER_LABELS,
   INTERFACE_CONTRACT_DIMS,
   EMPTY_INTERFACE_CONTRACT,
   DEFAULT_MUST_CRITERIA,

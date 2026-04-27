@@ -32,13 +32,13 @@
 **目的**：本手冊提供 RD Design Copilot 專案的頂層開發導航，把 BDD/DDD/Clean Architecture/TDD 融入 5D gate 體系。
 
 本專案的「為何 → 什麼 → 如何」對應：
-- **為何 (Why)**：解決 RD 在 TRIZ/SCAMPER/KT 方法論上的操作障礙——見 [`E1--project-brief-and-prd`](../00-discover/E1--project-brief-and-prd.md) 與 [`E1x--user-journey-map`](../00-discover/E1x--user-journey-map.md)。
+- **為何 (Why)**：解決 RD 在 TRIZ/KT 方法論上的操作障礙——見 [`E1--project-brief-and-prd`](../00-discover/E1--project-brief-and-prd.md) 與 [`E1x--user-journey-map`](../00-discover/E1x--user-journey-map.md)。
 - **什麼 (What)**：使用者在 Forward TRIZ / Reverse Anti-Anchor / Pre-CAD 三場景取得可用解——見 [`E3x--system-interaction-flow`](../01-define/E3x--system-interaction-flow.md)。
 - **如何 (How)**：以 BaaS-first（ADR-001）+ Server-side logic（ADR-002）+ LLM hardening（ADR-003）+ QA/DevOps（ADR-004）+ Harness Architecture（ADR-006）+ Auto-TRIZ v2（ADR-008）實現——見 [`01-define/adrs/`](../01-define/adrs/)。
 
 **品質內建原則**：Pre-CAD Gate、MUST Rulebook、Evidence Matrix 三層 review，見 [`02-design/specs/review-templates/`](../02-design/_MOC.md)。
 
-**AI 輔助就緒**：_domain-knowledge/ 驅動 AI Agent（[DK-01 流程](../_domain-knowledge/DK-01--design-philosophy-and-process.md)、[DK-02 TRIZ/SCAMPER](../_domain-knowledge/DK-02--triz-scamper-divergence-engine.md)、[DK-03 KT 決策](../_domain-knowledge/DK-03--kt-decision-framework.md)、[DK-04 資料模型](../_domain-knowledge/DK-04--data-model-and-gate-reference.md)）。
+**AI 輔助就緒**：_domain-knowledge/ 驅動 AI Agent（[DK-01 流程](../_domain-knowledge/DK-01--design-philosophy-and-process.md)、[DK-02 TRIZ](../_domain-knowledge/DK-02--triz-scamper-divergence-engine.md)、[DK-03 KT 決策](../_domain-knowledge/DK-03--kt-decision-framework.md)、[DK-04 資料模型](../_domain-knowledge/DK-04--data-model-and-gate-reference.md)）。
 
 ---
 
@@ -69,7 +69,7 @@
         *   B · Forward TRIZ Solver Architecture
         *   C · Reverse Anti-Anchor Architecture
         *   D · State Machine
-        *   E · TRIZ → SCAMPER Flow
+        *   E · TRIZ Flow（~~SCAMPER v9 移除~~）
     *   **SoW**：[`01-define/E2--statement-of-work.md`](../01-define/E2--statement-of-work.md) (Approved, TR2 passed)
     *   **架構決策記錄 (ADR)**：[`01-define/adrs/`](../01-define/adrs/)
         *   ADR-001 BaaS-First Architecture

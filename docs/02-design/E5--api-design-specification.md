@@ -51,7 +51,7 @@
 ## 2. 設計原則與約定 (Design Principles and Conventions)
 
 ### 2.1 API 風格
-- **風格**：RESTful + 部分 RPC-flavored (`/triz/solve-layered`, `/scamper/perform`)。
+- **風格**：RESTful + 部分 RPC-flavored (`/triz/solve-layered`)。
 - **核心原則**：資源導向（`/subsystems/{id}`、`/contradictions/{cid}`）；AI 計算類端點使用動詞命名。
 
 ### 2.2 基本 URL (Base URL)
@@ -210,13 +210,16 @@ ISO 8601 + UTC（e.g. `2026-04-15T10:00:00Z`）。
 
 > **ADR-007 (2026-04-15)**: `/triz/solve-layered` 若 request 缺 `sf_substance_1/2`、`sf_field`、`physical_contradiction` 欄位，後端於 agent 入口**自動派生**（`analyst.derive_su_field_from_tc` + `analyst.decompose_tc_to_pcs`）。派生產物僅於本次 response 回傳，**不回寫** `contradictions` 表。若 SF 派生失敗，L3 降級為 warning，L1/L2 不受影響。詳見 [ADR-007](../01-define/adrs/ADR-007-tc-only-explore-pc-sf-derivation-in-create.md) 與 E3 Appendix B §B.0。
 
-### 7.6 資源：SCAMPER / Subsystem (`scamper.py`)
-| Method | Path | Response |
-|---|---|---|
-| POST | `/scamper/perform` | `ScamperResponse` |
-| POST | `/scamper/subsystem-suggestions` | `SubsystemSuggestResponse` |
-| POST | `/scamper/spatial-overlay` | `SpatialOverlayResponse` |
-| POST | `/scamper/feedback-contradictions` | `ScamperFeedbackResponse` |
+### 7.6 資源：Subsystem（原 `scamper.py`，v9 重構）
+
+> **v9 變更**：SCAMPER 已移除（其 7 動作為 TRIZ 40 原理子集）。`/scamper/perform` 與 `/scamper/feedback-contradictions` 已 **REMOVED**。子系統相關端點遷移至 `/subsystems/`。
+
+| Method | Path | Response | 狀態 |
+|---|---|---|---|
+| ~~POST~~ | ~~`/scamper/perform`~~ | ~~`ScamperResponse`~~ | **REMOVED** (v9) |
+| ~~POST~~ | ~~`/scamper/feedback-contradictions`~~ | ~~`ScamperFeedbackResponse`~~ | **REMOVED** (v9) |
+| POST | `/subsystems/suggest` | `SubsystemSuggestResponse` | 遷移自 `/scamper/subsystem-suggestions` |
+| POST | `/subsystems/spatial-overlay` | `SpatialOverlayResponse` | 遷移自 `/scamper/spatial-overlay` |
 
 ### 7.7 資源：Anti-Anchor / Validation (`anti_anchor.py`, `validation.py`)
 | Method | Path | Response |
@@ -309,7 +312,7 @@ ISO 8601 + UTC（e.g. `2026-04-15T10:00:00Z`）。
 | `SolveTrizLayeredRequest/Response` | 主 TRIZ 端點 I/O | `schemas.py` L659/679 |
 | `AntiAnchorRoute` / `AntiAnchorResponse` | 反向路線 | `schemas.py` L376/392 |
 | `ValidationPassport` | 假設清單 | `schemas.py` L356 |
-| `ScamperVariant` / `ScamperResponse` | SCAMPER 變體 | `schemas.py` L708/727 |
+| ~~`ScamperVariant` / `ScamperResponse`~~ | ~~SCAMPER 變體~~ | *(v9 移除)* |
 | `CldNode/Edge/Loop/Breakpoint` | 因果迴圈圖 | `schemas.py` L280–299 |
 
 ### 8.1b 新增 Schema 索引 (Auto-TRIZ v2 新增)
@@ -352,7 +355,7 @@ class LayeredTrizSolution(BaseModel):
 |---|---|
 | Brief / TaskDef / Socratic / CLD | GA |
 | TRIZ (solve, solve-layered, sufield) | GA |
-| SCAMPER / Subsystem Suggestions | Beta |
+| ~~SCAMPER~~ (v9 移除) / Subsystem Suggestions | Beta → 遷移至 `/subsystems/` |
 | Anti-Anchor / Validation Passport | Beta |
 | Spatial Overlay / Learn | Alpha |
 | Analyst v2 (5Why / KT / FA / OZ-OT / Entry Grading) | Beta (Auto-TRIZ v2) |

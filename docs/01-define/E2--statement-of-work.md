@@ -11,7 +11,7 @@
 RD Design Copilot v1.0 — AI 驅動的早期概念設計決策平台
 
 ### 1.2 一句話定義
-> 將 SCAMPER/TRIZ 發散、KT Decision Analysis 收斂、矛盾收斂圖完全收斂、8-Gate 證據驅動，整合為一套結構化設計流程，使 Pre-CAD 階段的信心可量化、決策可追溯、知識可沉澱。
+> 將 TRIZ 發散、KT Decision Analysis 收斂、矛盾收斂圖完全收斂、8-Gate 證據驅動，整合為一套結構化設計流程，使 Pre-CAD 階段的信心可量化、決策可追溯、知識可沉澱。
 
 ### 1.3 核心問題 (量化)
 
@@ -102,8 +102,8 @@ RD Design Copilot v1.0                              狀態     完成日
 │   ├── WP-3.1: 假設台帳 + Unknown Factors          ✅ Done   2026-03-11
 │   ├── WP-3.2: Anti-Anchor Sprint                  ✅ Done   2026-03-11
 │   ├── WP-3.3: TRIZ 統一求解引擎 ★               ✅ Done   2026-03-11
-│   ├── WP-3.4: 子系統建議 + SCAMPER 變形           ✅ Done   2026-03-11
-│   ├── WP-3.5: 矛盾回饋迴路 (SCAMPER→TRIZ)       ✅ Done   2026-03-13
+│   ├── WP-3.4: 子系統建議                           ✅ Done   2026-03-11  *(v9: SCAMPER 變形移除)*
+│   ├── WP-3.5: ~~矛盾回饋迴路 (SCAMPER→TRIZ)~~     ✅ Done   2026-03-13  *(v9: SCAMPER 移除，功能由 TRIZ L1/L2/L3 覆蓋)*
 │   ├── WP-3.6: 方案集合 + Interface Contract       ✅ Done   2026-03-11
 │   ├── WP-3.7: MUST 快篩 (M1-M6)                  ✅ Done   2026-03-11
 │   ├── WP-3.8: Pre-CAD 5D 審查 + AI 分析          ✅ Done   2026-03-11
@@ -123,7 +123,7 @@ RD Design Copilot v1.0                              狀態     完成日
 │   ├── WP-5.1: Brief 頁 (任務定義)                ✅ Done   2026-03-11
 │   ├── WP-5.2: Explore 頁 (蘇格拉底 + CLD)        ✅ Done   2026-03-11
 │   ├── WP-5.3: Track 頁 (假設台帳 Kanban)         ✅ Done   2026-03-12
-│   ├── WP-5.4: Create 頁 (TRIZ + SCAMPER + MUST)  ✅ Done   2026-03-11
+│   ├── WP-5.4: Create 頁 (TRIZ + MUST)             ✅ Done   2026-03-11  *(v9: SCAMPER tab 移除)*
 │   ├── WP-5.5: Review 頁 (證據矩陣 + 風險)        ✅ Done   2026-03-12
 │   └── WP-5.6: Decide 頁 (WANT + KT 決策 + 匯出) ✅ Done   2026-03-11
 │
@@ -202,8 +202,8 @@ WP-9: Harness Architecture (ADR-006)                  ⚡ 152/176h (86%)
 | 3.1 | 假設台帳 + Unknown Factors | Assumption CRUD + PDCA 狀態機 + disprove 影響分析 + U 因子 CRUD | BE | 4d | 2.5 | ✓ 可與 3.2 並行 |
 | 3.2 | Anti-Anchor Sprint | `POST /alternatives/anti-anchor` + 3 非典型架構生成 prompt | BE | 3d | 2.5 | ✓ 可與 3.1 並行 |
 | 3.3 | TRIZ 統一求解引擎 | `POST /triz/solve` → 分類(TC/PC/SF) + 參數映射 + 矩陣查表 + 三路徑實例化 | BE | 8d | 1.3, 2.4 | |
-| 3.4 | 子系統建議 + SCAMPER | `GET /scamper/subsystem-suggestions` + `POST /scamper/perform` (7 動作 × N 子系統) | BE | 4d | 3.3 | |
-| 3.5 | 矛盾回饋迴路 | `POST /scamper/feedback-contradictions` → 去重 → 自動建 Contradiction → 回饋 TRIZ | BE | 3d | 3.4 | |
+| 3.4 | 子系統建議 | `POST /subsystems/suggest` *(v9: `/scamper/perform` 移除，`/scamper/subsystem-suggestions` 遷移至 `/subsystems/suggest`)* | BE | 4d | 3.3 | |
+| ~~3.5~~ | ~~矛盾回饋迴路~~ | ~~`POST /scamper/feedback-contradictions`~~ **(v9 移除 — TRIZ L1/L2/L3 完全覆蓋)** | BE | 3d | 3.4 | |
 | 3.6 | 方案集合 + Interface Contract | Alternative CRUD + mechanism/assumptions/risks/robust_scores + 6 維 Interface Contract | BE | 3d | 3.4, 3.5 | |
 | 3.7 | MUST 快篩 (M1-M6) | `POST /must/evaluate` + 6 條規則引擎 + Go/No-Go 結果 | BE | 3d | 3.6 | |
 | 3.8 | Pre-CAD 5D 審查 | `POST /pre-cad-reviews` + `POST /{id}/ai-analyze` + 5 維度 1-5 分 + radar chart data | BE | 4d | 3.7 | |
@@ -231,7 +231,7 @@ WP-9: Harness Architecture (ADR-006)                  ⚡ 152/176h (86%)
 | 5.1 | Brief 頁 | Mission 輸入、約束表、KPI 列表、AI 任務定義生成 | FE | 4d | 5.0, 2.1 | ✓ |
 | 5.2 | Explore 頁 | 蘇格拉底 Q&A tabs、矛盾列表、互動式 CLD 圖、斷路點標記 | FE | 6d | 5.0, 2.4 | ✓ 可與 5.1 並行 |
 | 5.3 | Track 頁 | 假設 Kanban (4 欄拖拉)、Unknown Factors 列表、PDCA 面板 | FE | 5d | 5.0, 3.1 | ✓ 可與 5.2 並行 |
-| 5.4 | Create 頁 ★ | 7 個 Accordion (Anti-Anchor / TRIZ 3-path Tabs / 子系統 / SCAMPER / 方案卡片 / MUST 矩陣 / Pre-CAD 5D 雷達圖) | FE | 10d | 5.0, 3.8 | |
+| 5.4 | Create 頁 ★ | 6 個 Accordion (Anti-Anchor / TRIZ 3-path Tabs / 子系統 / 方案卡片 / MUST 矩陣 / Pre-CAD 5D 雷達圖) *(v9: SCAMPER Accordion 移除)* | FE | 10d | 5.0, 3.8 | |
 | 5.5 | Review 頁 | Tabs: 證據矩陣熱力圖 (E0→E4)、風險 P×S 矩陣、最小實驗列表 | FE | 6d | 5.0, 4.2 | ✓ 可與 5.4 並行 |
 | 5.6 | Decide 頁 | WANT 排行榜、KT 決策記錄 (MUST→WANT→Risk 三層漏斗)、匯出 checklist | FE | 5d | 5.0, 4.5 | ✓ 可與 5.5 並行 |
 | | **小計** | | | **39d** | | |
@@ -298,7 +298,7 @@ Week 3  ─┬─ [BE-S] WP-2.3 假設萃取 + 矛盾 (3d) ───→ WP-2.4 C
              [FE-M] WP-5.3 Track 頁 (5d 跨週)     ← 並行
 
 Week 4  ─┬─ [BE-S] WP-3.3 TRIZ 引擎 ★ (8d 跨 Week 4-5)
-          │  [BE-M] WP-3.2 Anti-Anchor (3d) → WP-3.4 SCAMPER (4d)
+          │  [BE-M] WP-3.2 Anti-Anchor (3d) → WP-3.4 子系統建議 (4d)
           └─ [FE-S] WP-5.2 完成 → WP-5.4 Create 頁 ★ (10d 跨 Week 4-6)
              [FE-M] WP-5.3 完成 → WP-5.5 Review 頁 (6d)
 
@@ -348,7 +348,7 @@ WP-1.1 → WP-1.2 → WP-2.2 → WP-2.3 → WP-2.4 → WP-3.3 (TRIZ) → WP-3.4 
 | PM-2 | `socratic_questions.md` | Analyst | Step 1.2 |
 | PM-3 | `contradiction_identify.md` | Analyst | Step 1.2-1.3 |
 | PM-4 | `triz_solution.md` | TRIZ Solver | Step 2.2.2 |
-| PM-5 | `scamper_variant.md` | TRIZ Solver | Step 2.2.4 |
+| ~~PM-5~~ | ~~`scamper_variant.md`~~ | ~~TRIZ Solver~~ | ~~Step 2.2.4~~ **(v9 移除)** |
 | PM-6 | `alternative_generate.md` | TRIZ Solver | Step 2.2.5 |
 | PM-7 | `decision_record.md` | Evaluator | Step 3.2 |
 | PM-8 | `black_hat_review.md` | Evaluator | Step 3.1 |
@@ -371,7 +371,7 @@ WP-1.1 → WP-1.2 → WP-2.2 → WP-2.3 → WP-2.4 → WP-3.3 (TRIZ) → WP-3.4 
 | 假設台帳 | 5 | `POST/GET/PUT /assumptions`, `POST /extract`, `POST /:aid/disprove` |
 | Unknown Factors | 3 | `POST/GET /unknown-factors` |
 | TRIZ 求解 | 3 | `POST /triz/solve`, `GET /triz/results/:rid` |
-| SCAMPER | 3 | `POST /scamper/perform`, `GET /subsystem-suggestions`, `POST /feedback-contradictions` |
+| ~~SCAMPER~~ | ~~3~~ → 0 | ~~`POST /scamper/perform`, `GET /subsystem-suggestions`, `POST /feedback-contradictions`~~ **(v9: perform + feedback 移除；subsystem-suggestions 遷移至 `/subsystems/suggest`)** |
 | 方案管理 | 4 | `POST/GET/PUT /alternatives`, `POST /anti-anchor` |
 | MUST 篩選 | 2 | `POST /must/evaluate`, `GET /must/results` |
 | Pre-CAD 審查 | 3 | `POST /pre-cad-reviews`, `POST /:rid/ai-analyze`, `GET /pre-cad-reviews` |
@@ -467,7 +467,7 @@ Day 3 (03-13) ████████████████████  M6: 
 | **M0** | Week 1 | 2026-03-11 | BE/FE 骨架 + Supabase Schema + Design System | ✅ |
 | **M1** | Week 2 | 2026-03-11 | Phase 1 API + Dashboard + Brief 頁 | ✅ |
 | **M2** | Week 3 | 2026-03-11 | Phase 1 完整 (CLD + Gates) + Explore + Track 頁 | ✅ |
-| **M3** | Week 4-5 | 2026-03-11 | Phase 2 API 完整 (TRIZ + SCAMPER + MUST + Pre-CAD) | ✅ |
+| **M3** | Week 4-5 | 2026-03-11 | Phase 2 API 完整 (TRIZ + MUST + Pre-CAD) *(v9: SCAMPER 移除)* | ✅ |
 | **M4** | Week 6 | 2026-03-12 | Phase 3 API + Review 頁 + Evidence 系統 | ✅ |
 | **M5** | Week 7 | 2026-03-12 | Phase 3 完整 + Decide 頁 + Evidence Entry Dialog | ✅ |
 | **M6** | Week 8 | 2026-03-13 | 31+ 後端測試 + Docker 部署 + DB Migrations | ✅ (部分) |
@@ -488,10 +488,10 @@ Day 3 (03-13) ████████████████████  M6: 
 | AC-05 | Phase 1 完整 | 任務定義→蘇格拉底→矛盾→CLD→Phase Gate 1 通過 | E2E 測試 |
 | AC-06 | 假設台帳 PDCA | 假設狀態 Open→Experimenting→Validated/Refuted 正確流轉 | 單元測試 |
 | AC-07 | TRIZ 三路徑 | `POST /triz/solve` 回傳 TC+PC+SF 三路徑結構化結果 | API 測試 |
-| AC-08 | SCAMPER 變形 | 7 動作 × N 子系統正確生成 + new_contradictions 回饋 | API 測試 |
+| ~~AC-08~~ | ~~SCAMPER 變形~~ | ~~7 動作 × N 子系統正確生成 + new_contradictions 回饋~~ **(v9 移除)** | ~~API 測試~~ |
 | AC-09 | MUST 篩選 | M1-M6 規則正確判定 Go/No-Go | 單元測試 |
 | AC-10 | Pre-CAD 5D | 5 維度 1-5 分 + overall_pass 邏輯正確 | 單元測試 |
-| AC-11 | Phase 2 完整 | 假設台帳→TRIZ→SCAMPER→MUST→Pre-CAD→Phase Gate 2 通過 | E2E 測試 |
+| AC-11 | Phase 2 完整 | 假設台帳→TRIZ→MUST→Pre-CAD→Phase Gate 2 通過 *(v9: SCAMPER 移除)* | E2E 測試 |
 | AC-12 | 證據矩陣聚合 | Assumption × Evidence 聚合正確，E0-E4 正確計算 | 單元測試 |
 | AC-13 | WANT 計算 | weighted_score = Σ(weight × score)，無計算錯誤 | 自動化測試 |
 | AC-14 | KT 決策記錄 | 包含 MUST/WANT/Risk 完整彙總 + 簽核 | 操作驗證 |
@@ -562,7 +562,7 @@ Day 3 (03-13) ████████████████████  M6: 
 | `test_middleware.py` | 2 | UUID hex 格式, context variable |
 | `test_auth.py` | 6 | JWT 驗證 (401/valid/expired), public endpoints (/api/v1/health, /docs) |
 | `test_llm_service.py` | 12 | LLM 呼叫, retry (RateLimit/Connection/5xx), code fence, Pydantic parse |
-| `test_scamper_feedback.py` | 9 | 去重 (SequenceMatcher 0.8), severity, Supabase insert, batch |
+| ~~`test_scamper_feedback.py`~~ | ~~9~~ | ~~去重 (SequenceMatcher 0.8), severity, Supabase insert, batch~~ **(v9 移除)** |
 | `test_knowledge_writeback.py` | 5 | 6 類資產, filtered, idempotency, endpoint |
 | `test_gates.py` | 12 | Gate 1.1/1.2/2.2/PG3 pass/fail, invalid gate_id, missing project_id |
 | `test_triz_solver.py` | 9 | TC/PC path, empty matrix, malformed JSON, router endpoints |
@@ -596,7 +596,7 @@ Day 3 (03-13) ████████████████████  M6: 
 | 術語 | 定義 |
 |------|------|
 | Phase 1: Define | 定義問題空間（任務定義 → 蘇格拉底七類提問 → 矛盾識別 → CLD + 斷路點） |
-| Phase 2: Diverge | 假設與發散（假設台帳 → TRIZ 三路徑 → SCAMPER → 方案集合 → MUST → Pre-CAD） |
+| Phase 2: Diverge | 假設與發散（假設台帳 → TRIZ 三路徑 → 子系統定義 → 方案集合 → MUST → Pre-CAD） |
 | Phase 3: Converge | 收斂與驗證（證據矩陣 → 風險登錄 → 最小實驗 → WANT → KT 決策 → 知識沉澱） |
 | Gate | 階段檢查點，滿足 checklist 才進入下一階段 (共 8 個) |
 | KT | Kepner-Tregoe 決策分析框架 |
@@ -604,7 +604,7 @@ Day 3 (03-13) ████████████████████  M6: 
 | WANT | 希望有但可妥協的目標，加權評分 (W1-W6) |
 | AC | Adverse Consequences，風險矩陣評估 |
 | TRIZ | 發明問題解決理論 (TC: 技術矛盾 / PC: 物理矛盾 / SF: 物質場) |
-| SCAMPER | 創意發散七動作 (Substitute/Combine/Adapt/Modify/Put/Eliminate/Rearrange) |
+| ~~SCAMPER~~ | ~~創意發散七動作~~ **(v9 移除 — TRIZ 40 原理完全覆蓋)** |
 | CLD | Causal Loop Diagram，因果迴路圖 |
 | Pre-CAD | CAD 前審查，5 維度 (空間/成本/安全/解耦/供應) 1-5 分評估 |
 | DR EM | Design Review Evidence Matrix，設計審查證據矩陣 |

@@ -11,16 +11,16 @@
 ```
 混沌 → 結構 → 證據 → 決策 → 資產
       ↑              ↓
-   SCAMPER/TRIZ    Robust篩選
+   TRIZ            Robust篩選
    (擴大可能性)    (殺掉脆弱)
 ```
 
 **四個不變原則**：
 
 1. **先把未知寫下來**（假設台帳）
-2. **先留多條路**（Set-Based + SCAMPER/TRIZ 變體）
+2. **先留多條路**（Set-Based + TRIZ 變體）
 3. **先切斷連鎖死法**（失效路徑 + 最小實驗）
-4. **產出與選擇分離**（TRIZ/SCAMPER/Anti-Anchor 負責產出，選擇統一在決策中心由 RD 執行）
+4. **產出與選擇分離**（TRIZ/Anti-Anchor 負責產出，選擇統一在決策中心由 RD 執行）
 
 ---
 
@@ -263,20 +263,19 @@ graph TD
 
 ---
 
-## Step 5: 創造與調整 (TRIZ → 子系統 → SCAMPER → 方案 → MUST)
+## Step 5: 創造與調整 (TRIZ → 子系統 → 方案 → MUST)
 
-**目的**：用 TRIZ 解矛盾找方向，用 SCAMPER 做模組級變形，輸出結構化可審查的方案集���。
+**目的**：用 TRIZ 解矛盾找方向，定義子系統邊界，輸出結構化可審查的方案集合。（~~SCAMPER 已於 v9 移除 — 其 7 動作為 TRIZ 40 原理子集~~）
 **核心工件**：Concept Route (Draft → Reviewed), Interface (Draft)
 
 ### 流程
 1. **Anti-Anchor Sprint** → 產出 3 種非典型架構
 2. **TRIZ 解矛盾** → 依矛盾類型分派 (TC→矩陣 / PC→分離 / SF→76標準解)
 3. **子系統定義** → 3 層階層 + 6 維介面契約
-4. **SCAMPER 變形** → 每個子系統 × 7 動作
-5. **決策中心** → 候選池匯聚 + RD 審核
-6. **MUST 快篩** → Go/No-Go 淘汰
+4. **決策中心** → 候選池匯聚 + RD 審核
+5. **MUST 快篩** → Go/No-Go 淘汰
 
-> TRIZ/SCAMPER 執行細節與候選池管理：見 DK-02。
+> TRIZ 執行細節與候選池管理：見 DK-02。
 > MUST 快篩的完整 KT 框架背景：見 DK-03。
 
 ### Gate 5 檢查點
@@ -403,7 +402,7 @@ Gate P 門檻：100%（所有 Fatal + Major 矛盾完全收斂）。
 | AI 會取代我？ | 不會。AI 是副駕，工程師做最終判斷。 |
 | AI 錯了誰負責？ | 人負責。AI 要有證據鏈。 |
 | 為什麼要填假設台帳？ | 因為返工最貴。 |
-| SCAMPER/TRIZ 不就是喊創意？ | 不是。它們有固定輸出格式，必須附機制、風險、驗證。 |
+| TRIZ 不就是喊創意？ | 不是。它有固定輸出格式，必須附機制、風險、驗證。 |
 
 ### Gate 8 檢查點
 > ✅ 新人看得懂、老闆聽得懂、工程師願意用。
@@ -425,4 +424,4 @@ Gate P 門檻：100%（所有 Fatal + Major 矛盾完全收斂）。
 
 **版本**: v2.0
 **最後更新**: 2026-04-21
-**變更紀錄**: 整合 E3x methodology-overview 與系統性決策流程為 MECE 文件；TRIZ/SCAMPER 執行細節移至 DK-02，KT 決策框架移至 DK-03
+**變更紀錄**: 整合 E3x methodology-overview 與系統性決策流程為 MECE 文件；TRIZ 執行細節移至 DK-02，KT 決策框架移至 DK-03；v9 移除 SCAMPER（7 動作為 TRIZ 40 原理子集）

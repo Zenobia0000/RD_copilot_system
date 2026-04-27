@@ -685,7 +685,11 @@ class SolveTrizLayeredResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Step 5c: SCAMPER
+# Step 5c: SCAMPER — DEPRECATED
+# SCAMPER as an independent module has been removed (TRIZ 40 principles
+# cover all SCAMPER actions). These schemas are kept temporarily for
+# backward-compat with scamper_transform() in triz_solver.py and existing
+# contract tests. They will be removed in the next major version.
 # ---------------------------------------------------------------------------
 
 class ScamperRequest(BaseModel):
@@ -1179,19 +1183,10 @@ class LearnedComponentPromoteResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# SCAMPER Feedback Contradictions (SOW: POST /scamper/feedback-contradictions)
+# SCAMPER Feedback Contradictions — REMOVED
+# The /scamper/feedback-contradictions endpoint and its agent have been
+# deleted. ScamperFeedbackRequest / ScamperFeedbackResponse schemas removed.
 # ---------------------------------------------------------------------------
-
-class ScamperFeedbackRequest(BaseModel):
-    """Feed SCAMPER-generated contradictions back to contradiction management."""
-    project_id: str
-    new_contradictions: list[dict] = Field(default_factory=list)
-
-
-class ScamperFeedbackResponse(BaseModel):
-    created_count: int
-    deduplicated_count: int
-    contradiction_ids: list[str] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------

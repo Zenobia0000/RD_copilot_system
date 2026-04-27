@@ -26,11 +26,11 @@ import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer
 } from "recharts";
 import type {
-  AntiAnchorRoute, TrizSolution, Subsystem, ScamperVariant, ScamperNewContradiction,
+  AntiAnchorRoute, TrizSolution, Subsystem,
   Alternative, AccordionStepStatus, TrizPath, TrizActionStatus, CreateGateItem,
   SubsystemSource, SubsystemLevel
 } from "@/types/create";
-import { DEFAULT_MUST_CRITERIA, PRECAD_DIMENSIONS, SCAMPER_LABELS } from "@/types/create";
+import { DEFAULT_MUST_CRITERIA, PRECAD_DIMENSIONS } from "@/types/create";
 import type { MustCriterion } from "@/types/create";
 import type { InterfaceContractMap } from "@/types/generated/subsystem";
 import { EMPTY_INTERFACE_CONTRACT } from "@/types/generated/subsystem";
@@ -43,7 +43,7 @@ import { useSocraticQuestions } from "@/hooks/api/useExplore";
  *
  * This lets the manual subsystem form feed the same data shape the AI path
  * produces, so downstream consumers (InterfaceContractsPanel, Pre-CAD
- * spatial_score, SCAMPER variant tracking) see a uniform structure.
+ * spatial_score, variant tracking) see a uniform structure.
  */
 function neighbourTextToContractMap(
   text: string,
@@ -74,9 +74,6 @@ import {
   useCreateSubsystem,
   useUpdateSubsystem,
   useDeleteSubsystem,
-  useScamperVariants,
-  useCreateScamperVariant,
-  useUpdateScamperVariant,
   useAlternatives,
   useCreateAlternative,
   useUpdateAlternative,
@@ -91,7 +88,7 @@ import type { Json } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useTrackAssumptions } from "@/hooks/api/useTrack";
 import { useBrief, useConstraints, useKpis } from "@/hooks/api/useBrief";
-import { antiAnchorGenerate, trizSolveLayered, trizSolveDirected, trizConsolidate, scamperTransform, riskAnalyze, mustEvaluate, validationPassportGenerate, scamperSpatialOverlay, spatialComponentOverride, spatialLearnedComponent } from "@/lib/api";
+import { antiAnchorGenerate, trizSolveLayered, trizSolveDirected, trizConsolidate, riskAnalyze, mustEvaluate, validationPassportGenerate, subsystemSpatialOverlay, spatialComponentOverride, spatialLearnedComponent } from "@/lib/api";
 import type { LayeredTrizSolution, TrizSeverity, AdoptedLayerId } from "@/types/layeredTriz";
 import type { ContradictionDirectionResult, ConsolidationResult } from "@/types/directedTriz";
 import { LayeredSolutionCard } from "@/components/create/LayeredSolutionCard";
@@ -138,9 +135,8 @@ const RADAR_COLORS = [
 
 const STEPS = [
   { label: "反向探索 Anti-Anchor", shortLabel: "Anti-Anchor", description: "從約束出發，AI 產出非典型架構概念，每條自帶 Validation Passport", zone: "reverse" as const },
-  { label: "正向分析：TRIZ 解矛盾", shortLabel: "TRIZ", description: "從矛盾出發 → 分層 drill-down 診斷（L1 現象 / L2 根因 / L3 結構）→ 子系統分解 → SCAMPER 創意變形", zone: "forward" as const },
+  { label: "正向分析：TRIZ 解矛盾", shortLabel: "TRIZ", description: "從矛盾出發 → 分層 drill-down 診斷（L1 現象 / L2 根因 / L3 結構）→ 子系統分解", zone: "forward" as const },
   { label: "正向分析：子系統定義", shortLabel: "子系統", description: "識別受矛盾影響的子系統 (System→Module→Component)，聚焦變形範圍", zone: "forward" as const },
-  { label: "正向分析：SCAMPER 變形", shortLabel: "SCAMPER", description: "對每個子系統執行 7 種創意動作，產出方案候選", zone: "forward" as const },
   { label: "候選方案決策中心", shortLabel: "決策中心", description: "攤平兩條路徑的所有方案，橫向比較來源、機制、假設、驗證需求與信心等級", zone: "hub" as const },
   { label: "MUST 快篩", shortLabel: "MUST", description: "以必要條件（M1-M6）快速淘汰不可行方案", zone: "eval" as const },
   { label: "Pre-CAD 審查", shortLabel: "Pre-CAD", description: "五維審查：MUST/解耦/可驗證性/失效機制/MVP CAD", zone: "eval" as const },
@@ -194,7 +190,6 @@ export default function Create() {
   const antiAnchorQuery = useAntiAnchorRoutes(id);
   const trizQuery = useTrizSolutions(id);
   const subsystemsQuery = useSubsystems(id);
-  const scamperQuery = useScamperVariants(id);
   const alternativesQuery = useAlternatives(id);
   const conceptRoutesQuery = useConceptRoutes(id);
   const compatibilityPairsQuery = useCompatibilityPairs(id);
@@ -248,8 +243,6 @@ export default function Create() {
   const createSubsystem = useCreateSubsystem();
   const updateSubsystemMut = useUpdateSubsystem();
   const deleteSubsystemMut = useDeleteSubsystem();
-  const createScamperVariantMut = useCreateScamperVariant();
-  const updateScamperVariant = useUpdateScamperVariant();
   const createAlternative = useCreateAlternative();
   const updateAlternativeMut = useUpdateAlternative();
   const deleteAlternativeMut = useDeleteAlternative();
@@ -498,14 +491,12 @@ export default function Create() {
     }
   };
   const [localSubsystems, setLocalSubsystems] = useState<Subsystem[]>([]);
-  const [localScamperVariants, setLocalScamperVariants] = useState<ScamperVariant[]>([]);
   const [localAlternatives, setLocalAlternatives] = useState<Alternative[]>([]);
 
   // Sync query data → local state
   useEffect(() => { setLocalRoutes(antiAnchorQuery.data); }, [antiAnchorQuery.data]);
   useEffect(() => { setLocalTrizSolutions(trizQuery.data); }, [trizQuery.data]);
   useEffect(() => { setLocalSubsystems(subsystemsQuery.data); }, [subsystemsQuery.data]);
-  useEffect(() => { setLocalScamperVariants(scamperQuery.data); }, [scamperQuery.data]);
   useEffect(() => { setLocalAlternatives(alternativesQuery.data); }, [alternativesQuery.data]);
   // Refetch contradictions on mount AND when returning to this page
   // (staleTime=30s means Explore deletions may not reflect immediately)
@@ -519,7 +510,6 @@ export default function Create() {
   const routes = localRoutes;
   const trizSolutions = localTrizSolutions;
   const subsystems = localSubsystems;
-  const scamperVariants = localScamperVariants;
   const alternatives = localAlternatives;
 
   // Derived: true when DB or optimistic routes exist (no separate state needed)
@@ -603,7 +593,7 @@ export default function Create() {
   const queryClient = useQueryClient();
 
   // Loading state — true while any query is loading
-  const isLoading = antiAnchorQuery.isLoading || trizQuery.isLoading || subsystemsQuery.isLoading || scamperQuery.isLoading || alternativesQuery.isLoading;
+  const isLoading = antiAnchorQuery.isLoading || trizQuery.isLoading || subsystemsQuery.isLoading || alternativesQuery.isLoading;
 
   // antiAnchorGenerated is now derived from routes.length — no effect needed
 
@@ -734,17 +724,15 @@ export default function Create() {
     const s2 = loopDone || hasTrizData ? "complete" : convergenceLoop.state.status !== "idle" ? "in_progress" : "not_started";
     const confirmed = subsystems.filter((s) => s.confirmed).length;
     const s3 = confirmed > 0 ? "complete" : subsystems.length > 0 ? "in_progress" : "not_started";
-    const adoptedSc = scamperVariants.filter((v) => v.adopted).length;
-    const s4 = adoptedSc > 0 ? "complete" : scamperVariants.length > 0 ? "in_progress" : "not_started";
-    const s5 = alternatives.length > 0 ? "complete" : "not_started";
-    // s6: Only check M1-M6 keys, not the nested bundle fields
+    const s4 = alternatives.length > 0 ? "complete" : "not_started";
+    // s5: Only check M1-M6 keys, not the nested bundle fields
     const allMustFilled = alternatives.length > 0 && alternatives.every((a) => getMustValues(a).every((v) => v !== null));
-    const s6 = allMustFilled ? "complete" : alternatives.some((a) => getMustValues(a).some((v) => v !== null)) ? "in_progress" : "not_started";
+    const s5 = allMustFilled ? "complete" : alternatives.some((a) => getMustValues(a).some((v) => v !== null)) ? "in_progress" : "not_started";
     const passedMust = alternatives.filter((a) => !getMustValues(a).includes("fail"));
     const allScored = passedMust.length > 0 && passedMust.every((a) => Object.values(a.preCadScores).every((v) => v !== null));
-    const s7 = allScored ? "complete" : passedMust.some((a) => Object.values(a.preCadScores).some((v) => v !== null)) ? "in_progress" : "not_started";
-    return [s1, s2, s3, s4, s5, s6, s7];
-  }, [routes, convergenceLoop.state.status, trizSolutions, subsystems, scamperVariants, alternatives]);
+    const s6 = allScored ? "complete" : passedMust.some((a) => Object.values(a.preCadScores).some((v) => v !== null)) ? "in_progress" : "not_started";
+    return [s1, s2, s3, s4, s5, s6];
+  }, [routes, convergenceLoop.state.status, trizSolutions, subsystems, alternatives]);
 
   const autoSave = useCallback(() => {
     setSaveStatus("saving");
@@ -760,7 +748,7 @@ export default function Create() {
   const gate22Items: CreateGateItem[] = useMemo(
     () => [
       { label: "≥2 方案通過 MUST 快篩", current: passedMustAlts.length, target: 2, passed: passedMustAlts.length >= 2 },
-      { label: "MUST 快篩已完成", current: stepStatuses[5] === "complete" ? 1 : 0, target: 1, passed: stepStatuses[5] === "complete" },
+      { label: "MUST 快篩已完成", current: stepStatuses[4] === "complete" ? 1 : 0, target: 1, passed: stepStatuses[4] === "complete" },
     ],
     [passedMustAlts, stepStatuses]
   );
@@ -1100,7 +1088,7 @@ export default function Create() {
     if (!ss) return;
     const nextConfirmed = !ss.confirmed;
     // WBS 10.1: when RD flips to confirmed, snapshot the current interface
-    // contract hash into local session state so the SCAMPER page can detect
+    // contract hash into local session state so drift detection can detect
     // post-confirmation edits. When flipping back to unconfirmed, clear it.
     // The mutation hook does not round-trip this field, so it's purely
     // in-memory — acceptable for Wave 6 per the architecture note.
@@ -1320,7 +1308,7 @@ export default function Create() {
     for (const b of payload.module_mass_budgets) {
       massBudget[b.name] = b.max_mass_g;
     }
-    const resp = await scamperSpatialOverlay({
+    const resp = await subsystemSpatialOverlay({
       project_id: id,
       subsystems: (payload.subsystems ?? []) as unknown[],
       overlay: { zones: zonesDict, mass_budget_g: massBudget },
@@ -1426,19 +1414,8 @@ export default function Create() {
     }
   };
 
-  const toggleScamperAdopt = (svId: string) => {
-    const sv = scamperVariants.find(v => v.id === svId);
-    if (!sv) return;
-    setLocalScamperVariants((prev) => prev.map((v) => (v.id === svId ? { ...v, adopted: !v.adopted } : v)));
-    updateScamperVariant.mutate({ id: svId, adopted: !sv.adopted });
-  };
-
   // WBS 10.1: RD re-confirms a subsystem after editing contracts. Refreshes
-  // the stored hash to the current contract snapshot and clears any
-  // previously-generated SCAMPER variants for that subsystem from local
-  // state (they were computed against the stale contract boundary). We do
-  // NOT delete the rows from Supabase because there's no delete hook yet;
-  // the local clear is sufficient for within-session drift detection.
+  // the stored hash to the current contract snapshot.
   const reconfirmSubsystemContracts = (ssId: string) => {
     const ss = subsystems.find((s) => s.id === ssId);
     if (!ss) return;
@@ -1448,65 +1425,9 @@ export default function Create() {
         s.id === ssId ? { ...s, confirmedContractsHash: newHash } : s,
       ),
     );
-    setLocalScamperVariants((prev) => prev.filter((v) => v.subsystemId !== ssId));
-    toast.success('契約已重新確認，舊 SCAMPER 變形已清除');
+    toast.success('契約已重新確認');
   };
 
-  // WBS 10.1: generate SCAMPER variants for a single confirmed subsystem.
-  // Passes the RD-confirmed 6-dim interface_contracts + stable hash so the
-  // backend can surface contract-respecting transformations and log any
-  // drift between what the FE considers confirmed and what lands on the
-  // server.
-  const SCAMPER_ACTION_LETTER: Record<string, ScamperAction> = {
-    substitute: 'S', combine: 'C', adapt: 'A', modify: 'M',
-    put_to_other_use: 'P', eliminate: 'E', reverse: 'R',
-  };
-  const handleGenerateScamperForSubsystem = async (ssId: string) => {
-    const ss = subsystems.find((s) => s.id === ssId);
-    if (!id || !ss) return;
-    if (isContractDriftedSinceConfirm(ss)) {
-      toast.error('介面契約已變更，請先重新確認後再生成 SCAMPER 變形');
-      return;
-    }
-    const loadKey = `scamper-${ssId}`;
-    setAiLoading((s) => ({ ...s, [loadKey]: true }));
-    try {
-      const hash = ss.confirmedContractsHash ?? hashContracts(ss.interfaceContracts);
-      const resp = await scamperTransform({
-        project_id: id,
-        subsystem_name: ss.name,
-        subsystem_description: ss.reason,
-        related_contradictions: ss.relatedContradictions,
-        interface_contracts: ss.interfaceContracts,
-        contracts_hash: hash,
-      });
-      for (const v of resp.variants) {
-        const letter = SCAMPER_ACTION_LETTER[(v.action || '').toLowerCase().replace(/\s+/g, '_')] ?? 'S';
-        await createScamperVariantMut.mutateAsync({
-          project_id: id,
-          subsystem_id: ssId,
-          action: letter,
-          description: v.description,
-          adopted: false,
-          new_contradictions: (v.new_contradictions ?? []).map((nc, i) => ({
-            id: `nc-${Date.now()}-${i}`,
-            description: nc,
-            severity: 'minor',
-            fedBack: false,
-          })) as unknown as never,
-        });
-      }
-      toast.success(`已為「${ss.name}」生成 ${resp.variants.length} 個 SCAMPER 變形`);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      toast.error(`SCAMPER 生成失敗：${msg}`);
-    } finally {
-      setAiLoading((s) => ({ ...s, [loadKey]: false }));
-    }
-  };
-  // SCAMPER is a creative divergence tool (like Anti-Anchor).
-  // newContradictions are displayed as risk notes, NOT fed back to convergence loop.
-  // All SCAMPER outputs go directly to the candidate pool for RD comparison in Decision Hub.
   const cycleMust = (altId: string, mustId: string) => {
     const alt = alternatives.find(a => a.id === altId);
     if (!alt) return;
@@ -1615,8 +1536,6 @@ export default function Create() {
     try {
       // Collect adopted TRIZ solutions as candidates
       const adoptedTriz = trizSolutions.filter(ts => ts.status === 'adopted' || ts.status === 'edited');
-      // Collect adopted SCAMPER variants
-      const adoptedScamper = scamperVariants.filter(sv => sv.adopted);
 
       let created = 0;
 
@@ -1644,26 +1563,10 @@ export default function Create() {
         created++;
       }
 
-      // Create alternatives from adopted SCAMPER variants (with validation passport)
-      for (const sv of adoptedScamper) {
-        await createAlternative.mutateAsync({
-          project_id: id,
-          name: `SCAMPER ${sv.action}: ${(sv.description || '').slice(0, 40)}`,
-          mechanism: sv.description || '',
-          source: "scamper",
-          key_assumption_ids: [],
-          must_scores: { M1: null, M2: null, M3: null, M4: null, M5: null, M6: null } as unknown as Json,
-          interface_contract: { envelope: '', loadPath: '', signalPath: '', thermalPath: '', datumTolerance: '', serviceability: '' } as unknown as Json,
-          pre_cad_scores: { must: null, decoupling: null, testability: null, failureMech: null, mvpCadEffort: null } as unknown as Json,
-          overall_pass: null,
-        });
-        created++;
-      }
-
       if (created === 0) {
-        toast.warning("尚無已採用的 TRIZ 解法或 SCAMPER 變體，請先在 Step 2-4 採用解法，或手動新增方案");
+        toast.warning("尚無已採用的 TRIZ 解法，請先在 Step 1-2 採用解法，或手動新增方案");
       } else {
-        toast.success(`已從 ${adoptedTriz.length} 條 TRIZ + ${adoptedScamper.length} 條 SCAMPER 整合 ${created} 個候選方案`);
+        toast.success(`已從 ${adoptedTriz.length} 條 TRIZ 整合 ${created} 個候選方案`);
       }
     } catch (err) {
       console.error("AI alternative generation failed:", err);
@@ -1683,49 +1586,35 @@ export default function Create() {
   // Unified step navigation — infers track from step index when not explicit
   const inferTrack = (step: number): "reverse" | "forward" | null => {
     if (step === 0) return "reverse";
-    if (step >= 1 && step <= 3) return activeTrack === "reverse" ? "reverse" : "forward";
+    if (step >= 1 && step <= 2) return activeTrack === "reverse" ? "reverse" : "forward";
     return null; // hub, must, pre-cad
   };
   const navigateTo = (step: number, track?: "reverse" | "forward" | null) => {
     setCurrentStep(step);
     setActiveTrack(track !== undefined ? track : inferTrack(step));
   };
-  // Wave 2: Tab ③ SCAMPER unlock gate.
-  // §8.1 RDConfirmed state machine from Forward_Subsystem_Discovery_Architecture.md
-  // requires at least one RD-confirmed subsystem before SCAMPER can operate —
-  // SCAMPER variant generation keys off `subsystems.filter(s => s.confirmed)`
-  // (see renderScamper() below), so leaving this gate open produces an empty
-  // 7-action grid with a confusing empty-state.
-  const canProceedFromSubsystem = subsystems.some(s => s.confirmed);
 
   const goNext = () => {
-    // Gate: block step 2 → 3 until at least one subsystem is confirmed.
-    // Also mirrored on the footer button's `disabled` prop; this guard is
-    // the defence-in-depth fallback in case the button is bypassed.
-    if (currentStep === 2 && !canProceedFromSubsystem) {
-      toast.error("請至少確認一個子系統後再進入 SCAMPER");
-      return;
-    }
     if (activeTrack === "reverse") {
       // Reverse (step 0) → jump to Decision Hub
-      navigateTo(4, null);
-    } else if (activeTrack === "forward" && currentStep < 3) {
-      // Forward sub-tabs: TRIZ(1) → Subsystem(2) → SCAMPER(3)
+      navigateTo(3, null);
+    } else if (activeTrack === "forward" && currentStep < 2) {
+      // Forward sub-tabs: TRIZ(1) → Subsystem(2)
       navigateTo(currentStep + 1, "forward");
-    } else if (activeTrack === "forward" && currentStep === 3) {
+    } else if (activeTrack === "forward" && currentStep === 2) {
       // Last forward sub-tab → Decision Hub
-      navigateTo(4, null);
+      navigateTo(3, null);
     } else {
-      navigateTo(Math.min(currentStep + 1, 6));
+      navigateTo(Math.min(currentStep + 1, 5));
     }
   };
   const goPrev = () => {
     if (activeTrack === "forward" && currentStep > 1) {
-      // Forward sub-tabs: SCAMPER(3) → Subsystem(2) → TRIZ(1)
+      // Forward sub-tabs: Subsystem(2) → TRIZ(1)
       navigateTo(currentStep - 1, "forward");
-    } else if (currentStep === 4) {
+    } else if (currentStep === 3) {
       // Decision Hub → back to whichever track was last active (default forward)
-      navigateTo(3, "forward");
+      navigateTo(2, "forward");
     } else {
       navigateTo(Math.max(currentStep - 1, 0));
     }
@@ -1743,8 +1632,8 @@ export default function Create() {
   }
 
   const renderStepContent = () => {
-    // Forward track: show TRIZ/Subsystem/SCAMPER as tabbed sub-steps within one E2E view
-    if (activeTrack === "forward" && currentStep >= 1 && currentStep <= 3) {
+    // Forward track: show TRIZ/Subsystem as tabbed sub-steps within one E2E view
+    if (activeTrack === "forward" && currentStep >= 1 && currentStep <= 2) {
       return (
         <div className="space-y-4">
           {/* Internal sub-step tabs */}
@@ -1752,7 +1641,6 @@ export default function Create() {
             {[
               { step: 1, label: "① TRIZ 解矛盾" },
               { step: 2, label: "② 子系統定義" },
-              { step: 3, label: "③ SCAMPER 變形" },
             ].map(({ step, label }) => (
               <button
                 key={step}
@@ -1771,7 +1659,6 @@ export default function Create() {
           {/* Sub-step content */}
           {currentStep === 1 && renderTrizConvergence()}
           {currentStep === 2 && renderSubsystem()}
-          {currentStep === 3 && renderScamper()}
         </div>
       );
     }
@@ -1780,10 +1667,9 @@ export default function Create() {
       case 0: return renderAntiAnchor();
       case 1: return renderTrizConvergence();
       case 2: return renderSubsystem();
-      case 3: return renderScamper();
-      case 4: return renderAlternatives();
-      case 5: return renderMust();
-      case 6: return renderPreCad();
+      case 3: return renderAlternatives();
+      case 4: return renderMust();
+      case 5: return renderPreCad();
       default: return null;
     }
   };
@@ -1852,7 +1738,7 @@ export default function Create() {
                 <div>
                   <p className="font-semibold text-foreground mt-2 mb-1">看完一條路線後要做什麼？</p>
                   <ul className="space-y-0.5 pl-1">
-                    <li>✓ 覺得值得繼續驗證 → 點<strong>「晉升為候選方案」</strong>，路線會進入「候選方案決策中心」與 TRIZ/SCAMPER 路徑的候選並列比較</li>
+                    <li>✓ 覺得值得繼續驗證 → 點<strong>「晉升為候選方案」</strong>，路線會進入「候選方案決策中心」與 TRIZ 路徑的候選並列比較</li>
                     <li>✗ 物理不通 / 成本太高 / 不符約束 → 點垃圾桶刪除</li>
                     <li>↻ 全部都不滿意 → 點「重新生成」讓 AI 重試（已存在的路線會作為「避開」提示傳給 LLM）</li>
                   </ul>
@@ -2370,7 +2256,7 @@ export default function Create() {
               {rdCount > 0 && <><Badge variant="outline" className="text-[9px] mx-1 bg-primary/15 text-primary border-primary/30">RD {rdCount}</Badge></>}
               {aiCount > 0 && <><Badge variant="outline" className="text-[9px] mx-1 bg-muted border-muted-foreground/30">AI {aiCount}</Badge></>}
               {aiEditedCount > 0 && <><Badge variant="outline" className="text-[9px] mx-1 bg-accent/15 text-accent-foreground border-accent/30">AI+RD {aiEditedCount}</Badge></>}
-              。已確認的子系統將作為 SCAMPER 變形的目標範圍。
+              。已確認的子系統將作為正向分析的目標範圍。
             </p>
             {rdCount === 0 && (
               <p className="text-xs text-primary mt-1">💡 建議 RD 先定義已知的核心子系統，AI 將補充可能遺漏的部分。</p>
@@ -2516,153 +2402,7 @@ export default function Create() {
     );
   }
 
-  // ── Step 4: SCAMPER ──
-  function renderScamper() {
-    const confirmedSubs = subsystems.filter((s) => s.confirmed);
-    if (confirmedSubs.length === 0) {
-      return (
-        <div className="text-center py-16 space-y-3">
-          <p className="text-muted-foreground">請先在「子系統定義」中確認至少一個子系統</p>
-          <Button variant="secondary" onClick={() => navigateTo(2)}>
-            <ChevronLeft className="h-4 w-4 mr-1" /> 回到子系統定義
-          </Button>
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-8">
-        {confirmedSubs.map((ss) => {
-          const variants = scamperVariants.filter((v) => v.subsystemId === ss.id);
-          const drifted = isContractDriftedSinceConfirm(ss);
-          const loadKey = `scamper-${ss.id}`;
-          const generating = !!aiLoading[loadKey];
-          return (
-            <div key={ss.id} className="space-y-4">
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-                <h4 className="text-sm font-semibold">{ss.name}</h4>
-                <Badge variant="secondary" className="text-[10px]">{variants.filter(v => v.adopted).length}/{variants.length} 已採用</Badge>
-                <div className="ml-auto">
-                  <AiButton
-                    size="sm"
-                    aiVariant="outline"
-                    className="text-xs"
-                    loading={generating}
-                    disabled={drifted || generating}
-                    onClick={() => handleGenerateScamperForSubsystem(ss.id)}
-                  >
-                    <Sparkles className="h-3.5 w-3.5 mr-1" />
-                    {variants.length > 0 ? '重新生成 SCAMPER' : '生成 SCAMPER 變形'}
-                  </AiButton>
-                </div>
-              </div>
-              {drifted && (
-                <Card className="border-red-400 bg-red-50 dark:bg-red-950/30">
-                  <CardContent className="p-3 flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-red-700 dark:text-red-400">
-                        契約已變更 — 請重新確認後再生成 SCAMPER 變形
-                      </p>
-                      <p className="text-[10px] text-red-600/80 dark:text-red-400/80 mt-0.5">
-                        介面契約自 RD 確認後已被編輯，既有變形可能不再符合邊界條件。
-                      </p>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      className="text-xs shrink-0"
-                      onClick={() => reconfirmSubsystemContracts(ss.id)}
-                    >
-                      重新確認並刷新雜湊
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {variants.map((v) => (
-                  <Card key={v.id} className={`transition-all ${v.adopted ? "border-primary/30 bg-primary/[0.03]" : ""}`}>
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Badge className="text-[10px] bg-accent text-accent-foreground">{v.action}</Badge>
-                        <span className="text-xs text-muted-foreground">{SCAMPER_LABELS[v.action]?.zh ?? v.action}</span>
-                        <Badge variant="secondary" className="text-[9px] ml-auto">AI</Badge>
-                      </div>
-                      <p className="text-sm leading-relaxed">{v.description}</p>
-                      <Button
-                        size="sm"
-                        variant={v.adopted ? "default" : "outline"}
-                        className="text-xs"
-                        onClick={() => toggleScamperAdopt(v.id)}
-                      >
-                        {v.adopted ? <><Check className="h-3 w-3 mr-1" />已採用</> : "採用"}
-                      </Button>
-                      {/* SCAMPER risk notes (informational — no re-scan feedback) */}
-                      {v.newContradictions && v.newContradictions.length > 0 && (
-                        <div className="mt-2 space-y-1.5">
-                          <p className="text-[9px] text-muted-foreground uppercase tracking-wider">潛在風險（供決策中心參考）</p>
-                          {v.newContradictions.map((nc) => {
-                            const borderColor = nc.severity === 'fatal' ? 'border-red-400' : nc.severity === 'major' ? 'border-orange-400' : 'border-muted';
-                            const bgColor = nc.severity === 'fatal' ? 'bg-red-50 dark:bg-red-950/30' : nc.severity === 'major' ? 'bg-orange-50 dark:bg-orange-950/30' : 'bg-muted/30';
-                            const sevBadge = nc.severity === 'fatal'
-                              ? <Badge variant="destructive" className="text-[9px] shrink-0">Fatal</Badge>
-                              : nc.severity === 'major'
-                              ? <Badge className="text-[9px] bg-orange-500 text-white shrink-0">Major</Badge>
-                              : <Badge variant="secondary" className="text-[9px] shrink-0">Minor</Badge>;
-                            return (
-                              <div key={nc.id} className={`p-2 rounded-md border ${borderColor} ${bgColor}`}>
-                                <div className="flex items-start gap-1.5">
-                                  <AlertTriangle className={`h-3 w-3 shrink-0 mt-0.5 ${nc.severity === 'fatal' ? 'text-red-500' : nc.severity === 'major' ? 'text-orange-500' : 'text-muted-foreground'}`} />
-                                  <div className="flex-1 min-w-0">
-                                    {sevBadge}
-                                    <p className="text-[10px] text-muted-foreground mt-0.5">{nc.description}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-
-        {/* SCAMPER confirmation — creative tool, no convergence feedback needed */}
-        {confirmedSubs.length > 0 && scamperVariants.some(v => v.adopted) && (
-          <Card className="border-primary/30 bg-primary/5">
-            <CardContent className="p-4">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                <div className="flex-1">
-                  <p className="text-sm font-medium">確認 SCAMPER 變形結果</p>
-                  <p className="text-xs text-muted-foreground">
-                    已採用 {scamperVariants.filter(v => v.adopted).length} 個創意變形。
-                    潛在風險已標記，將在決策中心統一評估。確認後進入候選方案決策中心。
-                  </p>
-                </div>
-                <Button
-                  onClick={() => {
-                    toast.success('SCAMPER 變形結果已確認');
-                    goNext();
-                  }}
-                  className="shrink-0"
-                >
-                  <Check className="h-4 w-4 mr-1" /> 確認並繼續
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        <KnowledgeRefsPanel refs={[] /* TODO: useKnowledgeRefs (Sprint 5+) */} />
-      </div>
-    );
-  }
-
-  // ── Step 5: Alternatives ──
+  // ── Step 3: Alternatives (Decision Hub) ──
   function renderAlternatives() {
     // ── Candidate pool: aggregate from all sources ──
     const SOURCE_BADGE: Record<string, { label: string; cls: string }> = {
@@ -2670,7 +2410,6 @@ export default function Create() {
       triz_tc: { label: '正向/TRIZ-TC', cls: 'bg-blue-100 text-blue-700' },
       triz_pc: { label: '正向/TRIZ-PC', cls: 'bg-blue-100 text-blue-700' },
       triz_sf: { label: '正向/TRIZ-SF', cls: 'bg-blue-100 text-blue-700' },
-      scamper: { label: '正向/SCAMPER', cls: 'bg-blue-100 text-blue-700' },
       manual: { label: '手動', cls: 'bg-muted text-muted-foreground' },
       ai_integrated: { label: 'AI 整合', cls: 'bg-violet-100 text-violet-700' },
     };
@@ -2685,7 +2424,7 @@ export default function Create() {
           <div>
             <h3 className="text-sm font-semibold">候選方案池</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              匯集反向（Anti-Anchor）與正向（TRIZ/SCAMPER）所有候選。RD 確認後執行 Phase B 交叉檢查。
+              匯集反向（Anti-Anchor）與正向（TRIZ）所有候選。RD 確認後執行 Phase B 交叉檢查。
             </p>
           </div>
           <div className="flex gap-2">
@@ -2726,7 +2465,7 @@ export default function Create() {
             <LayoutGrid className="h-8 w-8 text-muted-foreground mx-auto" />
             <p className="text-muted-foreground font-medium">候選池為空</p>
             <p className="text-xs text-muted-foreground">
-              點擊「自動匯入候選」從已採用的 TRIZ 解法和 SCAMPER 變形中自動匯入，<br />
+              點擊「自動匯入候選」從已採用的 TRIZ 解法中自動匯入，<br />
               或從 Anti-Anchor 步驟晉升方案，或手動新增。
             </p>
           </div>
@@ -2870,7 +2609,7 @@ export default function Create() {
       return (
         <div className="text-center py-16 space-y-3">
           <p className="text-muted-foreground">請先在「方案整合」中建立方案</p>
-          <Button variant="secondary" onClick={() => navigateTo(4, null)}>
+          <Button variant="secondary" onClick={() => navigateTo(3, null)}>
             <ChevronLeft className="h-4 w-4 mr-1" /> 回到方案整合
           </Button>
         </div>
@@ -2998,7 +2737,7 @@ export default function Create() {
       return (
         <div className="text-center py-16 space-y-3">
           <p className="text-muted-foreground">請先在 MUST 快篩中完成評估</p>
-          <Button variant="secondary" onClick={() => navigateTo(5, null)}>
+          <Button variant="secondary" onClick={() => navigateTo(4, null)}>
             <ChevronLeft className="h-4 w-4 mr-1" /> 回到 MUST 快篩
           </Button>
         </div>
@@ -3146,7 +2885,7 @@ export default function Create() {
 
   // ── Gate section ──
   function renderGates() {
-    if (currentStep < 5) return null;
+    if (currentStep < 4) return null;
 
     return (
       <div className="space-y-4 mt-2">
@@ -3171,7 +2910,7 @@ export default function Create() {
           </CardContent>
         </Card>
 
-        {currentStep === 6 && (
+        {currentStep === 5 && (
           <Card className="border-2 border-accent/30 bg-accent/5">
             <CardContent className="p-5 space-y-3">
               <div className="flex items-center gap-3">
@@ -3236,7 +2975,7 @@ export default function Create() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
           方案創造
-          <HelpTooltip text="雙軌分析 → 候選方案決策中心 → 統一評估。反向路徑（Anti-Anchor 創意發散，直接帶 Validation Passport 進候選池）與正向路徑（TRIZ 解矛盾 → 子系統定義 → SCAMPER 變形），所有方案在決策中心攤平比較、Phase B 交叉檢查後進入 MUST 快篩。" className="ml-2 align-middle" />
+          <HelpTooltip text="雙軌分析 → 候選方案決策中心 → 統一評估。反向路徑（Anti-Anchor 創意發散，直接帶 Validation Passport 進候選池）與正向路徑（TRIZ 解矛盾 → 子系統定義），所有方案在決策中心攤平比較、Phase B 交叉檢查後進入 MUST 快篩。" className="ml-2 align-middle" />
         </h1>
         <p className="text-sm text-muted-foreground mt-1">雙軌分析 · 方案匯流 · 統一評估</p>
       </div>
@@ -3259,7 +2998,7 @@ export default function Create() {
           )}>
             {activeTrack === "reverse" ? "⚡" :
              activeTrack === "forward" ? "🎯" :
-             currentStep === 4 ? "⬡" : currentStep - 3}
+             currentStep === 3 ? "⬡" : currentStep - 2}
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -3286,7 +3025,7 @@ export default function Create() {
             </div>
             <p className="text-sm text-muted-foreground">
               {activeTrack === "reverse" ? "從約束出發，AI 產出非典型架構概念，每條自帶 Validation Passport" :
-               activeTrack === "forward" ? "TRIZ 矛盾解 → 子系統分解 → SCAMPER 變形 — 系統化產出候選方案" :
+               activeTrack === "forward" ? "TRIZ 矛盾解 → 子系統分解 — 系統化產出候選方案" :
                STEPS[currentStep].description}
             </p>
           </div>
@@ -3306,19 +3045,13 @@ export default function Create() {
         <span className="text-xs text-muted-foreground">
           {ZONE_LABELS[STEPS[currentStep].zone].badge}
         </span>
-        {currentStep < 6 ? (
+        {currentStep < 5 ? (
           <div className="flex flex-col items-end gap-1">
             <Button
               onClick={goNext}
-              disabled={currentStep === 2 && !canProceedFromSubsystem}
             >
               下一步 <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
-            {currentStep === 2 && !canProceedFromSubsystem && (
-              <span className="text-[10px] text-muted-foreground">
-                請至少確認一個子系統後再進入 SCAMPER
-              </span>
-            )}
           </div>
         ) : (
           <div />

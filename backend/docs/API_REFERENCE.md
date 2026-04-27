@@ -441,46 +441,20 @@ curl -X POST http://localhost:8000/api/v1/triz/solve \
 
 ---
 
-## 8. SCAMPER
+## 8. Subsystems
 
-### 8.1 Perform SCAMPER
+> **Migration note**: These endpoints were previously under `/scamper/`. The
+> old paths (`/scamper/subsystem-suggestions`, `/scamper/spatial-overlay`)
+> return HTTP 308 redirects for backward compatibility. The `/scamper/perform`
+> and `/scamper/feedback-contradictions` endpoints have been retired — TRIZ 40
+> principles cover all SCAMPER actions.
 
-Apply SCAMPER 7-action transformation to a subsystem.
+### 8.1 Subsystem Suggestions
 
-```
-POST /api/v1/scamper/perform
-```
-
-**Request Body**
-
-| Field | Type | Required |
-|-------|------|----------|
-| `project_id` | string | yes |
-| `subsystem_name` | string | yes |
-| `subsystem_description` | string | yes |
-| `related_contradictions` | string[] | no |
-
-**Response** `ScamperResponse`
-
-| Field | Type |
-|-------|------|
-| `variants` | `ScamperVariant[]` (action, description, potential_benefits, new_contradictions) |
-
-Actions: `Substitute`, `Combine`, `Adapt`, `Modify`, `Put to other use`, `Eliminate`, `Reverse`
-
-```bash
-curl -X POST http://localhost:8000/api/v1/scamper/perform \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"project_id":"uuid","subsystem_name":"Cooling System","subsystem_description":"Passive heatsink"}'
-```
-
-### 8.2 Subsystem Suggestions
-
-AI suggests subsystems suitable for SCAMPER analysis.
+AI suggests subsystems suitable for design analysis.
 
 ```
-POST /api/v1/scamper/subsystem-suggestions
+POST /api/v1/subsystems/suggest
 ```
 
 **Request Body**
@@ -491,26 +465,28 @@ POST /api/v1/scamper/subsystem-suggestions
 | `mission` | string | yes |
 | `contradictions` | string[] | no |
 | `existing_subsystems` | string[] | no |
+| `layered_triz_solutions` | `LayeredTrizSolution[]` | no |
 
 **Response** `SubsystemSuggestResponse`
 
 | Field | Type |
 |-------|------|
-| `subsystems` | `SuggestedSubsystem[]` (name, reason, related_contradictions) |
+| `subsystems` | `SuggestedSubsystem[]` (name, level, reason, related_contradictions, children, interface_contracts) |
+| `package_map` | `PackageMap` or null |
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/scamper/subsystem-suggestions \
+curl -X POST http://localhost:8000/api/v1/subsystems/suggest \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"project_id":"uuid","mission":"Design motor controller"}'
 ```
 
-### 8.3 Feedback Contradictions
+### 8.2 Spatial Overlay
 
-Feed SCAMPER-generated contradictions back to contradiction management.
+Apply a what-if spatial overlay to a subsystem tree.
 
 ```
-POST /api/v1/scamper/feedback-contradictions
+POST /api/v1/subsystems/spatial-overlay
 ```
 
 **Request Body**
@@ -518,21 +494,20 @@ POST /api/v1/scamper/feedback-contradictions
 | Field | Type | Required |
 |-------|------|----------|
 | `project_id` | string | yes |
-| `new_contradictions` | dict[] | no |
+| `subsystems` | `SuggestedSubsystem[]` | no |
+| `overlay` | dict | no |
 
-**Response** `ScamperFeedbackResponse`
+**Response** `SpatialOverlayResponse`
 
 | Field | Type |
 |-------|------|
-| `created_count` | int |
-| `deduplicated_count` | int |
-| `contradiction_ids` | string[] |
+| `package_map` | `PackageMap` |
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/scamper/feedback-contradictions \
+curl -X POST http://localhost:8000/api/v1/subsystems/spatial-overlay \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"project_id":"uuid","new_contradictions":[{"description":"New thermal issue","severity":"major"}]}'
+  -d '{"project_id":"uuid","subsystems":[],"overlay":{"zones":{"downtube":{"x_mm":400}}}}'
 ```
 
 ---

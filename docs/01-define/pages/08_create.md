@@ -1,6 +1,6 @@
 # Page-Level Prompt: Create 創建 / 方案生成
 
-> Phase 2 最複雜頁面 — 多軌道方案創造精靈，整合反向探索（Anti-Anchor）、正向分析（TRIZ/子系統/SCAMPER）、決策中心與統一評估，完成概念方案收斂。
+> Phase 2 最複雜頁面 — 多軌道方案創造精靈，整合反向探索（Anti-Anchor）、正向分析（TRIZ/子系統）、決策中心與統一評估，完成概念方案收斂。
 
 ---
 
@@ -9,7 +9,7 @@
 - **route_path**: `/projects/:id/create`
 - **page_type**: wizard (multi-step)
 - **primary_goal**: 引導使用者透過反向探索與正向分析兩條路徑產生候選方案，經決策中心橫向比較後以 MUST 快篩淘汰不可行方案
-- **secondary_goal**: 支援 TRIZ 分層診斷、子系統分解、SCAMPER 變形、跨方案收斂分析，為 Pre-CAD 審查做準備
+- **secondary_goal**: 支援 TRIZ 分層診斷、子系統分解、跨方案收斂分析，為 Pre-CAD 審查做準備
 - **target_users**: RD 工程師、系統架構師
 - **entry_point**: Track 頁面 Gate 2.1 通過後導航，或 Dashboard 直接進入
 - **expected_time_on_page**: 30 ~ 120 分鐘（多次進出）
@@ -35,10 +35,8 @@
 6. **Step 2: 子系統定義**
    - section_type: modeling
    - section_purpose: 識別受矛盾影響的子系統（System → Module → Component），定義介面合約
-7. **Step 3: SCAMPER 變形**
-   - section_type: generation
-   - section_purpose: 對每個子系統執行 7 種創意動作，產出方案候選
-8. **Step 4: 候選方案決策中心**
+7. ~~**Step 3: SCAMPER 變形**~~ **(v9 移除 — TRIZ 40 原理完全覆蓋)**
+8. **Step 3: 候選方案決策中心** *(v9: 原 Step 4，因 SCAMPER 移除而前移)*
    - section_type: comparison + decision
    - section_purpose: 攤平所有方案，橫向比較來源、機制、假設、驗證需求與信心等級
 9. **Step 5: MUST 快篩**
@@ -87,10 +85,10 @@
   | Step_0 | step | required | "反向探索 Anti-Anchor"，zone=reverse（amber） |
   | Step_1 | step | required | "正向分析：TRIZ 解矛盾"，zone=forward（blue） |
   | Step_2 | step | required | "正向分析：子系統定義"，zone=forward（blue） |
-  | Step_3 | step | required | "正向分析：SCAMPER 變形"，zone=forward（blue） |
-  | Step_4 | step | required | "候選方案決策中心"，zone=hub（violet） |
-  | Step_5 | step | required | "MUST 快篩"，zone=eval（green） |
-  | Step_6 | step | required | "Pre-CAD 審查"，zone=eval（green） |
+  | ~~Step_3~~ | ~~step~~ | | ~~"正向分析：SCAMPER 變形"~~ **(v9 移除)** |
+  | Step_3 | step | required | "候選方案決策中心"，zone=hub（violet） *(v9: 原 Step_4)* |
+  | Step_4 | step | required | "MUST 快篩"，zone=eval（green） *(v9: 原 Step_5)* |
+  | Step_5 | step | required | "Pre-CAD 審查"，zone=eval（green） *(v9: 原 Step_6)* |
 - **states**: 各步驟顯示完成狀態（pending/in-progress/done），當前步驟高亮
 - **copy_constraints**: Zone badge 使用繁體中文（反向路徑/正向路徑/決策中心/統一評估）
 
@@ -190,22 +188,11 @@
   - suggesting: AI 建議產生中
 - **copy_constraints**: 層級名稱使用英文（system/module/component），說明使用繁體中文
 
-### Section: Step 3 — SCAMPER 變形
-- **layout**: 變體清單 + 採用勾選框
-- **elements**:
-  | Element | Type | Required | Description |
-  |:--------|:-----|:---------|:------------|
-  | VariantList | card-list | required | 顯示 SCAMPER 變體（7 種動作：S/C/A/M/P/E/R） |
-  | AdoptCheckbox | Checkbox | required | 每個變體的採用勾選框 |
-  | TransformButton | AiButton | optional | 觸發 `scamperTransform` API |
-  | NewContradictionAlert | alert | optional | SCAMPER 變形產生的新矛盾提示 |
-- **states**:
-  - empty: 無變體
-  - generating: AI 變形中
-  - generated: 變體清單，可勾選採用
-- **copy_constraints**: SCAMPER 7 種動作標籤使用 SCAMPER_LABELS 常數
+### ~~Section: Step 3 — SCAMPER 變形~~ (v9 移除)
 
-### Section: Step 4 — 候選方案決策中心
+> **v9 移除說明**：SCAMPER 已於 v9 移除 — 其 7 動作為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋。
+
+### Section: Step 3 — 候選方案決策中心 *(v9: 原 Step 4)*
 - **layout**: Evidence Coverage Gauge（頂部）→ 方案網格（含 CCI Badge）→ 比較面板 + ConvergenceDashboard + HumanReviewPanel
 - **elements**:
   | Element | Type | Required | Description |
@@ -231,7 +218,7 @@
   - halted: 架構衝突偵測到，顯示阻擋覆蓋層
   - cci_loading: CCI 計算中（每張卡片獨立 loading）
   - evidence_low: Evidence 覆蓋率 < 40%，Gauge 顯示橘色
-- **copy_constraints**: 方案來源標籤使用英文（Anti-Anchor/TRIZ/SCAMPER）；CCI 判定標籤使用英文（Evolution/Weak Evolution/Patch）
+- **copy_constraints**: 方案來源標籤使用英文（Anti-Anchor/TRIZ）；CCI 判定標籤使用英文（Evolution/Weak Evolution/Patch） *(v9: SCAMPER 來源移除)*
 
 ### Section: Step 5 — MUST 快篩
 - **layout**: 方案列表 + MUST 條件矩陣
@@ -271,8 +258,8 @@
    - 1b. 查看矛盾清單（含 Px Badge）→ 點擊「全部求解」或單獨求解 → 分層診斷/方向分析結果 → 自動整併
    - 1c. SIM 矩陣：≥2 TC 已求解時自動顯示 → 點擊 RunSimButton → +1/0/-1 矩陣 → -1 衝突項提示回流
 4. Step 2: AI 建議子系統分解 → 查看/編輯子系統樹 → 定義介面合約 → 查看 PackageMap
-5. Step 3: 觸發 SCAMPER 變形 → 瀏覽變體 → 勾選採用
-6. Step 4: 決策中心攤平所有方案 → Evidence Coverage Gauge 顯示覆蓋率 → 每張方案卡顯示 CCI Badge → 橫向比較 → 收斂分析 → 人工確認
+5. ~~Step 3: 觸發 SCAMPER 變形~~ **(v9 移除)**
+6. Step 3: 決策中心攤平所有方案 → Evidence Coverage Gauge 顯示覆蓋率 → 每張方案卡顯示 CCI Badge → 橫向比較 → 收斂分析 → 人工確認
 7. Step 5: MUST 快篩淘汰不可行方案
 8. Step 6: Pre-CAD 五維審查 → 雷達圖比較
 9. 所有步驟完成後 → Gate 2.2 通過 → 導航至 Pre-CAD Review 頁面
@@ -305,9 +292,9 @@
   | `useUpdateSubsystem()` | PATCH | 更新子系統 |
   | `useDeleteSubsystem()` | DELETE | 刪除子系統 |
   | `useSubsystemSuggestion(projectId)` | POST | AI 建議子系統分解 |
-  | `useScamperVariants(projectId)` | GET | 取得 SCAMPER 變體 |
-  | `useCreateScamperVariant()` | POST | 建立變體 |
-  | `useUpdateScamperVariant()` | PATCH | 更新變體 |
+  | ~~`useScamperVariants(projectId)`~~ | ~~GET~~ | ~~取得 SCAMPER 變體~~ **(v9 移除)** |
+  | ~~`useCreateScamperVariant()`~~ | ~~POST~~ | ~~建立變體~~ **(v9 移除)** |
+  | ~~`useUpdateScamperVariant()`~~ | ~~PATCH~~ | ~~更新變體~~ **(v9 移除)** |
   | `useAlternatives(projectId)` | GET | 取得候選方案 |
   | `useCreateAlternative()` | POST | 建立方案 |
   | `useUpdateAlternative()` | PATCH | 更新方案 |
@@ -325,11 +312,11 @@
   | `trizSolveLayered(payload)` | POST | 分層 TRIZ 求解 |
   | `trizSolveDirected(payload)` | POST | 方向 TRIZ 求解 |
   | `trizConsolidate(payload)` | POST | 跨矛盾整併 |
-  | `scamperTransform(payload)` | POST | SCAMPER 變形 |
+  | ~~`scamperTransform(payload)`~~ | ~~POST~~ | ~~SCAMPER 變形~~ **(v9 移除)** |
   | `riskAnalyze(payload)` | POST | 風險分析 |
   | `mustEvaluate(payload)` | POST | MUST 快篩評估 |
   | `validationPassportGenerate(payload)` | POST | 驗證護照生成 |
-  | `scamperSpatialOverlay(payload)` | POST | SCAMPER 空間覆蓋分析 |
+  | `subsystemSpatialOverlay(payload)` | POST | 子系統空間覆蓋分析 *(v9: 原 `scamperSpatialOverlay`，遷移至 `/subsystems/spatial-overlay`)* |
   | `spatialComponentOverride(payload)` | POST | 空間元件覆寫 |
   | `spatialLearnedComponent(payload)` | POST | 提升為 learned component |
   | `useOzOtAnalysis(projectId)` | POST | （ADR-008 新增）OZ-OT 分析，鎖定每個 TC 的 Px 變量 |
@@ -367,7 +354,7 @@
 - [ ] Step 2: 可手動新增/編輯/刪除子系統，支援三層架構
 - [ ] Step 2: InterfaceContractsPanel 顯示 6 維介面合約
 - [ ] Step 2: PackageMapPanel 顯示空間佈局圖
-- [ ] Step 3: SCAMPER 變體正確顯示 7 種動作，支援採用勾選
+- [ ] ~~Step 3: SCAMPER 變體正確顯示 7 種動作，支援採用勾選~~ **(v9 移除)**
 - [ ] Step 4: 決策中心攤平所有來源方案，支援橫向比較
 - [ ] Step 4: ConvergenceDashboard 正確顯示收斂狀態
 - [ ] Step 4: CCI Badge 正確顯示每張方案卡的複雜度判定（Evolution/Weak Evolution/Patch）（ADR-008）

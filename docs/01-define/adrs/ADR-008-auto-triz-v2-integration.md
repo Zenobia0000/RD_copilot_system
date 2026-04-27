@@ -100,7 +100,7 @@ TR0 階段比較分析（`docs_harness` vs `docs/02-design`）揭露舊架構在
 
 - 現有 `formalize_contradiction()` 不變（TC-only per ADR-007），FA/OZ-OT 作為前置步驟
 - 現有 `solve_triz_layered()` L1/L2/L3 架構不變，增加接收 FA + OZ-OT 結果作為 context
-- Socratic / Anti-Anchor / CLD / SCAMPER / Subsystem 等現有流程不受影響
+- Socratic / Anti-Anchor / CLD / Subsystem 等現有流程不受影響 *(v9: SCAMPER 已移除)*
 
 ## Implementation Plan
 

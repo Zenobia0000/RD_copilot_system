@@ -63,7 +63,7 @@ channels:
       觸發場景：
         - POST /contradictions/{cid}/formalize → INSERT/UPDATE
         - POST /contradictions/{cid}/decompose → INSERT (child PCs)
-        - POST /scamper/feedback-contradictions → INSERT (SCAMPER-derived)
+        # - POST /scamper/feedback-contradictions → INSERT (SCAMPER-derived)  # v9: removed
         - POST /convergence/scan → INSERT (secondary contradictions)
     messages:
       contradictionChanged:
@@ -81,7 +81,7 @@ channels:
       方案管理即時同步。新增/修改/刪除方案時觸發。
       觸發場景：
         - POST /alternatives/anti-anchor → INSERT
-        - TRIZ/SCAMPER solve results persisted → INSERT/UPDATE
+        - TRIZ solve results persisted → INSERT/UPDATE
         - RD 手動新增方案 → INSERT
     messages:
       alternativeChanged:
@@ -145,21 +145,10 @@ channels:
           type: string
           format: uuid
 
-  projectScamperVariants:
-    address: "realtime:public:scamper_variants:project_id=eq.{project_id}"
-    description: |
-      SCAMPER 變體即時同步。
-      觸發場景：
-        - POST /scamper/perform → INSERT
-    messages:
-      scamperVariantChanged:
-        $ref: "#/components/messages/PostgresChangeEvent"
-    parameters:
-      project_id:
-        description: UUID of the project
-        schema:
-          type: string
-          format: uuid
+  # projectScamperVariants — v9: REMOVED (SCAMPER deprecated)
+  # projectScamperVariants:
+  #   address: "realtime:public:scamper_variants:project_id=eq.{project_id}"
+  #   description: SCAMPER 變體即時同步 — v9 移除
 
   projectGateResults:
     address: "realtime:public:gate_results:project_id=eq.{project_id}"
@@ -198,7 +187,7 @@ channels:
     description: |
       子系統樹結構即時同步。
       觸發場景：
-        - POST /scamper/subsystem-suggestions → INSERT/UPDATE
+        - POST /subsystems/suggest → INSERT/UPDATE  # v9: migrated from /scamper/subsystem-suggestions
         - RD 手動調整子系統 → UPDATE
     messages:
       subsystemChanged:
@@ -311,11 +300,12 @@ operations:
       $ref: "#/channels/projectDirectedTrizSolutions"
     summary: React to directed TRIZ result changes
 
-  onScamperVariantChange:
-    action: receive
-    channel:
-      $ref: "#/channels/projectScamperVariants"
-    summary: React to SCAMPER variant changes
+  # onScamperVariantChange — v9: REMOVED (SCAMPER deprecated)
+  # onScamperVariantChange:
+  #   action: receive
+  #   channel:
+  #     $ref: "#/channels/projectScamperVariants"
+  #   summary: React to SCAMPER variant changes
 
   onGateResultChange:
     action: receive

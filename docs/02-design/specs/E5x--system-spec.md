@@ -12,7 +12,7 @@
 > - 新增 function_models / evidence_claims / sim_matrices 資料表
 > - 新增 Analyst v2 (5 endpoints) + Evidence Registry (3 endpoints) API
 >
-> **v1.1 更新**（2026-02-24）：Step 編號按實際執行順序重新編排（原 Step 6→Step 5、原 Step 5→Step 6）；新增 Step 5 內部流程（TRIZ→子系統→SCAMPER→方案→MUST）詳細說明。
+> **v1.1 更新**（2026-02-24）：Step 編號按實際執行順序重新編排（原 Step 6→Step 5、原 Step 5→Step 6）；新增 Step 5 內部流程（TRIZ→子系統→方案→MUST）詳細說明。（~~SCAMPER 已於 v9 移除~~）
 
 ---
 
@@ -122,7 +122,7 @@ Level 由 `EntryGradingResponse.level` 決定，存入 `projects.entry_level`。
 | 2 | 理解全貌 | I | 蘇格拉底問答 |
 | 3 | 系統建模 | I | 因果迴路 + TRIZ 矛盾 + 斷路點 |
 | 4 | 假設與驗證規劃 | II | 假設台帳 + 未知集合 (U) |
-| **5** | **創造與調整** | **II** | **TRIZ 解矛盾 → 子系統定義 → SCAMPER 變形 → AI 方案生成 → MUST 快篩** |
+| **5** | **創造與調整** | **II** | **TRIZ 解矛盾 → 子系統定義 → AI 方案生成 → MUST 快篩**（~~SCAMPER v9 移除~~） |
 | **6** | **全方位檢視** | **III** | **SWOT + 黑帽質疑 + 風險登錄** |
 | 7 | 決策與行動 | III | KT Decision Analysis + 最小實驗 |
 | 8 | 內化與傳達 | III | 匯出報告 + 費曼 |
@@ -499,7 +499,7 @@ flowchart LR
 
 ---
 
-### Step 5 — 創造與調整（TRIZ → 子系統 → SCAMPER → 方案 → MUST）
+### Step 5 — 創造與調整（TRIZ → 子系統 → 方案 → MUST）
 
 > 這是整合流程的核心發散步驟。流程為串接式管線，但不同矛盾/子系統之間可並行。
 
@@ -513,13 +513,9 @@ flowchart LR
                     5b 子系統定義
                     (散熱/支撐/傳動/控制器/隔振/...)
                           ↓
-                    5c SCAMPER 模組變形
-                    (每個子系統 × 7 動作)
-                          ↓
                ┌──── TRIZ 解法 ────┐
                │                    │
                └──→ 5d AI 方案生成 ←┘
-                    SCAMPER 變形 ──→
                           ↓
                     5e MUST 快篩
                     ↓           ↓
@@ -528,6 +524,8 @@ flowchart LR
               Set-Based 方案集合
               (3-5 條進入 Step 6)
 ```
+
+> ~~5c SCAMPER 模組變形已於 v9 移除~~（其 7 動作為 TRIZ 40 原理子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋）。
 
 ---
 
@@ -589,7 +587,7 @@ TRIZ_解法_C001:
 
 ##### 目的
 
-根據 TRIZ 解法方向，識別哪些子系統需要做 SCAMPER 變形。
+根據 TRIZ 解法方向，識別受影響的子系統並定義三層階層邊界。
 
 ##### 輸入
 
@@ -610,66 +608,13 @@ TRIZ_解法_C001:
 
 ##### 產出
 
-確定的子系統清單，每個子系統會進入 Step 5c 做 SCAMPER 變形。
+確定的子系統清單，進入 Step 5d 進行 AI 方案生成。
 
 ---
 
-#### Step 5c — SCAMPER 模組變形
+#### ~~Step 5c — SCAMPER 模組變形~~ (v9 移除)
 
-##### 輸入
-
-| 來源 | 欄位 | 說明 |
-|------|------|------|
-| Step 5b | subsystem | 子系統名稱 |
-| Step 5a | TRIZ 解法方向 | 作為 SCAMPER 變形的參考方向 |
-
-##### AI 協助
-
-| 端點 | 功能 | 邊界 |
-|------|------|------|
-| `POST /scamper/generate` | 對指定子系統做 SCAMPER 七欄變形 | AI 生成候選變形，人工篩選 |
-
-##### 輸出 — ScamperVariant（固定七欄）
-
-| 欄位 | 型別 | 說明 |
-|------|------|------|
-| id | UUID | |
-| project_id | FK | |
-| subsystem | String | 子系統名稱 |
-| action | String | S/C/A/M/P/E/R |
-| target | Text | **1. 變形對象**：哪個模組/界面/參數 |
-| mechanism | Text | **2. 物理機制**：為什麼可改善某指標（工程語言） |
-| failure_mode | Text | **3. 新增失效模式**：會怎麼死 |
-| supply_risk | Text | **4. 製程/供應風險**：是否可量產 |
-| assumptions | Text | **5. 假設台帳**：需要哪些前提成立 |
-| verification | Text | **6. 最小驗證**：用什麼測試打掉不確定 |
-
-##### SCAMPER 七動作定義
-
-| 動作 | 問題 | 工程導向範例 |
-|------|------|-------------|
-| **S**ubstitute | 什麼可以被替換？ | 鋁→鎂、螺絲→卡扣、有線→無線 |
-| **C**ombine | 什麼可以合併？ | 散熱+結構一體、馬達+減速同軸 |
-| **A**dapt | 什麼可以借用？ | 汽車 NVH 技術→工業設備 |
-| **M**odify | 什麼可以放大/縮小/改形？ | 加厚肋、變截面、非對稱 |
-| **P**ut to other uses | 什麼可以多用途？ | 外殼兼散熱、線槽兼加強筋 |
-| **E**liminate | 什麼可以刪除？ | 減少零件、取消中間層 |
-| **R**earrange | 什麼可以重排？ | 控制器外置、熱源移位 |
-
-##### 範例：散熱系統 × SCAMPER
-
-| 動作 | 變形對象 | 物理機制 | 新增失效模式 | 供應風險 | 假設 | 驗證 |
-|------|---------|---------|-------------|---------|------|------|
-| S | 散熱鰭片→熱管 | 相變傳熱，導熱效率 ×10 | 熱管洩漏 | 熱管供應商有限 | A-001 外殼接觸良好 | 熱阻測試 |
-| C | 外殼+散熱一體 | 減少界面熱阻 | 結構強度不足 | 需新模具 | A-002 外殼面積足夠 | FEA + 熱模擬 |
-| E | 取消獨立散熱片 | 簡化裝配，降成本 | 溫升超標 | — | A-001 功耗 < 50W | 溫升測試 |
-
-##### API 端點
-
-| Method | Path | 說明 |
-|--------|------|------|
-| POST | `/api/v1/projects/{pid}/scamper/generate` | AI 生成變形 |
-| GET | `/api/v1/projects/{pid}/scamper` | 列出變形 |
+> **v9 移除說明**：SCAMPER 已於 v9 移除 — 其 7 動作（S/C/A/M/P/E/R）為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋。相關 API 端點 `/scamper/perform`、`/scamper/generate`、`/scamper/feedback-contradictions` 已移除。
 
 ---
 
@@ -677,14 +622,14 @@ TRIZ_解法_C001:
 
 ##### 目的
 
-整合 Step 5a (TRIZ 解法) + Step 5c (SCAMPER 變形)，交叉組合生成完整的候選方案。
+整合 Step 5a (TRIZ 解法) + Step 5b (子系統定義) + Anti-Anchor 晉升，生成完整的候選方案。
 
 ##### 輸入
 
 | 來源 | 說明 |
 |------|------|
 | Step 5a | TRIZ 解法方向（原理+工程對映） |
-| Step 5c | SCAMPER 變形候選（七欄輸出） |
+| Step 5b | 子系統定義（三層階層 + 6 維契約） |
 | Step 4a | 假設台帳（方案需引用的假設） |
 | Step 4b | 未知集合（方案需考量的不確定因子） |
 
@@ -692,7 +637,7 @@ TRIZ_解法_C001:
 
 | 端點 | 功能 | 邊界 |
 |------|------|------|
-| `POST /alternatives/generate` | 根據 TRIZ+SCAMPER 結果組合生成方案 | AI 生成候選，人工審核/修改；AI **不使用形容詞**，只用工程語言 |
+| `POST /alternatives/generate` | 根據 TRIZ + 子系統定義結果組合生成方案 | AI 生成候選，人工審核/修改；AI **不使用形容詞**，只用工程語言 |
 
 ##### 輸出 — Alternative（每個方案必須附帶）
 
@@ -702,7 +647,7 @@ TRIZ_解法_C001:
 | project_id | FK | |
 | code | String(20) | 方案編號 ALT-001 |
 | name | String(200) | 方案名稱 |
-| source | String(200) | 來源：TRIZ #X + SCAMPER-Y |
+| source | String(200) | 來源：TRIZ #X |
 | mechanism | JSON | **機制說明**：物理原理 + 結構描述 + 關鍵尺寸 |
 | assumptions | JSON | **假設清單**：引用 A-xxx |
 | risk_assessment | JSON | **風險評估**：新增失效模式 + 製程風險 + 供應風險 |
@@ -715,7 +660,7 @@ TRIZ_解法_C001:
 ```yaml
 ALT-001:
   名稱: 分區隔振+熱管散熱
-  來源: TRIZ #1分割 + SCAMPER-S(散熱) + SCAMPER-R(隔振)
+  來源: TRIZ #1分割 + Anti-Anchor(隔振路線)
 
   機制說明:
     物理原理: 隔振墊切斷振動傳遞路徑，熱管相變傳熱繞過隔振界面
@@ -1058,8 +1003,8 @@ ALT-001:
 | Step 3 因果迴路 | 從問答+矛盾中自動建模因果迴路 + 識別斷路點 | 直接確認迴路正確性（人工審核） |
 | Step 3 矛盾識別 | 從回答中初步識別矛盾 | 直接確認矛盾 |
 | Step 5a TRIZ 解法 | 查表 + 生成工程對映 | 決定最終方案 |
-| Step 5c SCAMPER | 生成七欄變形候選 | 省略失效模式/風險欄 |
-| Step 5d 方案生成 | 組合 TRIZ+SCAMPER 產出候選 | 使用形容詞式描述 |
+| ~~Step 5c SCAMPER~~ | *(v9 移除)* | — |
+| Step 5d 方案生成 | 組合 TRIZ 產出候選 | 使用形容詞式描述 |
 | Step 5e MUST 評分 | — | **不參與** (人工 Go/No-Go) |
 | Step 6 風險評估 | 黑帽審查產出風險候選 | 決定緩解措施 |
 | Step 7a WANT 評分 | — | **不參與** (人工基於證據評分) |
@@ -1146,7 +1091,7 @@ ALT-001:
 | causal_loop_generate.md | AI 建模因果迴路 + 斷路點 | Step 3a |
 | contradiction_identify.md | 識別矛盾 | Step 3b |
 | triz_solution.md | TRIZ 解矛盾 | Step 5a |
-| scamper_variant.md | SCAMPER 變形 | Step 5c |
+| ~~scamper_variant.md~~ | ~~SCAMPER 變形~~ | *(v9 移除)* |
 | alternative_generate.md | 生成方案 | Step 5d |
 | black_hat_review.md | 黑帽審查 | Step 6 |
 | decision_record.md | 決策建議 | Step 7c |

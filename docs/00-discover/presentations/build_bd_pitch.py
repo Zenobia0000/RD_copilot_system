@@ -120,7 +120,7 @@ s = new_slide("「你一定遇過」— RD 的七個真實痛點", "資料來源
 
 pains = [
     ("🔒", "經驗鎖定", "方案探索只有 1-2 條\n跳不出熟悉架構"),
-    ("📚", "腦內庫存有限", "跨域知識缺失\nSCAMPER / TRIZ 答不出"),
+    ("📚", "腦內庫存有限", "跨域知識缺失\nTRIZ 答不出"),
     ("👻", "假設隱藏", "前提沒被翻出來\n後期才發現，返工最貴"),
     ("💥", "風險後置", "拖到原型才爆炸\n架構級返工 3-5 次/專案"),
     ("🗃", "決策不可追溯", "「為什麼選這個？」\n無人記得"),
@@ -298,7 +298,7 @@ s = new_slide("4 個 AI Agent 的角色", "誰做什麼 · 輸入輸出一目瞭
 agents = [
     ("Analyst", "需求解構 · 蘇格拉底問答\n矛盾掃描 · 假設質疑",
      "Brief", "Constraint / Contradiction\nAssumption"),
-    ("TRIZ Solver", "三層求解 L1/L2/L3\n子系統拆解 · SCAMPER",
+    ("TRIZ Solver", "三層求解 L1/L2/L3\n子系統拆解",
      "Contradiction", "LayeredTrizSolution\nConcept Route"),
     ("Evaluator", "MUST 規則驗證\nKT 決策 · Gate 判定",
      "Concept Route", "Validation Passport\nDecision Record"),
@@ -422,7 +422,7 @@ steps = [
     ("LLM 產出", "結構化候選"),
     ("純算術驗證", "真值覆寫幻覺"),
     ("資料庫持久化", "Artifact 累積"),
-    ("下游消費", "SCAMPER / Pre-CAD"),
+    ("下游消費", "決策中心 / Pre-CAD"),
 ]
 w = Inches(2.7)
 h = Inches(1.6)
@@ -481,7 +481,7 @@ add_rect(s, Inches(0.4), Inches(2.6), Inches(4.2), Inches(0.55), NAVY)
 add_text(s, Inches(0.4), Inches(2.65), Inches(4.2), Inches(0.45),
          "Forward 軌", size=13, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
 fwd = ["Analyst Agent", "TRIZ Solver (L1/L2/L3)",
-       "Subsystem Discovery", "SCAMPER"]
+       "Subsystem Discovery"]
 for i, it in enumerate(fwd):
     add_rect(s, Inches(0.4), Inches(3.25) + i * Inches(0.55),
              Inches(4.2), Inches(0.45), GREY)
@@ -738,7 +738,7 @@ add_rect(s, Inches(0.5), Inches(1.6), Inches(4.0), Inches(2.3), NAVY)
 add_text(s, Inches(0.5), Inches(1.75), Inches(4.0), Inches(0.5),
          "Forward 軌", size=16, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
 add_text(s, Inches(0.7), Inches(2.3), Inches(3.8), Inches(1.5),
-         "• TRIZ L1/L2/L3\n• Subsystem Discovery\n• SCAMPER 變形",
+         "• TRIZ L1/L2/L3\n• Subsystem Discovery",
          size=13, color=WHITE)
 
 # Reverse

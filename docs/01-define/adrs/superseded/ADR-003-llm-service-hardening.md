@@ -58,7 +58,7 @@ def call_llm_json(system, user_message, *, model=None, max_tokens=4096, temperat
 | PM-2 | Socratic Questions | `prompts/analyst.py::SOCRATIC_QUESTIONS` |
 | PM-3 | Contradiction Identify | `prompts/analyst.py::CLD_GENERATION` |
 | PM-4 | TRIZ Solution | `prompts/triz_solver.py::TRIZ_TC_INSTANTIATION` |
-| PM-5 | SCAMPER Variant | `prompts/triz_solver.py::SCAMPER_TRANSFORM` |
+| ~~PM-5~~ | ~~SCAMPER Variant~~ | ~~`prompts/triz_solver.py::SCAMPER_TRANSFORM`~~ **(v9 移除)** |
 | PM-6 | Alternative Generate | `prompts/analyst.py::ANTI_ANCHOR_GENERATION` |
 | PM-7 | Decision Record | `prompts/evaluator.py::MUST_EVALUATION` |
 | PM-8 | Black Hat Review | `prompts/evaluator.py::RISK_ANALYSIS` |

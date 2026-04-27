@@ -20,7 +20,7 @@
 | 4 | Package Map 渲染 | **後端輸出 SVG**（XY + XZ 正交視圖），FE 僅嵌入 | `render_package_map_svg` 為真值；inline SVG vs URL 於 2.2 定稿 |
 | 5 | RD override 入口 | **UC3 `POST /spatial/component-overrides`** upsert 至 `project_component_overrides` | 下次 UC1 L1 命中；`reference_source=rd_override:<key>` |
 | 6 | Discovery 與 Overlay 視覺分離 | 不共用同一 SVG 元件預設配色；Overlay 僅於對話框內呈現 | UX §Discovery vs Overlay |
-| 7 | Tab ③ 解鎖閘 | **Tab ② RD 確認** 後方可進入 SCAMPER | 未確認時 Tab ③ disabled + 原因提示 |
+| 7 | Tab ② 確認閘 | **Tab ② RD 確認** 後方可進入決策中心 *(v9: 原 SCAMPER，已移除)* | 未確認時後續步驟 disabled + 原因提示 |
 
 ---
 
@@ -31,7 +31,7 @@ Brief + 矛盾 → POST subsystem-suggestions → LLM 樹 + 契約
     → layered resolver 覆寫 spatial → validator 算 PackageMap + SVG
     → FE 呈現三層樹 + 6 維 + spatial badge + Package Map
     → RD 可 override / 推升 learned / 可選 overlay 試算
-    → RD 確認 → 解鎖 Tab ③ SCAMPER；Pre-CAD 消費 deterministic spatial
+    → RD 確認 → 解鎖決策中心 (v9: 原 SCAMPER 已移除)；Pre-CAD 消費 deterministic spatial
 ```
 
 ---
@@ -56,14 +56,14 @@ Brief + 矛盾 → POST subsystem-suggestions → LLM 樹 + 契約
 | ID | 工作包 | 主要交付物 |
 |----|--------|------------|
 | 1 | 基線與契約凍結 | 介面型別、OpenAPI/契約快照、對照表 |
-| 2 | 後端：UC1 建議管線 | `POST /scamper/subsystem-suggestions` 端到端 |
+| 2 | 後端：UC1 建議管線 | `POST /subsystems/suggest` 端到端 *(v9: 原 `/scamper/subsystem-suggestions`)* |
 | 3 | 後端：Spatial 真值與驗證 | Resolver L1–L4 + `discover_package` + SVG |
 | 4 | 後端：UC3 / UC4 | `POST /spatial/component-overrides`、`learned-components` |
-| 5 | 後端：UC5 Overlay | `POST /scamper/spatial-overlay` |
+| 5 | 後端：UC5 Overlay | `POST /subsystems/spatial-overlay` *(v9: 原 `/scamper/spatial-overlay`)* |
 | 6 | 前端：Tab ② 區塊 A | 三層樹、六維契約、spatial、確認閘 |
 | 7 | 前端：Tab ② 區塊 B | Package Map 面板、clash、退化提示 |
 | 8 | 前端：Tab ② 區塊 C | Overlay 對話框、與 discovery 視覺分離 |
-| 9 | 整合、狀態與下游 | SCAMPER 解鎖、持久化、Pre-CAD 銜接 |
+| 9 | 整合、狀態與下游 | 決策中心解鎖、持久化、Pre-CAD 銜接 *(v9: 原 SCAMPER 解鎖)* |
 | 10 | 測試、可觀測性、文件 | 單測/契約測/E2E、錯誤碼、Runbook |
 
 ---
@@ -85,7 +85,7 @@ Brief + 矛盾 → POST subsystem-suggestions → LLM 樹 + 契約
 |---------|--------|-------------------|------|------|
 | 2.1 | `suggest_subsystems` 編排：`summarize_for_prompt` → LLM → `_resolve_spatial_via_layers` → `discover_package`（§7.1） | 單元測試 + 整合測試；失敗時行為符合 §4.1（validator 掛了仍回樹） | 1.x | ✅ (triz_solver.py:337/390/397) |
 | 2.1.L2 | **[L2 WBS 9.5.1 交叉影響]** `suggest_subsystems` prompt 組裝接收 contradictions 時若含子 PC，額外注入 `subsystem_hint` 與 `derived_parameter` 到 `<contradictions>` 區塊；prompt 加「以 subsystem_hint 作為 module 層級強提示」指令。**本任務由 L2 WBS 9.5.1 負責實作，本 WBS 僅同步接收改動** | L2 WBS 9.5.1 的 PR；本 WBS 2.1 單測需包含「混合父 TC + 子 PC 輸入」案例 | L2 WBS 9.5.1 | ⏳ 待 L2 WBS 啟動 |
-| 2.2 | **POST `/scamper/subsystem-suggestions`** 請求/回應 schema 與 UX 表「區塊 A/B」欄位對齊 | OpenAPI 或同等契約；含 `package_map`、SVG 字串或 URL 策略 | 2.1 | ✅ `test_subsystem_contract.py` schema snapshot + round-trip |
+| 2.2 | **POST `/subsystems/suggest`** 請求/回應 schema 與 UX 表「區塊 A/B」欄位對齊 | OpenAPI 或同等契約；含 `package_map`、SVG 字串或 URL 策略 | 2.1 | ✅ `test_subsystem_contract.py` schema snapshot + round-trip |
 | 2.3 | 矛盾與節點 **`related_contradictions`** 貫穿（§6.4.4） | 回傳 JSON 可驗證；供第三眼追溯使用；**需驗證父 TC id 與子 PC id 可共存於同一節點的 `related_contradictions` 陣列，不去重掉任一方** | 2.2, L2 WBS 9.5.2 | ✅ `test_tab1_to_tab2_e2e.py` (父 TC + 子 PC 共存待 L2 WBS 9.5.2 啟動時補) |
 | 2.4 | 與 **Supabase `subsystems`** 寫入策略對齊（§7.1 FE 寫表—若實作改由後端寫入需一致） | 明確「誰寫庫」序時圖；無雙寫競態 | 2.2 | ✅ `docs/e2e/module/Subsystem_Persistence_Policy.md` (凍結 FE 寫 subsystems / BE 獨占寫 override+learned) |
 
@@ -125,7 +125,7 @@ Brief + 矛盾 → POST subsystem-suggestions → LLM 樹 + 契約
 
 | 任務 ID | 工作項 | 交付物 / 完成準則 | 依賴 | 狀態 |
 |---------|--------|-------------------|------|------|
-| 6.1 | **POST `/scamper/spatial-overlay`**：`discover_package` → `apply_overlay`（§7.4） | 回傳 `overlay_violations`；**不修改**原始 discovery 狀態 | 3.3 | ✅ `routers/scamper.py` + test_subsystem_contract.py::TestSpatialOverlayContract (wrapped {package_map: ...} response 鎖定) |
+| 6.1 | **POST `/subsystems/spatial-overlay`**：`discover_package` → `apply_overlay`（§7.4） | 回傳 `overlay_violations`；**不修改**原始 discovery 狀態 | 3.3 | ✅ `routers/subsystems.py` + test_subsystem_contract.py::TestSpatialOverlayContract (wrapped {package_map: ...} response 鎖定) |
 | 6.2 | Overlay 輸入 schema（zones、per-module mass_budget）與 anchor 語意對齊 | 範例請求 + 驗證錯誤訊息 | 6.1 | ✅ `SpatialOverlayRequest` 巢狀 dict schema (`zones: {name: bbox}`, `mass_budget_g: {key: cap}`)；FE `handleOverlaySubmit` 轉換層已驗證 |
 
 ---
@@ -140,7 +140,7 @@ Brief + 矛盾 → POST subsystem-suggestions → LLM 樹 + 契約
 | 7.4 | **confidence badge** + **reference_source** hover（完整字串 + 更新時間，UX §Spatial Confidence） | 色票表與 spec 一致；無混用於 overlay 配色 | 1.2, 7.3 | ✅ `SpatialConfidenceBadge.tsx` (元件完成，Wave 3 整合) |
 | 7.5 | **「我來給數字」** → 呼叫 UC3；成功後局部 refetch 或樂觀更新 | E2E：llm_estimate → override → badge 變深綠語意 | 4.1, 7.4 | ✅ `SpatialOverrideDialog.tsx` + Create.tsx 快取 invalidation |
 | 7.6 | **「推升至 learned」**（Tab ② 入口，若與 ④ 批次分開則共用 service） | 成功/失敗 toast；權限錯誤處理 | 5.1, 7.4 | ✅ `PromoteToLearnedDialog.tsx` |
-| 7.7 | **確認** 解鎖 Tab ③（create-ux-spec；§8.1 `RDConfirmed`） | 未確認時 SCAMPER tab disabled + 原因提示 | 7.2, 8.x 流程 | ✅ (Create.tsx `canProceedFromSubsystem` gate) |
+| 7.7 | **確認** 解鎖決策中心（create-ux-spec；§8.1 `RDConfirmed`） | 未確認時後續步驟 disabled + 原因提示 *(v9: 原 SCAMPER tab)* | 7.2, 8.x 流程 | ✅ (Create.tsx `canProceedFromSubsystem` gate) |
 | 7.8 | **手動新增**子系統表單（名稱、層級、理由、矛盾、鄰居）與 `createSubsystem()` | 表單驗證與 API 對齊 | 7.1 | ✅ (既有) |
 
 ---
@@ -170,7 +170,7 @@ Brief + 矛盾 → POST subsystem-suggestions → LLM 樹 + 契約
 
 | 任務 ID | 工作項 | 交付物 / 完成準則 | 依賴 | 狀態 |
 |---------|--------|-------------------|------|------|
-| 10.1 | **F3 SCAMPER** 讀取已確認之結構化契約（UC6）；Frozen 後解鎖規則（§8.1） | 契約變更 invalidate 策略有 log 或版本號 | 7.7 | ✅ `ScamperRequest.interface_contracts` + `contracts_hash`；prompt 加入 6 維 + spatial 注入；FE `subsystemHash.ts` djb2 + `isContractDriftedSinceConfirm` predicate；renderScamper 漂移 banner + 重新確認按鈕；觀測計數 `scamper.contracts_provided` / `scamper.hash_missing` |
+| 10.1 | ~~**F3 SCAMPER** 讀取已確認之結構化契約（UC6）~~ **(v9 移除)** — 決策中心直接消費結構化契約；Frozen 後解鎖規則（§8.1） | 契約變更 invalidate 策略有 log 或版本號 | 7.7 | ✅ 契約 hash 機制保留用於決策中心 |
 | 10.2 | **Pre-CAD** `spatial_score` deterministic 輸入來自 validator（架構 §5.2 / create-ux-spec ④） | 評分與 Tab ② 所見 package 一致；可追溯 | 3.3 | ✅ evaluator fix: 空 PackageMap/validator 崩潰時強制 neutral 3 + source 標記，不再信任 LLM |
 | 10.3 | **Pre-CAD spatial trace** UI（hover 展開 bbox/clash/總質量） | 與 ④ 統一評估 wireframe 對齊 | 10.2 | ✅ `PreCadReview.tsx` useEffect 於開啟 review dialog 時呼叫 `preCadAnalyze`，按 solutionId 快取 `spatial_trace`/`spatial_score`；loading/idle/error/done 四態渲染。**DB 持久化**留作未來遷移（`pre_cad_reviews.ai_analysis` 欄位不存在；live fetch 可接受） |
 | 10.4 | 與 **Tab ① TRIZ** 進入條件銜接（矛盾資料傳入 UC1） | 整合測試一條龍 | 2.2 | ✅ test_tab1_to_tab2_e2e.py (6 tests: id 保留 / 共矛盾耦合 / spatial 覆寫 / empty / package_map 篩選 / hermetic) |
@@ -183,7 +183,7 @@ Brief + 矛盾 → POST subsystem-suggestions → LLM 樹 + 契約
 |---------|--------|-------------------|------|------|
 | 11.1 | 後端：**pure function** 單測（§5.1：resolver、validator、svg） | CI 綠燈 | 3.x, 6.x | ✅ (既有 test_spatial_validator.py 617 行) |
 | 11.2 | API **契約測試**（Pact 或 schema snapshot）針對 2.2、4.1、5.1、6.1 | 破壞性更會失敗 | 2.2 | ✅ test_subsystem_contract.py (17 tests, 4 endpoints) |
-| 11.3 | FE：**關鍵使用者流程** E2E（Suggest → Map → Override → Confirm → SCAMPER enabled） | 錄影或 trace 存 artifact | 7.x, 8.x | ⚠️ component tests via Vitest + Testing Library (32 tests)；Playwright E2E 延後，待辦已紀錄於 `docs/e2e/module/Playwright_E2E_Followup_WBS.md` |
+| 11.3 | FE：**關鍵使用者流程** E2E（Suggest → Map → Override → Confirm → 決策中心 enabled） *(v9: 原 SCAMPER enabled)* | 錄影或 trace 存 artifact | 7.x, 8.x | ⚠️ component tests via Vitest + Testing Library (32 tests)；Playwright E2E 延後，待辦已紀錄於 `docs/e2e/module/Playwright_E2E_Followup_WBS.md` |
 | 11.4 | 可觀測性：UC1 各 phase 耗時、Tavily/LLM 失敗率 metric | Dashboard 或 log 欄位約定 | 2.1 | ✅ `app/observability/metrics.py` (phase_timer + emit_counter, JSON log lines); 6 phases + 9 counters |
 | 11.5 | 本 WBS 與 **create-ux-spec / Forward_Subsystem** 對照表維護 | 版本升級時更新「對齊文件對應表」 | 全案 | ✅ 「文件對照」表於本 WBS §末段維持 |
 
@@ -208,12 +208,12 @@ Brief + 矛盾 → POST subsystem-suggestions → LLM 樹 + 契約
                                                                           │
 9.1 Overlay 對話框 (✅) ──► 9.2 fits/tight/clash (✅) ──► 9.3 violations (✅)
                                                                           │
-10.1 F3 SCAMPER 讀契約 ──► 10.2 Pre-CAD spatial_score ──► 10.3 trace UI ──► 10.4 Tab ① 銜接
+10.1 決策中心讀契約 (v9: 原 F3 SCAMPER) ──► 10.2 Pre-CAD spatial_score ──► 10.3 trace UI ──► 10.4 Tab ① 銜接
                                                                           │
 11.1 單測 ──► 11.2 契約測 ──► 11.3 E2E ──► 11.4 可觀測性 ──► 11.5 對照表 ◄─┘
 ```
 
-關鍵路徑：**1.1 → 2.2 → 3.3 → 3.4 → 7.3 → 7.5 → 7.7 → 10.1 → 11.3**（UC1 → Package Map → override → 解鎖 → SCAMPER enabled）
+關鍵路徑：**1.1 → 2.2 → 3.3 → 3.4 → 7.3 → 7.5 → 7.7 → 10.1 → 11.3**（UC1 → Package Map → override → 解鎖 → 決策中心 enabled）
 
 ---
 
@@ -221,7 +221,7 @@ Brief + 矛盾 → POST subsystem-suggestions → LLM 樹 + 契約
 
 | 風險 | 影響 | 緩解 |
 |------|------|------|
-| Validator (`discover_package`) 失敗造成 Tab ② 全頁卡住 | RD 無法確認、下游 SCAMPER 無法解鎖 | 3.5 non-blocking 降級；UX 顯示「Package Map 暫不可用」，樹與契約仍可編輯 |
+| Validator (`discover_package`) 失敗造成 Tab ② 全頁卡住 | RD 無法確認、下游決策中心無法解鎖 | 3.5 non-blocking 降級；UX 顯示「Package Map 暫不可用」，樹與契約仍可編輯 |
 | Resolver 降級到 seed 後 confidence 無法回復 | Pre-CAD `spatial_score` 失真 | 3.2 confidence 語意標示 `estimate`；7.4 badge 顯著提示 RD 覆寫 |
 | Discovery 與 Overlay 視覺混淆 | RD 把假設值當真值 | 6.1 Overlay **不修改**原始 discovery；8.4 Code review 禁用相同配色；9.1 對話框隔離 |
 | RD override 後 cache 未刷新，UC1 仍回舊值 | override 無效體感 | 4.2 整合測試斷言 `reference_source=rd_override:<key>`；7.5 成功後局部 refetch |
@@ -234,11 +234,11 @@ Brief + 矛盾 → POST subsystem-suggestions → LLM 樹 + 契約
 ## 完成判準（Definition of Done）
 
 - [ ] 所有 P0 / P1 任務包單測 + 契約測 + E2E 全綠（11.1 / 11.2 / 11.3）
-- [ ] e-Bike 案例：UC1 → Package Map → override → 推升 learned → 確認 → SCAMPER tab enabled 於本地可錄製完整 E2E
+- [ ] e-Bike 案例：UC1 → Package Map → override → 推升 learned → 確認 → 決策中心 enabled 於本地可錄製完整 E2E
 - [ ] Tab ② 每個 module 節點皆可展開 **六維契約**（對鄰居）與 **spatial 區塊**
 - [ ] `confidence` badge 色票與 UX §Spatial Confidence 1:1；hover 顯示完整 `reference_source` + 更新時間
 - [ ] Discovery 主圖與 Overlay SVG 在 code review 中確認不共用預設配色
-- [ ] 未確認 Tab ② 時 SCAMPER tab 為 disabled 且顯示原因
+- [ ] 未確認 Tab ② 時後續步驟為 disabled 且顯示原因 *(v9: 原 SCAMPER tab)*
 - [ ] Pre-CAD `spatial_score` 與 Tab ② 所見 `total_mass_g` / `total_bbox_mm` 一致
 - [ ] Validator 注入失敗時 Tab ② 仍可編輯樹與契約（non-blocking 降級驗證）
 

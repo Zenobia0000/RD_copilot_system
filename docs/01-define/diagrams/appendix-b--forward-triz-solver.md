@@ -1304,7 +1304,7 @@ mindmap
 %%{init: {'theme': 'neutral'}}%%
 flowchart LR
     A[F1 解矛盾] --> B[F2 子系統定義]
-    B --> C[F3 SCAMPER 變形]
+    B --> C[決策中心]
     C --> D[Pre-CAD 評分]
     D --> E[RD 簽核]
     E -.->|secondary 矛盾| A

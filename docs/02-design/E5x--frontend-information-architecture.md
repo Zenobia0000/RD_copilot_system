@@ -176,7 +176,7 @@ RD Design Copilot
 | **Purpose** | TRIZ 分層解 + Subsystem + Decision Center + 三層樹 |
 | **Key Components** | `LayeredSolutionCard`, `MissionContext`, `CreateStepper`, `KnowledgeRefsPanel`, `SubsystemHierarchyView`, `PackageMapPanel`, `SpatialOverlayDialog`, `SpatialOverrideDialog`, `PromoteToLearnedDialog`, `ConvergenceDashboard`, `HumanReviewPanel`, `ArchitectureHaltOverlay`, `MultiSolutionAdoptionPanel`, `ConvergenceGraph`, `OzOtPanel` (v2.0 新增), `CciBadge` (v2.0 新增), `EvidenceCoverageGauge` (v2.0 新增)（其餘見 UX spec） |
 | **State** | 提議 `useCreateStore` (Zustand) 管 tab/drill-down；`useLayeredTrizSolve`, `useSubsystemSuggestion` server state；`useOzOtAnalysis`, `useSimMatrix`, `useComplexityCheck`, `useEvidenceCoverage` (v2.0 新增) |
-| **Related API** | `/triz/solve-layered`, `/triz/sim-matrix` (v2.0 新增), `/triz/complexity-check` (v2.0 新增), `/analyst/oz-ot-analysis` (v2.0 新增), `/evidence/coverage` (v2.0 新增), `/scamper/*`, `/contradictions/*`, `/subsystems/*` |
+| **Related API** | `/triz/solve-layered`, `/triz/sim-matrix` (v2.0 新增), `/triz/complexity-check` (v2.0 新增), `/analyst/oz-ot-analysis` (v2.0 新增), `/evidence/coverage` (v2.0 新增), `/subsystems/*` *(v9: `/scamper/*` 移除)*, `/contradictions/*` |
 | **參考 Spec** | **[create-ux-spec](specs/ux/E5x--create-ux-spec.md)**（完整 Tab ①–④） |
 | **Source** | `src/pages/Create.tsx` |
 

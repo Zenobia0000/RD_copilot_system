@@ -348,7 +348,7 @@ erDiagram
     }
     SOLUTION_CANDIDATE {
         uuid id PK
-        string source "anti_anchor|triz_tc|triz_pc|scamper|manual"
+        string source "anti_anchor|triz_tc|triz_pc|manual"
         uuid origin_route_id FK
     }
 ```
@@ -786,14 +786,11 @@ graph LR
 graph TB
     F0R[AntiAnchorRoute] --> VP[ValidationPassport]
     TRIZ[TrizSuggestion] -.-> VP2[ValidationPassport<br/>by on-demand generate]
-    SCM[ScamperVariant] -.-> VP3[ValidationPassport<br/>by on-demand generate]
     F0R --> CAND[SolutionCandidate<br/>source=anti_anchor]
     TRIZ --> CAND2[SolutionCandidate<br/>source=triz_tc/pc/sf]
-    SCM --> CAND3[SolutionCandidate<br/>source=scamper]
 
     CAND --> HUB[決策中心]
     CAND2 --> HUB
-    CAND3 --> HUB
 
     style VP fill:#bbf7d0,stroke:#14532d,stroke-width:2px,color:#000
     style HUB fill:#dbeafe,stroke:#1e3a8a,stroke-width:2px,color:#000
@@ -801,7 +798,7 @@ graph TB
 
 
 
-> **關鍵**：Anti-Anchor 是**唯一**一條路徑，其路線**天生自帶** Validation Passport。TRIZ / SCAMPER 的候選需要事後呼叫 `validation_passport_generate` 才會產出 Passport。這是 Anti-Anchor 在決策中心的相對優勢（資料更齊）。
+> **關鍵**：Anti-Anchor 是**唯一**一條路徑，其路線**天生自帶** Validation Passport。TRIZ 的候選需要事後呼叫 `validation_passport_generate` 才會產出 Passport。這是 Anti-Anchor 在決策中心的相對優勢（資料更齊）。
 
 #### 10.3 為什麼反向路徑天生有 Passport，正向路徑沒有？
 
@@ -812,7 +809,7 @@ graph TB
 | TRIZ TC     | 逐矛盾生成              | ❌              | Prompt 只要求 principle + suggestion |
 | TRIZ PC     | 逐矛盾生成              | ❌              | 分離原則結構複雜，Passport 另外要             |
 | TRIZ SF     | 逐矛盾生成              | ❌              | 76 標準解結構複雜，Passport 另外要           |
-| SCAMPER     | 逐子系統逐動作生成          | ❌              | 組合爆炸，Passport 另外要                 |
+| ~~SCAMPER~~ | ~~逐子系統逐動作生成~~      | ~~❌~~          | **(v9 移除)**                        |
 
 
 ---

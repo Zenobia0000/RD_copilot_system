@@ -40,7 +40,7 @@ TR0  TR1       TR2  TR3      TR4  TR5       TR6    TR7        TR8  TR9  TR10
 
 | Zone | Purpose |
 |------|---------|
-| [_domain-knowledge/](_domain-knowledge/DK-00--index.md) | RD 設計方法論專業知識 — MECE 4 文件：哲學流程 (DK-01)、TRIZ/SCAMPER (DK-02)、KT 決策 (DK-03)、資料模型 (DK-04) |
+| [_domain-knowledge/](_domain-knowledge/DK-00--index.md) | RD 設計方法論專業知識 — MECE 4 文件：哲學流程 (DK-01)、TRIZ (DK-02)、KT 決策 (DK-03)、資料模型 (DK-04) |
 | [_gap-analysis/](_gap-analysis/) | 缺口分析 vs 投資人/合約需求 |
 | [_meeting-minutes/](_meeting-minutes/) | 會議決策紀錄 |
 | [_superseded/](_superseded/_MOC.md) | 已被取代的文件版本 |

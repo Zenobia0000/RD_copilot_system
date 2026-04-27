@@ -4,7 +4,7 @@ info:
   version: 0.2.0
   description: |
     RD Design Copilot — AI-driven early-stage concept design decision platform.
-    Integrates SCAMPER/TRIZ divergence + KT decision convergence + evidence-driven 8-Gate process.
+    Integrates TRIZ divergence + KT decision convergence + evidence-driven 8-Gate process.
 
     ## Authentication
     All business endpoints require a valid JWT Bearer token issued by Supabase Auth.
@@ -44,8 +44,11 @@ tags:
     description: Anti-anchor route generation, validation passport
   - name: TRIZ 求解 triz
     description: "TRIZ solving: primitive, Su-Field, layered (v7 legacy), directed (v8), consolidation"
-  - name: SCAMPER scamper
-    description: SCAMPER transform, subsystem suggestions, spatial overlay, feedback contradictions
+  # v9: SCAMPER tag deprecated — /scamper/perform and /scamper/feedback-contradictions REMOVED;
+  #      /scamper/subsystem-suggestions → /subsystems/suggest;
+  #      /scamper/spatial-overlay → /subsystems/spatial-overlay
+  - name: SCAMPER scamper (v9-deprecated)
+    description: "[DEPRECATED v9] SCAMPER removed — TRIZ 40 principles fully cover SCAMPER 7 actions. Subsystem endpoints migrated to /subsystems/."
   - name: 風險登錄 risks
     description: FMEA-style risk analysis
   - name: 行動建議 actions
@@ -584,32 +587,18 @@ paths:
                 $ref: "#/components/schemas/ConsolidateResponse"
 
   # =========================================================================
-  # SCAMPER scamper
+  # SCAMPER scamper — v9 DEPRECATED
+  # /scamper/perform and /scamper/feedback-contradictions: REMOVED
+  # /scamper/subsystem-suggestions → /subsystems/suggest
+  # /scamper/spatial-overlay → /subsystems/spatial-overlay
   # =========================================================================
-  /api/v1/scamper/perform:
-    post:
-      operationId: scamperPerform
-      tags: [SCAMPER scamper]
-      summary: 7-action SCAMPER transform
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ScamperRequest"
-      responses:
-        "200":
-          description: SCAMPER variants
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ScamperResponse"
 
-  /api/v1/scamper/subsystem-suggestions:
+  # v9: Migrated from /scamper/subsystem-suggestions
+  /api/v1/subsystems/suggest:
     post:
-      operationId: scamperSubsystemSuggestions
-      tags: [SCAMPER scamper]
-      summary: Suggest subsystems for SCAMPER analysis
+      operationId: subsystemsSuggest
+      tags: [子系統 subsystems]
+      summary: Suggest subsystems based on contradictions and brief
       requestBody:
         required: true
         content:
@@ -631,10 +620,11 @@ paths:
                 type: object
                 description: IncompleteLLMResponseError.to_dict() payload
 
-  /api/v1/scamper/spatial-overlay:
+  # v9: Migrated from /scamper/spatial-overlay
+  /api/v1/subsystems/spatial-overlay:
     post:
-      operationId: scamperSpatialOverlay
-      tags: [SCAMPER scamper]
+      operationId: subsystemsSpatialOverlay
+      tags: [子系統 subsystems]
       summary: Stateless what-if spatial overlay
       requestBody:
         required: true
@@ -649,25 +639,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SpatialOverlayResponse"
-
-  /api/v1/scamper/feedback-contradictions:
-    post:
-      operationId: scamperFeedbackContradictions
-      tags: [SCAMPER scamper]
-      summary: Feed SCAMPER-generated contradictions back to contradiction management
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ScamperFeedbackRequest"
-      responses:
-        "200":
-          description: Feedback result
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ScamperFeedbackResponse"
 
   # =========================================================================
   # 風險登錄 risks
@@ -3065,7 +3036,8 @@ components:
       required: [consolidation]
 
     # -----------------------------------------------------------------------
-    # SCAMPER
+    # SCAMPER — v9: ScamperRequest/ScamperResponse/ScamperFeedback* REMOVED
+    #           InterfaceContract & Subsystem schemas retained (used by /subsystems/)
     # -----------------------------------------------------------------------
     InterfaceContract:
       type: object
@@ -3996,7 +3968,7 @@ components:
               - cld
               - alternatives
               - triz_solutions
-              - scamper_variants
+              # - scamper_variants  # v9: removed
               - risks
               - experiments
               - decisions

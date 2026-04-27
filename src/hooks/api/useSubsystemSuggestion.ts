@@ -11,7 +11,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { scamperSubsystemSuggest } from '@/lib/api';
+import { subsystemSuggest } from '@/lib/api';
 import type { SuggestedSubsystem, PackageMap, SubsystemLevel } from '@/types/generated/subsystem';
 import { queryKeys } from './useQueryConfig';
 
@@ -43,7 +43,7 @@ export function useSubsystemSuggestion(projectId: string | undefined) {
       if (delErr) console.warn('Failed to clear subsystems:', delErr.message);
 
       // 2) Call backend suggestion API.
-      const resp = await scamperSubsystemSuggest({
+      const resp = await subsystemSuggest({
         project_id: projectId,
         mission,
         contradictions,

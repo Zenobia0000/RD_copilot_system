@@ -93,7 +93,7 @@ Observability：
 
 **操作**：
 1. `docs/e2e/module/Forward_TRIZ_Solver_Architecture.md` §6.2 / §6.6 / §7.1 章節重寫（參考 `TRIZ_Layered_DrillDown_Optimization.md` §6.1）。
-2. `docs/diagrams/triz-to-scamper-flow.md` §0 / §1 主流程圖 / §3 Phase B / §7 狀態轉換表更新（參考 §6.2）。
+2. `docs/diagrams/triz-to-scamper-flow.md` §0 / §1 主流程圖 / §7 狀態轉換表更新（參考 §6.2）。*(v9: SCAMPER 已移除，F3 節點刪除)*
 3. `docs/e2e/TRIZ_Multi_Solution_Adoption_Strategy.md` 已於 v1.1 同步，僅需 smoke review。
 4. grep 全 repo，確認無殘留的「TC/PC/SF 三選一」、「同矛盾多路徑警告」等舊語句：
    ```sh

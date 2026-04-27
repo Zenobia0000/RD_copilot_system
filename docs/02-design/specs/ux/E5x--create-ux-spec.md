@@ -46,7 +46,7 @@
 >
 > **v5 (2026-03-26)**：雙軌對稱 — 各一個節點 → 候選池 → 決策中心。
 > - 反向：Anti-Anchor（1 個節點，創意發散）
-> - 正向：TRIZ + 子系統 + SCAMPER 合成一個 E2E 節點（內部 tab 切換），報告風格對齊 Anti-Anchor
+> - 正向：TRIZ + 子系統合成一個 E2E 節點（內部 tab 切換），報告風格對齊 Anti-Anchor（~~SCAMPER 已於 v9 移除~~）
 > - 兩條路徑各產出 route-style 候選，進入同一個候選池
 
 ---
@@ -79,12 +79,12 @@
 │  ┌─────────────────────────┐  ┌─────────────────────────┐        │
 │  │  ⚡ 反向探索              │  │  🎯 正向分析              │        │
 │  │                          │  │                          │        │
-│  │  Anti-Anchor Sprint     │  │  TRIZ → 子系統 → SCAMPER │        │
+│  │  Anti-Anchor Sprint     │  │  TRIZ → 子系統            │        │
 │  │  從約束出發，AI 產出      │  │  從矛盾出發，系統化產出    │        │
 │  │  非典型架構概念           │  │  候選方案                 │        │
 │  │                          │  │                          │        │
 │  │  每條自帶                │  │  內部 tab 切換：           │        │
-│  │  Validation Passport    │  │  ① TRIZ ② 子系統 ③ SCAMPER│        │
+│  │  Validation Passport    │  │  ① TRIZ ② 子系統          │        │
 │  │                          │  │                          │        │
 │  │  [點擊展開操作]          │  │  [點擊展開操作]            │        │
 │  └─────────────────────────┘  └─────────────────────────┘        │
@@ -97,7 +97,7 @@
 │  │  所有候選攤平 · RD adopt/skip · Phase B 交叉檢查               │ │
 │  │                                                                │ │
 │  │  ┌─────────┐ ┌──────────────┐ ┌─────────┐ ┌─────────┐      │ │
-│  │  │ AA 路線1 │ │ TRIZ-Layered │ │ TRIZ-L1 │ │ SCAMPER │      │ │
+│  │  │ AA 路線1 │ │ TRIZ-Layered │ │ TRIZ-L1 │                  │ │
 │  │  │ single  │ │ ▢ L1 現象層   │ │ single  │ │ single  │      │ │
 │  │  │ 反向/創意│ │ ▢ L2 根因層   │ │ 正向/演繹│ │ 正向/創意│      │ │
 │  │  │ 信心:65 │ │ ▢ L3 結構層   │ │ 信心:78 │ │ 信心:71 │      │ │
@@ -152,14 +152,14 @@
 
 #### 正向分析卡片（TRIZ E2E）
 
-點擊後展開，內部 tab 切換三個子步驟：
+點擊後展開，內部 tab 切換兩個子步驟（~~③ SCAMPER 已於 v9 移除~~）：
 
 ```
-┌─────────────────────────────────────────────────┐
-│  ① TRIZ 解矛盾  │  ② 子系統定義  │  ③ SCAMPER 變形 │
-├─────────────────────────────────────────────────┤
-│  （當前 tab 的內容）                               │
-└─────────────────────────────────────────────────┘
+┌──────────────────────────────────────┐
+│  ① TRIZ 解矛盾  │  ② 子系統定義      │
+├──────────────────────────────────────┤
+│  （當前 tab 的內容）                    │
+└──────────────────────────────────────┘
 ```
 
 **Tab ① TRIZ 解矛盾（v7 重寫：分層 drill-down 診斷）**
@@ -262,7 +262,7 @@
 
 | 元素 | 互動 | 觸發 / API |
 |------|------|------|
-| [AI 建議架構分解] | LLM 產出 System→Module→Component 樹（含 spatial） | POST /scamper/subsystem-suggestions |
+| [AI 建議架構分解] | LLM 產出 System→Module→Component 樹（含 spatial） | POST /subsystems/suggest *(v9: 原 `/scamper/subsystem-suggestions`)* |
 | [手動新增] | 表單：名稱 / 層級 / 理由 / 關聯矛盾 / 鄰居名稱 | createSubsystem() |
 | 樹狀結構 | 展開 System → Module → Component（三層皆可帶契約） | 可收合 |
 | 介面契約・6 維欄位 | envelope / loadPath / signalPath / thermalPath / datumTolerance / serviceability | 唯讀 / 可編輯 |
@@ -271,7 +271,7 @@
 | 介面契約・reference_source | rd_override:&lt;key&gt; / learned:&lt;key&gt; / web:&lt;query&gt; / seed:&lt;key&gt; / llm_estimate | 唯讀 hover 顯示 trace |
 | [✏ 我來給數字] | 開啟 RD inline override 對話框（輸入 bbox + mass） | POST /spatial/component-overrides |
 | [📤 推升至 learned] | 把當前估計推升為跨專案 learned component | POST /spatial/learned-components |
-| [確認] | confirmed → 解鎖 SCAMPER tab | updateSubsystem() |
+| [確認] | confirmed → 完成子系統定義 | updateSubsystem() |
 
 ##### 區塊 B：Package Map 面板（F2.5 discovery 輸出）
 
@@ -292,22 +292,14 @@
 | [🧪 試算車架包絡] | 二級按鈕，預設摺疊 | 開啟 overlay 對話框 |
 | Zone 輸入表單 | 為每個 anchor（BB_center / downtube_top / ...）輸入 max bbox | 表單編輯 |
 | Mass budget 輸入 | 為每個 module 輸入 max mass_g | 表單編輯 |
-| [執行 Overlay] | 套上 overlay 重算 | POST /scamper/spatial-overlay |
+| [執行 Overlay] | 套上 overlay 重算 | POST /subsystems/spatial-overlay *(v9: 原 `/scamper/spatial-overlay`)* |
 | Overlay SVG | 紅 / 橘 / 綠標示 fits / tight / clash | 唯讀 |
 | overlay_violations 清單 | 超界 module 列表 | 唯讀 |
 | [清除 Overlay] | 回到 discovery 原始 SVG | 本地 state |
 
-**Tab ③ SCAMPER 變形**
+~~**Tab ③ SCAMPER 變形**~~ *(v9 移除 — SCAMPER 7 動作為 TRIZ 40 原理子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋)*
 
-| 元素 | 互動 | 觸發 |
-|------|------|------|
-| [AI 生成] | 每子系統 × 7 動作 | POST /scamper/perform |
-| 變形卡片 | S/C/A/M/P/E/R badge + 描述 | 唯讀 |
-| [採用] / [跳過] | toggle | updateScamperVariant() |
-| 潛在風險 | severity badge（僅顯示，不回饋收斂） | 唯讀 |
-| [確認完成] | 正向分析結束，候選進入候選池 | goNext() |
-
-**產出**：TRIZ 候選（TC/PC/SF）+ SCAMPER 候選，進入候選池。報告風格與 Anti-Anchor 對齊（每個候選帶 mechanism + VP）。
+**產出**：TRIZ 候選（TC/PC/SF），進入候選池。報告風格與 Anti-Anchor 對齊（每個候選帶 mechanism + VP）。
 
 ### ③ 候選方案決策中心
 
@@ -371,8 +363,8 @@
 | 原則 | 說明 |
 |------|------|
 | **對稱卡片** | 兩張卡片等高等寬，點擊展開各自操作內容 |
-| **方法獨立** | 反向 = 創意（1 步），正向 = 演繹（3 sub-tab），不混用 |
-| **E2E 節點** | 正向的 TRIZ+子系統+SCAMPER 對外是 1 個節點，對內是 3 個 tab |
+| **方法獨立** | 反向 = 創意（1 步），正向 = 演繹（2 sub-tab），不混用 |
+| **E2E 節點** | 正向的 TRIZ+子系統對外是 1 個節點，對內是 2 個 tab |
 | **分層而非選題** (v7) | Tab ① TRIZ 的輸出是一份 L1/L2/L3 分層診斷報告，不是並列 pending 候選池。RD 從「三選一」改為「採納 drill-down 組合」 |
 | **垂直堆疊呈現 drill-down** (v7) | 同一矛盾的三層解以垂直堆疊呈現，讓 ARIZ 深挖路徑（TC→PC）視覺化為上下關係，而非左右並列 |
 | **L3 永遠呈現** (v7) | 即使 L1/L2 已採納，L3 的結構旁路建議永遠顯示，避免結構盲點被 skip |
@@ -425,10 +417,10 @@
 | 0 | 反向探索 | 左卡片 | Anti-Anchor 操作 |
 | 1 | 正向: Tab ① TRIZ | 右卡片 | TRIZ 分層 drill-down 診斷（L1/L2/L3 + differential_analysis） |
 | 2 | 正向: Tab ② 子系統 | 右卡片 | 3 層架構樹 + 6 維契約 + Spatial Discovery |
-| 3 | 正向: Tab ③ SCAMPER | 右卡片 | 創意變形 |
-| 4 | 決策中心 | 獨立區塊 | adopt/skip + Phase B |
-| 5 | MUST | 評估區 | M1-M6 |
-| 6 | Pre-CAD | 評估區 | 五維雷達圖（spatial 為 deterministic 算術） |
+| ~~3~~ | ~~正向: Tab ③ SCAMPER~~ | ~~右卡片~~ | *(v9 移除)* |
+| 3 | 決策中心 | 獨立區塊 | adopt/skip + Phase B |
+| 4 | MUST | 評估區 | M1-M6 |
+| 5 | Pre-CAD | 評估區 | 五維雷達圖（spatial 為 deterministic 算術） |
 
 ---
 
@@ -437,7 +429,7 @@
 | # | 要素 | UI 位置 | 說明 |
 |---|------|---------|------|
 | 1 | 來源路徑 | 卡片 badge | 反向(amber) / 正向(blue) |
-| 2 | 來源步驟 | 卡片 badge | Anti-Anchor / TRIZ-Layered / SCAMPER |
+| 2 | 來源步驟 | 卡片 badge | Anti-Anchor / TRIZ-Layered |
 | 3 | **drill-down 層級** (v7 新增) | 卡片層堆疊徽章 | layered: L1/L2/L3 採納組合 + recommended_route；single: 純 L1 或 L2；composite: L1 內部多原理合併 |
 | 4 | 解的矛盾 | 第三眼 | contradiction IDs + 描述 + severity |
 | 5 | 涉及子系統 | 第三眼 | subsystem 名稱 + 層級 |

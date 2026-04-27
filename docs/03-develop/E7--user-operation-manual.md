@@ -22,7 +22,7 @@
 
 ### 1.1 系統目的
 
-RD Design Copilot 是一套 AI 驅動的早期概念設計決策平台。它將 SCAMPER/TRIZ 發散思考、KT Decision Analysis 收斂決策、以及 8-Gate 證據驅動流程整合在一起，幫助你在 Pre-CAD 階段做出信心可量化、決策可追溯、知識可沉澱的設計決策。
+RD Design Copilot 是一套 AI 驅動的早期概念設計決策平台。它將 TRIZ 發散思考、KT Decision Analysis 收斂決策、以及 8-Gate 證據驅動流程整合在一起，幫助你在 Pre-CAD 階段做出信心可量化、決策可追溯、知識可沉澱的設計決策。
 
 簡單來說：**在畫 CAD 之前，先把問題想清楚、方案探夠、風險看透。**
 
@@ -243,13 +243,9 @@ Create 是整個系統最核心的頁面，包含多個功能區塊：
 2. 你也可以手動新增子系統。
 3. 每個子系統可設定：名稱、描述、介面鄰居、六維介面契約（包封/載荷/訊號/熱/基準/維修）。
 
-#### SCAMPER 發散
+#### ~~SCAMPER 發散~~ (v9 移除)
 
-對每個子系統進行七種創意動作：
-
-1. 選擇一個子系統。
-2. 點擊「SCAMPER 發散」，系統會為每個動作（Substitute / Combine / Adapt / Modify / Put to other uses / Eliminate / Rearrange）生成變形方案。
-3. 如果 SCAMPER 變形產生了新的矛盾，系統會自動回饋到矛盾列表，形成閉環。
+> SCAMPER 已於 v9 移除 — 其 7 動作為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋。
 
 #### 方案集合 + MUST 篩選
 

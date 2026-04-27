@@ -1,10 +1,12 @@
-# TRIZ / SCAMPER 結構化發散引擎
+# TRIZ 結構化發散引擎
 
-**一句話定位**：SCAMPER/TRIZ 不是「替你變出創意」的魔法，而是把 AI 變成「跨域知識 + 大量組合生成 + 嚴格約束篩選」的引擎——讓創意不靠腦內庫存，靠流程把可能性擴大、把不可行快速淘汰。
+**一句話定位**：TRIZ 不是「替你變出創意」的魔法，而是把 AI 變成「跨域知識 + 大量組合生成 + 嚴格約束篩選」的引擎——讓創意不靠腦內庫存，靠流程把可能性擴大、把不可行快速淘汰。
+
+> **v9 移除說明**：SCAMPER 已於 v9 移除 — 其 7 動作為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋。本文件標題由「TRIZ / SCAMPER 結構化發散引擎」更名。
 
 **核心哲學**：**Bounded Divergence（有邊界的發散）**——先把設計語法/約束/風險寫清楚，AI 再在這些欄位裡生方案；生完立刻做黑帽式淘汰。
 
-**代碼對齊**：`backend/app/agents/triz_solver.py` · `triz_critic.py` · `scamper_feedback.py` · `backend/app/tools/triz_kb.py`, `separation_principles.py`, `contradiction_tree.py` · `backend/app/prompts/triz_solver.py` · `src/types/layeredTriz.ts`, `solution.ts`
+**代碼對齊**：`backend/app/agents/triz_solver.py` · `triz_critic.py` · `backend/app/tools/triz_kb.py`, `separation_principles.py`, `contradiction_tree.py` · `backend/app/prompts/triz_solver.py` · `src/types/layeredTriz.ts`, `solution.ts`
 
 ---
 
@@ -12,7 +14,6 @@
 
 | 角色 | 負責 |
 |------|------|
-| **SCAMPER** | 系統化換角度提問——對每個模組做「有方向的變形」 |
 | **TRIZ** | 把矛盾講清楚，不靠靈感找到發明原理方向 |
 | **AI** | 擴大可用知識庫 + 組合搜索 + 嚴格淘汰 |
 | **工程師** | 把不可能殺掉、把可行變成可驗證的實驗與設計決策 |
@@ -235,25 +236,9 @@ Gate P 門檻：Confidence = 100%（所有 Fatal + Major 完全收斂）。
 
 ---
 
-## 6. SCAMPER 模組級變形
+## ~~6. SCAMPER 模組級變形~~ (v9 移除)
 
-### 定位
-
-SCAMPER 是**創意發散工具**（與 Anti-Anchor 同級），不提供收斂回饋。所有變形候選直接進入候選池，由決策中心統一篩選。
-
-### SCAMPER 輸出規格 (固定 7 欄)
-
-| 欄位 | 說明 |
-|------|------|
-| **1. 變形動作** | S/C/A/M/P/E/R |
-| **2. 變形對象** | 哪個模組/界面/參數 |
-| **3. 物理機制** | 為什麼可改善某指標（工程語言） |
-| **4. 新增失效模式** | 會怎麼死 |
-| **5. 製程/供應風險** | 是否可量產 |
-| **6. 假設台帳** | 需要哪些前提成立 |
-| **7. 最小驗證** | 用什麼測試打掉不確定 |
-
-> 當輸出被「規格化」，AI 就不再是創意機器，而是能進設計審查流程的工具。
+> **v9 移除說明**：SCAMPER 已於 v9 移除 — 其 7 動作（Substitute / Combine / Adapt / Modify / Put to other uses / Eliminate / Rearrange）為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋。原 SCAMPER 在候選池中的創意發散角色由 Anti-Anchor Sprint 承接。
 
 ---
 
@@ -282,13 +267,12 @@ SCAMPER 是**創意發散工具**（與 Anti-Anchor 同級），不提供收斂�
 
 ## 8. 決策中心 (Decision Hub)
 
-候選池自動匯聚三類來源：
+候選池自動匯聚兩類來源：
 
 | 來源 | 徽章 | Source 值 |
 |------|------|-----------|
 | Anti-Anchor 晉升路線 | 🟠 amber (reverse) | `anti_anchor` |
 | TRIZ 三路徑候選 | 🔵 blue (forward) | `triz` (sub: TC/PC/SF) |
-| SCAMPER 變形候選 | 🔵 blue (forward) | `scamper` |
 
 **三層資訊展開**：
 - 第 1 層：名稱 / 來源徽章 / confidence level
@@ -356,10 +340,10 @@ validation_passport:
 - 忽略製程與物理
 - 把風險藏起來（尤其早期最常發生）
 
-> **RD 對齊話術**：「我們導入 SCAMPER/TRIZ 不是要取代經驗，而是要把經驗結構化，並用 AI 補足跨域模式庫。所有 AI 方案都必須附帶：機制、假設、風險、最小驗證。你們仍然做最終工程判斷。」
+> **RD 對齊話術**：「我們導入 TRIZ 不是要取代經驗，而是要把經驗結構化，並用 AI 補足跨域模式庫。所有 AI 方案都必須附帶：機制、假設、風險、最小驗證。你們仍然做最終工程判斷。」
 
 ---
 
 **版本**: v2.0
 **最後更新**: 2026-04-21
-**變更紀錄**: 整合 E3x AutoTRIZ 架構、SCAMPER_TRIZ 哲學敘述、矛盾收斂圖、Anti-Anchor、決策中心為單一 MECE 文件
+**變更紀錄**: 整合 E3x AutoTRIZ 架構、矛盾收斂圖、Anti-Anchor、決策中心為單一 MECE 文件；v9 移除 SCAMPER（7 動作為 TRIZ 40 原理子集）

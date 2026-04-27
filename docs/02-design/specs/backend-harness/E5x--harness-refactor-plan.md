@@ -45,7 +45,7 @@ backend/app/
 │   ├── evaluator.py               ✅ harness_call + HarnessAgent
 │   ├── knowledge.py               ✅ harness_call
 │   ├── knowledge_wb.py            ✅ harness_call
-│   ├── scamper_feedback.py        ⚠️ 尚未遷移（仍用 call_llm_json）
+│   ├── scamper_feedback.py        ❌ v9 移除（SCAMPER 已移除）
 │   └── base.py                    保留 _call_provider（model_adapter 底層）
 ├── skills/                        ← NEW Skill bundles（知識型）
 │   ├── triz_39_parameters/SKILL.md
@@ -84,7 +84,7 @@ backend/app/
 
 ### Phase 2 — HarnessAgent Base + Multi-Provider Model Adapter ✅ 完成 2026-04-24
 
-> **實際遷移狀態**：原計畫「全 agent 一次轉」，實際為漸進式遷移。6/7 agent 檔案已使用 `harness_call` / `HarnessAgent`；`scamper_feedback.py` 尚未遷移。`anti_anchor.py` 與 `subsystem_decomposer.py` 不作為獨立檔案存在，邏輯整合至 `analyst.py`。
+> **實際遷移狀態**：原計畫「全 agent 一次轉」，實際為漸進式遷移。6/7 agent 檔案已使用 `harness_call` / `HarnessAgent`；`scamper_feedback.py` 已於 v9 隨 SCAMPER 移除（不需遷移）。`anti_anchor.py` 與 `subsystem_decomposer.py` 不作為獨立檔案存在，邏輯整合至 `analyst.py`。
 
 **Phase 2a：基礎建設**
 
@@ -119,7 +119,7 @@ backend/app/
 
 - `analyst.py` → HarnessAgents：`extract_brief`、`rewrite_mission`、`socratic_q_and_a`、`generate_cld`、`formalize_contradiction`、`decompose_tc_to_pcs`
 - `evaluator.py` → `assess_risks`、`scan_convergence`、`evaluate_must`、`pre_cad_review`、`generate_want_seeds`、`validation_passport`
-- `scamper_feedback.py`、`knowledge.py`、`anti_anchor`、`subsystem_decomposer`
+- ~~`scamper_feedback.py`~~（v9 移除）、`knowledge.py`、`anti_anchor`、`subsystem_decomposer`
 
 **驗收**：
 - 既有 30+ pytest 全綠
@@ -209,7 +209,7 @@ backend/app/
 
 | 檔案 | 改動 |
 |---|---|
-| `agents/*.py` | 6/7 已改為 harness_call/HarnessAgent；scamper_feedback.py 待遷移 |
+| `agents/*.py` | 6/7 已改為 harness_call/HarnessAgent；~~scamper_feedback.py v9 移除~~ |
 | `routers/triz.py::solve_layered` | 改走 solver_registry.dispatch |
 | `main.py` lifespan | 加入 skill_loader + mcp_server 啟動 |
 | `pyproject.toml` | 加 `pydantic-ai`、`mcp` |

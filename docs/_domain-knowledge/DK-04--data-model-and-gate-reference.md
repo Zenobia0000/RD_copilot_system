@@ -96,7 +96,7 @@ DRAFT ──Gate 1 (1.1)──▶ PHASE_I ──Gate 3 (PG1)──▶ PHASE_II �
 | id | UUID | PK |
 | project_id | FK | |
 | name | String | 方案名稱 |
-| source | Enum | `triz` / `scamper` / `anti_anchor` / `manual` |
+| source | Enum | `triz` / `anti_anchor` / `manual` (~~`scamper` v9 移除~~) |
 | mechanism | Text | 物理機制說明 |
 | interface_contract | JSON (6 維) | Envelope/Load/Signal/Thermal/Datum/Service |
 | bom_estimate | JSON | 預估 BOM |
@@ -217,7 +217,7 @@ DRAFT ──Gate 1 (1.1)──▶ PHASE_I ──Gate 3 (PG1)──▶ PHASE_II �
 | Evaluator | `backend/app/prompts/evaluator.py` | Step 5e, 7 (MUST verification, risk analysis, Pre-CAD scoring) |
 | Knowledge WB | `backend/app/prompts/knowledge_wb.py` | Step 8 (knowledge asset generation) |
 | TRIZ Critic | `backend/app/agents/triz_critic.py` | Step 5a-6 (secondary contradiction scan) |
-| SCAMPER Feedback | `backend/app/agents/scamper_feedback.py` | Step 5c (SCAMPER contradiction integration) |
+| ~~SCAMPER Feedback~~ | ~~`backend/app/agents/scamper_feedback.py`~~ | *(v9 移除)* |
 
 ---
 
@@ -235,7 +235,7 @@ DRAFT ──Gate 1 (1.1)──▶ PHASE_I ──Gate 3 (PG1)──▶ PHASE_II �
 | Assumptions | `/api/v1/projects/{pid}/assumptions` | Step 4 |
 | TRIZ Solve | `/api/v1/projects/{pid}/triz` | Step 5a |
 | Subsystems | `/api/v1/projects/{pid}/subsystems` | Step 5b |
-| SCAMPER | `/api/v1/projects/{pid}/scamper` | Step 5c |
+| ~~SCAMPER~~ | ~~`/api/v1/projects/{pid}/scamper`~~ | *(v9 移除; 子系統端點遷移至 `/subsystems/`)* |
 | Alternatives | `/api/v1/projects/{pid}/alternatives` | Step 5d |
 | MUST | `/api/v1/projects/{pid}/must` | Step 5e |
 | Convergence | `/api/v1/projects/{pid}/convergence` | Decision Hub (Phase B) |

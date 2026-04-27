@@ -53,7 +53,7 @@ backend/tests/
 │   ├── test_cld.py          # 1 endpoint
 │   ├── test_anti_anchor.py  # 1 endpoint
 │   ├── test_triz.py         # 1 endpoint
-│   ├── test_scamper.py      # 1 endpoint
+│   ├── # test_scamper.py    # v9: removed (SCAMPER deprecated)
 │   ├── test_risk.py         # 1 endpoint
 │   ├── test_action.py       # 1 endpoint
 │   ├── test_convergence.py  # 1 endpoint

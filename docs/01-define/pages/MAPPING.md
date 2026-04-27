@@ -331,7 +331,7 @@
 | `cld.py` | `/api/v1/causal-loops/*` | **06** (Explore) |
 | `contradictions.py` | `/api/v1/contradictions/*` | **06** (Explore), **08** (Create) |
 | `triz.py` | `/api/v1/triz/*` | **08** (Create) |
-| `scamper.py` | `/api/v1/scamper/*` | **08** (Create) |
+| ~~`scamper.py`~~ → `subsystems.py` | `/api/v1/subsystems/*` *(v9: `/scamper/*` 移除，子系統端點遷移)* | **08** (Create) |
 | `anti_anchor.py` | `/api/v1/alternatives/anti-anchor` | **08** (Create) |
 | `validation.py` | `/api/v1/alternatives/validation-passport` | **08** (Create) |
 | `convergence.py` | `/api/v1/convergence/*` | **08** (Create) |
@@ -396,7 +396,7 @@
 | `useAntiAnchorRoutes` | 04, 08 | `anti_anchor.py` + Supabase |
 | `useTrizSolutions`, `useLayeredTrizSolutions`, `useDirectedTrizSolutions` | 04, 08 | `triz.py` + Supabase |
 | `useSubsystems` | 04, 08 | Supabase `subsystems` |
-| `useScamperVariants` | 04, 08 | `scamper.py` + Supabase |
+| ~~`useScamperVariants`~~ | ~~04, 08~~ | ~~`scamper.py` + Supabase~~ **(v9 移除)** |
 | `useAlternatives`, `useUpdateAlternative` | 04, 08, 09, 10, 11 | Supabase `alternatives` |
 | `useConceptRoutes` | 04, 08 | Supabase `concept_routes` |
 | `useConvergenceLoop` | 08 | `convergence.py` |

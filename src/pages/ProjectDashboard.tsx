@@ -8,7 +8,6 @@ import {
   useAntiAnchorRoutes,
   useTrizSolutions,
   useSubsystems,
-  useScamperVariants,
   useAlternatives,
 } from "@/hooks/api";
 import { useConceptRoutes } from "@/hooks/api/useConceptRoutes";
@@ -61,7 +60,6 @@ export default function ProjectDashboard() {
   const antiAnchorRoutes = useAntiAnchorRoutes(id);
   const trizSolutions = useTrizSolutions(id);
   const subsystemsQuery = useSubsystems(id);
-  const scamperVariants = useScamperVariants(id);
   const alternativesQuery = useAlternatives(id);
   const conceptRoutesQuery = useConceptRoutes(id);
   const trackAssumptionsQuery = useTrackAssumptions(id);
@@ -225,21 +223,6 @@ export default function ProjectDashboard() {
       });
     }
 
-    const scamper = scamperVariants.data ?? [];
-    if (scamper.length > 0) {
-      const adoptedCount = scamper.filter(v => v.adopted).length;
-      const latestDate = scamper.reduce((d, v) => v.createdAt && v.createdAt > d ? v.createdAt : d, scamper[0].createdAt ?? project.createdAt);
-      items.push({
-        id: 'h-scamper',
-        date: latestDate,
-        title: `SCAMPER 變形：${scamper.length} 個變異`,
-        summary: `已採用 ${adoptedCount} 個。${scamper.flatMap(v => v.newContradictions ?? []).filter(nc => nc.severity === 'fatal' || nc.severity === 'major').length > 0 ? '含 Fatal/Major 新矛盾待處理。' : ''}`,
-        author,
-        type: 'task',
-        relatedPage: 'create',
-      });
-    }
-
     const alts = alternativesQuery.data ?? [];
     if (alts.length > 0) {
       const passed = alts.filter(a => a.overallPass === true).length;
@@ -316,7 +299,7 @@ export default function ProjectDashboard() {
     // Sort newest first
     items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     return items;
-  }, [project, brief, contradictions, kpis, constraints, antiAnchorRoutes.data, trizSolutions.data, subsystemsQuery.data, scamperVariants.data, alternativesQuery.data, conceptRoutesQuery.data, trackAssumptionsQuery.data]);
+  }, [project, brief, contradictions, kpis, constraints, antiAnchorRoutes.data, trizSolutions.data, subsystemsQuery.data, alternativesQuery.data, conceptRoutesQuery.data, trackAssumptionsQuery.data]);
 
   // Loading state
   if (isLoading) {

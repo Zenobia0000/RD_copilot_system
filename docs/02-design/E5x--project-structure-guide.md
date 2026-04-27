@@ -86,7 +86,7 @@ backend/app/
 │   └── schemas.py            # ★ 單一事實來源（所有 Pydantic）
 ├── routers/                  # API endpoints（依資源切分）
 │   ├── brief.py, socratic.py, cld.py
-│   ├── contradictions.py, triz.py, scamper.py
+│   ├── contradictions.py, triz.py, subsystems.py  # v9: scamper.py → subsystems.py
 │   ├── anti_anchor.py, validation.py
 │   ├── convergence.py, unknown_factors.py
 │   ├── assumptions.py, risk.py, action.py
@@ -95,7 +95,7 @@ backend/app/
 ├── agents/                   # AI agents（多 agent 編排）
 │   ├── base.py, analyst.py, evaluator.py
 │   ├── triz_solver.py, triz_critic.py
-│   ├── knowledge.py, knowledge_wb.py, scamper_feedback.py
+│   ├── knowledge.py, knowledge_wb.py  # v9: scamper_feedback.py removed
 ├── tools/                    # TRIZ KB、contradiction tree、separation principles
 ├── services/                 # evidence_retrieval, web_search, spatial_*, package_svg, reference_library
 ├── prompts/                  # LLM prompt templates

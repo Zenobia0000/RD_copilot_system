@@ -12,23 +12,23 @@
 
 ## 模組: `SubsystemDecomposerAgent`
 
-**原始檔**: 分散於 `backend/app/routers/scamper.py` (`/scamper/subsystem-suggestions`) + `backend/app/services/package_svg.py` + `backend/app/routers/spatial.py`
+**原始檔**: 分散於 `backend/app/routers/subsystems.py` (`/subsystems/suggest`) + `backend/app/services/package_svg.py` + `backend/app/routers/spatial.py` *(v9: 原 `scamper.py` 遷移)*
 **對應架構文件**: [`01-define/E3--architecture-and-design.md` Appendix A + E](../../../01-define/E3--architecture-and-design.md)
 **對應 BDD Feature**: Create Tab ② subsystem 流程（E5x BDD Feature 1 Background 所依賴）
 **對應 Spec**: [`specs/explore/E5x--subsystem-persistence-policy.md`](../explore/E5x--subsystem-persistence-policy.md) · [`specs/explore/E5x--three-tier-tree-review-checklist.md`](../explore/E5x--three-tier-tree-review-checklist.md)
-**對應 API**: `POST /scamper/subsystem-suggestions`, `PATCH /subsystems/{id}` (TBD — persistence router 待正式編號)
+**對應 API**: `POST /subsystems/suggest` *(v9: 原 `/scamper/subsystem-suggestions`)*, `PATCH /subsystems/{id}`
 
 ---
 
 ### 規格 1: `suggest_subsystems(request) -> SubsystemSuggestResponse`
 
-**描述**: 依 Brief + 矛盾 + 已選 SCAMPER 變體，建議 3–7 個子系統（含 bbox、介面契約 placeholder）。
+**描述**: 依 Brief + 矛盾，建議 3-7 個子系統（含 bbox、介面契約 placeholder）。*(v9: SCAMPER 變體輸入已移除)*
 
 **DbC**:
 * **Preconditions**:
   1. project 已凍結 Brief。
   2. 至少一個 contradiction formalized。
-  3. 若傳入 `scamper_variant_ids`，全部必須屬於同一 project。
+  3. ~~若傳入 `scamper_variant_ids`，全部必須屬於同一 project。~~ *(v9: SCAMPER 參數已移除)*
 
 * **Postconditions**:
   1. `suggestions: SuggestedSubsystem[]` 長度 ∈ [3, 7]。
@@ -53,8 +53,8 @@
 #### 情境 1: Happy Path — 4 個子系統建議
 * **TC-Subsystem-001**: Brief="e-bike 自動平衡", 1 contradiction → 返回 4 個 subsystem（`frame`, `sensor`, `actuator`, `controller`），每個含非空 bbox。
 
-#### 情境 2: 邊界 — 無 SCAMPER 變體
-* **TC-Subsystem-002**: `scamper_variant_ids=[]` → 仍能返回 3 個以上建議（基於 contradiction 本身）。
+#### 情境 2: ~~邊界 — 無 SCAMPER 變體~~ *(v9: SCAMPER 移除，此情境為預設行為)*
+* **TC-Subsystem-002**: 僅基於 contradiction → 返回 3 個以上建議。
 
 #### 情境 3: 違反前置 — 未凍結 Brief
 * **TC-Subsystem-003**: Brief status=draft → 422 `brief_not_frozen`。

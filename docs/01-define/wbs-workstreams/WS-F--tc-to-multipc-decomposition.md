@@ -351,7 +351,7 @@ AI 識別矛盾 → formalize_contradiction 回傳 TC
 | **`_solve_pc` 帶 hint 後 LLM 仍自行變更 separation_principle** | 下游解題與 Explore 預分類不一致 | 9.1.4 delta log 觀測；不阻斷，累積樣本後決定是否強制 |
 | **Create 頁多 PC 同時 solve → LLM 請求併發風暴** | 使用者等待、token 爆衝 | 9.2.2 每張卡獨立 loading 而非一次性 Promise.all；可加 concurrency limit (例 3) |
 | **F2 同時收到父 TC id 與子 PC id 造成 related_contradictions 重複** | subsystem 樹節點錯誤歸類 | 9.5.2 單測覆蓋；F2 內部去重邏輯若不存在需補 |
-| **`LayeredTrizSolution.l3=None` 被下游誤判為資料損壞** | F2 / SCAMPER 顯示錯誤 | 1.5 明確 `l3_status="deferred"` 欄位；下游讀取前檢查 status 而非 null |
+| **`LayeredTrizSolution.l3=None` 被下游誤判為資料損壞** | F2 / 決策中心顯示錯誤 *(v9: 原 SCAMPER)* | 1.5 明確 `l3_status="deferred"` 欄位；下游讀取前檢查 status 而非 null |
 | **3.1 prompt LLM 退化：產出 N 個小 TC 偽裝為 PC** | 多 PC 分解品質失效；下游 `_solve_pc` hint 路徑得到錯誤輸入；無法真正觸發分離原則解 | (a) 3.1 prompt 加防退化硬約束 + 2 正例 + 2 反例（e-Bike 齒輪模數 ✓ / 兩參數取捨 ✗）；(b) 3.3 驗證層加規則檢查「`derived_parameter` 必須是單一物理屬性 P 的 A / ¬A 互斥陳述」，偵測到「改善 X 惡化 Y」句式即拒絕該條 PC；(c) 測試 3.5 加反例案例 mock，確認驗證層會 reject；(d) 8.2 e-Bike E2E 人工檢核每個 derived_parameter 語意 |
 | **1.1 markdown parser 脆弱性：`04_separation_principles.md` 結構變動導致 parser 壞** | 16 項常數產出錯誤；下游 separation_principle_id 驗證全部失效；部署失敗 | (a) `parse_separation_principles()` 用明確錨點（`### N. 時間分離` 等 4 大類標題 + `| 策略 |` 表格行）而非位置依賴；(b) 鎖定 parity test：4 類 × 4 策略 = **恰好** 16 項，少於或多於即 fail；(c) 每項必須成功抽出 `id` / `category` / `name_zh` / `physical_principle`，任一欄為空即 fail；(d) parser 單測含 golden fixture（當前 .md 快照）；(e) .md 如有修改 PR 必須同步更新 fixture 與跑 parity test |
 

@@ -105,7 +105,7 @@
 ### 風險 3: 客戶內部自建 (Build In-House)
 - **機率**: 中 — 大型 OEM 可能嘗試用 API 自建。
 - **影響**: 高 — 直接失去客戶。
-- **因應**: 提供 domain-specific 方法論 (TRIZ/KT/SCAMPER) 整合深度 + 持續迭代，使自建成本 > 採購成本。
+- **因應**: 提供 domain-specific 方法論 (TRIZ/KT) 整合深度 + 持續迭代，使自建成本 > 採購成本。
 
 ### 風險 4: CREAX / IFR 加入 AI 能力
 - **機率**: 中 — 傳統 TRIZ 軟體商可能整合 LLM。

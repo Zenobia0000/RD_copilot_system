@@ -26,7 +26,7 @@ supersedes: E3 v1.4 (2026-03-26)
 | ----------------- | ---------------------------------------------------------------------------------------------------------- | -------------- |
 | **Part 1 · 架構總覽** | 需求摘要、C4 高層架構、技術選型、數據、部署、NFR、風險、路線圖                                                                         | §1 – §10       |
 | **Part 2 · 詳細設計** | AI Agent 協作架構（本產品核心，多代理 + 狀態機 + Anti-Anchor 機制）                                                            | §11            |
-| **Part 3 · 附錄**   | 5 份 SA 視角架構說明書（Forward Subsystem / Forward TRIZ / Reverse Anti-Anchor / State Machine / TRIZ→SCAMPER Flow） | Appendix A – E |
+| **Part 3 · 附錄**   | 5 份 SA 視角架構說明書（Forward Subsystem / Forward TRIZ / Reverse Anti-Anchor / State Machine / TRIZ Flow（~~SCAMPER v9 移除~~）） | Appendix A – E |
 
 
 ---
@@ -218,7 +218,7 @@ graph LR
     %% Layout: Entry → Orchestration → Agents → Services/Tools
 
     subgraph Entry ["🚪 Entry Layer"]
-        routers[Routers · 21 個<br/>38+ endpoints<br/><small>brief · socratic · cld<br/>contradictions · triz · scamper<br/>must · want · risk · gates<br/>spatial · exports · ...</small>]
+        routers[Routers · 21 個<br/>38+ endpoints<br/><small>brief · socratic · cld<br/>contradictions · triz · subsystems<br/>must · want · risk · gates<br/>spatial · exports · ...</small>]
     end
 
     subgraph Orchestration ["⚙️ Orchestration"]
@@ -715,6 +715,6 @@ Radix UI 提供 WAI-ARIA 基礎；a11y 審計 — **TBD — UX Owner TBD by v1.1
 | ---------------------------------------------------------------------- | ------------------------------------------------------- | -------- |
 | **E3--architecture-and-design.md** (本文)                                | Part 1: 架構總覽 (C4, Tech Stack, Data, NFR, Risk, Roadmap) | ~634     |
 | [E3--ai-agent-detailed-design.md](E3--ai-agent-detailed-design.md)     | Part 2: AI Agent 協作架構詳細設計 (§11)                         | ~625     |
-| [E3--appendices-sa-perspectives.md](E3--appendices-sa-perspectives.md) | Part 3: SA 視角附錄索引 (→ diagrams/appendix-a~e)             | ~40 (索引) |
+| `diagrams/appendix-a~e`                                                | SA 視角附錄 ([A](diagrams/appendix-a--forward-subsystem-discovery.md) / [B](diagrams/appendix-b--forward-triz-solver.md) / [C](diagrams/appendix-c--reverse-anti-anchor.md) / [D](diagrams/appendix-d--state-machine.md) / [E](diagrams/appendix-e--triz-scamper-flow.md)) | ~4157    |
 
 

@@ -37,16 +37,16 @@ function EvalChip({
 }
 
 export function CreateStepper({ steps, statuses, currentStep, activeTrack, onStepClick }: CreateStepperProps) {
-  const HUB = 4;
-  const EVAL = [5, 6];
+  const HUB = 3;
+  const EVAL = [4, 5];
 
   const isReverseActive = activeTrack === "reverse";
   const isForwardActive = activeTrack === "forward";
   const isHubActive = currentStep === HUB && activeTrack === null;
 
   const reverseComplete = statuses[0] === "complete";
-  // Forward is "complete" when all 3 sub-steps are done
-  const forwardComplete = statuses[1] === "complete" && statuses[2] === "complete" && statuses[3] === "complete";
+  // Forward is "complete" when both sub-steps are done
+  const forwardComplete = statuses[1] === "complete" && statuses[2] === "complete";
   const forwardHasProgress = statuses[1] !== "not_started";
 
   return (
@@ -95,7 +95,7 @@ export function CreateStepper({ steps, statuses, currentStep, activeTrack, onSte
             )}
           </div>
           <p className="text-[10px] text-muted-foreground leading-relaxed">
-            TRIZ 矛盾解 → 子系統分解 → SCAMPER 變形 — 從矛盾出發，系統化產出候選方案
+            TRIZ 矛盾解 → 子系統分解 — 從矛盾出發，系統化產出候選方案
           </p>
         </button>
       </div>

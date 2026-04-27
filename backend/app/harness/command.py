@@ -12,8 +12,11 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import yaml
+
+from app.harness.skill import Skill, load_skill
 
 _FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n?(.*)", re.DOTALL)
 _SKILL_REF_RE = re.compile(r"載入\s*\*\*([\w\-./]+)\*\*\s*skill", re.IGNORECASE)
@@ -93,3 +96,87 @@ def discover_commands(commands_root: Path) -> dict[str, Command]:
             continue
         commands[cmd.name] = cmd
     return commands
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Resolution: command → instructions for the agent
+# ────────────────────────────────────────────────────────────────────────────
+
+@dataclass(frozen=True)
+class ResolvedCommand:
+    """A command turned into agent-ready instructions.
+
+    Two sources are valid:
+
+    - `skill`: the command body references `載入 **<skill>** skill`. We load
+      that skill's body and use it as the prompt; the command body itself is
+      discarded. allowed_tools comes from the skill's frontmatter.
+    - `inline`: the command body has no skill ref. The command body itself
+      becomes the prompt. allowed_tools is None (no whitelist) — inline
+      commands haven't been given a way to declare one yet.
+    """
+
+    name: str
+    """Command name (file stem)."""
+
+    description: str
+    """Description from the command's frontmatter."""
+
+    body: str
+    """Instructions to give to the agent. Either the skill body or the
+    command body, depending on `source`."""
+
+    source: Literal["skill", "inline"]
+    """Where `body` came from."""
+
+    skill_name: str | None
+    """Resolved skill name when source == 'skill', else None."""
+
+    allowed_tools: tuple[str, ...] | None
+    """Tool whitelist from the skill's frontmatter, or None for unrestricted.
+    Always None when source == 'inline'."""
+
+    @property
+    def label(self) -> str:
+        """Human-readable source label for the system prompt header.
+
+        e.g. `"Skill: triz-router"` or `"Command: triz-status"`.
+        """
+        if self.source == "skill":
+            return f"Skill: {self.skill_name}"
+        return f"Command: {self.name}"
+
+
+def resolve_command(
+    *,
+    commands_root: Path,
+    skills_root: Path,
+    name: str,
+) -> ResolvedCommand:
+    """Load a command and resolve it to agent-ready instructions.
+
+    Raises:
+        FileNotFoundError if the command file or referenced skill is missing.
+        CommandParseError / SkillParseError on malformed frontmatter.
+    """
+    cmd = load_command(commands_root, name)
+
+    if cmd.referenced_skill is not None:
+        skill: Skill = load_skill(skills_root, cmd.referenced_skill)
+        return ResolvedCommand(
+            name=cmd.name,
+            description=cmd.description,
+            body=skill.body,
+            source="skill",
+            skill_name=skill.name,
+            allowed_tools=skill.allowed_tools,
+        )
+
+    return ResolvedCommand(
+        name=cmd.name,
+        description=cmd.description,
+        body=cmd.body,
+        source="inline",
+        skill_name=None,
+        allowed_tools=None,
+    )

@@ -237,20 +237,31 @@ class TestRunCommandErrors:
         assert resp.status_code == 404
         assert "/ghost" in resp.json()["error"]["message"]
 
-    def test_command_without_skill_ref_returns_400(self, client, fake_project, fake_harness):
-        # Add a command with no skill ref
-        bad_cmd = fake_project / ".claude" / "commands" / "bare.md"
-        bad_cmd.write_text(
-            "---\ndescription: bare\n---\nsome text without a skill reference\n",
+    def test_command_without_skill_ref_runs_inline(self, client, fake_project, fake_harness):
+        """Resolver enhancement: a command without a `載入 **skill**` ref now
+        runs in inline mode (command body becomes the system prompt) instead
+        of returning 400."""
+        inline_cmd = fake_project / ".claude" / "commands" / "status.md"
+        inline_cmd.write_text(
+            "---\ndescription: inline status\n---\n"
+            "Read .triz-state.json and print a one-line summary.\n",
             encoding="utf-8",
         )
+        fake_harness.responses.append(
+            FakeResponse(content=[FakeTextBlock(text="ok")], stop_reason="end_turn")
+        )
         sess = client.post(SESSIONS_BASE, json={}).json()
+
         resp = client.post(
             f"{SESSIONS_BASE}/{sess['session_id']}/run",
-            json={"command": "/bare"},
+            json={"command": "/status"},
         )
-        assert resp.status_code == 400
-        assert "skill" in resp.json()["error"]["message"]
+
+        assert resp.status_code == 200
+        # System prompt sent to the model should carry the inline command body
+        sys_prompt = fake_harness.calls[0]["system"]
+        assert "Command: status" in sys_prompt
+        assert "Read .triz-state.json" in sys_prompt
 
     def test_unknown_skill_returns_404(self, client, fake_project, fake_harness):
         # Command points at a non-existent skill
@@ -367,9 +378,10 @@ class TestRunCommandHappyPath:
         )
 
         assert resp.status_code == 200
-        # The fake captured the actual messages list — first user message
-        # should be the default prompt, not empty
+        # First user message should be the default prompt mentioning the
+        # command name (not empty), since `user_message` was omitted.
         first_call = fake_harness.calls[0]
         first_user_msg = first_call["messages"][0]
         assert first_user_msg["role"] == "user"
-        assert "echo-skill" in first_user_msg["content"]
+        assert "echo" in first_user_msg["content"]
+        assert len(first_user_msg["content"]) > 5

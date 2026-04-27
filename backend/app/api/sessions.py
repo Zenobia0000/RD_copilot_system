@@ -29,9 +29,9 @@ from pydantic import BaseModel, Field
 
 from app.harness.agent import AgentLoop, AgentLoopError
 from app.harness.cli import build_system_prompt, find_project_root
-from app.harness.command import CommandParseError, load_command
+from app.harness.command import CommandParseError, resolve_command
 from app.harness.config import HarnessClient, HarnessConfigError, build_client, load_env
-from app.harness.skill import SkillParseError, load_skill
+from app.harness.skill import SkillParseError
 from app.harness.tools.registry import default_registry
 from app.middleware.auth import get_current_user
 
@@ -204,47 +204,30 @@ def run_command(
 
     cmd_name = req.command.lstrip("/")
     try:
-        command = load_command(project_root / ".claude" / "commands", cmd_name)
-    except FileNotFoundError:
+        resolved = resolve_command(
+            commands_root=project_root / ".claude" / "commands",
+            skills_root=project_root / ".claude" / "skills",
+            name=cmd_name,
+        )
+    except FileNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"command /{cmd_name} not found",
+            detail=str(exc),
         )
-    except CommandParseError as exc:
+    except (CommandParseError, SkillParseError) as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"malformed command /{cmd_name}: {exc}",
-        )
-
-    if command.referenced_skill is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"command /{cmd_name} has no `載入 **<skill>** skill` reference",
-        )
-
-    try:
-        skill = load_skill(project_root / ".claude" / "skills", command.referenced_skill)
-    except FileNotFoundError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=(
-                f"skill {command.referenced_skill!r} (referenced by /{cmd_name}) not found"
-            ),
-        )
-    except SkillParseError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"malformed skill {command.referenced_skill!r}: {exc}",
+            detail=f"malformed: {exc}",
         )
 
     # Compose + run
     system_prompt = build_system_prompt(
         project_root=project_root,
-        skill_name=skill.name,
-        skill_body=skill.body,
+        instructions_label=resolved.label,
+        instructions_body=resolved.body,
     )
     user_message = req.user_message or (
-        f"請依 {skill.name} skill 的步驟引導我，先告訴我下一步要做什麼。"
+        f"請依 {resolved.name} 的步驟引導我，先告訴我下一步要做什麼。"
     )
 
     loop = AgentLoop(
@@ -252,7 +235,7 @@ def run_command(
         model=harness.default_model,
         system_prompt=system_prompt,
         tool_registry=default_registry(),
-        allowed_tools=list(skill.allowed_tools) if skill.allowed_tools is not None else None,
+        allowed_tools=list(resolved.allowed_tools) if resolved.allowed_tools is not None else None,
         max_iterations=req.max_iterations,
         max_tokens=req.max_tokens,
     )

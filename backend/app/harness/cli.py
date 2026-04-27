@@ -19,9 +19,9 @@ from datetime import date
 from pathlib import Path
 
 from app.harness.agent import AgentLoop, AgentLoopError
-from app.harness.command import CommandParseError, load_command
+from app.harness.command import CommandParseError, resolve_command
 from app.harness.config import HarnessConfigError, build_client, load_env
-from app.harness.skill import SkillParseError, load_skill
+from app.harness.skill import SkillParseError
 from app.harness.tools.registry import default_registry
 
 
@@ -40,25 +40,33 @@ def find_project_root(start: Path | None = None) -> Path:
     )
 
 
-def build_system_prompt(*, project_root: Path, skill_name: str, skill_body: str) -> str:
-    """Wrap a skill body with the environment header the agent needs.
+def build_system_prompt(
+    *,
+    project_root: Path,
+    instructions_label: str,
+    instructions_body: str,
+) -> str:
+    """Wrap an instructions body (from a skill or an inline command) with
+    the environment header the agent needs.
 
     The agent must know its absolute working directory so it can convert
-    skill-relative paths (e.g. .claude/context/triz/...) to absolute ones
-    that Read/Write will accept.
+    instruction-relative paths (e.g. .claude/context/triz/...) to absolute
+    ones that Read/Write will accept. `instructions_label` is shown as the
+    header (e.g. "Skill: triz-router" or "Command: triz-status") so a human
+    reading the prompt can tell where the body came from.
     """
     return (
         "# Environment\n\n"
         f"- Working directory: {project_root}\n"
         f"- Today's date: {date.today().isoformat()}\n"
-        "- All filesystem tools require ABSOLUTE paths. When skill instructions\n"
+        "- All filesystem tools require ABSOLUTE paths. When instructions\n"
         "  reference paths like `.claude/context/triz/...`, prefix them with\n"
         "  the working directory above.\n"
         "\n"
         "---\n"
         "\n"
-        f"# Skill: {skill_name}\n\n"
-        f"{skill_body}\n"
+        f"# {instructions_label}\n\n"
+        f"{instructions_body}\n"
     )
 
 
@@ -119,38 +127,18 @@ def main(argv: list[str] | None = None) -> int:
     commands_dir = project_root / ".claude" / "commands"
     skills_dir = project_root / ".claude" / "skills"
 
-    # 2. Resolve command → skill
+    # 2. Resolve command → instructions (skill body or inline command body)
     try:
-        command = load_command(commands_dir, cmd_name)
-    except FileNotFoundError:
-        print(f"error: command /{cmd_name} not found in {commands_dir}", file=sys.stderr)
-        return 2
-    except CommandParseError as exc:
-        print(f"error: malformed command /{cmd_name}: {exc}", file=sys.stderr)
-        return 2
-
-    if command.referenced_skill is None:
-        print(
-            f"error: command /{cmd_name} body has no `載入 **<skill>** skill` "
-            f"reference; cannot resolve which skill to load",
-            file=sys.stderr,
+        resolved = resolve_command(
+            commands_root=commands_dir,
+            skills_root=skills_dir,
+            name=cmd_name,
         )
+    except FileNotFoundError as exc:
+        print(f"error: {exc}", file=sys.stderr)
         return 2
-
-    try:
-        skill = load_skill(skills_dir, command.referenced_skill)
-    except FileNotFoundError:
-        print(
-            f"error: skill {command.referenced_skill!r} (referenced by /{cmd_name}) "
-            f"not found in {skills_dir}",
-            file=sys.stderr,
-        )
-        return 2
-    except SkillParseError as exc:
-        print(
-            f"error: malformed skill {command.referenced_skill!r}: {exc}",
-            file=sys.stderr,
-        )
+    except (CommandParseError, SkillParseError) as exc:
+        print(f"error: malformed: {exc}", file=sys.stderr)
         return 2
 
     # 3. Client (load .env from project root for path stability)
@@ -164,11 +152,11 @@ def main(argv: list[str] | None = None) -> int:
     # 4. Compose system prompt + user message
     system_prompt = build_system_prompt(
         project_root=project_root,
-        skill_name=skill.name,
-        skill_body=skill.body,
+        instructions_label=resolved.label,
+        instructions_body=resolved.body,
     )
     user_message = user_args or (
-        f"請依 {skill.name} skill 的步驟引導我，先告訴我下一步要做什麼。"
+        f"請依 {resolved.name} 的步驟引導我，先告訴我下一步要做什麼。"
     )
 
     # 5. Build and run the loop
@@ -177,13 +165,13 @@ def main(argv: list[str] | None = None) -> int:
         model=hc.default_model,
         system_prompt=system_prompt,
         tool_registry=default_registry(),
-        allowed_tools=list(skill.allowed_tools) if skill.allowed_tools is not None else None,
+        allowed_tools=list(resolved.allowed_tools) if resolved.allowed_tools is not None else None,
         max_iterations=ns.max_iterations,
         max_tokens=ns.max_tokens,
     )
 
     print(
-        f"==> /{cmd_name} → skill={skill.name} | provider={hc.provider} | "
+        f"==> /{cmd_name} → {resolved.label} | provider={hc.provider} | "
         f"model={hc.default_model}",
         file=sys.stderr,
     )

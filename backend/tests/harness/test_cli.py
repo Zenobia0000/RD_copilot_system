@@ -39,27 +39,39 @@ class TestFindProjectRoot:
 # ────────────────────────────────────────────────────────────────────────────
 
 class TestBuildSystemPrompt:
-    def test_includes_working_dir_and_skill_body(self):
+    def test_includes_working_dir_and_body(self):
         prompt = build_system_prompt(
             project_root=Path("/project"),
-            skill_name="my-skill",
-            skill_body="# Do this\nbody content.",
+            instructions_label="Skill: my-skill",
+            instructions_body="# Do this\nbody content.",
         )
         assert "Working directory: /project" in prompt
         assert "# Skill: my-skill" in prompt
         assert "body content." in prompt
 
+    def test_supports_inline_command_label(self):
+        """Label is freeform — inline commands use 'Command: <name>' instead."""
+        prompt = build_system_prompt(
+            project_root=Path("/x"),
+            instructions_label="Command: triz-status",
+            instructions_body="Read state file.",
+        )
+        assert "# Command: triz-status" in prompt
+        assert "Skill:" not in prompt  # no leftover skill header
+
     def test_warns_about_absolute_paths(self):
         prompt = build_system_prompt(
             project_root=Path("/x"),
-            skill_name="s",
-            skill_body="b",
+            instructions_label="Skill: s",
+            instructions_body="b",
         )
         assert "ABSOLUTE paths" in prompt
 
     def test_includes_today_date(self):
         prompt = build_system_prompt(
-            project_root=Path("/x"), skill_name="s", skill_body="b",
+            project_root=Path("/x"),
+            instructions_label="Skill: s",
+            instructions_body="b",
         )
         # Date format YYYY-MM-DD
         import re
@@ -92,18 +104,29 @@ class TestMainErrorPaths:
         assert rc == 2
         assert "not found" in capsys.readouterr().err
 
-    def test_command_without_skill_ref_returns_2(self, tmp_path, monkeypatch, capsys):
+    def test_command_without_skill_ref_resolves_inline(self, tmp_path, monkeypatch, capsys):
+        """Inline commands (no `載入 **skill**` ref) used to error out at
+        resolution. After the resolver enhancement they resolve successfully
+        — the failure point moves down to build_client (no API key here)."""
         self._make_project(tmp_path)
-        # Command body has no "載入 X skill" reference
         (tmp_path / ".claude" / "commands" / "bare.md").write_text(
-            "---\ndescription: bare\n---\njust some text, no skill ref\n",
+            "---\ndescription: bare\n---\nrun this inline\n",
             encoding="utf-8",
         )
         monkeypatch.chdir(tmp_path)
+        for key in (
+            "ANTHROPIC_API_KEY", "AZURE_OPENAI_API_KEY",
+            "AZURE_OPENAI_BASE_URL", "LLM_PROVIDER",
+        ):
+            monkeypatch.delenv(key, raising=False)
 
         rc = main(["/bare"])
+
+        # Resolver no longer rejects — failure is now at config (no API key)
         assert rc == 2
-        assert "skill" in capsys.readouterr().err
+        err = capsys.readouterr().err
+        assert "harness config" in err
+        assert "skill" not in err.lower()  # not a skill error anymore
 
     def test_skill_not_found_returns_2(self, tmp_path, monkeypatch, capsys):
         self._make_project(tmp_path)

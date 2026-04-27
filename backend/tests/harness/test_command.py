@@ -9,9 +9,11 @@ import pytest
 from app.harness.command import (
     Command,
     CommandParseError,
+    ResolvedCommand,
     discover_commands,
     load_command,
     parse_command,
+    resolve_command,
 )
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -140,3 +142,95 @@ class TestRealCommands:
             if n not in skipped and c.referenced_skill is None
         ]
         assert not missing_ref, f"commands missing skill ref: {missing_ref}"
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# resolve_command — skill source vs inline source
+# ────────────────────────────────────────────────────────────────────────────
+
+class TestResolveCommand:
+    def _setup(self, tmp_path: Path) -> tuple[Path, Path]:
+        commands = tmp_path / "commands"
+        skills = tmp_path / "skills"
+        commands.mkdir()
+        skills.mkdir()
+        return commands, skills
+
+    def test_resolves_skill_source(self, tmp_path):
+        commands, skills = self._setup(tmp_path)
+        (commands / "go.md").write_text(
+            "---\ndescription: do go\n---\n載入 **the-skill** skill, do it.\n",
+            encoding="utf-8",
+        )
+        skill_dir = skills / "the-skill"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text(
+            "---\nname: the-skill\ndescription: skill desc\nallowed-tools: Read, Write\n---\n"
+            "Skill body content.\n",
+            encoding="utf-8",
+        )
+
+        r = resolve_command(commands_root=commands, skills_root=skills, name="go")
+
+        assert isinstance(r, ResolvedCommand)
+        assert r.source == "skill"
+        assert r.name == "go"
+        assert r.skill_name == "the-skill"
+        assert r.body == "Skill body content."
+        assert r.allowed_tools == ("Read", "Write")
+        assert r.label == "Skill: the-skill"
+
+    def test_resolves_inline_source(self, tmp_path):
+        commands, skills = self._setup(tmp_path)
+        (commands / "status.md").write_text(
+            "---\ndescription: read state\n---\n"
+            "# Status\n\nRead the .triz-state.json and report progress.\n",
+            encoding="utf-8",
+        )
+
+        r = resolve_command(commands_root=commands, skills_root=skills, name="status")
+
+        assert r.source == "inline"
+        assert r.name == "status"
+        assert r.skill_name is None
+        assert r.allowed_tools is None
+        assert "Read the .triz-state.json" in r.body
+        assert r.label == "Command: status"
+
+    def test_missing_command_raises(self, tmp_path):
+        commands, skills = self._setup(tmp_path)
+        with pytest.raises(FileNotFoundError):
+            resolve_command(commands_root=commands, skills_root=skills, name="nope")
+
+    def test_skill_ref_to_missing_skill_raises(self, tmp_path):
+        commands, skills = self._setup(tmp_path)
+        (commands / "broken.md").write_text(
+            "---\ndescription: x\n---\n載入 **ghost-skill** skill.\n",
+            encoding="utf-8",
+        )
+
+        with pytest.raises(FileNotFoundError, match="ghost-skill"):
+            resolve_command(commands_root=commands, skills_root=skills, name="broken")
+
+    def test_real_triz_status_resolves_inline(self):
+        """The motivating use case: /triz-status has no skill body and must
+        resolve to inline source so it can run without backend changes."""
+        r = resolve_command(
+            commands_root=_REAL_COMMANDS_DIR,
+            skills_root=_PROJECT_ROOT / ".claude" / "skills",
+            name="triz-status",
+        )
+        assert r.source == "inline"
+        assert r.skill_name is None
+        # Body should contain the inline instructions about reading state
+        assert ".triz-state.json" in r.body
+
+    def test_real_triz_resolves_to_skill(self):
+        """Sanity: /triz still routes through the triz-router skill."""
+        r = resolve_command(
+            commands_root=_REAL_COMMANDS_DIR,
+            skills_root=_PROJECT_ROOT / ".claude" / "skills",
+            name="triz",
+        )
+        assert r.source == "skill"
+        assert r.skill_name == "triz-router"

@@ -22,7 +22,7 @@ from app.harness.agent import AgentLoop, AgentLoopError
 from app.harness.command import CommandParseError, resolve_command
 from app.harness.config import HarnessConfigError, build_client, load_env
 from app.harness.skill import SkillParseError
-from app.harness.tools.registry import default_registry
+from app.harness.tools.registry import default_registry, default_registry_with_agent
 
 
 def find_project_root(start: Path | None = None) -> Path:
@@ -159,12 +159,19 @@ def main(argv: list[str] | None = None) -> int:
         f"請依 {resolved.name} 的步驟引導我，先告訴我下一步要做什麼。"
     )
 
-    # 5. Build and run the loop
+    # 5. Build and run the loop. Main loop gets the Agent tool so skills
+    #    that orchestrate multi-TC fan-out (e.g. triz-contradict) can dispatch
+    #    triz-analyst worker subagents. Sub-loops use default_registry()
+    #    (no Agent), preventing nested spawn (DK-03 §3.6).
     loop = AgentLoop(
         client=hc.client,
         model=hc.default_model,
         system_prompt=system_prompt,
-        tool_registry=default_registry(),
+        tool_registry=default_registry_with_agent(
+            client=hc.client,
+            default_model=hc.default_model,
+            agents_root=project_root / ".claude" / "agents",
+        ),
         allowed_tools=list(resolved.allowed_tools) if resolved.allowed_tools is not None else None,
         max_iterations=ns.max_iterations,
         max_tokens=ns.max_tokens,

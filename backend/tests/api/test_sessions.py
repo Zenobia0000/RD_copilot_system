@@ -388,6 +388,32 @@ class TestRunCommandHappyPath:
         assert "echo" in first_user_msg["content"]
         assert len(first_user_msg["content"]) > 5
 
+    def test_main_loop_has_agent_tool_for_fanout(self, client, fake_project, fake_harness):
+        """Production wiring: sessions.py builds the main loop with
+        default_registry_with_agent, so skills can dispatch subagents.
+
+        This pins the contract — if anyone reverts cli.py / sessions.py back
+        to default_registry(), the live fan-out test breaks but unit tests
+        wouldn't notice. This test catches it without hitting the API.
+        """
+        fake_harness.responses.append(
+            FakeResponse(content=[FakeTextBlock(text="ok")], stop_reason="end_turn")
+        )
+        sess = client.post(SESSIONS_BASE, json={}).json()
+        client.post(
+            f"{SESSIONS_BASE}/{sess['session_id']}/run",
+            json={"command": "/echo"},
+        )
+
+        first_call = fake_harness.calls[0]
+        tool_names = {t["name"] for t in first_call["tools"]}
+        assert "Agent" in tool_names, (
+            f"main loop is missing the Agent tool — multi-TC fan-out will "
+            f"silently degrade to single-thread. Got: {sorted(tool_names)}"
+        )
+        # Standard fs + web tools also still available
+        assert {"Read", "Write", "Glob", "Grep", "WebFetch", "WebSearch"} <= tool_names
+
 
 # ────────────────────────────────────────────────────────────────────────────
 # /run/stream — Server-Sent Events

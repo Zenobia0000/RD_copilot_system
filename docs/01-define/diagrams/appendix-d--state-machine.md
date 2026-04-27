@@ -22,7 +22,7 @@
 | **Step 5a-0**  | **(v2.2) OZ-OT 分析（鎖定 Px + TC→PC 橋樑）**         | **II**  | OzOtResult                               |
 | **Step 5a**    | **TRIZ 解矛盾（矩陣查表 + 原理具體化 + Architecture Health Monitor）** | **II**  | Concept Route (部分), SimMatrix             |
 | **Step 5b**    | **子系統定義（三層階層 System→Module→Component）**         | **II**  | Concept Route (部分)                       |
-| **Step 5c**    | **SCAMPER 模組變形（純創意工具）**                        | **II**  | Concept Route (部分)                       |
+| ~~**Step 5c**~~| ~~**SCAMPER 模組變形**~~ *(v9 移除)*                     | —       | —                                          |
 | **Step 5d**    | **AI 方案生成 + Decision Hub（整合 + CCI 複雜度指標）**     | **II**  | Concept Route, Interface, ComplexityCheckResult |
 | **Step 5e**    | **MUST 快篩（Go/No-Go 淘汰）**                      | **II**  | Concept Route                            |
 | **Step P**     | **Pre-CAD 設計審查 (Pre-CAD Gate)**                | **II**  | Pre-CAD Review Report                    |
@@ -78,7 +78,7 @@ stateDiagram-v2
 
 
 
-> **Note**: Step 5 採雙軌架構：反向創意（Anti-Anchor）直入候選池，正向演繹（TRIZ → 子系統 → SCAMPER）生成候選。所有路徑匯流至決策中心 (Decision Hub)，由 RD 做 adopt/skip + CCI 標籤 + 橫向比較。最終通過 MUST 快篩進入 Pre-CAD。（~~Phase B 已於 v9 退役~~，由 SIM + CCI 前置覆蓋。）
+> **Note**: Step 5 採雙軌架構：反向創意（Anti-Anchor）直入候選池，正向演繹（TRIZ → 子系統）生成候選。所有路徑匯流至決策中心 (Decision Hub)，由 RD 做 adopt/skip + CCI 標籤 + 橫向比較。最終通過 MUST 快篩進入 Pre-CAD。（~~Phase B 已於 v9 退役~~，由 SIM + CCI 前置覆蓋。~~SCAMPER 已於 v9 移除~~。）
 
 ##### Step 5 內部子流程
 
@@ -87,7 +87,7 @@ stateDiagram-v2
 stateDiagram-v2
     state "反向創意軌 (Reverse Track)" as ReverseTrack {
         state "5-0: Anti-Anchor Sprint" as S5_0
-        note right of S5_0 : 直入候選池\n附 Validation Passport\n不經 TRIZ/子系統/SCAMPER
+        note right of S5_0 : 直入候選池\n附 Validation Passport\n不經 TRIZ/子系統
     }
 
     state "正向演繹軌 (Forward Track)" as ForwardTrack {
@@ -95,13 +95,10 @@ stateDiagram-v2
         state "5a: TRIZ 三路徑候選生成" as S5a
         state "Architecture Health Monitor" as S5a_health
         state "5b: 子系統定義 (3-level)" as S5b
-        state "5c: SCAMPER 創意工具" as S5c
-
         note right of S5a_0 : OZ + OT → Px 物理變數\nL2 PC 深挖的前置條件\n(v2.2 ADR-008)
         note right of S5a : TC/PC/SF 三路徑\n全部 pending 生成
         note right of S5a_health : nodes > 5 → critical → halt\n循環矛盾 → halt\n(phase-agnostic)
         note right of S5b : System → Module → Component\n+ 6-dim interface contracts
-        note right of S5c : 創意工具，無收斂回饋\n風險為資訊性備註
 
         S5a_0 --> S5a : Px locked → TRIZ 求解
         S5a --> S5a_health : 三路徑產出
@@ -109,7 +106,6 @@ stateDiagram-v2
         S5a_health --> S2c : 🛑 結構性循環 → 回功能建模
         S5a_health --> S2b : 🛑 框架性循環 → 回問題定向
         S5a_health --> S5b : healthy/minor → 進入子系統
-        S5b --> S5c : 每個子系統執行 SCAMPER
     }
 
     state "5d: Decision Hub (決策中心)" as S5d
@@ -120,7 +116,7 @@ stateDiagram-v2
     [*] --> S5_0
     [*] --> S5a_0
     S5_0 --> S5d : Anti-Anchor 候選 (附 VP)
-    S5c --> S5d : SCAMPER 候選
+    S5b --> S5d : 子系統定義完成
     S5a_health --> S5d : TRIZ 候選 (healthy)
     S5d --> S5e : RD adopted 候選 → MUST Go/No-Go
     S5e --> [*] : 通過 → Pre-CAD
@@ -146,7 +142,7 @@ stateDiagram-v2
 
 ### Gate 與 Phase 轉換對照
 
-> **權威定義見** [E3--ai-agent-detailed-design.md §11.4.3](../E3--ai-agent-detailed-design.md#1143-gate-自動化判定)（含自動化等級與 Fallback）。
+> **權威定義見** [E3--ai-agent-detailed-design.md §2.2a](../E3--ai-agent-detailed-design.md#22a-gate-自動化判定)（含自動化等級與 Fallback）。
 > 以下僅保留狀態機視覺化。
 
 ### 雙層狀態機概念圖 (Process State + Artifact State)

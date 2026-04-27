@@ -1,6 +1,7 @@
 ---
 
 ## doc_id: E3
+
 title: RD Design Copilot — Architecture and Design
 version: v2.0
 last_updated: 2026-04-15
@@ -53,7 +54,7 @@ supersedes: E3 v1.4 (2026-03-26)
 **In Scope**
 
 - RD Design Copilot 產品的軟體架構（前端 + 後端 + BaaS + LLM 服務）
-- Multi-Agent 編排、狀態機、TRIZ / SCAMPER / Anti-Anchor 三條分析路徑
+- Multi-Agent 編排、狀態機、TRIZ / Anti-Anchor 兩條分析路徑（~~SCAMPER v9 移除~~）
 - 部署拓撲（Docker Compose + Supabase SaaS + Anthropic API）
 - 關鍵非功能需求與對應緩解設計
 
@@ -70,7 +71,7 @@ supersedes: E3 v1.4 (2026-03-26)
 | 類別   | 文件                                                                                                                  |
 | ---- | ------------------------------------------------------------------------------------------------------------------- |
 | 上游輸入 | `docs/00-discover/E1--project-brief-and-prd.md`（需求來源）、`docs/00-discover/E1x--assumption-risk-register.md`           |
-| 決策紀錄 | `docs/01-define/adrs/ADR-001..008`（含 ADR-006 Harness Architecture、ADR-008 Auto-TRIZ v2 Integration）                |
+| 決策紀錄 | `docs/01-define/adrs/ADR-001..008`（含 ADR-006 Harness Architecture、ADR-008 Auto-TRIZ v2 Integration）                 |
 | 下游展開 | `docs/02-design/E5--api-design-specification.md`、`docs/02-design/E5x--frontend-architecture.md`                     |
 | 交付文件 | `docs/04-deliver/E9--deployment-and-operations-guide.md`、`docs/04-deliver/E8--security-and-readiness-checklists.md` |
 | 計劃文件 | `docs/01-define/E3--wbs-development-plan.md`                                                                        |
@@ -101,15 +102,15 @@ supersedes: E3 v1.4 (2026-03-26)
 ### 2.3 核心功能對應架構能力
 
 
-| PRD Goal     | 對應架構能力                                       | 主要 Agent / 元件                     |
-| ------------ | -------------------------------------------- | --------------------------------- |
-| G1 擴大設計可能性空間 | Anti-Anchor Sprint + TRIZ + SCAMPER 三路發散     | Analyst + TRIZ Solver + Knowledge |
-| G2 未知可見可追蹤   | 假設台帳 + Validation Passport + Evidence Matrix | Analyst + Evaluator               |
-| G3 前置風險驗證    | SIM 矩陣前置跨矛盾衝突檢查 + CCI 複雜度判定 + 架構健康度監控 + 最小實驗設計 | Analyst + TRIZ Solver + Evaluator |
-| G4 決策可審查可複用  | KT Decision Analysis + 6 類資產知識回寫             | Evaluator + Knowledge             |
-| G5 提升溝通效率    | Gate 自動化 + 一頁式報告                             | Orchestrator + Evaluator          |
-| G6 用戶願意使用    | 漸進式負擔 + AI 預填                                | Frontend UX                       |
-| G7 證據缺口可見    | Evidence Matrix + 北極星證據追蹤                    | Evaluator                         |
+| PRD Goal     | 對應架構能力                                            | 主要 Agent / 元件                     |
+| ------------ | ------------------------------------------------- | --------------------------------- |
+| G1 擴大設計可能性空間 | Anti-Anchor Sprint + TRIZ 雙路發散（~~SCAMPER v9 移除~~） | Analyst + TRIZ Solver + Knowledge |
+| G2 未知可見可追蹤   | 假設台帳 + Validation Passport + Evidence Matrix      | Analyst + Evaluator               |
+| G3 前置風險驗證    | SIM 矩陣前置跨矛盾衝突檢查 + CCI 複雜度判定 + 架構健康度監控 + 最小實驗設計    | Analyst + TRIZ Solver + Evaluator |
+| G4 決策可審查可複用  | KT Decision Analysis + 6 類資產知識回寫                  | Evaluator + Knowledge             |
+| G5 提升溝通效率    | Gate 自動化 + 一頁式報告                                  | Orchestrator + Evaluator          |
+| G6 用戶願意使用    | 漸進式負擔 + AI 預填                                     | Frontend UX                       |
+| G7 證據缺口可見    | Evidence Matrix + 北極星證據追蹤                         | Evaluator                         |
 
 
 ### 2.4 產品原則（架構守欄）
@@ -233,7 +234,6 @@ graph LR
         end
         subgraph Sub ["Sub-Agents"]
             triz_critic[TRIZ Critic<br/>二次矛盾 · TC→PC]
-            scamper_fb[SCAMPER Feedback<br/>矛盾回饋整合]
             know[Knowledge<br/>Evidence · Web 搜尋]
             know_wb[Knowledge WB<br/>6-asset 沉澱]
         end
@@ -258,7 +258,6 @@ graph LR
     orch --> know
 
     triz_solver --> triz_critic
-    scamper_fb -.-> triz_solver
     know --> know_wb
 
     analyst --> llm_svc
@@ -274,18 +273,18 @@ graph LR
 
 
 
-> **深入閱讀**：三條分析路徑（正向子系統 / 正向 TRIZ / 反向 Anti-Anchor）的 Component 細節見 Appendix A / B / C；狀態機見 Appendix D；TRIZ→SCAMPER 流程見 Appendix E。
+> **深入閱讀**：分析路徑（正向子系統 / 正向 TRIZ / 反向 Anti-Anchor）的 Component 細節見 Appendix A / B / C；狀態機見 Appendix D；TRIZ 流程見 Appendix E（~~SCAMPER v9 移除~~）。
 
 ### 3.4 關鍵架構風格與決策
 
 
-| 風格                                           | 說明                                                                                                        | 依據                                      |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| **BaaS-First**                               | 前端直連 Supabase 做 CRUD，後端只做 AI 編排                                                                           | ADR-001                                 |
-| **Server-side guardrails via FastAPI**       | Gate 檢查由 gate_registry.py 宣告式定義 + gates.py 強制                                                             | ADR-002 (實作方式已改)                        |
-| **Multi-Agent + Pydantic AI**                | Analyst / TRIZ Solver / Evaluator / Knowledge 四主 + triz_critic / scamper_feedback / knowledge_wb 三副 Agent | §11.1 + §11.5 + ADR-006                 |
-| **Evidence-first outputs**                   | 所有 AI 輸出附 `EvidenceReference`（KB-/WEB-/DOC-/REASONING-）                                                   | ADR-005 + schemas.py §EvidenceReference |
-| **Prompt-as-code（Phase 2 轉 prompt-as-data）** | 目前 Prompt 模板在 Python 模組，Phase 2 遷至 `prompts/templates/*.md`                                               | ADR-003                                 |
+| 風格                                           | 說明                                                                                                                 | 依據                                      |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------- |
+| **BaaS-First**                               | 前端直連 Supabase 做 CRUD，後端只做 AI 編排                                                                                    | ADR-001                                 |
+| **Server-side guardrails via FastAPI**       | Gate 檢查由 gate_registry.py 宣告式定義 + gates.py 強制                                                                      | ADR-002 (實作方式已改)                        |
+| **Multi-Agent + Pydantic AI**                | Analyst / TRIZ Solver / Evaluator / Knowledge 四主 + triz_critic / knowledge_wb 二副 Agent（~~scamper_feedback v9 移除~~） | §11.1 + §11.5 + ADR-006                 |
+| **Evidence-first outputs**                   | 所有 AI 輸出附 `EvidenceReference`（KB-/WEB-/DOC-/REASONING-）                                                            | ADR-005 + schemas.py §EvidenceReference |
+| **Prompt-as-code（Phase 2 轉 prompt-as-data）** | 目前 Prompt 模板在 Python 模組，Phase 2 遷至 `prompts/templates/*.md`                                                        | ADR-003                                 |
 
 
 ---
@@ -321,15 +320,15 @@ graph LR
 ### 4.2 選型關聯 ADR 交叉表
 
 
-| ADR         | 主要技術決策                                                         | 影響範圍                                                                    |
-| ----------- | -------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| **ADR-001** | BaaS-First — Supabase 取代 SQLAlchemy ORM                        | 消除 ~35 CRUD 端點、RLS 取代自訂權限、PostgreSQL Day-1                              |
-| **ADR-002** | Server-side 業務邏輯 — 實際改用 FastAPI endpoints (非 DB triggers)      | gate_registry.py、gates.py、exports.py、knowledge_wb.py、unknown_factors.py |
-| **ADR-003** | LLM 服務層強化 — Phase 1 完成 (Retry + Pydantic 驗證 + Prompt 分離)       | tenacity、call_llm_structured、prompts/*.py                               |
-| **ADR-004** | 務實測試策略 — 38+ AI 端點、Docker 部署、Playwright deferred               | pytest (84 tests)、Vitest (92 tests)、docker-compose                      |
-| **ADR-005** | 範圍擴充 — Evidence Retrieval + Multi-Solution + Configurable MUST | Tavily API、concept_routes/compatibility_pairs 2 張新表、MustCriterionConfig |
+| ADR         | 主要技術決策                                                                                     | 影響範圍                                                                                                                                                                |
+| ----------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **ADR-001** | BaaS-First — Supabase 取代 SQLAlchemy ORM                                                    | 消除 ~35 CRUD 端點、RLS 取代自訂權限、PostgreSQL Day-1                                                                                                                          |
+| **ADR-002** | Server-side 業務邏輯 — 實際改用 FastAPI endpoints (非 DB triggers)                                  | gate_registry.py、gates.py、exports.py、knowledge_wb.py、unknown_factors.py                                                                                             |
+| **ADR-003** | LLM 服務層強化 — Phase 1 完成 (Retry + Pydantic 驗證 + Prompt 分離)                                   | tenacity、call_llm_structured、prompts/*.py                                                                                                                           |
+| **ADR-004** | 務實測試策略 — 38+ AI 端點、Docker 部署、Playwright deferred                                           | pytest (84 tests)、Vitest (92 tests)、docker-compose                                                                                                                  |
+| **ADR-005** | 範圍擴充 — Evidence Retrieval + Multi-Solution + Configurable MUST                             | Tavily API、concept_routes/compatibility_pairs 2 張新表、MustCriterionConfig                                                                                             |
 | **ADR-006** | Harness Architecture — Pydantic AI spine + MCP + Skills（Accepted & Implemented 2026-04-24） | `backend/app/harness/` 全模組（agent_base, model_adapter, tool_registry, solver_registry, orchestrator, skill_loader, mcp_server, mcp_client）；所有 Agent 重構為 HarnessAgent |
-| **ADR-008** | Auto-TRIZ v2 Closed-Loop Integration — FA/OZ-OT/SIM/CCI/Evidence Registry | 3 張新表（function_models, evidence_claims, sim_matrices）；contradictions 增欄；10 個新 API endpoints；Conditional Stepper UI |
+| **ADR-008** | Auto-TRIZ v2 Closed-Loop Integration — FA/OZ-OT/SIM/CCI/Evidence Registry                  | 3 張新表（function_models, evidence_claims, sim_matrices）；contradictions 增欄；10 個新 API endpoints；Conditional Stepper UI                                                  |
 
 
 ### 4.3 關鍵相依與替換成本
@@ -366,28 +365,28 @@ graph LR
 以下為 Supabase migrations 與 Pydantic schema 對應之主要實體群組。欄位細節以檔為準。
 
 
-| 實體群組                                           | Supabase 表（代表）                                                                                    | Pydantic 類別（代表）                                                                                                              | 關聯 E3 章節                       |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
-| **Project & Phase**                            | `projects`（phase/status/must_criteria_config JSONB）                                               | —                                                                                                                            | §11.1 / ADR-002                |
-| **Brief & Requirements**                       | `constraints`, `kpis`, `brief_assets`                                                             | `BriefExtractionResponse`, `ExtractedConstraint`, `ExtractedKpi`                                                             | Step 1 (§11.2)                 |
-| **Socratic & Assumptions**                     | `socratic_questions`, `assumptions`                                                               | `SocraticResponse`, `ExtractedAssumption`, `ValidationPassportAssumption`                                                    | Step 2/4 (§11.2)               |
-| **Causal Loop & Contradictions**               | `cld_nodes`, `cld_edges`, `contradictions`                                                        | `CldGenerationResponse`, `ContradictionFormalize`*                                                                           | Step 3 (§11.2)                 |
-| **Subsystem Hierarchy（3-level）**               | `subsystems`（migration 003 / 007 / 008）                                                           | `SubsystemSuggestResponse`, `SuggestedSubsystem`, `InterfaceContract`, `PackageMap`, `SpatialEstimate`                       | Step 5b (§11.2) + Appendix A   |
-| **TRIZ Layered**（TC/PC/SF 分層）                  | migration 010 (`triz_layered_drilldown`), `contradictions.kind`（migration 009 `pc_decomposition`） | `LayeredTrizSolution`, `L1Surface`, `L2RootCause`, `L3StructuralCheck`, `SuFieldModel`, `DeepenLink`, `DifferentialAnalysis` | Step 5a (§11.2) + Appendix B   |
-| **Anti-Anchor & Passport**（migration 001）      | `anti_anchor_routes`, `validation_passports`                                                      | `AntiAnchorRoute`, `ValidationPassport`                                                                                      | Step 5-0 (§11.2) + Appendix C  |
-| **SCAMPER**                                    | `scamper_variants`                                                                                | `ScamperVariant`, `ScamperResponse`                                                                                          | Step 5c (§11.2)                |
-| **Concept Routes & Compatibility（ADR-005 新增）** | `concept_routes`, `compatibility_pairs`                                                           | `ConvergenceAlternativeInput`, `ConvergenceContradictionInput`, `SecondaryContradiction`                                     | Step 5d (§11.2)                |
-| **MUST Evaluation**                            | `must_evaluations`                                                                                | `MustEvaluationRequest`, `MustCriterionConfig`, `MustCriterionResult`                                                        | Step 5e (§11.2)                |
-| **Pre-CAD Review**                             | `pre_cad_reviews`                                                                                 | `PreCadAnalyzeResponse`, `SpatialTrace`                                                                                      | Step P (§11.2)                 |
-| **Evidence & Risk**                            | `evidence_matrix`, `risks`                                                                        | `EvidenceReference`, `RiskSuggestion`                                                                                        | Step 6 / 6e (§11.2)            |
-| **Decision & Actions**                         | `decision_records`, `actions`, `want_criteria`                                                    | `ActionSuggestion`, `SuggestedWantCriterion`                                                                                 | Step 7 (§11.2)                 |
-| **Knowledge Assets**                           | `knowledge_entries`, `learned_components`                                                         | `LearnedComponentPromote`*                                                                                                   | Step 8 (§11.2) + Appendix A §9 |
-| **Gate & Traceability**                        | `gate_checks`, `traceability_links`（migration 002）                                                | `GateCheckResponse`, `GateCheckItem`                                                                                         | §11.4 Gate 判定                  |
-| **Unknown Factors & LLM Usage**（ADR-002/003）   | `unknown_factors`, `llm_usage_logs`                                                               | `DiscoveredUnknownFactor`                                                                                                    | P1 (§11.5)                     |
-| **Function Models（ADR-008 新增）**               | `function_models`（project_id, component_interactions JSONB, sf_diagnosis JSONB, subsystem_boundary JSONB） | `FunctionModel`, `ComponentInteraction`, `SfDiagnosis`                                                                       | Step 1 FA (§11.2 v2.2)         |
-| **Evidence Claims（ADR-008 新增）**               | `evidence_claims`（claim_id, claim_text, status VERIFIED/APPROXIMATE/UNVERIFIED, verification_sources JSONB） | `EvidenceClaim`                                                                                                              | Cross-cutting (§11.5 v2.2)     |
-| **SIM Matrices（ADR-008 新增）**                  | `sim_matrices`（project_id, contradiction_ids JSONB, matrix JSONB, optimal_combination JSONB, rounds_used INT） | `SimMatrixResult`                                                                                                            | Step 3 SIM (§11.2 v2.2)        |
-| **Contradictions 增欄（ADR-008）**                | `contradictions` 新增 `oz_zone TEXT`, `ot_time TEXT`, `px_variable TEXT`（nullable）                   | `OzOtResult`, `ComplexityCheckResult`                                                                                        | Step 2 OZ-OT (§11.2 v2.2)      |
+| 實體群組                                           | Supabase 表（代表）                                                                                                | Pydantic 類別（代表）                                                                                                              | 關聯 E3 章節                       |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| **Project & Phase**                            | `projects`（phase/status/must_criteria_config JSONB）                                                           | —                                                                                                                            | §11.1 / ADR-002                |
+| **Brief & Requirements**                       | `constraints`, `kpis`, `brief_assets`                                                                         | `BriefExtractionResponse`, `ExtractedConstraint`, `ExtractedKpi`                                                             | Step 1 (§11.2)                 |
+| **Socratic & Assumptions**                     | `socratic_questions`, `assumptions`                                                                           | `SocraticResponse`, `ExtractedAssumption`, `ValidationPassportAssumption`                                                    | Step 2/4 (§11.2)               |
+| **Causal Loop & Contradictions**               | `cld_nodes`, `cld_edges`, `contradictions`                                                                    | `CldGenerationResponse`, `ContradictionFormalize`*                                                                           | Step 3 (§11.2)                 |
+| **Subsystem Hierarchy（3-level）**               | `subsystems`（migration 003 / 007 / 008）                                                                       | `SubsystemSuggestResponse`, `SuggestedSubsystem`, `InterfaceContract`, `PackageMap`, `SpatialEstimate`                       | Step 5b (§11.2) + Appendix A   |
+| **TRIZ Layered**（TC/PC/SF 分層）                  | migration 010 (`triz_layered_drilldown`), `contradictions.kind`（migration 009 `pc_decomposition`）             | `LayeredTrizSolution`, `L1Surface`, `L2RootCause`, `L3StructuralCheck`, `SuFieldModel`, `DeepenLink`, `DifferentialAnalysis` | Step 5a (§11.2) + Appendix B   |
+| **Anti-Anchor & Passport**（migration 001）      | `anti_anchor_routes`, `validation_passports`                                                                  | `AntiAnchorRoute`, `ValidationPassport`                                                                                      | Step 5-0 (§11.2) + Appendix C  |
+| ~~**SCAMPER**~~                                | ~~`scamper_variants`~~                                                                                        | ~~`ScamperVariant`, `ScamperResponse`~~                                                                                      | *(v9 移除)*                      |
+| **Concept Routes & Compatibility（ADR-005 新增）** | `concept_routes`, `compatibility_pairs`                                                                       | `ConvergenceAlternativeInput`, `ConvergenceContradictionInput`, `SecondaryContradiction`                                     | Step 5d (§11.2)                |
+| **MUST Evaluation**                            | `must_evaluations`                                                                                            | `MustEvaluationRequest`, `MustCriterionConfig`, `MustCriterionResult`                                                        | Step 5e (§11.2)                |
+| **Pre-CAD Review**                             | `pre_cad_reviews`                                                                                             | `PreCadAnalyzeResponse`, `SpatialTrace`                                                                                      | Step P (§11.2)                 |
+| **Evidence & Risk**                            | `evidence_matrix`, `risks`                                                                                    | `EvidenceReference`, `RiskSuggestion`                                                                                        | Step 6 / 6e (§11.2)            |
+| **Decision & Actions**                         | `decision_records`, `actions`, `want_criteria`                                                                | `ActionSuggestion`, `SuggestedWantCriterion`                                                                                 | Step 7 (§11.2)                 |
+| **Knowledge Assets**                           | `knowledge_entries`, `learned_components`                                                                     | `LearnedComponentPromote`*                                                                                                   | Step 8 (§11.2) + Appendix A §9 |
+| **Gate & Traceability**                        | `gate_checks`, `traceability_links`（migration 002）                                                            | `GateCheckResponse`, `GateCheckItem`                                                                                         | §11.4 Gate 判定                  |
+| **Unknown Factors & LLM Usage**（ADR-002/003）   | `unknown_factors`, `llm_usage_logs`                                                                           | `DiscoveredUnknownFactor`                                                                                                    | P1 (§11.5)                     |
+| **Function Models（ADR-008 新增）**                | `function_models`（project_id, component_interactions JSONB, sf_diagnosis JSONB, subsystem_boundary JSONB）     | `FunctionModel`, `ComponentInteraction`, `SfDiagnosis`                                                                       | Step 1 FA (§11.2 v2.2)         |
+| **Evidence Claims（ADR-008 新增）**                | `evidence_claims`（claim_id, claim_text, status VERIFIED/APPROXIMATE/UNVERIFIED, verification_sources JSONB）   | `EvidenceClaim`                                                                                                              | Cross-cutting (§11.5 v2.2)     |
+| **SIM Matrices（ADR-008 新增）**                   | `sim_matrices`（project_id, contradiction_ids JSONB, matrix JSONB, optimal_combination JSONB, rounds_used INT） | `SimMatrixResult`                                                                                                            | Step 3 SIM (§11.2 v2.2)        |
+| **Contradictions 增欄（ADR-008）**                 | `contradictions` 新增 `oz_zone TEXT`, `ot_time TEXT`, `px_variable TEXT`（nullable）                              | `OzOtResult`, `ComplexityCheckResult`                                                                                        | Step 2 OZ-OT (§11.2 v2.2)      |
 
 
 ### 5.3 資料存取模式
@@ -664,18 +663,18 @@ Radix UI 提供 WAI-ARIA 基礎；a11y 審計 — **TBD — UX Owner TBD by v1.1
 ### 10.1 術語表
 
 
-| 術語                       | 說明                                                                                                 |
-| ------------------------ | -------------------------------------------------------------------------------------------------- |
-| **BaaS**                 | Backend-as-a-Service（Supabase）                                                                     |
-| **RLS**                  | Row-Level Security（Supabase/PostgreSQL）                                                            |
-| **Agent**                | Multi-Agent 架構中的角色：Analyst / TRIZ Solver / Evaluator / Knowledge（§11.1）                            |
-| **Artifact**             | 流程產出的核心工件：Constraint / Contradiction / Assumption / Concept Route 等（§11.4.4）                       |
-| **Gate**                 | Phase/Step 之間的品質關卡（Gate 1-8 + Anti-Anchor / Gate P / Gate C；§11.4.3）                               |
-| **Phase / Step**         | Phase I-III + Step 1-8 的雙層狀態機（Appendix D）                                                          |
-| **Validation Passport**  | 每個候選方案自帶的驗證護照（assumptions[], weak_points[], required_verifications[], confidence_level）；§11.3 機制 7 |
-| **~~Phase B 收斂~~**         | ~~方案×矛盾交叉檢查~~——**v9 退役**：由 SIM 矩陣（ADR-008 D5）和 CCI（ADR-008 D4）前置覆蓋。Phase A 已於 v8 退役，由 L1 critic badge 取代 |
-| **北極星證據**                | Evidence Matrix 中最關鍵的證據列，Gate C 要求 E2+                                                             |
-| **TRIZ TC / PC / SF**    | Technical Contradiction / Physical Contradiction / Su-Field 三層 drill-down（Appendix B / E）          |
+| 術語                      | 說明                                                                                                       |
+| ----------------------- | -------------------------------------------------------------------------------------------------------- |
+| **BaaS**                | Backend-as-a-Service（Supabase）                                                                           |
+| **RLS**                 | Row-Level Security（Supabase/PostgreSQL）                                                                  |
+| **Agent**               | Multi-Agent 架構中的角色：Analyst / TRIZ Solver / Evaluator / Knowledge（§11.1）                                  |
+| **Artifact**            | 流程產出的核心工件：Constraint / Contradiction / Assumption / Concept Route 等（§11.4.3）                             |
+| **Gate**                | Phase/Step 之間的品質關卡（Gate 1-8 + Anti-Anchor / Gate P / Gate C；§2.2a）                                       |
+| **Phase / Step**        | Phase I-III + Step 1-8 的雙層狀態機（Appendix D）                                                                |
+| **Validation Passport** | 每個候選方案自帶的驗證護照（assumptions[], weak_points[], required_verifications[], confidence_level）；§11.3 機制 7       |
+| ~~**Phase B 收斂**~~      | ~~方案×矛盾交叉檢查~~——**v9 退役**：由 SIM 矩陣（ADR-008 D5）和 CCI（ADR-008 D4）前置覆蓋。Phase A 已於 v8 退役，由 L1 critic badge 取代 |
+| **北極星證據**               | Evidence Matrix 中最關鍵的證據列，Gate C 要求 E2+                                                                   |
+| **TRIZ TC / PC / SF**   | Technical Contradiction / Physical Contradiction / Su-Field 三層 drill-down（Appendix B / E）                |
 
 
 ### 10.2 圖例與 C4 標記
@@ -689,8 +688,8 @@ Radix UI 提供 WAI-ARIA 基礎；a11y 審計 — **TBD — UX Owner TBD by v1.1
 | 版本       | 日期             | 變更                                                                                           | 作者        |
 | -------- | -------------- | -------------------------------------------------------------------------------------------- | --------- |
 | v1.2     | —              | Knowledge Source Ingestion + Contradiction Convergence Graph                                 | —         |
-| v1.3     | —              | 收斂掃描 + Socratic Follow-up + Validation Passport（Phase A 已於 v8 退役；~~Phase B 於 v9 退役~~）         | —         |
-| v1.4     | 2026-03-26     | ~~Phase B 改為 Decision Hub 手動觸發~~（v9 已退役）、SCAMPER 純創意、3-level 子系統、可證偽性                        | —         |
+| v1.3     | —              | 收斂掃描 + Socratic Follow-up + Validation Passport（Phase A 已於 v8 退役；~~Phase B 於 v9 退役~~）        | —         |
+| v1.4     | 2026-03-26     | ~~Phase B 改為 Decision Hub 手動觸發~~（v9 已退役）、~~SCAMPER 純創意~~（v9 已移除）、3-level 子系統、可證偽性            | —         |
 | **v2.0** | **2026-04-15** | **重構對齊 VibeCoding 05 三部分/十章節骨架；新增 §1-§10 Part 1；原 §1-§7 降為 §11.x；Appendix A-E 保留原樣為 Part 3** | ARCH + TL |
 
 
@@ -712,10 +711,10 @@ Radix UI 提供 WAI-ARIA 基礎；a11y 審計 — **TBD — UX Owner TBD by v1.1
 本文件為 E3 三部曲之第一部。完整架構設計分為：
 
 
-| 文件                                                                     | 內容                                                      | 行數    |
-| ---------------------------------------------------------------------- | ------------------------------------------------------- | ----- |
-| **E3--architecture-and-design.md** (本文)                                | Part 1: 架構總覽 (C4, Tech Stack, Data, NFR, Risk, Roadmap) | ~634  |
-| [E3--ai-agent-detailed-design.md](E3--ai-agent-detailed-design.md)     | Part 2: AI Agent 協作架構詳細設計 (§11)                         | ~625  |
-| [E3--appendices-sa-perspectives.md](E3--appendices-sa-perspectives.md) | Part 3: SA 視角附錄索引 (→ diagrams/appendix-a~e)               | ~40 (索引) |
+| 文件                                                                     | 內容                                                      | 行數       |
+| ---------------------------------------------------------------------- | ------------------------------------------------------- | -------- |
+| **E3--architecture-and-design.md** (本文)                                | Part 1: 架構總覽 (C4, Tech Stack, Data, NFR, Risk, Roadmap) | ~634     |
+| [E3--ai-agent-detailed-design.md](E3--ai-agent-detailed-design.md)     | Part 2: AI Agent 協作架構詳細設計 (§11)                         | ~625     |
+| [E3--appendices-sa-perspectives.md](E3--appendices-sa-perspectives.md) | Part 3: SA 視角附錄索引 (→ diagrams/appendix-a~e)             | ~40 (索引) |
 
 

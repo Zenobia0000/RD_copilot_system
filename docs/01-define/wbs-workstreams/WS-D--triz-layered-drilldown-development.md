@@ -1,6 +1,8 @@
 # TRIZ 分層 Drill-Down 開發 WBS（Create · Tab ①）
 
 > **版本**：1.6 | **日期**：2026-04-13 | **狀態**：v1.5 + feature flag 預設 on + 舊版 TC/PC/SF UI 移除 + type filter 移除 + Tab ① ConvergenceDashboard 移除 | **Owner**：Create FE + TRIZ Solver Backend
+>
+> **⚠️ Phase B 退役通知 (2026-04-27)**：本 WBS 中 WP 6.3–6.5（Phase B 掃描邏輯修訂）和 WP 10.6（Phase B 按鈕）的實作記錄保留供歷史追溯，但 **Phase B 已於 v9 退役**。其 5 項檢查全部由 SIM ���陣（ADR-008 D5）和 CCI（ADR-008 D4）前置覆蓋。相關程式碼（`check_phase_b_conflict`、`phase_b_directive`、`useConvergenceLoop` Phase B 觸發）待後續清理。
 
 ### 完成度 Dashboard (v1.5)
 

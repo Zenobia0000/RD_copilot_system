@@ -24,8 +24,8 @@ parent: E3--architecture-and-design.md
 > | §7 驗證方式 | §11.6 |
 >
 > **v2.2 更新內容**（ADR-008 Auto-TRIZ v2 整合）：Analyst Agent 新增 5 個能力（`five_why`, `kt_is_is_not`, `function_analysis`, `oz_ot_analysis`, `entry_grading`）；TRIZ Solver Agent 新增 `sim_matrix`（多 TC 交互評分）、`complexity_check`（CCI 連續指標）；新增 `EvidenceRegistryService` 作為 cross-cutting 數據驗證層；§11.2 自動化對照表新增 Step 2b/2c；§11.5.4 新增 10 個 API endpoints。
-> **v1.4 更新內容**（保留歷史）：Phase B 收斂掃描從 TRIZ step 移至 Decision Hub（RD 選定方案後手動觸發）；SCAMPER 改為純創意工具（不再回饋收斂掃描）；語意去重（is_confirmatory 標記）保留於 SecondaryContradiction schema，前端過濾；子系統拆解改為三層階層（System→Module→Component）；假設提取新增可證偽性篩選（evidence_level E0-E4）。（Phase A 已於 v8 退役，其職責由 L1 critic badge per-card 品質閘門取代。）
-> **v1.3 更新**：收斂掃描原拆為 Phase A/B（Phase A 已於 v8 退役，由 L1 critic badge 取代）；僅保留 Phase B（Decision Hub 手動觸發，方案×矛盾交叉檢查）；Analyst Agent 新增 socratic follow-up、brief-impact、first-principles Anti-Anchor；Evaluator Agent 新增 Validation Passport 生成；Anti-Anchor 概念可晉升為 Step 5 候選方案；Step 5d 整合 TRIZ + SCAMPER + Anti-Anchor 候選；新增 3 個 API endpoints。
+> **v1.4 更新內容**（保留歷史）：~~Phase B 收斂掃描從 TRIZ step 移至 Decision Hub~~（v9 已退役，見下方）；SCAMPER 改為純創意工具（不再回饋收斂掃描）；語意去重（is_confirmatory 標記）保留於 SecondaryContradiction schema，前端過濾；子系統拆解改為三層階層（System→Module→Component）；假設提取新增可證偽性篩選（evidence_level E0-E4）。（Phase A 已於 v8 退役，其職責由 L1 critic badge per-card 品質閘門取代。**Phase B 已於 v9 退役**，其 5 項檢查由 SIM 矩陣（ADR-008 D5）和 CCI（ADR-008 D4）前置覆蓋——PC 衝突 ⊂ TC 衝突（ADR-007），SIM -1 即捕捉。）
+> **v1.3 更新**：收斂掃描原拆為 Phase A/B（Phase A 已於 v8 退役，由 L1 critic badge 取代；**Phase B 已於 v9 退役**，由 SIM + CCI 取代）；Analyst Agent 新增 socratic follow-up、brief-impact、first-principles Anti-Anchor；Evaluator Agent 新增 Validation Passport 生成；Anti-Anchor 概念可晉升為 Step 5 候選方案；Step 5d 整合 TRIZ + SCAMPER + Anti-Anchor 候選；新增 3 個 API endpoints。
 > **v1.2 更新**：Knowledge Agent 新增 Source Ingestion；Analyst Agent 新增 Contradiction Convergence Graph；TRIZ Solver Agent 輸出新增受影響模組清單與潛在二次矛盾。
 
 ## §11 AI Agent 協作架構
@@ -48,9 +48,9 @@ parent: E3--architecture-and-design.md
 
 | Agent | 職責 | 核心能力 | 綁定工具 |
 |-------|------|---------|---------|
-| **Analyst Agent** | 需求解構、蘇格拉底問答（含第七類「重構」提問）、**蘇格拉底追問（回答深度分析 + 後續追問生成）**、**Brief 變更影響評估**、因果迴路建模、矛盾識別、假設質疑、**約束可行性驗證 (Constraint Feasibility Check)**、**問題框架挑戰 (Problem Reframing)**、**第一性原理 Anti-Anchor（物理原則、因果鏈量化預期、邊界條件、邏輯謬誤守衛）**、**Phase B 收斂掃描（Decision Hub 手動觸發，方案×矛盾交叉檢查）+ 架構健康度監控（nodes > 5 halt）**、**(v2.2) 問題定向 (5 Why + KT Is/Is Not)**：從症狀快速挖掘可操作根因，有對照組時用 KT 大幅加速 OZ/OT 鎖定、**(v2.2) 功能建模 (Function Analysis)**：畫組件交互圖（有效/有害/不足/過度）+ SF 模型 + 子系統邊界定義，確保矛盾定義在正確系統粒度、**(v2.2) OZ-OT 分析**：鎖定操作空間 (OZ) + 操作時間 (OT) → 萃取核心物理變數 Px，為 TC→PC 轉換提供嚴謹橋樑、**(v2.2) 入口成熟度分級 (Level A/B/C)**：Level C 導向 Design Thinking/AD，Level A 必做問題定向，Level B 可跳步直接進 TRIZ | 語意理解、結構化拆解、隱含假設偵測、**物理可行性分析、問題重構、解法-模組耦合影響分析、矛盾分級判定、回答深度分析、Brief 變更追蹤**、**(v2.2) 5 Why 根因推論、KT 差異分析、功能交互建模、OZ-OT Px 鎖定** | LLM、Prompt Template、Functional Model Generator |
+| **Analyst Agent** | 需求解構、蘇格拉底問答（含第七類「重構」提問）、**蘇格拉底追問（回答深度分析 + 後續追問生成）**、**Brief 變更影響評估**、因果迴路建模、矛盾識別、假設質疑、**約束可行性驗證 (Constraint Feasibility Check)**、**問題框架挑戰 (Problem Reframing)**、**第一性原理 Anti-Anchor（物理原則、因果鏈量化預期、邊界條件、邏輯謬誤守衛）**、**架構健康度監控（nodes > 5 halt）**（~~Phase B 收斂掃描已於 v9 退役，由 SIM + CCI 前置覆蓋~~）、**(v2.2) 問題定向 (5 Why + KT Is/Is Not)**：從症狀快速挖掘可操作根因，有對照組時用 KT 大幅加速 OZ/OT 鎖定、**(v2.2) 功能建模 (Function Analysis)**：畫組件交互圖（有效/有害/不足/過度）+ SF 模型 + 子系統邊界定義，確保矛盾定義在正確系統粒度、**(v2.2) OZ-OT 分析**：鎖定操作空間 (OZ) + 操作時間 (OT) → 萃取核心物理變數 Px，為 TC→PC 轉換提供嚴謹橋樑、**(v2.2) 入口成熟度分級 (Level A/B/C)**：Level C 導向 Design Thinking/AD，Level A 必做問題定向，Level B 可跳步直接進 TRIZ | 語意理解、結構化拆解、隱含假設偵測、**物理可行性分析、問題重構、解法-模組耦合影響分析、矛盾分級判定、回答深度分析、Brief 變更追蹤**、**(v2.2) 5 Why 根因推論、KT 差異分析、功能交互建模、OZ-OT Px 鎖定** | LLM、Prompt Template、Functional Model Generator |
 | **TRIZ Solver Agent** | AutoTRIZ 規則查表 + LLM 原理具體化 + SCAMPER 變形（純創意工具，產出直接進入候選池，不回饋收斂掃描）+ **子系統拆解（三層階層 System→Module→Component）**。輸出增加：**受影響模組清單 + 潛在二次矛盾**。**(v2.2) SIM 矩陣**：多 TC 場景下，對所有候選解法做 +1/0/-1 交互評分，選出最優組合（≤2 輪收斂）。**(v2.2) 複雜度檢查 (CCI)**：四問判定（組件數 / 能耗 / 認知負荷 / 演化趨勢）→ CCI 連續指標 [0,1]，分 Evolution / Weak Evolution / Patch 三級 | 矛盾矩陣查表、分離原理匹配、76 標準解映射、原理實體化、**三層子系統拆解**、**(v2.2) SIM 交互矩陣計算、CCI 複雜度判定** | TRIZ Knowledge Base (Prompt MD)、LLM、RAG |
-| **Evaluator Agent** | MUST 規則驗證、KT 決策分析、證據品質評分、Gate 判定、**Validation Passport 生成**（為每個候選方案生成 assumptions[]、weak_points[]、required_verifications[]、confidence_level）、**Phase B 收斂判定**（Decision Hub 手動觸發，方案×矛盾交叉檢查） | 規則引擎、加權評分、風險評估、**驗證護照生成** | MUST Rulebook、Evidence Matrix、Risk Register、LLM |
+| **Evaluator Agent** | MUST 規則驗證、KT 決策分析、證據品質評分、Gate 判定、**Validation Passport 生成**（為每個候選方案生成 assumptions[]、weak_points[]、required_verifications[]、confidence_level）、**CCI 複雜度判定**（Evolution / Weak Evolution / Patch 三級） | 規則引擎、加權評分、風險評估、**驗證護照生成** | MUST Rulebook、Evidence Matrix、Risk Register、LLM |
 | **Knowledge Agent** | 企業 RAG 檢索、Web 文獻搜尋、跨域類比、知識回寫、**多模態素材解讀 (Source Ingestion)** | 向量檢索、Web Scraping、文件分類、Citation 生成、**多模態文件解析 (PDF/圖片/Excel → 結構化提取)** | Vector DB、Web Search API、Document Store、**Multimodal LLM** |
 
 ### 1.2 Orchestrator（編排器）
@@ -148,7 +148,7 @@ graph TB
 | **5b** | **子系統定義** (三層階層拆解 System→Module→Component) | II | AI-Driven | Analyst | 確認子系統清單 | 中 | Concept Route (部分) |
 | **5b.5** | **Spatial Discovery Validator** (Reference library 覆寫 + 算術 → Package Map SVG；overlay 為 optional) | II | AI-Driven | Analyst | 確認 spatial score、覆寫 reference data | 低 | SpatialEstimate |
 | **5c** | **SCAMPER 模組變形** (純創意工具，每子系統 × 7 動作，產出直接進入候選池) | II | **Fully Auto** | TRIZ Solver + Knowledge | 僅選擇 | 高 — 變形慣性 | Concept Route (部分) |
-| **5d** | **AI 方案生成 + Decision Hub** (整合 TRIZ + SCAMPER + Anti-Anchor 晉升，每方案附 Validation Passport + **(v2.2) CCI 複雜度指標**；RD 選定方案後手動觸發 **Phase B 收斂掃描**：方案×矛盾交叉檢查) | II | **AI-Driven** | Analyst + TRIZ Solver + Evaluator | 審核方案規格、**(v2.2) 檢視 CCI 判定（Evolution/Patch）**、觸發 Phase B | 中 | Concept Route, Interface, ComplexityCheckResult |
+| **5d** | **AI 方案生成 + Decision Hub** (整合 TRIZ + SCAMPER + Anti-Anchor 晉升，每方案附 Validation Passport + **(v2.2) CCI 複雜度指標**；RD 採納方案 + CCI 標籤 + 橫向比較) | II | **AI-Driven** | Analyst + TRIZ Solver + Evaluator | 審核方案規格、**(v2.2) 檢視 CCI 判定（Evolution/Patch）** | 中 | Concept Route, Interface, ComplexityCheckResult |
 | **5e** | **MUST 快篩** (Go/No-Go 淘汰) | II | **AI-Driven** | Evaluator | 確認 MUST 判定結果 | 低 | Concept Route |
 | **P** | **Pre-CAD 設計審查** (Pre-CAD Gate) | II | **AI-Driven** | Evaluator | 審核 Gate P 結果、決策保留路線 | 低 | Pre-CAD Review Report |
 | **6** | **設計審查** (CAD Gate - MVP CAD Review) | III | AI-Assisted | Evaluator + Knowledge | 繪製 MVP CAD、填寫 DR EM、黑帽質疑 | 低 | Evidence Matrix, Risk, MVP CAD Model |
@@ -191,7 +191,7 @@ Phase A（架構健康度監控）觸發強制停止時，採**漸進回退**而
 | 2 | 參與蘇格拉底問答、識別矛盾 | 固定執行七類提問、匯總矛盾列表 | Analyst Agent |
 | 3 | 輔助因果迴路圖、正式化矛盾句 | 協助繪製因果迴路、提供 TRIZ 模板 | Analyst + TRIZ Solver |
 | 4 | 填寫假設台帳、定義未知集合 | 提供模板、整理未知因子 | Analyst + Knowledge |
-| 5 | 定義子系統（三層階層）、審查方案、執行 MUST、**確認矛盾分級**、**Decision Hub 觸發 Phase B** | Anti-Anchor / TRIZ / SCAMPER（純創意）/ 方案生成 / MUST 快篩 / **Phase B 收斂掃描 (Decision Hub 手動觸發，方案×矛盾交叉檢查)** + **架構健康度監控 (nodes > 5 halt)** | TRIZ Solver + Analyst + Evaluator |
+| 5 | 定義子系統（三層階層）、審查方案、執行 MUST、**確認矛盾分級**、**Decision Hub 採納 + CCI 標籤** | Anti-Anchor / TRIZ / SCAMPER（純創意）/ 方案生成 / MUST 快篩 + **架構健康度監控 (nodes > 5 halt)** + **SIM 矩陣 (≥2 TC 跨矛盾衝突前置)** + **CCI 複雜度判定** | TRIZ Solver + Analyst + Evaluator |
 | P | 依 Pre-CAD 模板審查、決策保留路線 | 提供模板、匯總審查結果 | Evaluator |
 | 6 | 繪製 MVP CAD、填 DR EM、黑帽質疑 | 提供模板、失效案例比對 | Evaluator + Knowledge |
 | 6e | 設計/執行最小實驗 | 協助實驗設計、歸檔證據 | Knowledge |
@@ -361,10 +361,8 @@ sequenceDiagram
     AA-->>ORC: Concept Route (Draft) + Interface Contract
     ORC->>EA: 為每個候選方案生成 Validation Passport
     EA-->>ORC: Validation Passport (assumptions[], weak_points[], required_verifications[], confidence_level)
-    ORC->>RD: Step 5d Decision Hub - RD 選定方案
+    ORC->>RD: Step 5d Decision Hub - RD 選定方案 + CCI 標籤
     RD-->>ORC: 選定方案清單
-    ORC->>AA: Phase B 收斂掃描 (方案×矛盾交叉檢查, 手動觸發)
-    AA-->>ORC: Phase B 掃描結果 (交叉矛盾報告)
 
     ORC->>EA: Step 5e MUST 快篩
     EA-->>ORC: 快篩結果 (保留 3-5 條路線)
@@ -480,7 +478,7 @@ AI介入: ◐    ●    ●    ◐    ●    ●    ●    ●    ●    ●    
 | **Problem Reframing** | **Step 2** | **Analyst** | **§Step 2 第七類「重構」提問** |
 | **Source Ingestion** | **Step 1** | **Knowledge** | **§Step 1 多模態素材輸入** |
 | Forced Divergence | Step 5-0 + 5a | TRIZ Solver + Analyst | §5.1 Anti-Anchor Sprint + §5a TRIZ 解矛盾 |
-| **Phase B 收斂掃描 + Architecture Health Monitor** | **Phase B: Step 5d Decision Hub (手動觸發); 架構健康度: phase-agnostic (nodes > 5 halt)** | **Analyst + Evaluator** | **Phase B (方案×矛盾交叉檢查, Decision Hub 手動觸發) + 架構健康度 (節點>5 → ArchitectureHaltOverlay) + L1 critic badge (per-card 品質閘門, 取代原 Phase A)** |
+| **Architecture Health Monitor + SIM/CCI** | **架構健康度: phase-agnostic (nodes > 5 halt); SIM: Step 5a (≥2 TC 前置); CCI: Step 5d** | **Analyst + TRIZ Solver + Evaluator** | **架構健康度 (節點>5 → ArchitectureHaltOverlay) + SIM 矩陣 (跨矛盾衝突前置, ADR-008 D5) + CCI 複雜度 (ADR-008 D4) + L1 critic badge (per-card 品質閘門, 取代原 Phase A)。~~Phase B 已於 v9 退役~~** |
 | **Validation Passport Generation** | **Step 5d** | **Evaluator** | **每個候選方案自帶 Validation Passport** |
 | **Socratic Follow-up** | **Step 2** | **Analyst** | **回答深度分析 + 後續追問生成** |
 | **Brief Impact Analysis** | **Step 1-2** | **Analyst** | **Brief 變更影響評估** |
@@ -547,7 +545,7 @@ analyst_agent:
     - assumption_extractor        # Step 2 假設質疑
     - constraint_feasibility_checker  # Step 1 約束可行性驗證 (物理極限分析)
     - problem_reframer               # Step 2 問題框架挑戰 (重構提問)
-    - phase_b_cross_checker          # Phase B: Decision Hub 手動觸發 (方案×矛盾交叉檢查)
+    # phase_b_cross_checker — v9 退役，由 SIM 矩陣 (ADR-008 D5) 前置覆蓋
     - architecture_health_monitor    # 架構健康度監控 (nodes > 5 → ArchitectureHaltOverlay, 循環偵測, phase-agnostic)
     - scamper_checklist           # Step 5c SCAMPER 模板 (交由 TRIZ Solver 執行)
     - anti_anchor_generator       # Step 5-0 非典型架構生成 (第一性原理 prompt, 保留 mechanism/cross_domain_source/validation_passport)
@@ -581,7 +579,7 @@ evaluator_agent:
     - pre_cad_reviewer            # Step P 5 維度審查
     - anti_anchor_gate_checker    # Step 5-0→5a 反錨定檢查
     - validation_passport_generator # Step 5d 為每個候選方案生成 Validation Passport
-    - phase_b_convergence_judge     # Phase B 收斂判定 (Decision Hub 手動觸發)
+    # phase_b_convergence_judge — v9 退役，由 CCI (ADR-008 D4) 取代
   templates:
     - DK-03--kt-decision-framework.md §MUST
     - DK-01--design-philosophy-and-process.md §Step P
@@ -645,7 +643,7 @@ orchestrator_state:
 
 | Method | Endpoint | Agent | 說明 |
 |--------|----------|-------|------|
-| POST | `/convergence/scan` | Analyst + Evaluator | Phase B 收斂掃描：方案×矛盾交叉檢查（Decision Hub 手動觸發）。`is_confirmatory` 語意去重仍存於 SecondaryContradiction schema，前端過濾。 |
+| ~~POST~~ | ~~`/convergence/scan`~~ | ~~Analyst + Evaluator~~ | ~~Phase B 收斂掃描~~ — **v9 退役**：由 SIM 矩陣 (`/triz/sim-matrix`) 和 CCI (`/triz/complexity-check`) 前置覆蓋。`is_confirmatory` 語意去重仍存於 SecondaryContradiction schema。 |
 | POST | `/alternatives/validation-passport` | Evaluator | 為任意候選方案生成 Validation Passport（assumptions[], weak_points[], required_verifications[], confidence_level） |
 | POST | `/questions/follow-up` | Analyst | 分析蘇格拉底回答深度，生成後續追問 |
 | POST | `/questions/brief-impact` | Analyst | 評估 Brief 變更對哪些蘇格拉底問題有影響 |

@@ -105,7 +105,7 @@ supersedes: E3 v1.4 (2026-03-26)
 | ------------ | -------------------------------------------- | --------------------------------- |
 | G1 擴大設計可能性空間 | Anti-Anchor Sprint + TRIZ + SCAMPER 三路發散     | Analyst + TRIZ Solver + Knowledge |
 | G2 未知可見可追蹤   | 假設台帳 + Validation Passport + Evidence Matrix | Analyst + Evaluator               |
-| G3 前置風險驗證    | Phase B 收斂交叉檢查（Decision Hub 手動觸發）+ 架構健康度監控 + 最小實驗設計 | Analyst + Evaluator               |
+| G3 前置風險驗證    | SIM 矩陣前置跨矛盾衝突檢查 + CCI 複雜度判定 + 架構健康度監控 + 最小實驗設計 | Analyst + TRIZ Solver + Evaluator |
 | G4 決策可審查可複用  | KT Decision Analysis + 6 類資產知識回寫             | Evaluator + Knowledge             |
 | G5 提升溝通效率    | Gate 自動化 + 一頁式報告                             | Orchestrator + Evaluator          |
 | G6 用戶願意使用    | 漸進式負擔 + AI 預填                                | Frontend UX                       |
@@ -673,7 +673,7 @@ Radix UI 提供 WAI-ARIA 基礎；a11y 審計 — **TBD — UX Owner TBD by v1.1
 | **Gate**                 | Phase/Step 之間的品質關卡（Gate 1-8 + Anti-Anchor / Gate P / Gate C；§11.4.3）                               |
 | **Phase / Step**         | Phase I-III + Step 1-8 的雙層狀態機（Appendix D）                                                          |
 | **Validation Passport**  | 每個候選方案自帶的驗證護照（assumptions[], weak_points[], required_verifications[], confidence_level）；§11.3 機制 7 |
-| **Phase B 收斂**            | 方案×矛盾交叉檢查（Decision Hub 手動觸發；Appendix E §3）。Phase A 已於 v8 退役，其職責由 L1 critic badge 取代              |
+| **~~Phase B 收斂~~**         | ~~方案×矛盾交叉檢查~~——**v9 退役**：由 SIM 矩陣（ADR-008 D5）和 CCI（ADR-008 D4）前置覆蓋。Phase A 已於 v8 退役，由 L1 critic badge 取代 |
 | **北極星證據**                | Evidence Matrix 中最關鍵的證據列，Gate C 要求 E2+                                                             |
 | **TRIZ TC / PC / SF**    | Technical Contradiction / Physical Contradiction / Su-Field 三層 drill-down（Appendix B / E）          |
 
@@ -689,8 +689,8 @@ Radix UI 提供 WAI-ARIA 基礎；a11y 審計 — **TBD — UX Owner TBD by v1.1
 | 版本       | 日期             | 變更                                                                                           | 作者        |
 | -------- | -------------- | -------------------------------------------------------------------------------------------- | --------- |
 | v1.2     | —              | Knowledge Source Ingestion + Contradiction Convergence Graph                                 | —         |
-| v1.3     | —              | 收斂掃描 + Socratic Follow-up + Validation Passport（Phase A 已於 v8 退役，僅保留 Phase B）              | —         |
-| v1.4     | 2026-03-26     | Phase B 改為 Decision Hub 手動觸發、SCAMPER 純創意、3-level 子系統、可證偽性                                    | —         |
+| v1.3     | —              | 收斂掃描 + Socratic Follow-up + Validation Passport（Phase A 已於 v8 退役；~~Phase B 於 v9 退役~~）         | —         |
+| v1.4     | 2026-03-26     | ~~Phase B 改為 Decision Hub 手動觸發~~（v9 已退役）、SCAMPER 純創意、3-level 子系統、可證偽性                        | —         |
 | **v2.0** | **2026-04-15** | **重構對齊 VibeCoding 05 三部分/十章節骨架；新增 §1-§10 Part 1；原 §1-§7 降為 §11.x；Appendix A-E 保留原樣為 Part 3** | ARCH + TL |
 
 

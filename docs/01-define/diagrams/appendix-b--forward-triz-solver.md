@@ -1195,7 +1195,7 @@ graph TB
 
 #### 10.3 與 secondary_contradictions 的迴圈
 
-每條 TrizSuggestion 都可能引發新矛盾，這些 secondary 矛盾透過 `is_confirmatory` 語意去重在 schema 層級追蹤，不再觸發獨立的收斂掃描。Secondary 矛盾在 Decision Hub 的 Phase B 交叉檢查中統一處理。
+每條 TrizSuggestion 都可能引發新矛盾，這些 secondary 矛盾透過 `is_confirmatory` 語意去重在 schema 層級追蹤，不再觸發獨立的收斂掃描。Secondary 矛盾在 SIM 矩陣（ADR-008 D5）的跨 TC 交互評分中前置處理（~~Phase B 已於 v9 退役~~）。
 
 
 
@@ -1335,7 +1335,7 @@ flowchart LR
 | LLM 回應非 JSON                            | 三條 solver 都有 empty_fallback                                                                 | §7.4                                                   |
 | 表面解與根因解被同級競爭（v1.1）                      | 分層 drill-down + LayeredTrizSolution + differential_analysis                                 | §6.2 §6.7 §7.0 §7.6                                    |
 | ARIZ 精神無處安放（v1.1）                       | deepen_link 契約自動把 TC 深挖為 PC                                                                 | §6.7                                                   |
-| Phase B 同矛盾誤判為衝突（v1.2 — WBS 6.3/6.4）    | `evaluator.check_phase_b_conflict` 結構化 helper：同一 LTS 跨層 SKIP、跨 LTS 同矛盾 WARN、跨矛盾 CHECK       | §6.2 [TRIZ_Layered_DrillDown_Optimization.md §8.3]     |
+| ~~Phase B 同矛盾誤判為衝突~~（v1.2 — v9 退役）      | ~~`evaluator.check_phase_b_conflict`~~ — Phase B 已退役，由 SIM 矩陣（ADR-008 D5）前置覆蓋               | §6.2                                                   |
 | 後端升級擋到既有 `/triz/solve` 消費者（v1.2）        | `POST /triz/solve-layered` 為新入口；舊 `/triz/solve` 保留為 primitive 並由 orchestrator 內部復用          | §7.1 §10 [TRIZ_Layered_Rollout_Runbook.md §5]          |
 | 下游 F2 無法區分舊/新 hand-off（v1.2 — WBS 11.1） | `SubsystemSuggestRequest.layered_triz_solutions[]` optional 欄位；空 → 向後相容走 `contradictions[]` | §10 [Forward_Subsystem_Discovery_Architecture.md §3.1] |
 

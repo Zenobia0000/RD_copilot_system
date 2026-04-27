@@ -173,7 +173,7 @@ F1 與本文件所述 F2 之間的**正式 hand-off** 對齊 `../../02-design/sp
 
 **術語區分（必讀）**：本文件 §6.4 的 **System / Module / Component** 是 **F2 子系統樹的階層（tree tier）**，勿與 F1 的 **TC / PC / SF 分析層（phenomenon → essence → structural lens）** 混用。後者在 TRIZ 分層文件中以 L1/L2/L3 表示；本文件之後稱 F2 三階為 **樹階** 或直呼 System/Module/Component，避免與 F1 代號並列時產生歧義。
 
-**與 Phase B**：同矛盾、同一 `LayeredTrizSolution` 內多層解之組合為合法採納；跨矛盾衝突仍依 `triz-to-scamper-flow.md` v11 檢查。F2 的 `related_contradictions` 不將「同 LTS 跨層」當成互斥候選（見 §6.4.4）。
+**跨矛盾衝突處理**：同矛盾、同一 `LayeredTrizSolution` 內多層解之組合為合法採納；跨矛盾衝突由 SIM 矩陣（ADR-008 D5）在 TRIZ 求解階段前置處理（~~Phase B 已於 v9 退役~~）。F2 的 `related_contradictions` 不將「同 LTS 跨層」當成互斥候選（見 §6.4.4）。
 
 ---
 
@@ -540,7 +540,7 @@ flowchart TB
 
 每個節點都帶 `related_contradictions` 欄位，列出與該節點相關的**矛盾 ID**。在分層 TRIZ 管線下，綁定規則對齊 `../../02-design/specs/triz/E5x--triz-layered-drilldown-optimization.md` §8.1：
 
-1. **主綁定（給 SCAMPER / 二次矛盾預測用）**：預設僅將節點關聯到 RD 已採納路線（`adopted_route`，若尚未採納則用 `differential_analysis.recommended_route`）上所標示的**承載模組 / 根因元件**。同一 `LayeredTrizSolution` 內未採納的層（例如僅作說明的 L1 折衷解）**不**自動等同於「待變形依據」，避免 Phase B 與 F2 預測誤把 drill-down 堆疊當成互斥多解。
+1. **主綁定（給 SCAMPER / 二次矛盾預測用）**：預設僅將節點關聯到 RD 已採納路線（`adopted_route`，若尚未採納則用 `differential_analysis.recommended_route`）上所標示的**承載模組 / 根因元件**。同一 `LayeredTrizSolution` 內未採納的層（例如僅作說明的 L1 折衷解）**不**自動等同於「待變形依據」，避免 SIM 矩陣與 F2 預測誤把 drill-down 堆疊當成互斥多解。
 2. **追溯與說明（可選欄位）**：可另存 `related_contradictions_context`（或等價結構）記錄「同矛盾下其餘層曾提及的模組／元件」，僅供 UI 與稽核，不參與預設 SCAMPER 影響範圍計算。
 3. **向後相容**：若輸入僅有扁平矛盾清單而無 `LayeredTrizSolution`，`related_contradictions` 維持「該節點曾由舊版 F1 關聯到的矛盾 ID 清單」語意，不區分主綁定與 context。
 
@@ -1158,7 +1158,7 @@ flowchart LR
 | `E3--ai-agent-detailed-design.md` v1.4                                     | TRIZ Solver Agent 的「子系統拆解（三層階層）」職責即本文件 §5                |
 | `_domain-knowledge/DK-01--design-philosophy-and-process.md` v1.6           | 本文件補充 F2.5 作為 F2 的後置子步                                   |
 | [Appendix D](appendix-d--state-machine.md) v1.6                        | 子系統 Artifact 狀態機見本文件 §8.1                                |
-| [Appendix E](appendix-e--triz-scamper-flow.md) v11                         | 本文件是該流程圖的 SA 視角文字化；F1 分層輸出與 Phase B 規則見該檔 v11 摘要         |
+| [Appendix E](appendix-e--triz-scamper-flow.md) v11                         | 本文件是該流程圖的 SA 視角文字化；F1 分層輸出與 SIM/CCI 規則見該檔 v11 摘要（~~Phase B 已 v9 ���役~~） |
 | `../../02-design/specs/triz/E5x--triz-layered-drilldown-optimization.md` v1.0 | F1→F2 hand-off、`LayeredTrizSolution` 與本文件 §3.1、§6.4.4 對齊 |
 | `../_domain-knowledge/DK-01--design-philosophy-and-process.md` §Step P     | spatial_score 算術化，見本文件 §10                               |
 

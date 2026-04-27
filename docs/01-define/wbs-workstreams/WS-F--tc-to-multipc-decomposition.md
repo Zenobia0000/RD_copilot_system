@@ -1,6 +1,8 @@
 # Explore 階段 TC→多PC 分解 WBS（Explore · Tab 矛盾識別）
 
 > **版本**：1.0 | **日期**：2026-04-09 | **狀態**：Draft · 待啟動 | **Owner**：Explore FE + Backend Agents
+>
+> **⚠️ Phase B 退役通知 (2026-04-27)**：本 WBS §9.6（Phase B adoption 相容性）和 §7.0（Phase B 採納 UX）中的 Phase B 相關任務不再需要。**Phase B 已於 v9 退役**，由 SIM 矩陣（ADR-008 D5）和 CCI（ADR-008 D4）前置覆蓋。相關工作項標記為 N/A。
 > **範圍**：Explore 頁矛盾識別階段，當 AI 識別出 TC 後由 **L1 critic** 判斷是否觸發 **TC→多 PC 深挖**，每個 PC 自動附掛 **分離原則 (16 類)**，結果以 `parent_contradiction_id` FK 方式寫入 `contradictions` 表並以巢狀卡片呈現。
 > **對齊文件**：
 > - `docs/e2e/module/Forward_TRIZ_Solver_Architecture.md` v1.1（§6.2 L2 觸發條件、§6.7 `deepen_link` 契約、§7.0 `solve_triz_layered` 時序）

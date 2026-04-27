@@ -78,7 +78,7 @@ stateDiagram-v2
 
 
 
-> **Note**: Step 5 採雙軌架構：反向創意（Anti-Anchor）直入候選池，正向演繹（TRIZ → 子系統 → SCAMPER）生成候選。所有路徑匯流至決策中心 (Decision Hub)，由 RD 做 adopt/skip，Phase B 手動觸發。最終通過 MUST 快篩進入 Pre-CAD。
+> **Note**: Step 5 採雙軌架構：反向創意（Anti-Anchor）直入候選池，正向演繹（TRIZ → 子系統 → SCAMPER）生成候選。所有路徑匯流至決策中心 (Decision Hub)，由 RD 做 adopt/skip + CCI 標籤 + 橫向比較。最終通過 MUST 快篩進入 Pre-CAD。（~~Phase B 已於 v9 退役~~，由 SIM + CCI 前置覆蓋。）
 
 ##### Step 5 內部子流程
 
@@ -115,7 +115,7 @@ stateDiagram-v2
     state "5d: Decision Hub (決策中心)" as S5d
     state "5e: MUST 快篩" as S5e
 
-    note right of S5d : 候選池匯流\nRD adopt/skip\nPhase B 手動觸發\n同矛盾多路徑警告
+    note right of S5d : 候選池匯流\nRD adopt/skip\nCCI 標籤 + 橫向比較
 
     [*] --> S5_0
     [*] --> S5a_0
@@ -131,7 +131,7 @@ stateDiagram-v2
 > **矛盾收斂圖 + 架構健康度監控**：
 >
 > - **Architecture Health Monitor（phase-agnostic）**：nodes > 5 → critical → halt。L1 critic badge 取代舊版全域收斂掃描。`is_confirmatory` 語意去重仍存在於 schema。
-> - **Phase B（方案交叉檢查，由 RD 在 Decision Hub 手動觸發）**：完整的 alternative × contradiction 交叉比對，檢查二次矛盾。收斂分數公式使用 `resolved`、`fatal`、`major`、`clean_alts` 權重。**Phase B 不再自動啟動，改由 RD 在決策中心明確觸發**。
+> - **~~Phase B~~（v9 退役）**：原方案交叉檢查已退役。其 5 項檢查全部由 SIM 矩陣（ADR-008 D5，TC 層跨矛盾衝突前置）和 CCI（ADR-008 D4，解法品質判定）覆蓋。PC 衝突 ⊂ TC 衝突（ADR-007），SIM -1 即捕捉。
 >
 > 新矛盾分級為 Fatal/Major/Minor：
 >

@@ -771,7 +771,7 @@ graph LR
 
     HUB --> D[攤平表格與 TRIZ 候選並列]
     HUB --> E[MUST 快篩 M1-M6]
-    HUB --> F[Phase B 交叉檢查]
+    HUB --> F[CCI 標籤 + 橫向比較]
 
     style F0 fill:#fef3c7,stroke:#92400e,stroke-width:2px,color:#000
     style HUB fill:#dbeafe,stroke:#1e3a8a,stroke-width:2px,color:#000

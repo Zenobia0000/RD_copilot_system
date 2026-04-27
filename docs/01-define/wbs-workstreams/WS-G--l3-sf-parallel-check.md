@@ -1,6 +1,8 @@
 # Explore L3 (SF) 平行旁路 WBS（Create · TRIZ Solve 分層完整化）
 
 > **版本**：0.1 Skeleton | **日期**：2026-04-09 | **狀態**：Draft · 待啟動（等 L2 WBS P0/P1 上線後）
+>
+> **⚠️ Phase B 退役通知 (2026-04-27)**：本 WBS 中 WP 7（Phase B 採納 UX）相關任務不再需要。**Phase B 已於 v9 退役**，由 SIM 矩陣（ADR-008 D5）和 CCI（ADR-008 D4）前置覆蓋。
 > **前置 WBS**：`Explore_TC_to_MultiPC_Decomposition_WBS.md`（L1→L2 分解；已規劃）
 > **範圍**：把 TRIZ 分層解題的 **L3 (SF) 平行旁路** 完整落地，包含 `solve_triz_layered` orchestrator、`differential_analyzer`、F2 完整切換到 `LayeredTrizSolution[]` 輸入，並完成 Explore 頁的「SF 三選一」UX 退場決策。
 > **對齊文件**：

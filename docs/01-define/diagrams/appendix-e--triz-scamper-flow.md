@@ -29,18 +29,19 @@
        → L2 critic 觸發判斷 → 必要時 deepen_link 推導 PC
        → 聚合為 LayeredTrizSolution（含 differential_analysis）
 → 決策中心：RD 採納整個 drill-down 組合 或 單層
-→ Phase B 收斂掃描：
-       同 LTS 內的跨層 → SKIP（同矛盾的不同層本來就應該協同）
-       跨矛盾 → 正常檢查衝突
+→ SIM 矩陣（≥2 TC 時）：+1/0/-1 交互評分，-1 衝突回流為新 TC
+→ CCI 複雜度檢查：四問判定 → [0,1] 連續指標
 ```
 
-**設計原則**：TC/PC/SF 是同一矛盾的分層診斷（表象/根因/結構），不是互斥候選。Phase B 只比對跨矛盾衝突，同 LTS 內跨層自動跳過互斥檢查。
+**設計原則**：TC/PC/SF 是同一矛盾的分層診斷（表象/根因/結構），不是互斥候選。跨矛盾衝突由 SIM 矩陣（ADR-008 D5）在 TRIZ 求解階段前置處理；同 LTS 內跨層為合法組合。
+
+> **v9 變更**：Phase B 收斂掃描已退役。其 5 項檢查（跨矛盾衝突、參數影響、PC 狀態衝突、跨方案干涉、同矛盾多路徑）全部由 SIM 矩陣（TC 層跨矛盾衝突，ADR-008 D5）和 CCI（解法品質判定，ADR-008 D4）前置覆蓋。PC 衝突 ⊂ TC 衝突（ADR-007：PC 由 TC 派生），SIM -1 即捕捉。
 
 ---
 
 ### 1. 主流程總覽
 
-**設計哲學**：Phase 2 是 **雙軌產出 → 人類選擇 → 交叉檢查 → 統一評估**。
+**設計哲學**：Phase 2 是 **雙軌產出 → 人類選擇 → SIM/CCI 品質評估 → MUST 快篩 → 統一評估**。
 
 ```mermaid
 %%{init: {'theme': 'neutral'}}%%
@@ -68,9 +69,9 @@ flowchart TB
         subgraph HUB["候選方案決策中心"]
             direction TB
             SELECT["RD 採納：drill-down 組合或單層<br/>預設依 differential_analysis.recommended_route<br/>同 LTS 跨層為合法組合，不再警告"]
-            PHASE_B["Phase B 收斂掃描 (v11)<br/>同 LTS 內跨層 → SKIP<br/>跨矛盾 → 正常衝突檢查"]
+            CCI_CHECK["CCI 複雜度標籤<br/>Evolution / Weak Evolution / Patch"]
             COMPARE["橫向比較<br/>來源 / 機制 / 假設 / 驗證需求 / 信心<br/>+ 跨層 differential_analysis"]
-            SELECT --> PHASE_B --> COMPARE
+            SELECT --> CCI_CHECK --> COMPARE
         end
 
         RP --> SELECT
@@ -100,9 +101,11 @@ flowchart TB
 | **方法獨立**                  | 反向（創意）和正向（演繹）是兩種本質不同的方法，不應讓創意工具再跑演繹收斂                                             |
 | **正向路徑分層** (v11)          | F1 內部 TC/PC/SF 是同一矛盾的三層 drill-down，不是互斥三選一。由 `solve_triz_layered` orchestrator 調度 |
 | **反向路徑簡化**                | Anti-Anchor 自帶 Validation Passport，直接進候選池。不需要 R2-R4（TRIZ/子系統/SCAMPER）             |
-| **產出與選擇分離**               | 正向路徑：TRIZ 步驟產出 `LayeredTrizSolution`（含 Architecture Health Monitor），採納在決策中心（Phase B） |
-| Phase B = 方案交叉檢查          | 決策中心 RD 採納後手動觸發 `startPhaseB()`，只送 adopted 解法                                     |
-| **同 LTS 跨層 = 合法組合** (v11) | Phase B 對同一 LayeredTrizSolution 內的多層解 SKIP 互斥檢查；只有跨矛盾才比對                          |
+| **產出與選擇分離**               | 正向路徑：TRIZ 步驟產出 `LayeredTrizSolution`（含 Architecture Health Monitor），採納在決策中心       |
+| **SIM 前置衝突檢查** (v9)       | 跨矛盾衝突在 TRIZ 求解階段由 SIM 矩陣 -1 評分前置捕捉（ADR-008 D5），不再需要後置交叉檢查                       |
+| **CCI 品質判定** (v9)          | 每條解法附 CCI [0,1] 指標（ADR-008 D4），Decision Hub 顯示 Evolution/Weak Evolution/Patch       |
+| **同 LTS 跨層 = 合法組合** (v11) | 同一 LayeredTrizSolution 內的多層解為合法 drill-down 組合                                       |
+| ~~Phase B~~ (v9 退役)         | SIM 覆蓋 TC 層跨矛盾衝突，PC 衝突 ⊂ TC 衝突（ADR-007），CCI 覆蓋品質判定。Phase B 零殘餘價值             |
 | ~~同矛盾多路徑警告~~ (v10 規則)     | **v11 已下線**。drill-down 是合法路徑而非缺陷                                                  |
 
 
@@ -153,54 +156,21 @@ stateDiagram-v2
 
 ---
 
-### 3. 收斂迴圈：Phase B
+### 3. ~~收斂迴圈：Phase B~~ (v9 退役)
 
 > **v8 變更**：Phase A 收斂掃描已退役。矛盾空間健康度改由 Architecture Health Monitor（phase-agnostic，nodes > 5 → critical → halt）監控。L1 critic badge 取代 Phase A 的全域收斂功能。`is_confirmatory` 語意去重仍存在於 schema 層級。
-
-#### Phase B：方案交叉檢查（決策中心使用）
-
-```mermaid
-%%{init: {'theme': 'neutral'}}%%
-flowchart TB
-    subgraph PHASE_B["Phase B — startPhaseB()"]
-        direction TB
-        B_START["決策中心：RD 按「執行收斂掃描」"]
-        B_COLLECT["收集 adopted alternatives<br/>（RD 已挑選的解法）"]
-        B_SCAN["POST /convergence/scan<br/>phase: B<br/>送 contradictions + adopted alternatives"]
-        B_CHECK["檢查項 (v11)：<br/>1. 跨矛盾解法衝突<br/>2. 參數影響分析<br/>3. PC 狀態衝突<br/>4. 跨方案干涉<br/>5. (v11 移除) 同矛盾多路徑風險<br/>→ 同 LTS 跨層 SKIP 互斥檢查"]
-        B_RESULT["converged → 進入 MUST<br/>halted → 人類審核調整方案"]
-        B_START --> B_COLLECT --> B_SCAN --> B_CHECK --> B_RESULT
-    end
-
-    style PHASE_B fill:#F3E8FF,stroke:#8B5CF6
-```
-
-
-
-#### 收斂判定邏輯
-
-```
-converged = iteration > 0
-    AND allResolved (fatal + major 全部 resolved)
-    AND (confidence >= 80 OR noNewBlocking)
-
-halted = forcePause
-    OR health = critical / circular
-    OR (noNewInfo AND hasUnresolvedBlocking)
-    → 觸發人類審核
-```
-
-#### 人為介入點
-
-
-| 動作          | 方法                                | 效果                                      |
-| ----------- | --------------------------------- | --------------------------------------- |
-| 強制停止        | `forceHalt()`                     | 立即取消 timer + abort flag，status → halted |
-| 強制繼續        | `forceContinue()`                 | health 降級為 warning，排程下一輪 scan           |
-| 重試分支        | `retryBranch(id)`                 | 該分支 status → exploring，排程下一輪            |
-| 注入新矛盾       | `addContradiction()`              | 加入 graph，若 fatal/major 自動觸發 re-scan     |
-| 覆寫 severity | `confirmSeverity()`               | 手動修正 AI 判定的 severity                    |
-| 重新執行        | `startPhaseB()`                   | generation counter 防舊回呼污染               |
+>
+> **v9 變更**：Phase B 收斂掃描已退役。其 5 項檢查全部由上游機制前置覆蓋：
+>
+> | 原 Phase B 檢查項 | 替代機制 | 說明 |
+> |:-----------------|:---------|:-----|
+> | 1. 跨矛盾解法衝突 | **SIM 矩陣** (ADR-008 D5) | SIM -1 評分在 Step 5a TRIZ 求解階段前置捕捉 |
+> | 2. 參數影響分析 | **SIM 矩陣** | TC 層參數交互已由 SIM +1/0/-1 覆蓋 |
+> | 3. PC 狀態衝突 | **SIM 矩陣** | PC 衝突 ⊂ TC 衝突（ADR-007：PC 由 TC 派生，同 Px 反向衝突在 SIM TC 層即為 -1） |
+> | 4. 跨方案干涉 | **CCI** (ADR-008 D4) | CCI 連續指標 [0,1] 判定解法組合複雜度 |
+> | 5. 同矛盾多路徑風險 | **v11 已下線** | drill-down 為合法路徑 |
+>
+> Decision Hub 流程簡化為：RD 採納 → CCI 標籤 → 橫向比較 → MUST 快篩 → Evidence Coverage → Gate P。
 
 
 ---
@@ -232,9 +202,9 @@ flowchart TB
 
         subgraph HUB_DATA["候選方案決策中心"]
             SELECT_DATA["RD 挑選<br/>每矛盾選一條路徑"]
-            PHASE_B_DATA["Phase B 收斂掃描<br/>只送 adopted alternatives"]
+            CCI_DATA["CCI 複雜度標籤<br/>Evolution / Weak Evolution / Patch"]
             ADOPTED["被選方案集<br/>Alternative[]"]
-            SELECT_DATA --> PHASE_B_DATA --> ADOPTED
+            SELECT_DATA --> CCI_DATA --> ADOPTED
         end
         R_POOL --> SELECT_DATA
         F_POOL --> SELECT_DATA
@@ -263,7 +233,7 @@ flowchart TB
     B -->|"否"| C["直接進入候選池"]
     B -->|"是"| D["風險標註<br/>（severity badge + 描述）<br/>供決策中心參考"]
     D --> C
-    C --> E["候選方案決策中心<br/>統一做 Phase B 交叉檢查"]
+    C --> E["候選方案決策中心<br/>CCI 標籤 + 橫向比較 + MUST 快篩"]
 
     style A fill:#D1FAE5,stroke:#10B981
     style D fill:#FEF3C7,stroke:#F59E0B
@@ -321,11 +291,10 @@ flowchart TB
 | 階段                   | 輸入                          | 處理                                                                                      | 輸出                                                       | 連鎖效果                             |
 | -------------------- | --------------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------- | -------------------------------- |
 | Anti-Anchor 生成       | mission + constraints       | AI 產出非典型架構（創意工具，自帶 Validation Passport）                                                 | `AntiAnchorRoute[].length ≥ 3`                           | **直接進反向候選池**，不經 TRIZ/子系統/SCAMPER |
-| **TRIZ 分層求解** (v11)  | 矛盾集 + severity              | `solve_triz_layered`：L1 必跑 + L3 必跑 + L2 critic 觸發 + deepen_link + differential_analyzer | `LayeredTrizSolution[]`（含 L1/L2?/L3 + recommended_route） | 不做 Phase B                       |
+| **TRIZ 分層求解** (v11)  | 矛盾集 + severity              | `solve_triz_layered`：L1 必跑 + L3 必跑 + L2 critic 觸發 + deepen_link + differential_analyzer | `LayeredTrizSolution[]`（含 L1/L2?/L3 + recommended_route） | SIM 矩陣（≥2 TC 時）                  |
 | 子系統定義                | TRIZ 矛盾親和性                  | RD/AI 定義 System→Module→Component 3 層 + 6 維介面契約                                          | `Subsystem[confirmed]`                                   | 解鎖 SCAMPER                       |
 | SCAMPER 展開           | 已確認子系統                      | 7 行動 × N 子系統（創意工具，不觸發 re-scan）                                                          | `ScamperVariant[adopted]` + 風險標註                         | 直接進候選池                           |
-| **決策中心採納** (v11)     | 所有候選池                       | **RD 採納 LTS 推薦組合 / 自訂組合 / 單層**                                                          | adopted Alternative[]（標註層級）                              | —                                |
-| **Phase B 掃描** (v11) | `startPhaseB()`             | **跨矛盾衝突檢查；同 LTS 跨層 SKIP 互斥**                                                            | converged / halted                                       | 人類審核                             |
+| **決策中心採納** (v11)     | 所有候選池                       | **RD 採納 LTS 推薦組合 / 自訂組合 / 單層 + CCI 標籤**                                                  | adopted Alternative[]（標註層級 + CCI）                        | —                                |
 | MUST 篩選              | adopted Alternative + M1-M6 | AI + RD 評分                                                                              | pass / fail / marginal                                   | 淘汰不可行方案                          |
 | Pre-CAD 審查           | 通過 MUST 的方案                 | 五維評分                                                                                    | overallPass                                              | Phase Gate 2 判定                  |
 
@@ -364,8 +333,8 @@ flowchart TB
 | Gate         | 條件                                   |
 | ------------ | ------------------------------------ |
 | 進入決策中心       | 任一路徑候選池 > 0                          |
-| Phase B 可執行  | ≥1 alternative adopted               |
-| MUST         | Phase B converged + 所有候選方案 M1-M6 已評分 |
+| MUST         | ≥1 alternative adopted + 所有候選方案 M1-M6 已評分 |
+| Evidence Coverage | VERIFIED + APPROXIMATE ≥ 40% (ADR-008 D3) |
 | Pre-CAD      | 通過 MUST 者 5 維全評分                     |
 | Phase Gate 2 | ≥1 alternative overallPass           |
 
@@ -377,15 +346,11 @@ flowchart TB
 
 | 元件                        | 職責                                                 | 性質        |
 | ------------------------- | -------------------------------------------------- | --------- |
-| `useConvergenceLoop`      | 收斂迴圈 driver。`startPhaseB()` 觸發                       | 狀態 hook   |
-| `/convergence/scan` API   | Phase B: 方案交叉檢查（同 LTS 跨層 SKIP 互斥）                    | 後端 AI     |
-| `ConvergenceDashboard`    | 顯示 confidence %、fatal/major/minor 計數               | 純展示       |
-| `BranchExplorationPanel`  | 顯示各矛盾分支的探索輪次                                       | 純展示       |
-| `HumanReviewPanel`        | converged / halted 時的人類審查介面                        | 純展示       |
 | `ArchitectureHaltOverlay` | health critical/circular 時的 overlay                | 互動        |
 | `HealthMonitor`           | 渲染 health 燈號                                       | 純展示       |
 | `ConvergenceGraph`        | 渲染矛盾 DAG                                           | 純展示       |
-| **Decision Hub**          | 攤平所有候選、RD 路徑選擇、Phase B 觸發、橫向比較                     | **核心互動區** |
+| `HumanReviewPanel`        | halted 時的人類審查介面                                    | 純展示       |
+| **Decision Hub**          | 攤平所有候選、RD 路徑選擇、CCI 標籤、橫向比較                       | **核心互動區** |
 
 ### ADR-008 擴充：SIM 分支與 Evidence Registry 整合（2026-04-27）
 

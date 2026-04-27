@@ -133,7 +133,7 @@ sequenceDiagram
     EV-->>UI: assumptions[] + weak_points[] + required_verifications[]
 
     UI->>UI: 候選進入 Decision Hub (5d)
-    Note over UI: 後續 Phase B + MUST + Gate P 見 Scenario 3 (§4)
+    Note over UI: 後續 MUST + Gate P 見 Scenario 3 (§4)
 ```
 
 ### 2.2 跨子系統互動對照
@@ -149,7 +149,7 @@ sequenceDiagram
 | 啟動 TRIZ | Forward TRIZ Solver (Appendix B) | TrizSuggestion: pending → generated |
 | 採納 L2 路線 | Evaluator (VP 生成) | Concept Route: — → Draft |
 | **(v1.1) CCI 複雜度檢查** | TRIZ Solver | ComplexityCheck: — → Evolution / Weak Evolution / Patch |
-| 候選進入 Decision Hub | Decision Hub | SolutionCandidate: — → adopted（後續 Phase B + MUST + Gate P 見 §4） |
+| 候選進入 Decision Hub | Decision Hub | SolutionCandidate: — → adopted（後續 MUST + Gate P 見 §4） |
 
 ---
 
@@ -238,12 +238,13 @@ Anti-Anchor 的定位是啟發工具（打破路徑依賴），但 v1.0/v1.1 的
 
 ---
 
-## §4 Scenario 3 — Phase B 收斂 + Pre-CAD Gate 審查
+## §4 Scenario 3 — Decision Hub 品質評估 + Pre-CAD Gate 審查
 
-> **v1.2 變更**：將原 Scenario 3 拆分為兩段，明確 RD（Phase B 收斂）與主管（Gate P 審查）的職責邊界。
+> **v1.2 變更**：將原 Scenario 3 拆分為兩段，明確 RD（Decision Hub 品質評估）與主管（Gate P 審查）的職責邊界。
+> **v1.3 變更**：Phase B 收斂掃描已退役（v9）。其 5 項檢查全部由 SIM 矩陣（ADR-008 D5）和 CCI（ADR-008 D4）前置覆蓋。Decision Hub 流程簡化為：RD 採納 → CCI 標籤 → 橫向比較 → MUST 快篩 → Evidence Coverage → Gate P。
 > `seed_source=anti_anchor` 的 TRIZ 方案在候選池中保留追溯標記。
 
-### 4.1 Phase B 收斂（RD 張三 主導）
+### 4.1 Decision Hub 品質評估（RD 張三 主導）
 
 > **角色**: Persona 1 RD 張三
 > **觸發**: Decision Hub 已匯流 3+ 條路線（含 TRIZ-only + AA-seeded TRIZ + SCAMPER）
@@ -253,11 +254,9 @@ Anti-Anchor 的定位是啟發工具（打破路徑依賴），但 v1.0/v1.1 的
 ```mermaid
 flowchart TD
     Start(["Step 5d 候選池匯流"]) --> Hub["Decision Hub<br/>TRIZ ∥ AA-seeded TRIZ ∥ SCAMPER"]
-    Hub --> PhB{"RD 手動觸發<br/>Phase B 交叉檢查?"}
-    PhB -->|未觸發| Wait["等待 RD 決策"]
-    PhB -->|已觸發| Conv["Phase B: 方案 x 矛盾交叉比對<br/>檢查二次矛盾"]
+    Hub --> Adopt["RD 採納方案<br/>+ CCI 標籤 (Evolution/Weak/Patch)<br/>+ 橫向比較"]
 
-    Conv --> SimDedup["SIM 去重:<br/>扣除 SIM 已收斂 TC 對"]
+    Adopt --> SimDedup["SIM 去重:<br/>扣除 SIM 已收斂 TC 對"]
     SimDedup --> Heat{"架構健康度<br/>(淨節點數)"}
     Heat -->|節點 > 5| Halt1["漸進回退:<br/>① 回 Step 2c 重建功能模型<br/>② 仍 >5 → 回 Step 2b<br/>③ 仍無法收斂 → 回 Step 1"]
     Heat -->|循環矛盾| Halt2["依循環類型回退:<br/>結構性 → 回 Step 2c<br/>框架性 → 回 Step 2b/1"]
@@ -275,11 +274,11 @@ flowchart TD
     style Notify fill:#DBEAFE
 ```
 
-**Phase B 收斂互動對照**
+**Decision Hub 品質評估互動對照**
 
 | 使用者動作 | 角色 | 觸發子系統 | 觸發狀態轉換 |
 |-----------|------|-----------|-------------|
-| 觸發 Phase B | RD 張三 | Decision Hub + Analyst (收斂圖) | Convergence Phase B 啟動 |
+| 採納方案 + 檢視 CCI 標籤 | RD 張三 | Decision Hub (CCI overlay) | SolutionCandidate: — → adopted；CCI 標籤為資訊性（Evolution / Weak Evolution / Patch） |
 | 架構健康度監控 | 系統自動 | Analyst Agent | 節點>5（SIM 去重後）→ 漸進回退 2c→2b→1；循環矛盾 → 依類型回退（結構性→2c / 框架性→2b 或 1） |
 | MUST 快篩 | 系統自動 | Evaluator | Concept Route 逐條 Go/No-Go |
 | 路線多樣性檢查 | 系統自動 | Evaluator | ≥3 條路線 + ≥1 Anti-Anchor |
@@ -354,7 +353,7 @@ flowchart TD
 |--------------|---------|-----------------|---------|
 | PP-1 經驗鎖定 | 直覺搜尋過去方案 | Scenario 2 Anti-Anchor 啟發 → TRIZ 轉化 | Forced Divergence（啟發）+ TRIZ 收斂（工程化） |
 | PP-2 假設隱藏 | 預設答案未明說 | Scenario 1 蘇格拉底七類提問 | Assumption Challenge (E3--architecture-and-design.md §11.3.2 機制 1) |
-| PP-3 風險後置 | Proto 才爆問題 | Scenario 3 Phase B (RD) + Gate P (主管) + 架構健康度監控 | Phase B 交叉檢查（SIM 去重後淨節點）+ 漸進回退（2c→2b→1）；Anti-Anchor 經 TRIZ 工程化確保 OZ-OT + CCI 完備 |
+| PP-3 風險後置 | Proto 才爆問題 | Scenario 3 Decision Hub 品質評估 (RD) + Gate P (主管) + 架構健康度監控 | SIM 矩陣前置跨矛盾衝突檢查 + CCI 複雜度判定 + 架構健康度（SIM 去重後淨節點）+ 漸進回退（2c→2b→1）；Anti-Anchor 經 TRIZ 工程化確保 OZ-OT + CCI 完備 |
 | PP-4 決策不可追溯 | 半年後無法回溯 | Scenario 3 Validation Passport + KT Decision Record | 自動留痕（Artifact 狀態流轉） |
 | PP-5 溝通斷層 | PM/RD/主管語言不同 | Step 1 約束改寫 + Step 8 費曼摘要 | 統一 Artifact schema |
 | PP-6 證據缺口不可見 | 不知哪些需補數據 | Scenario 3 DR Evidence Matrix + Gate C | Evidence Level E0-E4 自動標記 |

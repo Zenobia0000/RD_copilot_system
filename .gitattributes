@@ -1,0 +1,7 @@
+# Force LF for shell scripts so WSL/bash hooks don't break on Windows checkouts
+*.sh        text eol=lf
+*.bash      text eol=lf
+
+# Common LF-only files
+Makefile    text eol=lf
+*.mk        text eol=lf

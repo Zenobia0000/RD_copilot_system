@@ -17,7 +17,7 @@
 | phase | Enum | DRAFT → PHASE_I → PHASE_II → PHASE_III → COMPLETED |
 
 ```
-DRAFT ──Gate 1 (1.1)──▶ PHASE_I ──Gate 3 (PG1)──▶ PHASE_II ──Gate P (PG2)──▶ PHASE_III ──Gate 8 (PG3)──▶ COMPLETED
+DRAFT ──Gate D1 (1.1)──▶ PHASE_I ──Gate D4 (PG1)──▶ PHASE_II ──Gate X5 (PG2)──▶ PHASE_III ──Gate V4 (PG3)──▶ COMPLETED
 ```
 > 括號內為程式碼 `gate_id`，對應 `backend/app/core/gate_registry.py`
 

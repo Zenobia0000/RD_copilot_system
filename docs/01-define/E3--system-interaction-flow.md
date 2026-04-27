@@ -53,38 +53,54 @@
 對照 00-discover 痛點旅程的情緒低谷（發想 → 審查區間），以下是設計後的目標體驗。
 
 ```mermaid
-graph LR
-    S0["Entry<br/>入口分級<br/>Level A/B/C"] --> D1["D1<br/>問題界定<br/>Constraint"]
-    D1 --> D2["D2<br/>理解全貌<br/>Socratic + 5Why/KT"]
-    D2 --> D3["D3<br/>根因分析與功能建模<br/>5Why/KT + FA + SF"]
-    D3 --> D4["D4<br/>系統建模<br/>Contradiction"]
-    D4 --> X1["X1<br/>假設驗證規劃<br/>Assumption"]
+graph TD
+    %% ── Define 階段 ──
+    S0["🏁 Entry — 入口分級 Level A/B/C"]
+    D1["D1 — 問題界定 Constraint"]
+    D2["D2 — 理解全貌 Socratic + 5Why/KT"]
+    D3["D3 — 根因分析與功能建模 5Why/KT + FA"]
+    D4["D4 — 系統建模 Contradiction"]
 
-    X1 --> X2["X2<br/>TRIZ 解矛盾<br/>(含 AA 並行 + OZ-OT)"]
-    X2 --> X3["X3<br/>子系統定義<br/>(含 optional Spatial)"]
-    X2 --> X4["X4<br/>Decision Hub<br/>候選池匯流"]
-    X3 --> X4
+    S0 --> D1 --> D2 --> D3 --> D4
 
-    X4 --> X5["X5<br/>Pre-CAD 資格審查<br/>(P1 MUST + P2 審查)"]
-    X5 --> V1["V1<br/>設計審查<br/>Evidence Matrix"]
-    V1 --> V2["V2<br/>證據補齊<br/>(條件觸發)"]
-    V2 --> V3["V3<br/>KT 決策<br/>Decision Record"]
-    V1 --> V3
-    V3 --> V4["V4<br/>費曼內化<br/>Asset"]
+    %% ── eXplore 階段 ──
+    X1["X1 — 假設驗證規劃 Assumption"]
+    X2["X2 — TRIZ 解矛盾 (含 AA 並行 + OZ-OT)"]
+    X3["X3 — 子系統定義 (含 optional Spatial)"]
+    X4["X4 — Decision Hub 候選池匯流"]
+    X5["X5 — Pre-CAD 資格審查 (P1 MUST + P2 審查)"]
 
-    style S0 fill:#F3E8FF
-    style D1 fill:#E0F2FE
-    style D2 fill:#E0F2FE
-    style D3 fill:#E0F2FE
-    style D4 fill:#E0F2FE
-    style X1 fill:#FEF3C7
-    style X2 fill:#FEF3C7
-    style X3 fill:#FEF3C7
-    style X4 fill:#FEF3C7
-    style X5 fill:#DCFCE7
-    style V1 fill:#DCFCE7
-    style V3 fill:#E9D5FF
-    style V4 fill:#E9D5FF
+    D4 --> X1 --> X2
+    X2 --> X3 --> X4
+    X2 --> X4
+    X4 --> X5
+
+    %% ── Verify 階段 ──
+    V1["V1 — 設計審查 Evidence Matrix"]
+    V2["V2 — 證據補齊 (條件觸發)"]
+    V3["V3 — KT 決策 Decision Record"]
+    V4["V4 — 費曼內化 Asset"]
+
+    X5 --> V1
+    V1 --> V2 --> V3
+    V1 -.->|"證據充分則跳過 V2"| V3
+    V3 --> V4
+
+    %% ── 樣式：深色填充 + 白字，暗色背景友好 ──
+    style S0 fill:#6B21A8,color:#fff,stroke:#A855F7,stroke-width:2px
+    style D1 fill:#1E40AF,color:#fff,stroke:#3B82F6,stroke-width:2px
+    style D2 fill:#1E40AF,color:#fff,stroke:#3B82F6,stroke-width:2px
+    style D3 fill:#1E40AF,color:#fff,stroke:#3B82F6,stroke-width:2px
+    style D4 fill:#1E40AF,color:#fff,stroke:#3B82F6,stroke-width:2px
+    style X1 fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
+    style X2 fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
+    style X3 fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
+    style X4 fill:#92400E,color:#fff,stroke:#F59E0B,stroke-width:2px
+    style X5 fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
+    style V1 fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
+    style V2 fill:#065F46,color:#fff,stroke:#10B981,stroke-width:2px
+    style V3 fill:#6B21A8,color:#fff,stroke:#A855F7,stroke-width:2px
+    style V4 fill:#6B21A8,color:#fff,stroke:#A855F7,stroke-width:2px
 ```
 
 > **v2.0 變更**：

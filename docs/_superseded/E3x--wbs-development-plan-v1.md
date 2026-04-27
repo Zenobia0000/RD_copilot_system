@@ -97,9 +97,9 @@ WS-B: E2E 差距修正 (E2E 整合流程規格)              [✅ 主 WBS 100% �
 
 WS-C: Mock → Live 遷移 (Supabase 即時 API)         [🟡 ~85% · Sprint 4 in progress]
 ├── C-0  基礎建設 (Sprint 0)
-├── C-1  專案 + Step 1 (Sprint 1)
-├── C-2  Step 2 解方探索 (Sprint 2)
-├── C-3  Step 3 審查決策 (Sprint 3)
+├── C-1  專案 + Step 1 [D1] (Sprint 1)
+├── C-2  Step 2 [D2~X2] 解方探索 (Sprint 2)
+├── C-3  Step 3 [V1~V3] 審查決策 (Sprint 3)
 └── C-4  知識管理 + 收尾 (Sprint 4)
 ```
 
@@ -234,10 +234,10 @@ WS-C: Mock → Live 遷移 (Supabase 即時 API)         [🟡 ~85% · Sprint 4 
 | B-2.2.3 | ContradictionConvergenceCard 接入真實資料 | FE | Done |
 | B-2.2.4 | ConvergenceGraph 視覺化 | FE | Done |
 | B-2.3.1 | App.tsx PreCadReview 路由 (`/projects/:id/pre-cad`) | FE | Done |
-| B-2.3.2 | Sidebar/MobileNav 新增 Step P | FE | Done |
+| B-2.3.2 | Sidebar/MobileNav 新增 Step P [X5] | FE | Done |
 | B-2.3.3 | Pre-CAD Confidence Score 計算 | FE | Done |
 | B-2.3.4 | PreCadScoreGauge 接入真實值 | FE | Done |
-| B-2.4.1 | Gate 3 breakpoint ≥3 | FE | Done |
+| B-2.4.1 | Gate 3 [D4] breakpoint ≥3 | FE | Done |
 | B-2.4.2 | PhaseProgress 加入 "3.1" | FE | Done |
 
 #### B-3 資料流串接 (3.0)
@@ -261,11 +261,11 @@ WS-C: Mock → Live 遷移 (Supabase 即時 API)         [🟡 ~85% · Sprint 4 
 
 | 任務編號 | 任務名稱 | Owner | 狀態 |
 |---------|---------|-------|------|
-| B-4.1 | Gate 2 要求 7 類 + 10 假設 | FE | Done |
+| B-4.1 | Gate 2 [D3] 要求 7 類 + 10 假設 | FE | Done |
 | B-4.2 | Gate C 加入 North Star KPI | FE | Done |
 | B-4.3 | Gate C MUST E2+ 重新驗證 | FE | Done |
-| B-4.4 | Gate 7 AC 強制 | FE | Done |
-| B-4.5 | Gate 8 Artifact 狀態檢查 (6 類資產) | FE | Done |
+| B-4.4 | Gate 7 [V3] AC 強制 | FE | Done |
+| B-4.5 | Gate 8 [V4] Artifact 狀態檢查 (6 類資產) | FE | Done |
 | B-4.6.1 | TrackAssumption 加 4 欄位 (worstConsequence / verificationCost / Duration / sourceArtifactId) | FE | Done |
 | B-4.6.2 | Track mock data 更新 | FE | Done |
 | B-4.6.3 | Kanban UI 顯示新欄位 | FE | Done |
@@ -330,7 +330,7 @@ WS-C: Mock → Live 遷移 (Supabase 即時 API)         [🟡 ~85% · Sprint 4 
 | C-0.5 | QueryBoundary / ErrorFallback 統一元件 | FE | Done |
 | C-0.6 | Seed data + DevSeed.tsx | FE | Done |
 
-#### C-1 專案 + Step 1 (Sprint 1)
+#### C-1 專案 + Step 1 [D1] (Sprint 1)
 
 | 任務編號 | 任務名稱 | 功能 | Owner | 狀態 | Mock 清除 |
 |---------|---------|------|-------|------|----------|
@@ -339,7 +339,7 @@ WS-C: Mock → Live 遷移 (Supabase 即時 API)         [🟡 ~85% · Sprint 4 
 | C-1.3 | Socratic + Contradictions API | F07-F09 | FE | Done | mockContradictions ✅；mockExplore 🟡 殘留 |
 | C-1.4 | Assumptions + CLD API | F10-F12 | FE | Done | mockAssumptions ✅ |
 
-#### C-2 Step 2 解方探索 (Sprint 2)
+#### C-2 Step 2 [D2~X2] 解方探索 (Sprint 2)
 
 | 任務編號 | 任務名稱 | 功能 | Owner | 狀態 | Mock 清除 |
 |---------|---------|------|-------|------|----------|
@@ -350,7 +350,7 @@ WS-C: Mock → Live 遷移 (Supabase 即時 API)         [🟡 ~85% · Sprint 4 
 | C-2.5 | Solution Explorer API | F23 | FE | Done | mockSolutions ✅ |
 | C-2.6 | Pre-CAD + CAD Status API | F24, F25 | FE | Done | — |
 
-#### C-3 Step 3 審查決策 (Sprint 3)
+#### C-3 Step 3 [V1~V3] 審查決策 (Sprint 3)
 
 | 任務編號 | 任務名稱 | 功能 | Owner | 狀態 | Mock 清除 |
 |---------|---------|------|-------|------|----------|

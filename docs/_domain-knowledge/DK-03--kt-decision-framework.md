@@ -446,22 +446,22 @@ KT_決策記錄:
 
 # 整合到主流程
 
-## 在 Step 7（決策與行動）中的位置
+## 在 V3（決策與行動）中的位置
 
 ```
-Step 5e (MUST 篩選) → Step 6 (Evidence Review) → Step 6e (Evidence Closure)
-                                                          ↓
-                                                   Step 7: KT Decision Analysis
-                                                          ├── WANT 評分（加權排序）
-                                                          ├── Adverse Consequences（風險調整）
-                                                          └── 決策記錄 + 行動計畫
+X2e (MUST 篩選) → V1 (Evidence Review) → V2 (Evidence Closure)
+                                                   ↓
+                                            V3: KT Decision Analysis
+                                                   ├── WANT 評分（加權排序）
+                                                   ├── Adverse Consequences（風險調整）
+                                                   └── 決策記錄 + 行動計畫
 ```
 
-> MUST 篩選已在 Step 5e 完成；Step 7 聚焦於 WANT 評分、風險評估與最終決策。
+> MUST 篩選已在 X2e 完成；V3 聚焦於 WANT 評分、風險評估與最終決策。
 
-## Gate 7 檢查點
+## Gate V3 檢查點
 
-> ✅ 所有方案都經過 Step 5e MUST 篩選。
+> ✅ 所有方案都經過 X2e MUST 篩選。
 > ✅ 每個 WANT 評分都有證據 (Artifact ID) 支撐（不可為 E0 等級）。
 > ✅ 所有 H 風險都有緩解措施，且該措施的證據等級 ≥ E1。
 > ✅ KT 決策記錄完整且已簽核（Decision Record 狀態: Draft → Reviewed）。
@@ -506,4 +506,4 @@ Step 5e (MUST 篩選) → Step 6 (Evidence Review) → Step 6e (Evidence Closure
 
 **版本**: v2.0
 **最後更新**: 2026-04-21
-**變更紀錄**: 整合 E3x Step 7 的 Artifact ID 追蹤、Gate 7 檢查點、流程位置定位；從 DK-01 接收流程上下文
+**變更紀錄**: 整合 E3x V3 (原 Step 7) 的 Artifact ID 追蹤、Gate V3 檢查點、流程位置定位；從 DK-01 接收流程上下文

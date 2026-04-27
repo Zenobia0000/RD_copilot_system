@@ -215,7 +215,7 @@ TRIZ_解法_[編號]:
 Confidence = 已收斂的 (Fatal + Major) / 總識別的 (Fatal + Major) × 100%
 ```
 
-Gate P 門檻：Confidence = 100%（所有 Fatal + Major 完全收斂）。
+Gate X5 門檻：Confidence = 100%（所有 Fatal + Major 完全收斂）。
 
 ---
 

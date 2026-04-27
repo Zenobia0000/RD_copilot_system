@@ -8,7 +8,7 @@ from typing import Any, Callable
 from anthropic import Anthropic
 
 from app.harness.tools.base import Tool, ToolResult
-from app.harness.tools.fs import GlobTool, ReadTool, WriteTool
+from app.harness.tools.fs import GlobTool, GrepTool, ReadTool, WriteTool
 from app.harness.tools.web import WebFetchTool, WebSearchTool
 
 
@@ -85,6 +85,7 @@ def default_registry() -> ToolRegistry:
     reg.register(ReadTool())
     reg.register(WriteTool())
     reg.register(GlobTool())
+    reg.register(GrepTool())
     reg.register(WebFetchTool())
     reg.register(WebSearchTool())
     return reg

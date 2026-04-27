@@ -10,7 +10,7 @@ The Agent tool (subagent dispatcher) is opt-in via
 """
 
 from app.harness.tools.base import Tool, ToolResult
-from app.harness.tools.fs import GlobTool, ReadTool, WriteTool
+from app.harness.tools.fs import GlobTool, GrepTool, ReadTool, WriteTool
 from app.harness.tools.registry import ToolRegistry, default_registry
 from app.harness.tools.web import WebFetchTool, WebSearchTool
 
@@ -20,6 +20,7 @@ __all__ = [
     "ReadTool",
     "WriteTool",
     "GlobTool",
+    "GrepTool",
     "WebFetchTool",
     "WebSearchTool",
     "ToolRegistry",

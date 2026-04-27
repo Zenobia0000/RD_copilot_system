@@ -8,6 +8,7 @@ import pytest
 
 from app.harness.tools import (
     GlobTool,
+    GrepTool,
     ReadTool,
     ToolRegistry,
     WriteTool,
@@ -319,6 +320,188 @@ class TestToolRegistry:
             reg.to_anthropic_schemas(only=["Read", "GhostTool"])
 
     def test_default_registry_has_standard_tools(self):
-        """Default registry: fs (Read/Write/Glob) + web (WebFetch/WebSearch)."""
+        """Default registry: fs (Read/Write/Glob/Grep) + web (WebFetch/WebSearch)."""
         reg = default_registry()
-        assert set(reg.names()) == {"Read", "Write", "Glob", "WebFetch", "WebSearch"}
+        assert set(reg.names()) == {
+            "Read", "Write", "Glob", "Grep", "WebFetch", "WebSearch"
+        }
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# GrepTool
+# ────────────────────────────────────────────────────────────────────────────
+
+class TestGrepTool:
+    def _seed(self, root):
+        (root / "a.md").write_text(
+            "alpha line\nbeta CONTRADICTION here\ngamma\n", encoding="utf-8"
+        )
+        (root / "b.md").write_text(
+            "no hits in this file\n", encoding="utf-8"
+        )
+        sub = root / "sub"
+        sub.mkdir()
+        (sub / "c.py").write_text(
+            "def contradiction():\n    return 1\n", encoding="utf-8"
+        )
+        (sub / "d.txt").write_text(
+            "two\nCONTRADICTION lines\nCONTRADICTION here\n", encoding="utf-8"
+        )
+
+    def test_content_mode_default(self, tmp_path):
+        self._seed(tmp_path)
+        result = GrepTool().run(pattern="CONTRADICTION", path=str(tmp_path))
+        assert not result.is_error
+        # a.md: 1 hit on line 2; d.txt: 2 hits
+        lines = result.content.splitlines()
+        assert any("a.md:2:" in line for line in lines)
+        assert any("d.txt:2:" in line for line in lines)
+        assert any("d.txt:3:" in line for line in lines)
+
+    def test_files_with_matches_mode(self, tmp_path):
+        self._seed(tmp_path)
+        result = GrepTool().run(
+            pattern="CONTRADICTION", path=str(tmp_path),
+            output_mode="files_with_matches",
+        )
+        assert not result.is_error
+        files = set(result.content.splitlines())
+        # 2 unique files match (case-sensitive default — c.py 'contradiction' lowercase doesn't)
+        assert any("a.md" in f for f in files)
+        assert any("d.txt" in f for f in files)
+
+    def test_count_mode(self, tmp_path):
+        self._seed(tmp_path)
+        result = GrepTool().run(
+            pattern="CONTRADICTION", path=str(tmp_path),
+            output_mode="count",
+        )
+        assert not result.is_error
+        # Format: path:N
+        assert "a.md:1" in result.content
+        assert "d.txt:2" in result.content
+
+    def test_case_insensitive(self, tmp_path):
+        self._seed(tmp_path)
+        result = GrepTool().run(
+            pattern="contradiction", path=str(tmp_path),
+            case_insensitive=True,
+            output_mode="files_with_matches",
+        )
+        assert not result.is_error
+        files = result.content.splitlines()
+        # Now c.py also matches (def contradiction)
+        assert any("a.md" in f for f in files)
+        assert any("c.py" in f for f in files)
+        assert any("d.txt" in f for f in files)
+
+    def test_glob_filter(self, tmp_path):
+        self._seed(tmp_path)
+        result = GrepTool().run(
+            pattern="contradiction", path=str(tmp_path),
+            glob="**/*.py", case_insensitive=True,
+            output_mode="files_with_matches",
+        )
+        assert not result.is_error
+        files = result.content.splitlines()
+        # Only the python file
+        assert all(".py" in f for f in files if not f.startswith("<"))
+        assert any("c.py" in f for f in files)
+
+    def test_no_matches_returns_placeholder(self, tmp_path):
+        self._seed(tmp_path)
+        result = GrepTool().run(
+            pattern="ZZZNOTHING", path=str(tmp_path),
+        )
+        assert not result.is_error
+        assert result.content == "<no matches>"
+
+    def test_invalid_regex_returns_is_error(self, tmp_path):
+        result = GrepTool().run(pattern="[invalid", path=str(tmp_path))
+        assert result.is_error
+        assert "invalid regex" in result.content
+
+    def test_relative_path_rejected(self, tmp_path):
+        result = GrepTool().run(pattern="x", path="relative/dir")
+        assert result.is_error
+        assert "absolute" in result.content
+
+    def test_missing_path_rejected(self, tmp_path):
+        result = GrepTool().run(
+            pattern="x", path=str(tmp_path / "nonexistent"),
+        )
+        assert result.is_error
+        assert "does not exist" in result.content
+
+    def test_invalid_output_mode_rejected(self, tmp_path):
+        self._seed(tmp_path)
+        result = GrepTool().run(
+            pattern="x", path=str(tmp_path), output_mode="bogus",
+        )
+        assert result.is_error
+        assert "output_mode" in result.content
+
+    def test_empty_pattern_rejected(self, tmp_path):
+        result = GrepTool().run(pattern="", path=str(tmp_path))
+        assert result.is_error
+        assert "non-empty" in result.content
+
+    def test_head_limit_caps_content_lines(self, tmp_path):
+        # Create 50 hits across one file
+        f = tmp_path / "big.md"
+        f.write_text("\n".join(f"hit {i}" for i in range(50)), encoding="utf-8")
+        result = GrepTool().run(
+            pattern="hit", path=str(tmp_path), head_limit=10,
+        )
+        assert not result.is_error
+        lines = result.content.splitlines()
+        # 10 hits + 1 truncation marker
+        assert len(lines) == 11
+        assert "<truncated at 10 matches>" in lines[-1]
+
+    def test_search_single_file(self, tmp_path):
+        f = tmp_path / "single.txt"
+        f.write_text("alpha\nbeta\nalpha again\n", encoding="utf-8")
+        result = GrepTool().run(pattern="alpha", path=str(f))
+        assert not result.is_error
+        lines = result.content.splitlines()
+        assert len(lines) == 2
+        assert all("alpha" in line for line in lines)
+
+    def test_skips_binary_files(self, tmp_path):
+        # Write a binary file with the search pattern in raw bytes
+        binary_file = tmp_path / "bin.dat"
+        binary_file.write_bytes(b"\x00\x01\x02alpha\x03\x04\xff\xfe")
+        text_file = tmp_path / "txt.md"
+        text_file.write_text("alpha line\n", encoding="utf-8")
+
+        result = GrepTool().run(pattern="alpha", path=str(tmp_path))
+        assert not result.is_error
+        # Only the text file should appear; binary silently skipped
+        assert "txt.md" in result.content
+        assert "bin.dat" not in result.content
+
+    def test_too_many_files_refused(self, tmp_path):
+        # Touch 1001 files
+        for i in range(1001):
+            (tmp_path / f"f{i}.md").write_text("x\n", encoding="utf-8")
+        result = GrepTool().run(pattern="x", path=str(tmp_path))
+        assert result.is_error
+        assert "too many files" in result.content
+
+
+class TestGrepSchema:
+    def test_metadata(self):
+        tool = GrepTool()
+        assert tool.name == "Grep"
+        assert tool.description
+        schema = tool.input_schema
+        assert schema["type"] == "object"
+        assert schema["required"] == ["pattern"]
+        assert "pattern" in schema["properties"]
+        assert "path" in schema["properties"]
+        assert "glob" in schema["properties"]
+        assert "output_mode" in schema["properties"]
+        assert schema["properties"]["output_mode"]["enum"] == [
+            "content", "files_with_matches", "count",
+        ]

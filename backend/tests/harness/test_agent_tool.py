@@ -179,7 +179,9 @@ class TestAgentToolUnit:
         tool.run(agent="worker", prompt="x")
 
         sub_tools = {t["name"] for t in client.messages.calls[0]["tools"]}
-        assert sub_tools == {"Read", "Write", "Glob", "WebFetch", "WebSearch"}
+        assert sub_tools == {
+            "Read", "Write", "Glob", "Grep", "WebFetch", "WebSearch",
+        }
 
     def test_missing_agent_returns_is_error(self, tmp_path):
         client = FakeAnthropicClient.with_responses()

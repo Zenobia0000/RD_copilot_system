@@ -1,16 +1,21 @@
-"""Filesystem tools — Read, Write, Glob.
+"""Filesystem tools — Read, Write, Glob, Grep.
 
 Interface mirrors Claude Code's tools so .claude/skills/* prompts work as-is.
 """
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
+from typing import Any, ClassVar
 
 from app.harness.tools.base import Tool, ToolResult
 
 _DEFAULT_READ_LIMIT = 2000
 _MAX_WRITE_BYTES = 5 * 1024 * 1024  # 5 MiB safety cap
+_GREP_DEFAULT_HEAD_LIMIT = 100
+_GREP_MAX_FILES_SCANNED = 1000  # safety cap — refuse to walk huge trees
+_GREP_MAX_FILE_BYTES = 5 * 1024 * 1024  # 5 MiB per file — skip larger
 
 
 def _require_absolute(file_path: str) -> ToolResult | None:
@@ -182,3 +187,187 @@ class GlobTool(Tool):
 
         matches.sort(key=lambda p: p.stat().st_mtime, reverse=True)
         return ToolResult(content="\n".join(str(m) for m in matches))
+
+
+class GrepTool(Tool):
+    """Search file contents by regex. Subset of Claude Code's Grep covering
+    the cases triz-analyst actually needs: pattern + path + glob filter +
+    output mode + case-insensitive option.
+
+    Output modes:
+      - 'content' (default): `path:line_no:matched_line` per hit, head-limited
+      - 'files_with_matches': just paths that have ≥1 match (faster, dedup)
+      - 'count': `path:N` per file
+    """
+
+    name: ClassVar[str] = "Grep"
+    description: ClassVar[str] = (
+        "Search file contents by regular expression. Returns matching lines "
+        "or matching files. `path` must be absolute if provided. Use `glob` "
+        "to limit which files are scanned (e.g. '**/*.py'). Default output "
+        f"is 'content' mode, capped at {_GREP_DEFAULT_HEAD_LIMIT} hits."
+    )
+    input_schema: ClassVar[dict[str, Any]] = {
+        "type": "object",
+        "properties": {
+            "pattern": {
+                "type": "string",
+                "description": "Python regex to search for (re module syntax).",
+            },
+            "path": {
+                "type": "string",
+                "description": "Absolute directory or file path. Defaults to cwd.",
+            },
+            "glob": {
+                "type": "string",
+                "description": (
+                    "Glob filter for files to scan (e.g. '**/*.md'). "
+                    "Defaults to '**/*' (all files)."
+                ),
+            },
+            "output_mode": {
+                "type": "string",
+                "enum": ["content", "files_with_matches", "count"],
+                "description": "Output shape. Default 'content'.",
+            },
+            "case_insensitive": {
+                "type": "boolean",
+                "description": "Match without regard to case. Default false.",
+            },
+            "head_limit": {
+                "type": "integer",
+                "description": (
+                    f"Cap output rows. Default {_GREP_DEFAULT_HEAD_LIMIT}. "
+                    "Applies to lines (content) or files (other modes)."
+                ),
+            },
+        },
+        "required": ["pattern"],
+    }
+
+    def run(
+        self,
+        *,
+        pattern: str,
+        path: str | None = None,
+        glob: str = "**/*",
+        output_mode: str = "content",
+        case_insensitive: bool = False,
+        head_limit: int | None = None,
+    ) -> ToolResult:
+        if not isinstance(pattern, str) or not pattern:
+            return ToolResult(
+                content="Error: pattern must be a non-empty string",
+                is_error=True,
+            )
+        if output_mode not in ("content", "files_with_matches", "count"):
+            return ToolResult(
+                content=f"Error: invalid output_mode {output_mode!r}",
+                is_error=True,
+            )
+
+        flags = re.IGNORECASE if case_insensitive else 0
+        try:
+            regex = re.compile(pattern, flags)
+        except re.error as exc:
+            return ToolResult(
+                content=f"Error: invalid regex {pattern!r}: {exc}",
+                is_error=True,
+            )
+
+        # Resolve search root.
+        base = Path(path) if path else Path.cwd()
+        if path is not None and not base.is_absolute():
+            return ToolResult(
+                content=f"Error: path must be absolute, got: {path!r}",
+                is_error=True,
+            )
+        if not base.exists():
+            return ToolResult(
+                content=f"Error: search root does not exist: {base}",
+                is_error=True,
+            )
+
+        # Enumerate target files.
+        if base.is_file():
+            files = [base]
+        else:
+            files = [p for p in base.glob(glob) if p.is_file()]
+            if len(files) > _GREP_MAX_FILES_SCANNED:
+                return ToolResult(
+                    content=(
+                        f"Error: too many files to scan ({len(files)} > "
+                        f"{_GREP_MAX_FILES_SCANNED}). Narrow `glob` or `path`."
+                    ),
+                    is_error=True,
+                )
+
+        cap = head_limit if (head_limit and head_limit > 0) else _GREP_DEFAULT_HEAD_LIMIT
+
+        if output_mode == "files_with_matches":
+            return _grep_files_only(files, regex, cap)
+        if output_mode == "count":
+            return _grep_count(files, regex, cap)
+        return _grep_content(files, regex, cap)
+
+
+def _safe_read_lines(file: Path) -> list[str] | None:
+    """Read a file as utf-8 lines. Returns None on binary / oversized /
+    decode failure — caller should skip silently."""
+    try:
+        if file.stat().st_size > _GREP_MAX_FILE_BYTES:
+            return None
+        text = file.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+    return text.splitlines()
+
+
+def _grep_content(files: list[Path], regex: re.Pattern[str], cap: int) -> ToolResult:
+    out: list[str] = []
+    for file in files:
+        lines = _safe_read_lines(file)
+        if lines is None:
+            continue
+        for i, line in enumerate(lines, start=1):
+            if regex.search(line):
+                out.append(f"{file}:{i}:{line}")
+                if len(out) >= cap:
+                    out.append(f"<truncated at {cap} matches>")
+                    return ToolResult(content="\n".join(out))
+    if not out:
+        return ToolResult(content="<no matches>")
+    return ToolResult(content="\n".join(out))
+
+
+def _grep_files_only(files: list[Path], regex: re.Pattern[str], cap: int) -> ToolResult:
+    out: list[str] = []
+    for file in files:
+        lines = _safe_read_lines(file)
+        if lines is None:
+            continue
+        if any(regex.search(line) for line in lines):
+            out.append(str(file))
+            if len(out) >= cap:
+                out.append(f"<truncated at {cap} files>")
+                return ToolResult(content="\n".join(out))
+    if not out:
+        return ToolResult(content="<no matches>")
+    return ToolResult(content="\n".join(out))
+
+
+def _grep_count(files: list[Path], regex: re.Pattern[str], cap: int) -> ToolResult:
+    out: list[str] = []
+    for file in files:
+        lines = _safe_read_lines(file)
+        if lines is None:
+            continue
+        n = sum(1 for line in lines if regex.search(line))
+        if n > 0:
+            out.append(f"{file}:{n}")
+            if len(out) >= cap:
+                out.append(f"<truncated at {cap} files>")
+                return ToolResult(content="\n".join(out))
+    if not out:
+        return ToolResult(content="<no matches>")
+    return ToolResult(content="\n".join(out))

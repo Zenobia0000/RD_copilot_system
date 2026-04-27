@@ -514,11 +514,19 @@ erDiagram
 | `experiments` | 000 | **project-child**（同 §5.1） | 有 `project_id` FK，應與其他 project-child 表一致 |
 | `project_spatial_overlay` | 006 | **project-child**（同 §5.1） | PK 即 `project_id` FK |
 | `project_component_overrides` | 007 | **project-child**（同 §5.1） | 有 `project_id` FK |
-| `learned_components` | 007 | **共享讀寫**（同 §5.3 `knowledge_articles`） | 全域共享元件庫，非 project-scoped |
+| `learned_components` | 007 | **Pattern 3：backend-curated**（見下方說明） | 全域共享元件庫；前端只讀，寫入僅限 service-role |
 
 > **Risk**：未啟用 RLS 的表可能洩漏跨租戶資料。E8 AI-14（Supabase RLS 測試覆蓋跨租戶）行動項涵蓋此風險。
 >
-> **Action**：建立 `migration 014_rls_backfill.sql`，對前 3 張表套用 §5.1 模式，`learned_components` 套用 `authenticated USING(true)` 全開模式。
+> **Action**：✅ `migration 014_rls_backfill.sql` 已補齊。
+
+#### RLS 三模式定義
+
+| Pattern | SELECT | INSERT/UPDATE/DELETE | 適用場景 | 代表表 |
+|---------|--------|---------------------|----------|--------|
+| **1. project-child** | `authenticated USING(true)` | `project_id IN (SELECT id FROM projects WHERE created_by = auth.uid()::text)` | 專案級資料，owner 才能寫 | `briefs`, `experiments`, `alternatives` 等 |
+| **2. shared-kb** | `authenticated USING(true)` | `authenticated` 全開 | 跨專案共享知識庫 | `knowledge_articles`, `evidence_entries` |
+| **3. backend-curated** | `authenticated USING(true)` | 前端 `WITH CHECK(false)` / `USING(false)` — 寫入僅限 service-role（bypass RLS） | 全域共享但品質受控的資源 | `learned_components` |
 
 ---
 
@@ -542,3 +550,4 @@ erDiagram
 | v1.0    | 2026-04-15 | Backend TBD | 初稿：依 migration 000–010 抽出 36 張表、41 條 FK、5 張子 ERD、RLS 矩陣 |
 | v1.1    | 2026-04-27 | — | `anti_anchor_routes` 標記為 v3.0 退役（Anti-Anchor 併入 TRIZ L1 跨域去錨定）；表定義保留供歷史參照 |
 | v1.2    | 2026-04-27 | — | 補齊 ADR-008 新增 3 表：`function_models`、`evidence_claims`、`sim_matrices`；新增 FK #42-44；RLS 歸類至 §5.1 project-child（migration 013 已啟用）；§5.5 補齊 4 表 RLS 建議方案；CCI 無獨立表說明 |
+| v1.3    | 2026-04-27 | — | §5.5 定義 RLS 三模式（project-child / shared-kb / backend-curated）；`learned_components` 改為 Pattern 3；migration 014 已建立 |

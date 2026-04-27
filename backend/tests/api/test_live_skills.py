@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import shutil
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -25,6 +26,7 @@ import pytest
 SESSIONS_BASE = "/api/v1/sessions"
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _TRIZ_CTX = _PROJECT_ROOT / ".claude" / "context" / "triz"
+_ARTIFACTS_ROOT = Path(__file__).resolve().parent.parent / "_live_artifacts"
 
 
 pytestmark = pytest.mark.live  # whole module gated on `-m live`
@@ -36,11 +38,14 @@ pytestmark = pytest.mark.live  # whole module gated on `-m live`
 
 @pytest.fixture(scope="module", autouse=True)
 def preserve_triz_context():
-    """Snapshot .claude/context/triz/ before tests, restore on teardown.
+    """Snapshot .claude/context/triz/ before tests; archive what the agents
+    produced to backend/tests/_live_artifacts/<timestamp>/ on teardown;
+    restore the original state.
 
-    Live tests will mutate state.json and create session-*.md files. Without
-    this fixture, running them once corrupts the project's real session
-    history. With it, post-test state is byte-identical to pre-test state.
+    The archive lets you inspect what each skill actually wrote (state
+    mutations, generated session-*.md reports, any Write tool outputs)
+    after a `pytest -m live` run, without mixing test artifacts into the
+    project's real session history. The artifacts directory is gitignored.
     """
     backup = Path(tempfile.mkdtemp(prefix="triz-live-test-backup-"))
     pre_files: set[str] = set()
@@ -52,7 +57,15 @@ def preserve_triz_context():
 
     yield
 
+    # Archive whatever the agents produced before restoring originals
     if _TRIZ_CTX.is_dir():
+        stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        archive = _ARTIFACTS_ROOT / stamp
+        archive.mkdir(parents=True, exist_ok=True)
+        for f in _TRIZ_CTX.iterdir():
+            if f.is_file():
+                shutil.copy(f, archive / f.name)
+
         # Drop files created during the test
         for f in list(_TRIZ_CTX.iterdir()):
             if f.is_file() and f.name not in pre_files:

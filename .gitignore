@@ -18,6 +18,9 @@ node_modules
 dist
 dist-ssr
 .vite/
+
+# Live test artifacts (output of `pytest -m live` skill smoke runs)
+backend/tests/_live_artifacts/
 *.local
 
 # Editor directories and files

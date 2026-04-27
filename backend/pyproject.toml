@@ -16,6 +16,7 @@ dependencies = [
     "pydantic-ai>=0.0.14",
     "mcp>=1.0",
     "PyYAML>=6.0",
+    "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]

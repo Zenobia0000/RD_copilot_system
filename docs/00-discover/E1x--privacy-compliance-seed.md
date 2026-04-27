@@ -72,7 +72,7 @@
 | 原則 | 說明 |
 |------|------|
 | **AI 僅為諮詢性質 (Advisory Only)** | 所有 AI 輸出均為建議，不構成設計承諾或擔保。 |
-| **人工簽核必要 (Human Sign-off Required)** | 所有設計決策必須經由人工確認簽核 (Gate P / Gate C)，AI 不可自動通過 Gate。 |
+| **人工簽核必要 (Human Sign-off Required)** | 所有設計決策必須經由人工確認簽核 (Gate X5 / Gate C)，AI 不可自動通過 Gate。 |
 | **產品不承擔設計責任 (No Design Liability)** | RD Design Copilot 不對基於 AI 建議所做的設計決策承擔工程責任。責任歸屬於簽核的工程師與企業。 |
 | **免責條款** | [TBD — 需法務撰寫正式免責條款與服務條款 (Terms of Service)] |
 

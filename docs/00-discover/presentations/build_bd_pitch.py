@@ -381,16 +381,16 @@ for i, (name, sub, items) in enumerate(kits):
 s = new_slide("10 種核心工件 Artifact", "從 Brief 到 Asset 的完整生命週期", 9)
 
 arts = [
-    ("1", "Constraint", "Step 1"),
-    ("2", "Contradiction", "Step 2-3"),
-    ("3", "Assumption", "Step 2-4"),
-    ("4", "Breakpoint", "Step 3"),
-    ("5", "Concept Route", "Step 5-7"),
-    ("6", "Interface\nContract", "Step 5-6"),
-    ("7", "Evidence\nMatrix", "Step 6"),
-    ("8", "Risk\nRegister", "Step 6"),
-    ("9", "Validation\nPassport", "Step 5-6"),
-    ("10", "Decision\nRecord", "Step 7"),
+    ("1", "Constraint", "D1"),
+    ("2", "Contradiction", "D2-D4"),
+    ("3", "Assumption", "D2-X1"),
+    ("4", "Breakpoint", "D4"),
+    ("5", "Concept Route", "X2-V3"),
+    ("6", "Interface\nContract", "X2-V1"),
+    ("7", "Evidence\nMatrix", "V1"),
+    ("8", "Risk\nRegister", "V1"),
+    ("9", "Validation\nPassport", "X2-V1"),
+    ("10", "Decision\nRecord", "V3"),
 ]
 # 5x2 grid
 card_w = Inches(2.4)
@@ -447,7 +447,7 @@ for i, (t, sub) in enumerate(steps):
 
 # feedback arrow
 add_text(s, Inches(0.5), Inches(5.0), Inches(12), Inches(0.5),
-         "↻  回饋：下游發現問題 → 更新 Assumption / Evidence → 重啟相應 Step",
+         "↻  回饋：下游發現問題 → 更新 Assumption / Evidence → 重啟相應步驟",
          size=14, color=MUTED, align=PP_ALIGN.CENTER)
 
 add_rect(s, Inches(1.5), Inches(5.9), Inches(10.3), Inches(0.9), NAVY)
@@ -509,19 +509,19 @@ add_text(s, Inches(5.3), Inches(5.1), Inches(2.7), Inches(0.5),
 # =====================================================
 # P12. E2E Overview (3 phase x 8 step)
 # =====================================================
-s = new_slide("E2E 流程總覽 — 3 Phase × 8 Step", "每個 Gate 都是可否決的檢查點，不是 rubber stamp", 12)
+s = new_slide("E2E 流程總覽 — 3 Phase × D1-V4", "每個 Gate 都是可否決的檢查點，不是 rubber stamp", 12)
 
 phases = [
-    ("Phase I", "定義問題空間", NAVY,
-     [("Step 1", "問題界定"), ("Step 2", "蘇格拉底問答"),
-      ("Step 3", "系統建模")]),
-    ("Phase II", "假設與發散", ORANGE,
-     [("Step 4", "假設 & 驗證規劃"),
-      ("Step 5", "創造與調整"),
-      ("Step P", "Pre-CAD Review")]),
-    ("Phase III", "收斂與驗證", NAVY,
-     [("Step 6", "設計審查"), ("Step 7", "決策與行動"),
-      ("Step 8", "內化與傳達")]),
+    ("Define", "定義問題空間", NAVY,
+     [("D1", "問題界定"), ("D2", "蘇格拉底問答"),
+      ("D4", "系統建模")]),
+    ("eXplore", "假設與發散", ORANGE,
+     [("X1", "假設 & 驗證規劃"),
+      ("X2", "創造與調整"),
+      ("X5", "Pre-CAD Review")]),
+    ("Verify", "收斂與驗證", NAVY,
+     [("V1", "設計審查"), ("V3", "決策與行動"),
+      ("V4", "內化與傳達")]),
 ]
 x0 = Inches(0.4)
 y0 = Inches(1.6)
@@ -548,22 +548,22 @@ for i, (tag, name, color, steps_) in enumerate(phases):
         yy += Inches(1.1)
 
 add_text(s, Inches(0.4), Inches(6.25), Inches(12.5), Inches(0.5),
-         "Gate 1 → 2 → 3 → 4 → P → C → 7 → 8     共 8 個檢查點",
+         "Gate D1 → D3 → D4 → X1 → X5 → C → V3 → V4     共 8 個檢查點",
          size=14, bold=True, color=NAVY, align=PP_ALIGN.CENTER)
 
 
 # =====================================================
 # P13. Phase I — Brief → Problem → Contradiction
 # =====================================================
-s = new_slide("Phase I｜Brief → 問題界定 → 矛盾識別",
-              "把『隱藏假設』逼出來，Gate 3 出口有量化門檻", 13)
+s = new_slide("Define｜Brief → 問題界定 → 矛盾識別",
+              "把『隱藏假設』逼出來，Gate D4 出口有量化門檻", 13)
 
 steps = [
-    ("Step 1", "問題界定",
+    ("D1", "問題界定",
      "Constraint（硬/軟/非目標/KPI）\n輸入：Brief + 客戶需求\n輸出：Constraint 工件"),
-    ("Step 2", "蘇格拉底問答",
+    ("D2", "蘇格拉底問答",
      "Analyst Agent 連環提問\n把「隱藏假設」翻出來\n輸出：Contradiction + Assumption"),
-    ("Step 3", "系統建模",
+    ("D4", "系統建模",
      "因果迴路圖 + TRIZ 正式化\n找到可介入斷路點\n輸出：Breakpoint"),
 ]
 for i, (st, name, body) in enumerate(steps):
@@ -579,15 +579,15 @@ for i, (st, name, body) in enumerate(steps):
 
 add_rect(s, Inches(0.5), Inches(6.6), Inches(12.3), Inches(0.6), ORANGE)
 add_text(s, Inches(0.5), Inches(6.7), Inches(12.3), Inches(0.5),
-         "Gate 3 出口條件：≥1 因果迴路  ·  ≥3 斷路點  ·  ≥3 核心矛盾",
+         "Gate D4 出口條件：≥1 因果迴路  ·  ≥3 斷路點  ·  ≥3 核心矛盾",
          size=14, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
 
 
 # =====================================================
 # P14. Phase II — Subsystem Discovery
 # =====================================================
-s = new_slide("Phase II｜探索 · Subsystem Discovery",
-              "Step 5b：System → Module → Component 三層拆解", 14)
+s = new_slide("eXplore｜探索 · Subsystem Discovery",
+              "X3：System → Module → Component 三層拆解", 14)
 
 # three layers vertical
 layers = [
@@ -633,7 +633,7 @@ add_text(s, Inches(0.6), Inches(6.1), Inches(6.8), Inches(0.7),
 # =====================================================
 # P15. Forward TRIZ Solver — 3 layer drill-down
 # =====================================================
-s = new_slide("Phase II｜正向分析 · Forward TRIZ Solver",
+s = new_slide("eXplore｜正向分析 · Forward TRIZ Solver",
               "TRIZ 三層 drill-down — L1 必跑 / L2 有條件 / L3 平行必跑", 15)
 
 triz = [
@@ -684,7 +684,7 @@ add_text(s, Inches(0.4), Inches(6.35), Inches(12.5), Inches(0.4),
 # =====================================================
 # P16. Reverse Anti-Anchor Sprint
 # =====================================================
-s = new_slide("Phase II｜反向分析 · Anti-Anchor Sprint",
+s = new_slide("eXplore｜反向分析 · Anti-Anchor Sprint",
               "Reverse_Anti_Anchor_Architecture.md §1.2", 16)
 
 # definition big
@@ -730,7 +730,7 @@ for i, (n, t, b) in enumerate(cons):
 # =====================================================
 # P17. Decision Hub (converge)
 # =====================================================
-s = new_slide("正反向匯流 — Step 5d Decision Hub",
+s = new_slide("正反向匯流 — X4 Decision Hub",
               "Phase B 矛盾掃描 → MUST 快篩 → Pre-CAD Review", 17)
 
 # Forward
@@ -766,7 +766,7 @@ add_rect(s, Inches(5.5), Inches(1.6), Inches(2.3), Inches(2.3), GREY)
 add_text(s, Inches(5.5), Inches(2.0), Inches(2.3), Inches(0.6),
          "Decision Hub", size=15, bold=True, color=NAVY, align=PP_ALIGN.CENTER)
 add_text(s, Inches(5.5), Inches(2.5), Inches(2.3), Inches(0.5),
-         "Step 5d", size=13, color=ORANGE, align=PP_ALIGN.CENTER)
+         "X4", size=13, color=ORANGE, align=PP_ALIGN.CENTER)
 add_text(s, Inches(5.5), Inches(3.0), Inches(2.3), Inches(0.5),
          "候選池", size=12, color=MUTED, align=PP_ALIGN.CENTER)
 
@@ -793,17 +793,17 @@ for i, t in enumerate(flow):
 # =====================================================
 # P18. Phase III
 # =====================================================
-s = new_slide("Phase III｜收斂與證據",
+s = new_slide("Verify｜收斂與證據",
               "Evidence Matrix · Risk Register · KT Decision", 18)
 
 ph3 = [
-    ("Step 6", "設計審查 (CAD Gate)",
+    ("V1", "設計審查 (CAD Gate)",
      "Evidence Matrix + Risk Register + MVP CAD → Gate C"),
-    ("Step 6e", "證據補齊（迴圈）",
+    ("V2", "證據補齊（迴圈）",
      "最小實驗設計 · 證據等級升級 (E0→E4)"),
-    ("Step 7", "決策與行動",
+    ("V3", "決策與行動",
      "KT Decision Analysis → Decision Record (100% 可追溯)"),
-    ("Step 8", "內化與傳達",
+    ("V4", "內化與傳達",
      "Asset 知識回寫 → 下一個專案冷啟動 Seed"),
 ]
 for i, (st, name, body) in enumerate(ph3):
@@ -879,7 +879,7 @@ cmp_headers = ["維度", "ChatGPT / Gemini", "RD Design Copilot"]
 cmp_rows = [
     ("知識來源", "網路雜訊", "企業 RAG + TRIZ KB + 種子資料"),
     ("數字可信度", "LLM 幻覺", "純算術驗證 + 資料庫覆寫"),
-    ("流程結構", "無狀態對話", "8 Step × 8 Gate 狀態機"),
+    ("流程結構", "無狀態對話", "D1-V4 × 8 Gate 狀態機"),
     ("假設管理", "隱性", "Validation Passport + Evidence Matrix"),
     ("決策追溯", "無", "KT Decision Record"),
     ("反偏誤", "無", "Anti-Anchor + 矛盾收斂掃描"),
@@ -918,10 +918,10 @@ s = new_slide("自動化分級 — RD 永遠是最終決策者",
               "AI 消除重複腦力與盲點，不取代判斷", 21)
 
 grades = [
-    ("Human-Led", "RD 決策，AI 記錄", "Step 7", NAVY),
-    ("AI-Assisted", "RD 主導，AI 協助", "Step 1 · 4 · 6 · 6e", NAVY),
-    ("AI-Driven", "AI 主導，RD 審核", "Step 2 · 3 · 5b · 5d · 5e · P · 6", ORANGE),
-    ("Fully Auto", "AI 獨立產出，RD 選擇", "Step 5-0 · 5a · 5c · 8", NAVY),
+    ("Human-Led", "RD 決策，AI 記錄", "V3", NAVY),
+    ("AI-Assisted", "RD 主導，AI 協助", "D1 · X1 · V1 · V2", NAVY),
+    ("AI-Driven", "AI 主導，RD 審核", "D2 · D4 · X3 · X4 · X2e · X5 · V1", ORANGE),
+    ("Fully Auto", "AI 獨立產出，RD 選擇", "X2-0 · X2a · X2c · V4", NAVY),
 ]
 for i, (tag, desc, steps_, color) in enumerate(grades):
     y = Inches(1.5) + i * Inches(1.05)
@@ -1026,7 +1026,7 @@ s = new_slide("我們提供什麼 & 時程", "6 個月分 3 階段，每階段�
 
 phases = [
     ("Phase A", "Month 1-2",
-     "TRIZ KB + Forward 軌 MVP\n跑通 Step 1-3\n第一次 Gate Review"),
+     "TRIZ KB + Forward 軌 MVP\n跑通 D1-D4\n第一次 Gate Review"),
     ("Phase B", "Month 3-4",
      "Reverse Anti-Anchor\nDecision Hub (5d)\nPre-CAD Review"),
     ("Phase C", "Month 5-6",

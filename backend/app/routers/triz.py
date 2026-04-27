@@ -1,4 +1,4 @@
-"""Step 5a — TRIZ Solver: contradiction matrix lookup + principle instantiation + Su-Field.
+"""X2 — TRIZ Solver: contradiction matrix lookup + principle instantiation + Su-Field.
 
 v8 (2026-04-20): Adds direction-centric endpoints:
   - `POST /triz/solve-directed` — single-contradiction direction solver

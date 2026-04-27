@@ -23,7 +23,7 @@ class EvidenceReference(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Step 1: Brief Extraction
+# D1: Brief Extraction
 # ---------------------------------------------------------------------------
 
 class BriefExtractionRequest(BaseModel):
@@ -157,7 +157,7 @@ class TaskDef5W1HResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Step 2: Socratic Questions
+# D2: Socratic Questions
 # ---------------------------------------------------------------------------
 
 class SocraticRequest(BaseModel):
@@ -264,7 +264,7 @@ class SocraticAutoTagResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Step 3: CLD Generation
+# D4: CLD Generation
 # ---------------------------------------------------------------------------
 
 class CldGenerationRequest(BaseModel):
@@ -309,7 +309,7 @@ class CldGenerationResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Step 3: Function Model (Su-Field Analysis)
+# D4: Function Model (Su-Field Analysis)
 # ---------------------------------------------------------------------------
 
 class FunctionModelRequest(BaseModel):
@@ -363,7 +363,7 @@ class ValidationPassport(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Step 5-0: Anti-Anchor Routes
+# X2: Anti-Anchor Routes
 # ---------------------------------------------------------------------------
 
 class AntiAnchorRequest(BaseModel):
@@ -412,7 +412,7 @@ class ValidationPassportResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Step 5a: TRIZ Solver
+# X2: TRIZ Solver
 # ---------------------------------------------------------------------------
 
 class TrizLookupRequest(BaseModel):
@@ -485,7 +485,7 @@ class TrizLookupResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Step 5a-3: Su-Field Analysis (76 Standard Solutions)
+# X2-3: Su-Field Analysis (76 Standard Solutions)
 # ---------------------------------------------------------------------------
 
 class SuFieldRequest(BaseModel):
@@ -493,7 +493,7 @@ class SuFieldRequest(BaseModel):
     project_id: str
     system_description: str
     current_issues: list[str] = Field(default_factory=list)
-    # Traceability back to Step 3 Function Model / contradiction
+    # Traceability back to D4 Function Model / contradiction
     contradiction_id: str | None = None
     substance_1: str | None = None  # S1 from Function Model
     substance_2: str | None = None  # S2 from Function Model
@@ -516,7 +516,7 @@ class SuFieldResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Step 5a-X: LayeredTrizSolution — drill-down (L1 TC / L2 PC / L3 SF)
+# X2-X: LayeredTrizSolution — drill-down (L1 TC / L2 PC / L3 SF)
 #
 # Ref: docs/e2e/TRIZ_Layered_DrillDown_Optimization.md §5
 #      docs/e2e/TRIZ_Multi_Solution_Adoption_Strategy.md v1.1 §2 M6
@@ -685,7 +685,7 @@ class SolveTrizLayeredResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Step 5c: SCAMPER — DEPRECATED
+# X3: SCAMPER — DEPRECATED
 # SCAMPER as an independent module has been removed (TRIZ 40 principles
 # cover all SCAMPER actions). These schemas are kept temporarily for
 # backward-compat with scamper_transform() in triz_solver.py and existing
@@ -746,7 +746,7 @@ class ScamperResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Step 6: Risk Analysis
+# V1: Risk Analysis
 # ---------------------------------------------------------------------------
 
 class RiskAnalysisRequest(BaseModel):
@@ -769,7 +769,7 @@ class RiskAnalysisResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Step 7: Action Suggestions
+# V3: Action Suggestions
 # ---------------------------------------------------------------------------
 
 class ActionSuggestRequest(BaseModel):
@@ -790,7 +790,7 @@ class ActionSuggestResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Contradiction Convergence (Step 5a-6)
+# Contradiction Convergence (X2-V2)
 # ---------------------------------------------------------------------------
 
 class ConvergenceAlternativeInput(BaseModel):
@@ -1486,7 +1486,7 @@ class ContradictionDeriveSFResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Step 5a-D: Directed TRIZ Solver — Direction-centric flow
+# X2-D: Directed TRIZ Solver — Direction-centric flow
 #
 # Replaces the layered drill-down (L1/L2/L3) paradigm with a simpler
 # "solve all three tools → cluster by implementation direction → pick best"

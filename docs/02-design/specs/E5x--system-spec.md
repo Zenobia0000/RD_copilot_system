@@ -2,7 +2,7 @@
 
 **版本**: v2.0
 **日期**: 2026-04-27
-**範圍**: MVP (v0.5) — 8 步驟全流程之 API + UI 規格
+**範圍**: MVP (v0.5) — D1-V4 全流程之 API + UI 規格
 
 > **v2.0 更新**（2026-04-27）：
 > - 修正技術堆疊（Supabase Postgres / React 19 / Harness 架構）
@@ -12,7 +12,7 @@
 > - 新增 function_models / evidence_claims / sim_matrices 資料表
 > - 新增 Analyst v2 (5 endpoints) + Evidence Registry (3 endpoints) API
 >
-> **v1.1 更新**（2026-02-24）：Step 編號按實際執行順序重新編排（原 Step 6→Step 5、原 Step 5→Step 6）；新增 Step 5 內部流程（TRIZ→子系統→方案→MUST）詳細說明。（~~SCAMPER 已於 v9 移除~~）
+> **v1.1 更新**（2026-02-24）：Step 編號按實際執行順序重新編排（原 Step 6→Step 5、原 Step 5→Step 6）；新增 X2 內部流程（TRIZ→子系統→方案→MUST）詳細說明。（~~SCAMPER 已於 v9 移除~~）
 
 ---
 
@@ -46,24 +46,24 @@
 系統有 8 個 Step-level Gate（每步一個）。其中 4 個 Gate 同時觸發 Phase 轉換：
 
 ```
-                    Phase I                    Phase II                Phase III
-                 (Step 1→2→3)                (Step 4→5)             (Step 6→7→8)
+                    Define                     eXplore                 Verify
+                  (D1→D2→D4)                (X1→X2)              (V1→V3→V4)
                        │                          │                       │
-DRAFT ──Gate 1──▶ PHASE_I ──Gate 3──▶ PHASE_II ──Gate 5──▶ PHASE_III ──Gate 8──▶ COMPLETED
+DRAFT ──Gate D1──▶ DEFINE ──Gate D4──▶ EXPLORE ──Gate X5──▶ VERIFY ──Gate V4──▶ COMPLETED
                        │                          │                       │
-                   Gate 2 (Step內)            Gate 4 (Step內)         Gate 6,7 (Step內)
+                   Gate D3 (內部)            Gate X1 (內部)         Gate V1,V3 (內部)
 ```
 
 | Gate | 位置 | Phase 轉換？ |
 |------|------|-------------|
-| Gate 1 | Step 1 完成後 | DRAFT → PHASE_I |
-| Gate 2 | Step 2 完成後 | — (Phase I 內部) |
-| Gate 3 | Step 3 完成後 | **PHASE_I → PHASE_II** |
-| Gate 4 | Step 4 完成後 | — (Phase II 內部) |
-| Gate 5 | Step 5 完成後 | **PHASE_II → PHASE_III** |
-| Gate 6 | Step 6 完成後 | — (Phase III 內部) |
-| Gate 7 | Step 7 完成後 | — (Phase III 內部) |
-| Gate 8 | Step 8 完成後 | **PHASE_III → COMPLETED** |
+| Gate D1 | D1 完成後 | DRAFT → DEFINE |
+| Gate D3 | D2 完成後 | — (Define 內部) |
+| Gate D4 | D4 完成後 | **DEFINE → EXPLORE** |
+| Gate X1 | X1 完成後 | — (eXplore 內部) |
+| Gate X5 | X2 完成後 | **EXPLORE → VERIFY** |
+| Gate V1 | V1 完成後 | — (Verify 內部) |
+| Gate V3 | V3 完成後 | — (Verify 內部) |
+| Gate V4 | V4 完成後 | **VERIFY → COMPLETED** |
 
 Gate 條件�� `gate_service.py` 自動檢查，不滿足則拒絕推進。
 
@@ -118,20 +118,20 @@ Level 由 `EntryGradingResponse.level` 決定，存入 `projects.entry_level`。
 
 | Step | 名稱 | Phase | 說明 |
 |------|------|-------|------|
-| 1 | 問題界定 | I | 任務定義表 |
-| 2 | 理解全貌 | I | 蘇格拉底問答 |
-| 3 | 系統建模 | I | 因果迴路 + TRIZ 矛盾 + 斷路點 |
-| 4 | 假設與驗證規劃 | II | 假設台帳 + 未知集合 (U) |
-| **5** | **創造與調整** | **II** | **TRIZ 解矛盾 → 子系統定義 → AI 方案生成 → MUST 快篩**（~~SCAMPER v9 移除~~） |
-| **6** | **全方位檢視** | **III** | **SWOT + 黑帽質疑 + 風險登錄** |
-| 7 | 決策與行動 | III | KT Decision Analysis + 最小實驗 |
-| 8 | 內化與傳達 | III | 匯出報告 + 費曼 |
+| D1 | 問題界定 | Define | 任務定義表 |
+| D2 | 理解全貌 | Define | 蘇格拉底問答 |
+| D4 | 系統建模 | Define | 因果迴路 + TRIZ 矛盾 + 斷路點 |
+| X1 | 假設與驗證規劃 | eXplore | 假設台帳 + 未知集合 (U) |
+| **X2** | **創造與調整** | **eXplore** | **TRIZ 解矛盾 → 子系統定義 → AI 方案生成 → MUST 快篩**（~~SCAMPER v9 移除~~） |
+| **V1** | **全方位檢視** | **Verify** | **SWOT + 黑帽質疑 + 風險登錄** |
+| V3 | 決策與行動 | Verify | KT Decision Analysis + 最小實驗 |
+| V4 | 內化與傳達 | Verify | 匯出報告 + 費曼 |
 
 ---
 
-## 3. Phase I: 定義問題空間
+## 3. Define: 定義問題空間
 
-### Step 1 — 問題界定（任務定義表）
+### D1 — 問題界定（任務定義表）
 
 #### 輸入
 
@@ -170,14 +170,14 @@ Level 由 `EntryGradingResponse.level` 決定，存入 `projects.entry_level`。
 | PUT | `/api/v1/projects/{pid}/definitions/{id}` | 更新任務定義 |
 | POST | `/api/v1/projects/{pid}/definitions/generate` | AI 生成建議 |
 
-#### Gate 1 條件
+#### Gate D1 條件
 
 - [x] `critical_metrics` 長度 ≥ 3
 - [x] 每個 metric 皆有 `target` 與 `method`
 
 ---
 
-### Step 2 — 蘇格拉底問答
+### D2 — 蘇格拉底問答
 
 #### 輸入
 
@@ -212,13 +212,13 @@ Level 由 `EntryGradingResponse.level` 決定，存入 `projects.entry_level`。
 
 ---
 
-### Step 3 — 系統建模（因果迴路 + TRIZ 矛盾正式化 + 斷路點）
+### D4 — 系統建模（因果迴路 + TRIZ 矛盾正式化 + 斷路點）
 
-Step 3 包含三個子產出：**因果迴路圖**、**TRIZ 矛盾句**、**斷路點識別**。
+D4 包含三個子產出：**因果迴路圖**、**TRIZ 矛盾句**、**斷路點識別**。
 
 ---
 
-#### Step 3a — 因果迴路圖 + 斷路點（AI 可建模）
+#### D4a — 因果迴路圖 + 斷路點（AI 可建模）
 
 ##### AI 協助
 
@@ -281,7 +281,7 @@ flowchart LR
 
 ---
 
-#### Step 3b — TRIZ 矛盾正式化
+#### D4b — TRIZ 矛盾正式化
 
 ##### 輸入
 
@@ -325,7 +325,7 @@ flowchart LR
 
 ---
 
-#### Step 3c — 斷路點識別
+#### D4c — 斷路點識別
 
 ##### 輸入
 
@@ -371,7 +371,7 @@ flowchart LR
 
 ---
 
-#### Gate 2 條件
+#### Gate D3 條件
 
 - [x] Contradiction 數量 ≥ 3
 - [x] SocraticQuestion 中有回答的數量 ≥ 10
@@ -380,11 +380,11 @@ flowchart LR
 
 ---
 
-## 4. Phase II: 假設與發散
+## 4. eXplore: 假設與發散
 
-### Step 4 — 假設與驗證規劃（HDA + 未知集合）
+### X1 — 假設與驗證規劃（HDA + 未知集合）
 
-#### Step 4a — 假設台帳
+#### X1a — 假設台帳
 
 ##### 輸入
 
@@ -403,7 +403,7 @@ flowchart LR
 
 ##### AI 協助
 
-無直接 AI 生成。假設由 RD 工程師根據 Step 2 蘇格拉底問答與工程經驗填入。
+無直接 AI 生成。假設由 RD 工程師根據 D2 蘇格拉底問答與工程經驗填入。
 
 ##### 輸出 — Assumption
 
@@ -434,14 +434,14 @@ flowchart LR
 
 ---
 
-#### Step 4b — 未知集合 (U) 表達
+#### X1b — 未知集合 (U) 表達
 
 ##### 目的
 
 假設台帳管「對/錯」（前提是否成立），未知集合管「變/不變」（因子會在什麼範圍波動）。
 兩者搭配完整描述早期設計的不確定性全貌：
 
-- **導引 Robust 評判**：Step 7 WANT 條件中「餘裕深度」「公差鈍感」「解耦程度」的本質是方案在 U 各種組合下是否崩潰
+- **導引 Robust 評判**：V3 WANT 條件中「餘裕深度」「公差鈍感」「解耦程度」的本質是方案在 U 各種組合下是否崩潰
 - **導引最小實驗設計**：U 因子直接對應實驗要掃的參數空間
 - **讓不確定性從隱性變顯性**：團隊看得到「我們知道會變、但不知道怎麼變」的因子
 
@@ -491,7 +491,7 @@ flowchart LR
 | U-004 | 摩擦係數 | 材料 | [低, 高] | 效率, 溫升 | A-004 |
 | U-005 | 供應公差 | 供應 | [穩定, 不穩定] | 裝配品質 | A-005 |
 
-#### Gate 4 條件
+#### Gate X1 條件
 
 - [x] Assumption 數量 ≥ 10
 - [x] 至少 3 個 risk_level = High 的假設有 verification_method
@@ -499,44 +499,44 @@ flowchart LR
 
 ---
 
-### Step 5 — 創造與調整（TRIZ → 子系統 → 方案 → MUST）
+### X2 — 創造與調整（TRIZ → 子系統 → 方案 → MUST）
 
 > 這是整合流程的核心發散步驟。流程為串接式管線，但不同矛盾/子系統之間可並行。
 
-#### Step 5 內部流程
+#### X2 內部流程
 
 ```
-矛盾句 (C-001~N) ──→ 5a TRIZ 解矛盾
+矛盾句 (C-001~N) ──→ X2a TRIZ 解矛盾
 斷路點 (BP-001~N) ──→     ↓
                        解法方向
                           ↓
-                    5b 子系統定義
+                    X2b（X3）子系統定義
                     (散熱/支撐/傳動/控制器/隔振/...)
                           ↓
                ┌──── TRIZ 解法 ────┐
                │                    │
-               └──→ 5d AI 方案生成 ←┘
+               └──→ X2d（X4）AI 方案生成 ←┘
                           ↓
-                    5e MUST 快篩
+                    X2e MUST 快篩
                     ↓           ↓
                   Pass        Fail(淘汰)
                     ↓
               Set-Based 方案集合
-              (3-5 條進入 Step 6)
+              (3-5 條進入 V1)
 ```
 
-> ~~5c SCAMPER 模組變形已於 v9 移除~~（其 7 動作為 TRIZ 40 原理子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋）。
+> ~~X2c SCAMPER 模組變形已於 v9 移除~~（其 7 動作為 TRIZ 40 原理子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋）。
 
 ---
 
-#### Step 5a — TRIZ 解矛盾
+#### X2a — TRIZ 解矛盾
 
 ##### 輸入
 
 | 來源 | 欄位 | 說明 |
 |------|------|------|
-| 系統 | contradiction_id | 對應的矛盾 (來自 Step 3b) |
-| 系統 | breakpoints | 相關斷路點 (來自 Step 3c)，提供介入位置提示 |
+| 系統 | contradiction_id | 對應的矛盾 (來自 D4b) |
+| 系統 | breakpoints | 相關斷路點 (來自 D4c)，提供介入位置提示 |
 
 ##### AI 協助
 
@@ -564,7 +564,7 @@ flowchart LR
 | POST | `/api/v1/projects/{pid}/triz/solve` | AI 解矛盾 |
 | GET | `/api/v1/projects/{pid}/triz` | 列出 TRIZ 解法 |
 
-##### TRIZ → 子系統的關鍵銜接
+##### TRIZ → 子系統的關鍵銜接（X2a → X3）
 
 TRIZ 解法的 `engineering_mappings` 會指出受影響的子系統，例如：
 
@@ -579,11 +579,11 @@ TRIZ_解法_C001:
     - 手段3: "浮動支撐" → 影響子系統: 支撐結構
 ```
 
-這些「影響子系統」即為 Step 5b 的輸入。
+這些「影響子系統」即為 X3 的輸入。
 
 ---
 
-#### Step 5b — 子系統定義
+#### X3 — 子系統定義
 
 ##### 目的
 
@@ -593,7 +593,7 @@ TRIZ_解法_C001:
 
 | 來源 | 說明 |
 |------|------|
-| Step 5a TRIZ 解法 | 工程對映中提到的子系統 |
+| X2a TRIZ 解法 | 工程對映中提到的子系統 |
 | 使用者/RD 團隊 | 補充其他需要探索的子系統 |
 
 ##### 子系統清單範例（依專案調整）
@@ -608,30 +608,30 @@ TRIZ_解法_C001:
 
 ##### 產出
 
-確定的子系統清單，進入 Step 5d 進行 AI 方案生成。
+確定的子系統清單，進入 X4 進行 AI 方案生成。
 
 ---
 
-#### ~~Step 5c — SCAMPER 模組變形~~ (v9 移除)
+#### ~~X2c — SCAMPER 模組變形~~ (v9 移除)
 
 > **v9 移除說明**：SCAMPER 已於 v9 移除 — 其 7 動作（S/C/A/M/P/E/R）為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋。相關 API 端點 `/scamper/perform`、`/scamper/generate`、`/scamper/feedback-contradictions` 已移除。
 
 ---
 
-#### Step 5d — AI 方案生成（Set-Based 方案集合）
+#### X4 — AI 方案生成（Set-Based 方案集合）
 
 ##### 目的
 
-整合 Step 5a (TRIZ 解法) + Step 5b (子系統定義) + Anti-Anchor 晉升，生成完整的候選方案。
+整合 X2a (TRIZ 解法) + X3 (子系統定義) + Anti-Anchor 晉升，生成完整的候選方案。
 
 ##### 輸入
 
 | 來源 | 說明 |
 |------|------|
-| Step 5a | TRIZ 解法方向（原理+工程對映） |
-| Step 5b | 子系統定義（三層階層 + 6 維契約） |
-| Step 4a | 假設台帳（方案需引用的假設） |
-| Step 4b | 未知集合（方案需考量的不確定因子） |
+| X2a | TRIZ 解法方向（原理+工程對映） |
+| X3 | 子系統定義（三層階層 + 6 維契約） |
+| X1a | 假設台帳（方案需引用的假設） |
+| X1b | 未知集合（方案需考量的不確定因子） |
 
 ##### AI 協助
 
@@ -702,11 +702,11 @@ ALT-001:
 
 ---
 
-#### Step 5e — MUST 快篩
+#### X2e — MUST 快篩
 
 ##### 目的
 
-用 MUST 條件做「快速淘汰」，不通過 = 直接淘汰。完整的 WANT 評分在 Step 7 執行。
+用 MUST 條件做「快速淘汰」，不通過 = 直接淘汰。完整的 WANT 評分在 V3 執行。
 
 ##### MUST 條件（依專案調整）
 
@@ -746,7 +746,7 @@ ALT-001:
 1. 任一 MUST 不通過 = 直接淘汰 (status → must_fail)
 2. 全部通過 → status → must_pass
 3. 通過者進入 Set-Based 集合（建議 3-5 條）
-4. 完整 KT Decision Analysis（MUST+WANT+AC）在 Step 7 執行
+4. 完整 KT Decision Analysis（MUST+WANT+AC）在 V3 執行
 
 ##### API 端點
 
@@ -755,7 +755,7 @@ ALT-001:
 | POST | `/api/v1/projects/{pid}/must` | 建立 MUST 評估 |
 | GET | `/api/v1/projects/{pid}/must` | 列出 MUST 評估 |
 
-#### Gate 5 條件
+#### Gate X5 條件
 
 - [x] Alternative 數量 ≥ 3
 - [x] 至少 3 個 Alternative 的 MUST overall_pass = true
@@ -763,9 +763,9 @@ ALT-001:
 
 ---
 
-## 5. Phase III: 收斂與驗證
+## 5. Verify: 收斂與驗證
 
-### Step 6 — 全方位檢視（SWOT + 黑帽 + 風險登錄）
+### V1 — 全方位檢視（SWOT + 黑帽 + 風險登錄）
 
 #### 輸入
 
@@ -812,7 +812,7 @@ ALT-001:
 | PUT | `/api/v1/projects/{pid}/risks/{id}` | 更新風險 |
 | DELETE | `/api/v1/projects/{pid}/risks/{id}` | 刪除風險 |
 
-#### Gate 6 條件
+#### Gate V1 條件
 
 - [x] 每個風險都有 Owner
 - [x] 每個風險都有 mitigation
@@ -820,9 +820,9 @@ ALT-001:
 
 ---
 
-### Step 7 — 決策與行動（KT Decision Analysis + 最小實驗）
+### V3 — 決策與行動（KT Decision Analysis + 最小實驗）
 
-#### Step 7a — WANT 加權評分
+#### V3a — WANT 加權評分
 
 ##### 輸入
 
@@ -878,7 +878,7 @@ ALT-001:
 
 ---
 
-#### Step 7b — 最小實驗
+#### V3b — 最小實驗
 
 ##### 輸入
 
@@ -916,7 +916,7 @@ ALT-001:
 
 ---
 
-#### Step 7c — KT 決策記錄
+#### V3c — KT 決策記錄
 
 ##### 輸入
 
@@ -963,7 +963,7 @@ ALT-001:
 | GET | `/api/v1/projects/{pid}/decisions` | 取得決策記錄 |
 | PUT | `/api/v1/projects/{pid}/decisions/{id}` | 更新決策記錄 |
 
-#### Gate 7 條件
+#### Gate V3 條件
 
 - [x] DecisionRecord 存在且 signed_by 非空
 - [x] 所有 Risk level = H 皆有 mitigation
@@ -971,7 +971,7 @@ ALT-001:
 
 ---
 
-### Step 8 — 內化與傳達
+### V4 — 內化與傳達
 
 #### 輸出格式
 
@@ -998,17 +998,17 @@ ALT-001:
 
 | 項目 | AI 可做 | AI 不可做 |
 |------|---------|----------|
-| Step 1 任務定義 | 建議 critical_metrics | 決定硬約束值 |
-| Step 2 蘇格拉底 | 生成六類問題 | 替使用者回答 |
-| Step 3 因果迴路 | 從問答+矛盾中自動建模因果迴路 + 識別斷路點 | 直接確認迴路正確性（人工審核） |
-| Step 3 矛盾識別 | 從回答中初步識別矛盾 | 直接確認矛盾 |
-| Step 5a TRIZ 解法 | 查表 + 生成工程對映 | 決定最終方案 |
-| ~~Step 5c SCAMPER~~ | *(v9 移除)* | — |
-| Step 5d 方案生成 | 組合 TRIZ 產出候選 | 使用形容詞式描述 |
-| Step 5e MUST 評分 | — | **不參與** (人工 Go/No-Go) |
-| Step 6 風險評估 | 黑帽審查產出風險候選 | 決定緩解措施 |
-| Step 7a WANT 評分 | — | **不參與** (人工基於證據評分) |
-| Step 7c 決策建議 | 彙整 MUST/WANT/AC 結果 | 決定首選方案 |
+| D1 任務定義 | 建議 critical_metrics | 決定硬約束值 |
+| D2 蘇格拉底 | 生成六類問題 | 替使用者回答 |
+| D4 因果迴路 | 從問答+矛盾中自動建模因果迴路 + 識別斷路點 | 直接確認迴路正確性（人工審核） |
+| D4 矛盾識別 | 從回答中初步識別矛盾 | 直接確認矛盾 |
+| X2a TRIZ 解法 | 查表 + 生成工程對映 | 決定最終方案 |
+| ~~X2c SCAMPER~~ | *(v9 移除)* | — |
+| X4 方案生成 | 組合 TRIZ 產出候選 | 使用形容詞式描述 |
+| X2e MUST 評分 | — | **不參與** (人工 Go/No-Go) |
+| V1 風險評估 | 黑帽審查產出風險候選 | 決定緩解措施 |
+| V3a WANT 評分 | — | **不參與** (人工基於證據評分) |
+| V3c 決策建議 | 彙整 MUST/WANT/AC 結果 | 決定首選方案 |
 
 ---
 
@@ -1016,14 +1016,14 @@ ALT-001:
 
 | Gate | 位置 | Phase 轉換 | 條件 |
 |------|------|-----------|------|
-| **Gate 1** | Step 1 → Step 2 | **DRAFT → PHASE_I** | critical_metrics ≥ 3 且各有 target+method |
-| Gate 2 | Step 2 → Step 3 | — | contradictions ≥ 3, answered questions ≥ 10 |
-| **Gate 3** | Step 3 → Step 4 | **PHASE_I → PHASE_II** | causal_loops ≥ 1, breakpoints ≥ 3, 每條矛盾有 TRIZ 正式句 |
-| Gate 4 | Step 4 → Step 5 | — | assumptions ≥ 10, Top 3 High 有驗證設計, unknown_factors ≥ 3 |
-| **Gate 5** | Step 5 → Step 6 | **PHASE_II → PHASE_III** | alternatives ≥ 3, MUST pass ≥ 3, 每個方案有完整規格 |
-| Gate 6 | Step 6 → Step 7 | — | 每個風險有 Owner + mitigation + monitor_metric |
-| Gate 7 | Step 7 → Step 8 | — | DecisionRecord 已簽核, H 風險有緩解, WANT 有證據 |
-| **Gate 8** | Step 8 → Done | **PHASE_III → COMPLETED** | 報告已產出 |
+| **Gate D1** | D1 → D2 | **DRAFT → DEFINE** | critical_metrics ≥ 3 且各有 target+method |
+| Gate D3 | D2 → D4 | — | contradictions ≥ 3, answered questions ≥ 10 |
+| **Gate D4** | D4 → X1 | **DEFINE → EXPLORE** | causal_loops ≥ 1, breakpoints ≥ 3, 每條矛盾有 TRIZ 正式句 |
+| Gate X1 | X1 → X2 | — | assumptions ≥ 10, Top 3 High 有驗證設計, unknown_factors ≥ 3 |
+| **Gate X5** | X2 → V1 | **EXPLORE → VERIFY** | alternatives ≥ 3, MUST pass ≥ 3, 每個方案有完整規格 |
+| Gate V1 | V1 → V3 | — | 每個風險有 Owner + mitigation + monitor_metric |
+| Gate V3 | V3 → V4 | — | DecisionRecord 已簽核, H 風險有緩解, WANT 有證據 |
+| **Gate V4** | V4 → Done | **VERIFY → COMPLETED** | 報告已產出 |
 
 ---
 
@@ -1086,15 +1086,15 @@ ALT-001:
 
 | 檔案 | 用途 | 對應 Step |
 |------|------|-----------|
-| task_definition.md | 生成任務定義建議 | Step 1 |
-| socratic_questions.md | 生成蘇格拉底問題 | Step 2 |
-| causal_loop_generate.md | AI 建模因果迴路 + 斷路點 | Step 3a |
-| contradiction_identify.md | 識別矛盾 | Step 3b |
-| triz_solution.md | TRIZ 解矛盾 | Step 5a |
+| task_definition.md | 生成任務定義建議 | D1 |
+| socratic_questions.md | 生成蘇格拉底問題 | D2 |
+| causal_loop_generate.md | AI 建模因果迴路 + 斷路點 | D4a |
+| contradiction_identify.md | 識別矛盾 | D4b |
+| triz_solution.md | TRIZ 解矛盾 | X2a |
 | ~~scamper_variant.md~~ | ~~SCAMPER 變形~~ | *(v9 移除)* |
-| alternative_generate.md | 生成方案 | Step 5d |
-| black_hat_review.md | 黑帽審查 | Step 6 |
-| decision_record.md | 決策建議 | Step 7c |
+| alternative_generate.md | 生成方案 | X4 |
+| black_hat_review.md | 黑帽審查 | V1 |
+| decision_record.md | 決策建議 | V3c |
 
 ---
 

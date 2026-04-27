@@ -38,7 +38,7 @@ export function getNavCards(progress: PhaseProgress): NavCardDef[] {
       completedSteps: countPassed("1.2", "1.3"),
       requiredGate: "1.1",
       locked: !gate11,
-      lockReason: !gate11 ? "需先完成 Brief (Gate 1.1)" : undefined,
+      lockReason: !gate11 ? "需先完成 Brief (Gate D1)" : undefined,
     },
     {
       id: "track",
@@ -64,7 +64,7 @@ export function getNavCards(progress: PhaseProgress): NavCardDef[] {
       completedSteps: countPassed("2.2", "2.3"),
       requiredGate: "2.1",
       locked: !gate21,
-      lockReason: !gate21 ? "需先完成 Track (Gate 2.1)" : undefined,
+      lockReason: !gate21 ? "需先完成 Track (Gate X1)" : undefined,
     },
     {
       id: "cad",
@@ -103,7 +103,7 @@ export function getNavCards(progress: PhaseProgress): NavCardDef[] {
       completedSteps: countPassed("3.2", "3.3"),
       requiredGate: "3.2",
       locked: !gate32,
-      lockReason: !gate32 ? "需先完成 Review (Gate 3.2)" : undefined,
+      lockReason: !gate32 ? "需先完成 Review (Gate V3)" : undefined,
     },
   ];
 }

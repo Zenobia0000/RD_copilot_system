@@ -165,7 +165,7 @@ class TestPhase1Flow:
     def test_full_phase1_flow(self, mock_llm, client):
         """Chain: extract brief -> socratic questions -> assumption extraction."""
 
-        # Step 1: Extract brief
+        # D1: Extract brief
         mock_llm.return_value = _BRIEF_EXTRACT_RESPONSE
         resp1 = client.post("/api/v1/definitions/extract", json={
             "project_id": "proj-integration-1",
@@ -177,7 +177,7 @@ class TestPhase1Flow:
         assert len(brief["kpis"]) == 2
         assert len(brief["assumptions"]) == 2
 
-        # Step 2: Generate Socratic questions using extracted brief data
+        # D2: Generate Socratic questions using extracted brief data
         mock_llm.return_value = _SOCRATIC_RESPONSE
         resp2 = client.post("/api/v1/questions/generate", json={
             "project_id": "proj-integration-1",
@@ -193,7 +193,7 @@ class TestPhase1Flow:
         assert "assumption" in categories
         assert "contradiction" in categories
 
-        # Step 3: Extract assumptions from Q&A answers
+        # D3: Extract assumptions from Q&A answers
         mock_llm.return_value = _ASSUMPTION_EXTRACT_RESPONSE
         resp3 = client.post("/api/v1/assumptions/extract", json={
             "project_id": "proj-integration-1",
@@ -255,7 +255,7 @@ class TestPhase2Flow:
     def test_full_phase2_flow(self, mock_tc_ctx, mock_matrix, mock_triz_llm, mock_eval_llm, client):
         """Chain: TRIZ solve -> MUST evaluate."""
 
-        # Step 1: Solve TRIZ contradiction
+        # X2: Solve TRIZ contradiction
         mock_triz_llm.return_value = _TRIZ_TC_RESPONSE
         resp1 = client.post("/api/v1/triz/solve", json={
             "project_id": "proj-integration-2",
@@ -270,7 +270,7 @@ class TestPhase2Flow:
         assert len(triz_result["suggestions"]) >= 1
         assert triz_result["candidate_principles"] == [35, 1, 28]
 
-        # Step 2: MUST evaluation on proposed alternative
+        # X4: MUST evaluation on proposed alternative
         mock_eval_llm.return_value = _MUST_EVAL_RESPONSE
         resp2 = client.post("/api/v1/must/evaluate", json={
             "project_id": "proj-integration-2",

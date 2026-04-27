@@ -16,7 +16,7 @@
 >
 > - `**05_76_standard_solutions.md`（30 KB，5 大類 76 條）— 本 WBS §1.0 的主要輸入** ★ 知識庫已存在，§1.0 從「盤點補齊」改為「驗證整合」
 > - `06_tc_pc_sf_flows.md`（10 KB）— **§6 SF 流程既有設計（確定性狀態分類 → RAG 注入 05 → LLM 匹配）**；本 WBS §2.x / §3.x orchestrator 設計必須對齊
-> - `07_tc_pc_sf_differences.md`（5 KB）— §4 顯示 SF 槽位 `sf_substance_1/2/field` 「與模型一致時必填」—意味著既有 `analyze_sufield` 假設 Step 3 Function Model 已產出 S1/S2/F；**本 WBS §2.1「LLM 自行推導 S1/S2/F」是新增路徑，與既有併存**
+> - `07_tc_pc_sf_differences.md`（5 KB）— §4 顯示 SF 槽位 `sf_substance_1/2/field` 「與模型一致時必填」—意味著既有 `analyze_sufield` 假設 D4 Function Model 已產出 S1/S2/F；**本 WBS §2.1「LLM 自行推導 S1/S2/F」是新增路徑，與既有併存**
 > - `04_separation_principles.md`（8 KB）— L2 WBS §1.1 的權威來源
 > - `README.md` — 整個 KB 的 token 估算與注入策略（全量 / RAG / 混合）
 >

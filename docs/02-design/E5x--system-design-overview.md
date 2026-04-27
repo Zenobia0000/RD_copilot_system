@@ -96,9 +96,9 @@
 
 | Spec | 觸發階段 |
 |------|---------|
-| [`specs/review-templates/E5x--must-rulebook-template.md`](specs/review-templates/E5x--must-rulebook-template.md) | Step 5e / Gate C (CAD) |
-| [`specs/review-templates/E5x--pre-cad-review-template.md`](specs/review-templates/E5x--pre-cad-review-template.md) | Gate P (Pre-CAD) |
-| [`specs/review-templates/E5x--evidence-matrix-risk-register-template.md`](specs/review-templates/E5x--evidence-matrix-risk-register-template.md) | Step 6 / 6e / 7 (KT) |
+| [`specs/review-templates/E5x--must-rulebook-template.md`](specs/review-templates/E5x--must-rulebook-template.md) | X2e / Gate C (CAD) |
+| [`specs/review-templates/E5x--pre-cad-review-template.md`](specs/review-templates/E5x--pre-cad-review-template.md) | Gate X5 (Pre-CAD) |
+| [`specs/review-templates/E5x--evidence-matrix-risk-register-template.md`](specs/review-templates/E5x--evidence-matrix-risk-register-template.md) | V1 / V2 / V3 (KT) |
 
 ### §3.5 Workflow 基建
 

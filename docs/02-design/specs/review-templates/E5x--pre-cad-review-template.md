@@ -22,10 +22,10 @@
 
 > **判定說明**：
 > - **Pass**：以現有資訊判斷可行，可進入下一階段。
-> - **Conditional**：初步可行但存在不確定性，需在 MVP CAD / Step 6e 階段補足證據。方案保留，但標記為需優先驗證。
+> - **Conditional**：初步可行但存在不確定性，需在 MVP CAD / V2 階段補足證據。方案保留，但標記為需優先驗證。
 > - **Fail**：以現有資訊明顯不通過，方案淘汰。
 
-**MUST 總結**：任一項 Fail → 方案淘汰。有 Conditional 項 → 方案保留，但 Conditional 項列入 Step 6 優先驗證清單。
+**MUST 總結**：任一項 Fail → 方案淘汰。有 Conditional 項 → 方案保留，但 Conditional 項列入 V1 優先驗證清單。
 
 ---
 
@@ -57,13 +57,13 @@
 *   **風險**：M3 (安全餘裕) 和 M6 (製造可行性) 為 Conditional，需在後續 MVP CAD 階段重點關注。
 
 **Conditional 項優先驗證清單**：
-*   M2 (成本)：需在 Step 6 取得供應商報價確認。
-*   M3 (安全餘裕)：需在 Step 6e 規劃最小實驗驗證關鍵 KPI。
-*   M6 (製造可行性)：需在 Step 6 進行 DFM Pre-Assessment。
+*   M2 (成本)：需在 V1 取得供應商報價確認。
+*   M3 (安全餘裕)：需在 V2 規劃最小實驗驗證關鍵 KPI。
+*   M6 (製造可行性)：需在 V1 進行 DFM Pre-Assessment。
 
 **後續行動**：
 *   進行 MVP CAD 繪製，聚焦在核心結構和關鍵介面。
-*   針對 Conditional 項，規劃 Step 6e 的最小實驗。
+*   針對 Conditional 項，規劃 V2 的最小實驗。
 
 **審查人**：
 *   [姓名/角色]：__________

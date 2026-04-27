@@ -200,7 +200,7 @@ Analyst Agent 是 Discover/Define 階段的主要 LLM actor，負責把自然語
 
 ### 規格 16 (v2.2): `function_analysis(req: FunctionAnalysisRequest) -> FunctionAnalysisResponse`
 
-**描述**: 繪製組件交互圖（有效/有害/不足/過度/缺失功能）+ 建立 Substance-Field 模型 + 定義子系統邊界。確保矛盾定義在正確系統粒度。對應 Auto-TRIZ v2 Step 1。
+**描述**: 繪製組件交互圖（有效/有害/不足/過度/缺失功能）+ 建立 Substance-Field 模型 + 定義子系統邊界。確保矛盾定義在正確系統粒度。對應 Auto-TRIZ v2 D1。
 
 **契約式設計 (DbC)**:
 * **前置條件**:
@@ -216,14 +216,14 @@ Analyst Agent 是 Discover/Define 階段的主要 LLM actor，負責把自然語
   5. `result.worsening_description` 非空（「惡化什麼」自然語言）。
 * **不變性**:
   1. 子系統邊界圍繞 OZ（操作空間）建立，非按 BOM 零件劃分。
-  2. `improvement_description` + `worsening_description` 為 Step 2 TC 參數映射的直接輸入。
+  2. `improvement_description` + `worsening_description` 為 D2 TC 參數映射的直接輸入。
   3. Agent 不落資料庫；結果由前端持有或經 `function_models` 表持久化（TBD）。
 
 ---
 
 ### 規格 17 (v2.2): `oz_ot_analysis(req: OzOtRequest) -> OzOtResponse`
 
-**描述**: 鎖定操作空間 (Operational Zone) + 操作時間 (Operational Time)，萃取核心物理變數 Px。Px 是 TC→PC 轉換的橋樑 — 「P1 和 P2 共同受什麼物理量控制？」。對應 Auto-TRIZ v2 Step 3a。
+**描述**: 鎖定操作空間 (Operational Zone) + 操作時間 (Operational Time)，萃取核心物理變數 Px。Px 是 TC→PC 轉換的橋樑 — 「P1 和 P2 共同受什麼物理量控制？」。對應 Auto-TRIZ v2 D4。
 
 **契約式設計 (DbC)**:
 * **前置條件**:
@@ -236,7 +236,7 @@ Analyst Agent 是 Discover/Define 階段的主要 LLM actor，負責把自然語
   3. `result.px` 含 `variable_name`（物理變數名稱）+ `rationale`（為何此變數同時控制 P1 和 P2）+ `sensitivity`（`[dP1/dPx, dP2/dPx]` 方向性描述）。
   4. `result.pc_sentence` 含 `state_a`（Px 需為 [State A] 以改善 P1）+ `state_not_a`（Px 需為 [NOT A] 以改善 P2）→ 即 PC 造句。
   5. `result.px_found` 為 boolean：
-     - `true`：Px 鎖定成功，可進入 Step 3b PC 驗證。
+     - `true`：Px 鎖定成功，可進入 D4 PC 驗證。
      - `false`：Px 鎖定失敗，附 `fallback_strategy` ∈ {"broaden_oz", "split_tc", "reframe_problem"}。
 * **不變性**:
   1. OZ-OT 結果不回寫 `contradictions` 表（與 ADR-007 一致）；可暫存於 solve response 或新表。

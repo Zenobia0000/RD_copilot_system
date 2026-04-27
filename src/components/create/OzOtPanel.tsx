@@ -1,7 +1,7 @@
 /**
  * OzOtPanel (WBS 8.6.2)
  *
- * Accordion section displayed before TRIZ solving in Create Step 1.
+ * Accordion section displayed before TRIZ solving in Create X1.
  * Shows Operating Zone (OZ), Operating Time (OT), and controllable
  * parameters (Px) from the oz-ot-analysis API.
  */

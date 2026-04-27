@@ -383,7 +383,7 @@ export default function DesignReview() {
               Review — 設計審查
               <HelpTooltip text="此階段審查 CAD 完成後的設計方案。證據矩陣來自 Track 假設追蹤，風險登錄從高風險假設衍生，最小實驗驗證關鍵假設。" className="ml-2 align-middle" />
             </h1>
-            <p className="text-sm text-muted-foreground">Phase 3: Converge &gt; Step 3.1（CAD 完成後）</p>
+            <p className="text-sm text-muted-foreground">Phase 3: Converge &gt; V1（CAD 完成後）</p>
           </div>
         </div>
       </div>

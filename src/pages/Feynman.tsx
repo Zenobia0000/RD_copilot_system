@@ -184,7 +184,7 @@ export default function Feynman() {
             Feynman — 內化與傳達
             <HelpTooltip text="費曼學習法：AI 自動將決策記錄、實驗結果與設計知識轉化為知識庫條目，實現組織學習的自動化。此步驟為全自動（Fully Auto），無需人類介入。" className="ml-2 align-middle" />
           </h1>
-          <p className="text-sm text-muted-foreground">Phase 3: Converge &gt; Step 3.3（知識回寫自動化）</p>
+          <p className="text-sm text-muted-foreground">Phase 3: Converge &gt; V4（知識回寫自動化）</p>
         </div>
       </div>
 
@@ -281,7 +281,7 @@ export default function Feynman() {
         <CardContent className="p-4 space-y-3">
           <div className="flex items-center gap-3">
             <BookOpen className="h-5 w-5 text-emerald-500" />
-            <h3 className="text-sm font-semibold">Step 3.3 / Gate 8 完成檢查</h3>
+            <h3 className="text-sm font-semibold">V4 / Gate V4 完成檢查</h3>
             <Badge className={`text-xs text-white ${reviewedCount >= entries.length && entries.length > 0 && coveredAssetTypes >= totalAssetTypes ? 'bg-green-600' : 'bg-red-600'}`}>
               {reviewedCount >= entries.length && entries.length > 0 && coveredAssetTypes >= totalAssetTypes ? '完成' : '待完成'}
             </Badge>

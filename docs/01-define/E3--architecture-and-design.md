@@ -244,7 +244,7 @@ graph LR
         llm_svc[LLMService<br/>anthropic-sdk + tenacity<br/>Retry · Pydantic 驗證]
         triz_kb[TRIZ KB<br/>39 參數 · 矩陣 · 40 原理<br/>分離原理 · 76 標準解]
         evidence_svc[Evidence Retrieval<br/>httpx + Tavily<br/>ISO/EN/IEC · 專利]
-        evidence_reg[EvidenceRegistryService<br/>LLM claim 註冊 + 驗證<br/>Coverage ≥ 40% Gate P<br/><small>ADR-008 cross-cutting</small>]
+        evidence_reg[EvidenceRegistryService<br/>LLM claim 註冊 + 驗證<br/>Coverage ≥ 40% Gate X5<br/><small>ADR-008 cross-cutting</small>]
     end
 
     pg[(Supabase PostgreSQL)]
@@ -368,25 +368,25 @@ graph LR
 | 實體群組                                           | Supabase 表（代表）                                                                                                | Pydantic 類別（代表）                                                                                                              | 關聯 E3 章節                       |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
 | **Project & Phase**                            | `projects`（phase/status/must_criteria_config JSONB）                                                           | —                                                                                                                            | §11.1 / ADR-002                |
-| **Brief & Requirements**                       | `constraints`, `kpis`, `brief_assets`                                                                         | `BriefExtractionResponse`, `ExtractedConstraint`, `ExtractedKpi`                                                             | Step 1 (§11.2)                 |
-| **Socratic & Assumptions**                     | `socratic_questions`, `assumptions`                                                                           | `SocraticResponse`, `ExtractedAssumption`, `ValidationPassportAssumption`                                                    | Step 2/4 (§11.2)               |
-| **Causal Loop & Contradictions**               | `cld_nodes`, `cld_edges`, `contradictions`                                                                    | `CldGenerationResponse`, `ContradictionFormalize`*                                                                           | Step 3 (§11.2)                 |
-| **Subsystem Hierarchy（3-level）**               | `subsystems`（migration 003 / 007 / 008）                                                                       | `SubsystemSuggestResponse`, `SuggestedSubsystem`, `InterfaceContract`, `PackageMap`, `SpatialEstimate`                       | Step 5b (§11.2) + Appendix A   |
-| **TRIZ Layered**（TC/PC/SF 分層）                  | migration 010 (`triz_layered_drilldown`), `contradictions.kind`（migration 009 `pc_decomposition`）             | `LayeredTrizSolution`, `L1Surface`, `L2RootCause`, `L3StructuralCheck`, `SuFieldModel`, `DeepenLink`, `DifferentialAnalysis` | Step 5a (§11.2) + Appendix B   |
-| **Anti-Anchor & Passport**（migration 001）      | `anti_anchor_routes`, `validation_passports`                                                                  | `AntiAnchorRoute`, `ValidationPassport`                                                                                      | Step 5-0 (§11.2) + Appendix C  |
+| **Brief & Requirements**                       | `constraints`, `kpis`, `brief_assets`                                                                         | `BriefExtractionResponse`, `ExtractedConstraint`, `ExtractedKpi`                                                             | D1 (§11.2)                     |
+| **Socratic & Assumptions**                     | `socratic_questions`, `assumptions`                                                                           | `SocraticResponse`, `ExtractedAssumption`, `ValidationPassportAssumption`                                                    | D2/X1 (§11.2)                  |
+| **Causal Loop & Contradictions**               | `cld_nodes`, `cld_edges`, `contradictions`                                                                    | `CldGenerationResponse`, `ContradictionFormalize`*                                                                           | D4 (§11.2)                     |
+| **Subsystem Hierarchy（3-level）**               | `subsystems`（migration 003 / 007 / 008）                                                                       | `SubsystemSuggestResponse`, `SuggestedSubsystem`, `InterfaceContract`, `PackageMap`, `SpatialEstimate`                       | X3 (§11.2) + Appendix A        |
+| **TRIZ Layered**（TC/PC/SF 分層）                  | migration 010 (`triz_layered_drilldown`), `contradictions.kind`（migration 009 `pc_decomposition`）             | `LayeredTrizSolution`, `L1Surface`, `L2RootCause`, `L3StructuralCheck`, `SuFieldModel`, `DeepenLink`, `DifferentialAnalysis` | X2 (§11.2) + Appendix B        |
+| **Anti-Anchor & Passport**（migration 001）      | `anti_anchor_routes`, `validation_passports`                                                                  | `AntiAnchorRoute`, `ValidationPassport`                                                                                      | X2 並行（§11.2）+ Appendix C      |
 | ~~**SCAMPER**~~                                | ~~`scamper_variants`~~                                                                                        | ~~`ScamperVariant`, `ScamperResponse`~~                                                                                      | *(v9 移除)*                      |
-| **Concept Routes & Compatibility（ADR-005 新增）** | `concept_routes`, `compatibility_pairs`                                                                       | `ConvergenceAlternativeInput`, `ConvergenceContradictionInput`, `SecondaryContradiction`                                     | Step 5d (§11.2)                |
-| **MUST Evaluation**                            | `must_evaluations`                                                                                            | `MustEvaluationRequest`, `MustCriterionConfig`, `MustCriterionResult`                                                        | Step 5e (§11.2)                |
-| **Pre-CAD Review**                             | `pre_cad_reviews`                                                                                             | `PreCadAnalyzeResponse`, `SpatialTrace`                                                                                      | Step P (§11.2)                 |
-| **Evidence & Risk**                            | `evidence_matrix`, `risks`                                                                                    | `EvidenceReference`, `RiskSuggestion`                                                                                        | Step 6 / 6e (§11.2)            |
-| **Decision & Actions**                         | `decision_records`, `actions`, `want_criteria`                                                                | `ActionSuggestion`, `SuggestedWantCriterion`                                                                                 | Step 7 (§11.2)                 |
-| **Knowledge Assets**                           | `knowledge_entries`, `learned_components`                                                                     | `LearnedComponentPromote`*                                                                                                   | Step 8 (§11.2) + Appendix A §9 |
+| **Concept Routes & Compatibility（ADR-005 新增）** | `concept_routes`, `compatibility_pairs`                                                                       | `ConvergenceAlternativeInput`, `ConvergenceContradictionInput`, `SecondaryContradiction`                                     | X4 (§11.2)                     |
+| **MUST Evaluation**                            | `must_evaluations`                                                                                            | `MustEvaluationRequest`, `MustCriterionConfig`, `MustCriterionResult`                                                        | X5 (§11.2)                     |
+| **Pre-CAD Review**                             | `pre_cad_reviews`                                                                                             | `PreCadAnalyzeResponse`, `SpatialTrace`                                                                                      | X5 (§11.2)                     |
+| **Evidence & Risk**                            | `evidence_matrix`, `risks`                                                                                    | `EvidenceReference`, `RiskSuggestion`                                                                                        | V1 / V2 (§11.2)                |
+| **Decision & Actions**                         | `decision_records`, `actions`, `want_criteria`                                                                | `ActionSuggestion`, `SuggestedWantCriterion`                                                                                 | V3 (§11.2)                     |
+| **Knowledge Assets**                           | `knowledge_entries`, `learned_components`                                                                     | `LearnedComponentPromote`*                                                                                                   | V4 (§11.2) + Appendix A §9    |
 | **Gate & Traceability**                        | `gate_checks`, `traceability_links`（migration 002）                                                            | `GateCheckResponse`, `GateCheckItem`                                                                                         | §11.4 Gate 判定                  |
 | **Unknown Factors & LLM Usage**（ADR-002/003）   | `unknown_factors`, `llm_usage_logs`                                                                           | `DiscoveredUnknownFactor`                                                                                                    | P1 (§11.5)                     |
-| **Function Models（ADR-008 新增）**                | `function_models`（project_id, component_interactions JSONB, sf_diagnosis JSONB, subsystem_boundary JSONB）     | `FunctionModel`, `ComponentInteraction`, `SfDiagnosis`                                                                       | Step 1 FA (§11.2 v2.2)         |
+| **Function Models（ADR-008 新增）**                | `function_models`（project_id, component_interactions JSONB, sf_diagnosis JSONB, subsystem_boundary JSONB）     | `FunctionModel`, `ComponentInteraction`, `SfDiagnosis`                                                                       | D3 FA (§11.2 v2.2)             |
 | **Evidence Claims（ADR-008 新增）**                | `evidence_claims`（claim_id, claim_text, status VERIFIED/APPROXIMATE/UNVERIFIED, verification_sources JSONB）   | `EvidenceClaim`                                                                                                              | Cross-cutting (§11.5 v2.2)     |
-| **SIM Matrices（ADR-008 新增）**                   | `sim_matrices`（project_id, contradiction_ids JSONB, matrix JSONB, optimal_combination JSONB, rounds_used INT） | `SimMatrixResult`                                                                                                            | Step 3 SIM (§11.2 v2.2)        |
-| **Contradictions 增欄（ADR-008）**                 | `contradictions` 新增 `oz_zone TEXT`, `ot_time TEXT`, `px_variable TEXT`（nullable）                              | `OzOtResult`, `ComplexityCheckResult`                                                                                        | Step 2 OZ-OT (§11.2 v2.2)      |
+| **SIM Matrices（ADR-008 新增）**                   | `sim_matrices`（project_id, contradiction_ids JSONB, matrix JSONB, optimal_combination JSONB, rounds_used INT） | `SimMatrixResult`                                                                                                            | X2 SIM (§11.2 v2.2)            |
+| **Contradictions 增欄（ADR-008）**                 | `contradictions` 新增 `oz_zone TEXT`, `ot_time TEXT`, `px_variable TEXT`（nullable）                              | `OzOtResult`, `ComplexityCheckResult`                                                                                        | X2 OZ-OT (§11.2 v2.2)          |
 
 
 ### 5.3 資料存取模式
@@ -570,11 +570,11 @@ Radix UI 提供 WAI-ARIA 基礎；a11y 審計 — **TBD — UX Owner TBD by v1.1
 
 | 症狀     | 影響 Step        | 緩解機制                                                | 來源                        |
 | ------ | -------------- | --------------------------------------------------- | ------------------------- |
-| 慣用架構偏見 | Step 2 理解全貌    | Socratic 七類提問 + Problem Reframing                   | §11.3 機制 1                |
-| 矛盾盲視   | Step 3 系統建模    | Forced Divergence + Contradiction Convergence Graph | §11.3 機制 2 + 6            |
-| 錨定效應   | Step 5-0/5a/5c | Anti-Anchor Sprint（第一性原理 prompt） + Anti-Anchor Gate | §11.3 機制 2/4 + Appendix C |
-| 隱含假設   | Step 2-4       | Assumption Challenge（質疑回寫）                          | §11.3 機制 1                |
-| 經驗慣性   | Step 5a/5c     | Cross-Domain Analogical Search                      | §11.3 機制 3                |
+| 慣用架構偏見 | D2 理解全貌        | Socratic 七類提問 + Problem Reframing                   | §11.3 機制 1                |
+| 矛盾盲視   | D4 系統建模        | Forced Divergence + Contradiction Convergence Graph | §11.3 機制 2 + 6            |
+| 錨定效應   | X2              | Anti-Anchor Sprint（第一性原理 prompt） + Anti-Anchor Gate | §11.3 機制 2/4 + Appendix C |
+| 隱含假設   | D2-X1           | Assumption Challenge（質疑回寫）                          | §11.3 機制 1                |
+| 經驗慣性   | X2              | Cross-Domain Analogical Search                      | §11.3 機制 3                |
 
 
 ### 8.3 資料完整性風險
@@ -669,8 +669,8 @@ Radix UI 提供 WAI-ARIA 基礎；a11y 審計 — **TBD — UX Owner TBD by v1.1
 | **RLS**                 | Row-Level Security（Supabase/PostgreSQL）                                                                  |
 | **Agent**               | Multi-Agent 架構中的角色：Analyst / TRIZ Solver / Evaluator / Knowledge（§11.1）                                  |
 | **Artifact**            | 流程產出的核心工件：Constraint / Contradiction / Assumption / Concept Route 等（§11.4.3）                             |
-| **Gate**                | Phase/Step 之間的品質關卡（Gate 1-8 + Anti-Anchor / Gate P / Gate C；§2.2a）                                       |
-| **Phase / Step**        | Phase I-III + Step 1-8 的雙層狀態機（Appendix D）                                                                |
+| **Gate**                | Phase/Step 之間的品質關卡（Gate D1-V4 + Anti-Anchor / Gate X5 / Gate C；§2.2a）                                    |
+| **Phase / Step**        | Phase I-III + D1-V4 的雙層狀態機（Appendix D）                                                                   |
 | **Validation Passport** | 每個候選方案自帶的驗證護照（assumptions[], weak_points[], required_verifications[], confidence_level）；§11.3 機制 7       |
 | ~~**Phase B 收斂**~~      | ~~方案×矛盾交叉檢查~~——**v9 退役**：由 SIM 矩陣（ADR-008 D5）和 CCI（ADR-008 D4）前置覆蓋。Phase A 已於 v8 退役，由 L1 critic badge 取代 |
 | **北極星證據**               | Evidence Matrix 中最關鍵的證據列，Gate C 要求 E2+                                                                   |

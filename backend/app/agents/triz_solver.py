@@ -77,7 +77,7 @@ from app.observability import emit_counter, phase_timer
 def solve_triz(req: TrizLookupRequest) -> TrizLookupResponse:
     """Resolve a TRIZ contradiction — route strictly by declared type.
 
-    Step 3 classifies each contradiction/problem into a type; Step 5a
+    D4 classifies each contradiction/problem into a type; X2
     dispatches to the corresponding solver path:
       TC → contradiction matrix → 40 principles (requires improving/worsening params)
       PC → separation principles (requires physical_contradiction)

@@ -13,7 +13,7 @@ interface Props {
 const messages: Record<string, { title: string; desc: string }> = {
   critical: {
     title: '架構健康度：危險',
-    desc: '矛盾收斂圖節點數超過 5，這通常表示架構層級的根本性問題，無法透過 TRIZ 局部求解。建議返回問題定義 (Step 1) 重新界定架構方向。',
+    desc: '矛盾收斂圖節點數超過 5，這通常表示架構層級的根本性問題，無法透過 TRIZ 局部求解。建議返回問題定義 (D1) 重新界定架構方向。',
   },
   circular: {
     title: '偵測到循環矛盾',
@@ -49,7 +49,7 @@ export function ArchitectureHaltOverlay({ health, onGoBack, onForceContinue }: P
         <div className="flex gap-3 pt-2">
           <Button variant="destructive" onClick={onGoBack}>
             <ArrowLeft className="h-4 w-4 mr-1" />
-            返回問題定義 (Step 1)
+            返回問題定義 (D1)
           </Button>
           <Button
             variant="outline"

@@ -38,7 +38,7 @@
 
 | 產品 | TRIZ Support | Evidence Tracking | Gate System | AI Agent | Knowledge Reuse | 定價模式 |
 |------|-------------|-------------------|-------------|----------|-----------------|---------|
-| **RD Design Copilot** | AutoTRIZ (規則引擎 + LLM 混合) | Evidence Matrix (E0–E4) | 雙層 Gate (Gate P / Gate C) | Multi-Agent (Orchestrator + 專家 Agent) | 企業知識庫 RAG + 知識回寫 | [TBD — SaaS per-seat] |
+| **RD Design Copilot** | AutoTRIZ (規則引擎 + LLM 混合) | Evidence Matrix (E0–E4) | 雙層 Gate (Gate X5 / Gate C) | Multi-Agent (Orchestrator + 專家 Agent) | 企業知識庫 RAG + 知識回寫 | [TBD — SaaS per-seat] |
 | **CREAX Innovation Suite** | 完整 TRIZ 工具集 (矛盾矩陣, 分離原則, 76 標準解) | 無結構化證據追蹤 | 無 | 無 AI Agent | 案例庫 (需手動維護) | [TBD — Enterprise License] |
 | **IFR TRIZ Software** | 經典 TRIZ 工具 + 專利分析 | 無 | 無 | 無 | 專利資料庫搜尋 | [TBD — Per-seat License] |
 | **Ansys Minerva** | 無 TRIZ | 模擬結果追蹤 (非設計決策層) | 模擬工作流 Gate | 無 AI Agent (有自動化腳本) | 模擬知識庫 | [TBD — Enterprise] |

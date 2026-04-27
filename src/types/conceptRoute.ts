@@ -1,4 +1,4 @@
-// Multi-Solution Adoption Strategy types (Step 5a-X)
+// Multi-Solution Adoption Strategy types (X2)
 
 /** 5 情境判斷類型 — 對應 TRIZ_Multi_Solution_Adoption_Strategy.md §2 */
 export type AdoptionType = 'M1' | 'M2' | 'M3' | 'M4' | 'M5';

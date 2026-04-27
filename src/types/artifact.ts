@@ -55,7 +55,7 @@ export interface ArtifactStateTransition {
 
 // --- 6 Core Artifact Interfaces ---
 
-/** 1. Constraint Artifact (Step 1 → Gate 1) */
+/** 1. Constraint Artifact (D1 → Gate 1) */
 export interface ConstraintArtifact extends ArtifactMeta {
   artifactType: 'constraint';
   code: string;           // M1, M2, etc.
@@ -65,7 +65,7 @@ export interface ConstraintArtifact extends ArtifactMeta {
   feasibility: 'feasible' | 'boundary' | 'impossible' | null;
 }
 
-/** 2. Contradiction Artifact (Step 2-3 → Gate 2-3) */
+/** 2. Contradiction Artifact (D2–D4 → Gate 2-3) */
 export interface ContradictionArtifact extends ArtifactMeta {
   artifactType: 'contradiction';
   type: 'TC' | 'PC' | 'SF';
@@ -78,7 +78,7 @@ export interface ContradictionArtifact extends ArtifactMeta {
   resolved: boolean;
 }
 
-/** 3. Breakpoint Artifact (Step 3 → Gate 3) */
+/** 3. Breakpoint Artifact (D4 → Gate 3) */
 export interface BreakpointArtifact extends ArtifactMeta {
   artifactType: 'breakpoint';
   nodeId: string;         // CLD node reference
@@ -88,7 +88,7 @@ export interface BreakpointArtifact extends ArtifactMeta {
   linkedContradictionIds: string[];
 }
 
-/** 4. Concept Route Artifact (Step 5 → Gate P) */
+/** 4. Concept Route Artifact (X2 → Gate P) */
 export interface ConceptRouteArtifact extends ArtifactMeta {
   artifactType: 'concept_route';
   name: string;
@@ -129,7 +129,7 @@ export const EMPTY_INTERFACE_CONTRACT: InterfaceContract = {
   serviceability: '',
 };
 
-/** 5. Evidence Artifact (Step 6 → Gate C) */
+/** 5. Evidence Artifact (V1 → Gate C) */
 export interface EvidenceArtifact extends ArtifactMeta {
   artifactType: 'evidence';
   linkedAssumptionId: string;
@@ -139,7 +139,7 @@ export interface EvidenceArtifact extends ArtifactMeta {
   isNorthStar: boolean;     // North Star KPI evidence
 }
 
-/** 6. Risk Artifact (Step 6 → Gate C → Gate 7) */
+/** 6. Risk Artifact (V1 → Gate C → Gate 7) */
 export interface RiskArtifact extends ArtifactMeta {
   artifactType: 'risk';
   description: string;

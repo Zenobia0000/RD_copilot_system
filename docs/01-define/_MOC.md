@@ -13,7 +13,7 @@
 | E2  | TR2  | [E2--statement-of-work](E2--statement-of-work.md)                                                                         | Approved |
 | E3  | TR3  | [E3--architecture-and-design](E3--architecture-and-design.md) — Part 1: 架構總覽 (C4, Tech Stack, NFR)                        | Active   |
 | E3  | TR3  | [E3--ai-agent-detailed-design](E3--ai-agent-detailed-design.md) — Part 2: AI Agent 協作架構 (§11)                             | Active   |
-| E3  | TR3  | [E3--appendices-sa-perspectives](E3--appendices-sa-perspectives.md) — Part 3: SA 視角附錄索引 (→ diagrams/appendix-a~e)          | Active   |
+| E3  | TR3  | `diagrams/` — SA 視角附錄: [A](diagrams/appendix-a--forward-subsystem-discovery.md) / [B](diagrams/appendix-b--forward-triz-solver.md) / [C](diagrams/appendix-c--reverse-anti-anchor.md) / [D](diagrams/appendix-d--state-machine.md) / [E](diagrams/appendix-e--triz-scamper-flow.md) | Active   |
 | E3  | TR3  | [E3--system-interaction-flow](E3--system-interaction-flow.md) — 3 scenarios: Forward TRIZ / Reverse Anti-Anchor / Pre-CAD | Active   |
 | E4  | TR3  | [diagrams/E4--erd](diagrams/E4--erd.md) — Supabase migration 權威 ERD (36 tables, 41 FK, RLS)                               | Draft    |
 
@@ -27,7 +27,11 @@
 | ------------------------------------------------------------------- | ----------------------------------------------------- | ----- |
 | [E3--architecture-and-design](E3--architecture-and-design.md)       | Part 1: §1-§10 架構總覽 (C4, Tech Stack, Data, NFR, Risk) | ~650  |
 | [E3--ai-agent-detailed-design](E3--ai-agent-detailed-design.md)     | Part 2: §11 AI Agent 協作架構詳設                           | ~635  |
-| [E3--appendices-sa-perspectives](E3--appendices-sa-perspectives.md) | Part 3: 索引 → [A](diagrams/appendix-a--forward-subsystem-discovery.md) / [B](diagrams/appendix-b--forward-triz-solver.md) / [C](diagrams/appendix-c--reverse-anti-anchor.md) / [D](diagrams/appendix-d--state-machine.md) / [E](diagrams/appendix-e--triz-scamper-flow.md) | ~40 (索引) |
+| [Appendix A](diagrams/appendix-a--forward-subsystem-discovery.md) | Forward Subsystem Discovery Architecture | ~1183 |
+| [Appendix B](diagrams/appendix-b--forward-triz-solver.md) | Forward TRIZ Solver Architecture | ~1374 |
+| [Appendix C](diagrams/appendix-c--reverse-anti-anchor.md) | Reverse Anti-Anchor Architecture | ~966 |
+| [Appendix D](diagrams/appendix-d--state-machine.md) | State Machine (Process + Artifact) | ~226 |
+| [Appendix E](diagrams/appendix-e--triz-scamper-flow.md) | TRIZ Flow + 雙軌決策中心 | ~408 |
 
 
 ---

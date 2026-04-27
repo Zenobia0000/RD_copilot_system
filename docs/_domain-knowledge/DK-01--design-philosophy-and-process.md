@@ -1,5 +1,9 @@
 # RD Design Copilot 設計哲學與流程
 
+> **v2.0 — D/X/V 步驟編號體系**
+> 自本版起，流程步驟改用三區段編號：**D** (Define)、**X** (eXplore)、**V** (Verify)。
+> 舊 Step 1-8 對照：D1-D4 / X1-X5 / V1-V4。
+
 **一句話 insight**：在「什麼都還不確定」的早期，AI 最可行的用法是把混沌變成「可追蹤的假設 + 可比較的方案集合 + 可驗證的最小實驗」，用流程逼出**最不怕未知**的設計，而不是用模型假裝自己算得很準。
 
 **代碼對齊**：`backend/app/agents/analyst.py` · `backend/app/routers/brief.py`, `socratic.py`, `cld.py`, `contradictions.py`, `assumptions.py`, `gates.py`, `action.py`, `exports.py` · `src/types/explore.ts`, `create.ts`
@@ -45,7 +49,7 @@
 
 ## 雙層狀態機
 
-- **上層：流程狀態機** (Step 1~8) — 描述團隊活動的推進
+- **上層：流程狀態機** (D1~V4) — 描述團隊活動的推進
 - **下層：工件狀態機** — 描述每個設計工件的生命週期
   - Draft → Reviewed → Verified (with Evidence) → Baseline → Released
 
@@ -53,7 +57,7 @@
 
 所有設計工件及其相關數據、版本、證據都被系統性連結，確保可追溯、可驗證。
 
-## 7 個核心工��
+## 7 個核心工件
 
 | # | 工件 | 說明 |
 |---|------|------|
@@ -99,11 +103,11 @@ Web來源:
 
 | 高階流程 (PPT/NPI) | Copilot Phase |
 |-------------------|---------------|
-| 設計發想 (Design Ideation) | Phase I & II |
-| CAD / 模擬驗證 | Phase II & III (Evidence Closure) |
-| 打樣 / 測試驗證 | Phase III (Evidence Closure) |
-| 設計審查 (Design Review) | Phase III (Step 6 & 7) |
-| NPI | Phase III (Decision & Assetization) |
+| 設計發想 (Design Ideation) | Define & eXplore |
+| CAD / 模擬驗證 | eXplore & Verify (Evidence Closure) |
+| 打樣 / 測試驗證 | Verify (Evidence Closure) |
+| 設計審查 (Design Review) | Verify (V1 & V3) |
+| NPI | Verify (Decision & Assetization) |
 
 ---
 
@@ -111,15 +115,19 @@ Web來源:
 
 | Gate | 位置 | 類型 | Phase 轉換 |
 |------|------|------|-----------|
-| Gate 1 | Step 1 完成 | 內部 | DRAFT → PHASE_I |
-| Gate 2 | Step 2 完成 | 內部 | Phase I 內部 |
-| Gate 3 | Step 3 完成 | 內部 | PHASE_I → PHASE_II |
-| Gate 4 | Step 4 完成 | 內部 | Phase II 內部 |
-| **Gate P** | Step 5 完成 | Pre-CAD Gate | PHASE_II → PHASE_III |
-| Gate 6 | Step 6 審查中 | 內部 | 觸發 Step 6e 證據補齊 |
-| **Gate C** | Step 6 完成 | CAD Gate | Phase III 內部 (→ KT 決策) |
-| Gate 7 | Step 7 完成 | 內部 | Phase III 內部 |
-| Gate 8 | Step 8 完成 | 內部 | PHASE_III → COMPLETED |
+| Gate D1 | D1 完成 | 內部 | DRAFT → DEFINE |
+| Gate D2 | D2 完成 | 內部 | Define 內部 |
+| Gate D3 | D3 完成 | 內部 | Define 內部 |
+| Gate D4 | D4 完成 | 內部 | DEFINE → EXPLORE |
+| Gate X1 | X1 完成 | 內部 | eXplore 內部 |
+| Gate X2 | X2 完成 | 內部 | eXplore 內部 |
+| Gate X3 | X3 完成 | 內部 | eXplore 內部 |
+| Gate X4 | X4 完成 | 內部 | eXplore 內部 |
+| **Gate X5** | X5 完成 | Pre-CAD Gate | EXPLORE → VERIFY |
+| Gate V1 | V1 審查中 | 內部 | 觸發 V2 證據補齊 |
+| **Gate C** | V1 完成 | CAD Gate | Verify 內部 (→ KT 決策) |
+| Gate V3 | V3 完成 | 內部 | Verify 內部 |
+| Gate V4 | V4 完成 | 內部 | VERIFY → COMPLETED |
 
 ---
 
@@ -135,25 +143,28 @@ Web來源:
 
 ---
 
-## 8 步驟流程總覽
+## D1-V4 流程總覽
 
 ```mermaid
 graph TD
-    subgraph PhaseI ["Phase I: 定義問題空間"]
-        S1["Step 1: 問題界定 (白帽)"] --> S2["Step 2: 理解全貌 (蘇格拉底)"]
-        S2 --> S3["Step 3: 系統建模 (藍帽)"]
+    subgraph Define ["Define: 定義問題空間"]
+        S1["D1: 問題界定 (白帽)"] --> S2["D2: 理解全貌 (蘇格拉底)"]
+        S2 --> S2b["D3: 根因分析與功能建模"]
+        S2b --> S3["D4: 系統建模 (藍帽)"]
     end
-    subgraph PhaseII ["Phase II: 假設與發散"]
-        S4["Step 4: 假設驗證 (HDA)"]
-        S5["Step 5: 創造與調整 (綠帽)"]
-        SP["Step P: Pre-CAD 審查"]
-        S4 --> S5 --> SP
+    subgraph Explore ["eXplore: 假設與發散"]
+        S4["X1: 假設驗證 (HDA)"]
+        S5["X2: TRIZ 解矛盾 (含 Anti-Anchor + OZ-OT)"]
+        S5b["X3: 子系統定義"]
+        S5d["X4: Decision Hub"]
+        SP["X5: Pre-CAD 資格審查 (含 MUST 快篩)"]
+        S4 --> S5 --> S5b --> S5d --> SP
     end
-    subgraph PhaseIII ["Phase III: 收斂與驗證"]
-        S6["Step 6: 設計審查 (CAD Review)"]
-        S6e["Step 6e: 證據補齊"]
-        S7["Step 7: 決策行動 (KT)"]
-        S8["Step 8: 內化傳達 (費曼)"]
+    subgraph Verify ["Verify: 收斂與驗證"]
+        S6["V1: 設計審查 (CAD Review)"]
+        S6e["V2: 證據補齊"]
+        S7["V3: 決策行動 (KT)"]
+        S8["V4: 內化傳達 (費曼)"]
         SP --> S6
         S6 --> S6e --> S6
         S6 --> S7 --> S8
@@ -163,7 +174,7 @@ graph TD
 
 ---
 
-## Step 1: 問題界定 (白帽 + 5W1H)
+## D1: 問題界定 (白帽 + 5W1H)
 
 **目的**：把模糊需求變成「可檢查句」。
 **核心工件**：Constraint (Draft)
@@ -187,13 +198,13 @@ graph TD
 - **軟目標 (Soft objectives)**：可 trade-off
 - **非目標 (Non-goals)**：這版先不追求
 
-### Gate 1 檢查點
+### Gate D1 檢查點
 > ✅ 「三個最不能失敗的指標」被明確說出，每個有判斷方式。
 > ✅ 核心工件 Constraint 狀態: Draft。
 
 ---
 
-## Step 2: 理解全貌 (蘇格拉底問答)
+## D2: 理解全貌 (蘇格拉底問答)
 
 **目的**：把「大家以為理所當然」的前提逐一翻出來。
 **核心工件**：Contradiction (Draft), Assumption (Draft)
@@ -207,37 +218,60 @@ graph TD
 5. **後果**：若 NVH 超標，最壞代價是什麼？
 6. **反思**：我們現在最可能「自欺欺人」的是哪一條？
 
-### Gate 2 檢查點
+### Gate D2 檢查點
 > ✅ 至少列出 10 條關鍵假設，標出 Top 3「錯了就翻車」。
 > ✅ 至少識別 3 條核心矛盾。
 > ✅ 核心工件 Contradiction, Assumption 狀態: Draft → Reviewed。
 
 ---
 
-## Step 3: 系統建模 (因果迴路 + Function Model + TRIZ 正式化)
+## D3: 根因分析與功能建模
 
-**目的**：找到耦合點（未知會放大的地方），建構 Function Model，將矛盾正式化為 TRIZ 句式，完成矛盾類型分類（TC/PC/SF）。
+**目的**：從症狀深挖根因，建構 Function Model (FA+SF)，完成矛盾正式化。
+**核心工件**：FunctionModel (Draft → Reviewed), Contradiction (Reviewed)
+
+> 舊 Step 2b (根因分析) 與 Step 2c (FA) 合併為 D3。
+
+### 根因分析
+- 5Why / KT Is-IsNot / CECA
+- 識別可操作的因果節點
+
+### Function Analysis (FA) + Su-Field
+- 建構物質-場模型，識別 Su-Field 交互
+- 規則引擎分類矛盾類型（TC/PC/SF）
+
+> TRIZ 矛盾正式化與分類的完整規範：見 DK-02。
+
+### Gate D3 檢查點
+> ✅ 根因分析完成，因果節點已識別。
+> ✅ Function Model 已建構，Su-Field 交互已識別。
+> ✅ 核心工件 FunctionModel: Draft → Reviewed; Contradiction: Draft → Reviewed。
+
+---
+
+## D4: 系統建模 (因果迴路 + TRIZ 正式化)
+
+**目的**：找到耦合點（未知會放大的地方），將矛盾正式化為 TRIZ 句式，完成矛盾類型分類（TC/PC/SF）。
 **核心工件**：Contradiction (Verified), FunctionModel (Reviewed), Breakpoint (Draft)
 
 ### 因果迴路圖
 - 識別正回饋迴路（越來越糟）
 - 識別斷路點（design levers）
 
-### Function Model + 矛盾分類
-- 建構物質-場模型，識別 Su-Field 交互
-- 規則引擎分類矛盾類型（TC/PC/SF）——決定 Step 5a 解法路徑
+### 矛盾分類
+- 規則引擎分類矛盾類型（TC/PC/SF）——決定 X2 解法路徑
 
 > TRIZ 矛盾正式化與分類的完整規範：見 DK-02。
 
-### Gate 3 檢查點
-> ✅ 明確點名 3 個斷��點，每個有 TRIZ 原理提示。
+### Gate D4 檢查點
+> ✅ 明確點名 3 個斷路點，每個有 TRIZ 原理提示。
 > ✅ 每條矛盾有 TRIZ 正式句，標註類型（TC/PC/SF）與解法路徑。
 > ✅ Function Model 已建構，Su-Field 交互已識別。
 > ✅ 核心工件 Contradiction: Reviewed → Verified; FunctionModel: Draft → Reviewed; Breakpoint: Draft → Reviewed。
 
 ---
 
-## Step 4: 假設與驗證規劃 (HDA)
+## X1: 假設與驗證規劃 (HDA)
 
 **目的**：把未知集合寫出來，對致命假設設計最小驗證。
 **核心工件**：Assumption (Verified)
@@ -257,28 +291,28 @@ graph TD
   u3_裝配偏心: [小, 中, 大]
 ```
 
-### Gate 4 檢查點
+### Gate X1 檢查點
 > ✅ Top 3 假設每個都有「可在 1-2 週內完成」的驗證設計。
 > ✅ 核心工件 Assumption: Reviewed → Verified。
 
 ---
 
-## Step 5: 創造與調整 (TRIZ → 子系統 → 方案 → MUST)
+## X2: TRIZ 解矛盾 (含 Anti-Anchor 並行 + OZ-OT)
 
-**目的**：用 TRIZ 解矛盾找方向，定義子系統邊界，輸出結構化可審查的方案集合。（~~SCAMPER 已於 v9 移除 — 其 7 動作為 TRIZ 40 原理子集~~）
+**目的**：用 TRIZ 解矛盾找方向，產出結構化可審查的方案集合。（~~SCAMPER 已於 v9 移除 — 其 7 動作為 TRIZ 40 原理子集~~）
 **核心工件**：Concept Route (Draft → Reviewed), Interface (Draft)
 
+> 舊 Step 5-0 (Anti-Anchor) 與 Step 5a-0 (OZ-OT) 合併入 X2。
+
 ### 流程
-1. **Anti-Anchor Sprint** → 產出 3 種非典型架構
-2. **TRIZ 解矛盾** → 依矛盾類型分派 (TC→矩陣 / PC→分離 / SF→76標準解)
-3. **子系統定義** → 3 層階層 + 6 維介面契約
-4. **決策中心** → 候選池匯聚 + RD 審核
-5. **MUST 快篩** → Go/No-Go 淘汰
+1. (X2.1) **Anti-Anchor Sprint** → 產出 3 種非典型架構
+2. (X2.2) **TRIZ 解矛盾** → 依矛盾類型分派 (TC→矩陣 / PC→分離 / SF→76標準解)
+3. (X2.3) **OZ-OT 提取** → 從 TRIZ 原理具體化操作區/操作時間
+4. (X2.4) **候選池匯聚** → 所有來源概念統一進入候選池
 
 > TRIZ 執行細節與候選池管理：見 DK-02。
-> MUST 快篩的完整 KT 框架背景：見 DK-03。
 
-### Gate 5 檢查點
+### Gate X2 檢查點
 > ✅ 至少保留 3 條架構級路線（含至少 1 條 Anti-Anchor）。
 > ✅ 每條有完整方案規格（機制、假設、風險、最小驗證）。
 > ✅ 每條產出初步 Interface Contract。
@@ -286,25 +320,49 @@ graph TD
 
 ---
 
-## Step P: Pre-CAD 設計審查
+## X3: 子系統定義
 
-**目的**：在投入 CAD 前，用「可驗證的最小資訊」收斂到 3-5 條最優架構。
+**目的**：定義子系統邊界，建立 3 層階層 + 6 維介面契約。
+**核心工件**：Interface (Draft → Reviewed)
+
+### Gate X3 檢查點
+> ✅ 子系統邊界明確，介面契約完整。
+
+---
+
+## X4: Decision Hub
+
+**目的**：候選池匯聚 + RD 審核，決策中心統一評選。
+**核心工件**：Concept Route (Reviewed)
+
+### Gate X4 檢查點
+> ✅ 所有候選方案已進入決策中心並完成初步評選。
+
+---
+
+## X5: Pre-CAD 資格審查
+
+**目的**：在投入 CAD 前，用「可驗證的最小資訊」收斂到 3-5 條最優架構。含 P1 auto-screen (MUST 快篩 Go/No-Go 淘汰)。
 **核心工件**：Concept Route (Verified), Pre-CAD Review Report (Draft → Reviewed)
 
+> 舊 Step 5e (MUST 快篩) 合併入 X5 作為 P1 auto-screen。
+
 ### 審查維度
-1. MUST (硬限制) 可行性
+1. MUST (硬限制) 可行性 — P1 auto-screen
 2. 解耦程度 (Decoupling)
 3. 可驗證性 (Testability)
 4. 主要風險機制 (Failure Mechanism)
 5. 最小 CAD 工作量 (MVP CAD Effort)
 
+> MUST 快篩的完整 KT 框架背景：見 DK-03。
+
 ### Pre-CAD Confidence Score
 ```
 Confidence = 已收斂的 (Fatal + Major) / 總 (Fatal + Major) × 100%
 ```
-Gate P 門檻：100%（所有 Fatal + Major 矛盾完全收斂）。
+Gate X5 門檻：100%（所有 Fatal + Major 矛盾完全收斂）。
 
-### Gate P 檢查點
+### Gate X5 檢查點
 > ✅ 候選收斂至 3-5 條。
 > ✅ 每條 Interface Contract 已更新。
 > ✅ 每條明確了 MVP CAD 的最小幾何範圍。
@@ -312,9 +370,9 @@ Gate P 門檻：100%（所有 Fatal + Major 矛盾完全收斂）。
 
 ---
 
-## Step 6: 設計審查 (CAD Gate - MVP CAD Review)
+## V1: 設計審查 (CAD Gate - MVP CAD Review)
 
-**目的**：針對通過 Gate P 的方案，進行 MVP CAD 初步審查，識別設計缺陷，將「證據缺口」轉化為最小實驗。
+**目的**：針對通過 Gate X5 的方案，進行 MVP CAD 初步審查，識別設計缺陷，將「證據缺口」轉化為最小實驗。
 **核心工件**：Evidence Matrix (Draft → Verified), Risk (Draft → Reviewed), MVP CAD Model
 
 ### Evidence Matrix (DR EM)
@@ -334,23 +392,23 @@ Gate P 門檻：100%（所有 Fatal + Major 矛盾完全收斂）。
 
 ---
 
-## Step 6e: 證據補齊 (Evidence Closure)
+## V2: 證據補齊 (Evidence Closure)
 
-**目的**：針對 Step 6 發現的證據缺口，執行最小實驗/仿真/供應商確認，提升證據等級至 Gate 7 要求。
+**目的**：針對 V1 發現的證據缺口，執行最小實驗/仿真/供應商確認，提升證據等級至 Gate V3 要求。
 
 - **觸發**：發現「可在 1-2 週內補足」的證據缺口
 - **活動**：最小實驗、快速仿真、供應商數據收集
-- **迴圈**：完成後返回 Step 6 重新審查 Evidence Matrix
+- **迴圈**：完成後返回 V1 重新審查 Evidence Matrix
 
 ---
 
-## Step 7: 決策與行動 (KT Decision Analysis)
+## V3: 決策與行動 (KT Decision Analysis)
 
 **目的**：用 KT 結構化決策選出「最不怕未知」的設計。
 **核心工件**：Decision Record (Draft → Reviewed), Concept Route (Verified → Baselined)
 
 ### 流程
-1. MUST 篩選（已在 Step 5e 執行）
+1. MUST 篩選（已在 X5 P1 auto-screen 執行）
 2. WANT 評分（權重 × 滿足程度，基於證據）
 3. Adverse Consequences（風險調整）
 4. 決策記錄 + 行動計畫
@@ -365,7 +423,7 @@ Gate P 門檻：100%（所有 Fatal + Major 矛盾完全收斂）。
 | Phase 2 | Week 3-6 | 把結構變證據（完成實驗、KT 決策、方案縮至 1-2 條） |
 | Phase 3 | Week 7-8 | 把證據變資產（約束庫/失效路徑庫沉澱、playbook 形成） |
 
-### Gate 7 檢查點
+### Gate V3 檢查點
 > ✅ 所有方案都經過 MUST 篩選。
 > ✅ 每個 WANT 評分都有證據 (Artifact ID) 支撐（不可為 E0）。
 > ✅ 所有 H 風險都有緩解措施（證據等級 ≥ E1）。
@@ -374,7 +432,7 @@ Gate P 門檻：100%（所有 Fatal + Major 矛盾完全收斂）。
 
 ---
 
-## Step 8: 內化與傳達 (費曼)
+## V4: 內化與傳達 (費曼)
 
 **目的**：知識回寫 + 對齊團隊。
 **核心工件**：Knowledge Assets (Released), Decision Record (Released)
@@ -404,7 +462,7 @@ Gate P 門檻：100%（所有 Fatal + Major 矛盾完全收斂）。
 | 為什麼要填假設台帳？ | 因為返工最貴。 |
 | TRIZ 不就是喊創意？ | 不是。它有固定輸出格式，必須附機制、風險、驗證。 |
 
-### Gate 8 檢查點
+### Gate V4 檢查點
 > ✅ 新人看得懂、老闆聽得懂、工程師願意用。
 > ✅ 所有核心工件: Baselined → Released。
 
@@ -423,5 +481,5 @@ Gate P 門檻：100%（所有 Fatal + Major 矛盾完全收斂）。
 ---
 
 **版本**: v2.0
-**最後更新**: 2026-04-21
-**變更紀錄**: 整合 E3x methodology-overview 與系統性決策流程為 MECE 文件；TRIZ 執行細節移至 DK-02，KT 決策框架移至 DK-03；v9 移除 SCAMPER（7 動作為 TRIZ 40 原理子集）
+**最後更新**: 2026-04-27
+**變更紀錄**: 整合 E3x methodology-overview 與系統性決策流程為 MECE 文件；TRIZ 執行細節移至 DK-02，KT 決策框架移至 DK-03；v9 移除 SCAMPER（7 動作為 TRIZ 40 原理子集）；v2.0 採用 D/X/V 步驟編號體系，合併 Step 2c→D3、Step 5-0/5a-0→X2、Step 5e→X5

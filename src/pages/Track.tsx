@@ -193,7 +193,7 @@ export default function Track() {
               <HelpTooltip text="此階段管理所有設計假設，透過 Kanban 看板追蹤驗證進度。高風險假設必須有實驗計畫，通過 Gate 2.1 後進入方案創造。" className="ml-2 align-middle" />
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Step 2.1 · 假設 Kanban + 未知集合 U
+              X1 · 假設 Kanban + 未知集合 U
             </p>
           </div>
         </div>

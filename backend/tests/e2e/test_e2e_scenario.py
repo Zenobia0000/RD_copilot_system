@@ -379,8 +379,8 @@ class TestEbikeE2EScenario:
     # -----------------------------------------------------------------------
 
     @patch("app.agents.analyst.call_llm_json")
-    def test_step01_extract_brief(self, mock_llm, client):
-        """Phase 1, Step 1: Extract structured brief from raw eBike requirements."""
+    def test_step_d1_extract_brief(self, mock_llm, client):
+        """Phase 1, D1: Extract structured brief from raw eBike requirements."""
         mock_llm.return_value = _BRIEF_EXTRACT_RESPONSE
 
         resp = client.post("/api/v1/definitions/extract", json={
@@ -419,8 +419,8 @@ class TestEbikeE2EScenario:
         self.__class__._brief = brief
 
     @patch("app.agents.analyst.call_llm_json")
-    def test_step02_socratic_questions(self, mock_llm, client):
-        """Phase 1, Step 2: Generate Socratic questions from extracted brief."""
+    def test_step_d2_socratic_questions(self, mock_llm, client):
+        """Phase 1, D2: Generate Socratic questions from extracted brief."""
         mock_llm.return_value = _SOCRATIC_RESPONSE
         brief = getattr(self.__class__, "_brief", json.loads(_BRIEF_EXTRACT_RESPONSE))
 
@@ -447,8 +447,8 @@ class TestEbikeE2EScenario:
         self.__class__._socratic = socratic
 
     @patch("app.agents.analyst.call_llm_json")
-    def test_step03a_identify_contradiction_tc(self, mock_llm, client):
-        """Phase 1, Step 3a: Formalize TC contradiction — efficiency vs weight."""
+    def test_step_d3_identify_contradiction_tc(self, mock_llm, client):
+        """Phase 1, D3: Formalize TC contradiction — efficiency vs weight."""
         mock_llm.return_value = _CONTRADICTION_FORMALIZE_TC_RESPONSE
 
         resp = client.post("/api/v1/contradictions/c-tc-eff-weight/formalize", json={
@@ -469,8 +469,8 @@ class TestEbikeE2EScenario:
         self.__class__._tc_contradiction = tc
 
     @patch("app.agents.analyst.call_llm_json")
-    def test_step03b_identify_contradiction_pc(self, mock_llm, client):
-        """Phase 1, Step 3b (ADR-007): LLM-emitted PC now coerced to type=null + rationale.
+    def test_step_d3b_identify_contradiction_pc(self, mock_llm, client):
+        """Phase 1, D3b (ADR-007): LLM-emitted PC now coerced to type=null + rationale.
 
         Explore stage is TC-only; when LLM cannot map to 39 params (or returns a legacy
         PC/SF classification), formalize_contradiction returns type=null with rationale
@@ -499,8 +499,8 @@ class TestEbikeE2EScenario:
     # -----------------------------------------------------------------------
 
     @patch("app.agents.analyst.call_llm_json")
-    def test_step04_anti_anchor(self, mock_llm, client):
-        """Phase 2, Step 4: Generate anti-anchor alternatives to break path dependency."""
+    def test_step_x1_anti_anchor(self, mock_llm, client):
+        """Phase 2, X1: Generate anti-anchor alternatives to break path dependency."""
         mock_llm.return_value = _ANTI_ANCHOR_RESPONSE
         brief = getattr(self.__class__, "_brief", json.loads(_BRIEF_EXTRACT_RESPONSE))
 
@@ -528,8 +528,8 @@ class TestEbikeE2EScenario:
     @patch("app.agents.triz_solver.call_llm_json")
     @patch("app.agents.triz_solver.lookup_matrix", return_value=[35, 28, 1])
     @patch("app.agents.triz_solver.build_triz_tc_context", return_value="<triz_tc_context>")
-    def test_step05_triz_solve_tc(self, mock_tc_ctx, mock_matrix, mock_llm, client):
-        """Phase 2, Step 5: TRIZ TC solve for efficiency vs weight."""
+    def test_step_x2_triz_solve_tc(self, mock_tc_ctx, mock_matrix, mock_llm, client):
+        """Phase 2, X2: TRIZ TC solve for efficiency vs weight."""
         mock_llm.return_value = _TRIZ_TC_RESPONSE
         tc = getattr(self.__class__, "_tc_contradiction", json.loads(_CONTRADICTION_FORMALIZE_TC_RESPONSE))
 
@@ -558,12 +558,12 @@ class TestEbikeE2EScenario:
 
         self.__class__._triz_result = triz
 
-    # Steps 6-7 (SCAMPER perform + feedback) removed — SCAMPER module retired.
+    # V1-V3 (SCAMPER perform + feedback) removed — SCAMPER module retired.
     # TRIZ 40 principles now cover all SCAMPER actions.
 
     @patch("app.agents.evaluator.call_llm_json")
-    def test_step08_must_evaluate(self, mock_llm, client):
-        """Phase 2, Step 8: MUST screening of the proposed alternative."""
+    def test_step_x4_must_evaluate(self, mock_llm, client):
+        """Phase 2, X4: MUST screening of the proposed alternative."""
         mock_llm.return_value = _MUST_EVAL_RESPONSE
         brief = getattr(self.__class__, "_brief", json.loads(_BRIEF_EXTRACT_RESPONSE))
 
@@ -613,8 +613,8 @@ class TestEbikeE2EScenario:
         self.__class__._must = must
 
     @patch("app.agents.evaluator.call_llm_json")
-    def test_step09_pre_cad_review(self, mock_llm, client):
-        """Phase 2, Step 9: Pre-CAD review with AI 5D scoring."""
+    def test_step_x5_pre_cad_review(self, mock_llm, client):
+        """Phase 2, X5 (Gate X5): Pre-CAD review with AI 5D scoring."""
         mock_llm.return_value = _PRE_CAD_RESPONSE
         brief = getattr(self.__class__, "_brief", json.loads(_BRIEF_EXTRACT_RESPONSE))
 
@@ -644,8 +644,8 @@ class TestEbikeE2EScenario:
     # -----------------------------------------------------------------------
 
     @patch("app.agents.evaluator.call_llm_json")
-    def test_step10_risk_register(self, mock_llm, client):
-        """Phase 3, Step 10: Register risks for the selected alternative."""
+    def test_step_v1_risk_register(self, mock_llm, client):
+        """Phase 3, V1: Register risks for the selected alternative."""
         mock_llm.return_value = _RISK_ANALYSIS_RESPONSE
 
         resp = client.post("/api/v1/risks/analyze", json={
@@ -677,8 +677,8 @@ class TestEbikeE2EScenario:
         self.__class__._risks = risk
 
     @patch("app.agents.evaluator.call_llm_json")
-    def test_step11_convergence_scan(self, mock_llm, client):
-        """Phase 3, Step 11: Convergence scan for secondary contradictions."""
+    def test_step_v2_convergence_scan(self, mock_llm, client):
+        """Phase 3, V2: Convergence scan for secondary contradictions."""
         mock_llm.return_value = _CONVERGENCE_SCAN_RESPONSE
 
         resp = client.post("/api/v1/convergence/scan", json={
@@ -731,8 +731,8 @@ class TestEbikeE2EScenario:
         self.__class__._convergence = conv
 
     @patch("app.routers.gates.get_supabase")
-    def test_step12a_gate_1_1_check(self, mock_sb, client):
-        """Phase 3, Step 12a: Gate 1.1 check — mission + KPIs."""
+    def test_step_gate_d1_check(self, mock_sb, client):
+        """Phase 3, Gate D1: Gate 1.1 check — mission + KPIs."""
         briefs_chain = _make_chain(_sb_response(data={"mission": MISSION}))
         kpis_chain = _make_chain(_sb_response(data=[
             {"id": "kpi-1", "measurement_method": "dynamometer at rated torque"},
@@ -754,8 +754,8 @@ class TestEbikeE2EScenario:
         assert all(item["met"] for item in gate["checklist_items"])
 
     @patch("app.routers.gates.get_supabase")
-    def test_step12b_gate_1_2_check(self, mock_sb, client):
-        """Phase 3, Step 12b: Gate 1.2 check — assumptions + contradictions."""
+    def test_step_gate_d3_check(self, mock_sb, client):
+        """Phase 3, Gate D3: Gate 1.2 check — assumptions + contradictions."""
         assumptions_data = [
             {"id": f"a{i}", "worst_severity": "critical" if i < 4 else "high" if i < 7 else "medium"}
             for i in range(12)
@@ -780,8 +780,8 @@ class TestEbikeE2EScenario:
 
     @patch("app.agents.knowledge_wb.call_llm_json")
     @patch("app.agents.knowledge_wb.get_supabase")
-    def test_step13_knowledge_writeback(self, mock_get_sb, mock_llm, client):
-        """Phase 3, Step 13: Knowledge writeback — assetize design artifacts."""
+    def test_step_v4_knowledge_writeback(self, mock_get_sb, mock_llm, client):
+        """Phase 3, V4: Knowledge writeback — assetize design artifacts."""
         mock_llm.return_value = _KNOWLEDGE_SYNTHESIS_RESPONSE
 
         table_data = {
@@ -837,8 +837,8 @@ class TestEbikeE2EScenario:
             assert asset["id"]
 
     @patch("app.routers.exports.get_supabase")
-    def test_step14_export_project(self, mock_sb, client):
-        """Phase 3, Step 14: Export project artifacts to Markdown."""
+    def test_step_export_project(self, mock_sb, client):
+        """Phase 3, Export: Export project artifacts to Markdown."""
         sb = _make_export_supabase()
         mock_sb.return_value = sb
 
@@ -873,7 +873,7 @@ class TestEbikeE2EScenario:
         Each step uses output from the previous step as input.
         SCAMPER step removed — TRIZ 40 principles now cover all SCAMPER actions.
         """
-        # Step 1: Extract brief
+        # D1: Extract brief
         mock_analyst_llm.return_value = _BRIEF_EXTRACT_RESPONSE
         r1 = client.post("/api/v1/definitions/extract", json={
             "project_id": PROJECT_ID,
@@ -882,7 +882,7 @@ class TestEbikeE2EScenario:
         assert r1.status_code == 200
         brief = r1.json()
 
-        # Step 2: Socratic questions — uses constraints from brief
+        # D2: Socratic questions — uses constraints from brief
         mock_analyst_llm.return_value = _SOCRATIC_RESPONSE
         r2 = client.post("/api/v1/questions/generate", json={
             "project_id": PROJECT_ID,
@@ -894,7 +894,7 @@ class TestEbikeE2EScenario:
         socratic = r2.json()
         assert len(socratic["questions"]) >= 1
 
-        # Step 3: TRIZ solve — uses formalized contradiction params
+        # X2: TRIZ solve — uses formalized contradiction params
         mock_triz_llm.return_value = _TRIZ_TC_RESPONSE
         r3 = client.post("/api/v1/triz/solve", json={
             "project_id": PROJECT_ID,
@@ -907,7 +907,7 @@ class TestEbikeE2EScenario:
         assert r3.status_code == 200
         triz = r3.json()
 
-        # Step 4: MUST evaluate — uses constraints/KPIs from brief
+        # X4: MUST evaluate — uses constraints/KPIs from brief
         mock_eval_llm.return_value = _MUST_EVAL_RESPONSE
         r4 = client.post("/api/v1/must/evaluate", json={
             "project_id": PROJECT_ID,

@@ -65,7 +65,7 @@ flowchart TD
 
 1. TRIZ Solver Agent 呼叫 `sim_matrix(contradiction_ids)` → 產出 `SimMatrixResult { matrix, conflict_pairs, optimal_combination }`
 2. 矩陣每格為 +1（互利）/ 0（無關）/ -1（衝突）
-3. -1 交互升級為新 TC，回流至 Step 3（≤2 輪收斂）
+3. -1 交互升級為新 TC，回流至 D4（≤2 輪收斂）
 4. 結果持久化至 `sim_matrices` 表
 
 **CCI 複雜度檢查（取代二元 Evolution/Patch）**
@@ -82,13 +82,13 @@ flowchart TD
 所有 Agent 的 LLM 數值聲明必須透過 `EvidenceRegistryService.register_claim()` 註冊：
 
 1. 自動 Tavily WebSearch 驗證 → 標記 VERIFIED / APPROXIMATE / UNVERIFIED
-2. Gate P 退出條件：Evidence Coverage（VERIFIED + APPROXIMATE 佔比）≥ 40%
+2. Gate X5 退出條件：Evidence Coverage（VERIFIED + APPROXIMATE 佔比）≥ 40%
 
 ## 正向分析・TRIZ 解矛盾：系統架構說明書（SA 視角）
 
 > **觀點**：Systems Analyst
 > **相關文件**：`E3--ai-agent-detailed-design.md`、`_domain-knowledge/DK-01--design-philosophy-and-process.md`、`../../02-design/specs/triz/E5x--triz-layered-drilldown-optimization.md`、`../../04-deliver/operations/TRIZ_Layered_Rollout_Runbook.md`
-> **文件目的**：以 SA 視角拆解「正向分析・TRIZ 解矛盾」階段（F1）的所有架構面向。F1 是正向路徑的第一站，輸入為 Step 3 識別出的矛盾，輸出為**同一矛盾的分層 drill-down 診斷**（L1 現象 / L2 本質 / L3 結構），聚合為 `LayeredTrizSolution[]` 供下游 F2 子系統定義消費。每張圖以 Mermaid 呈現。
+> **文件目的**：以 SA 視角拆解「正向分析・TRIZ 解矛盾」階段（F1）的所有架構面向。F1 是正向路徑的第一站，輸入為 D4 識別出的矛盾，輸出為**同一矛盾的分層 drill-down 診斷**（L1 現象 / L2 本質 / L3 結構），聚合為 `LayeredTrizSolution[]` 供下游 F2 子系統定義消費。每張圖以 Mermaid 呈現。
 
 ---
 
@@ -167,7 +167,7 @@ mindmap
 | Actor                   | 類型              | 與系統的關係                                         |
 | ----------------------- | --------------- | ---------------------------------------------- |
 | **RD 工程師**              | 主要人類 actor      | 在矛盾識別頁面標記矛盾類型、檢視 TRIZ 建議、選擇採用                  |
-| **AI Orchestrator**     | 系統內 actor       | 在 E2E 流程中銜接 Step 3（矛盾識別）與 F2（子系統定義）            |
+| **AI Orchestrator**     | 系統內 actor       | 在 E2E 流程中銜接 D4（矛盾識別）與 F2（子系統定義）            |
 | **Analyst Agent**       | 系統內上游 LLM actor | 把自然語言矛盾形式化為 TC/PC/SF 並標記參數                     |
 | **TRIZ Solver Agent**   | 系統內 LLM actor   | 把抽象原理具體化為工程建議                                  |
 | **TRIZ Knowledge Base** | 系統內靜態資源         | 39 參數 / 矩陣 / 40 原理 / 分離原則 / 76 標準解（5 份 MD）     |
@@ -240,7 +240,7 @@ graph TB
         F1[正向分析・TRIZ 解矛盾<br/>F1<br/>本文件範圍]
     end
 
-    Step3[Step 3: 矛盾識別<br/>上游：提供 TC 矛盾 ADR-007<br/>PC/SF 於 F1 入口派生]
+    Step3[D4: 矛盾識別<br/>上游：提供 TC 矛盾 ADR-007<br/>PC/SF 於 F1 入口派生]
     F2[F2: 子系統定義<br/>下游：消費建議與 affected_modules]
     Hub[候選方案決策中心<br/>下游：每條建議成為候選]
 
@@ -317,7 +317,7 @@ graph TB
 | Container         | 技術棧                | 失敗時影響                      | 恢復策略               |
 | ----------------- | ------------------ | -------------------------- | ------------------ |
 | Frontend SPA      | React + TypeScript | RD 無法觸發；後端不受影響             | 無狀態，重啟即可           |
-| Backend API/Agent | FastAPI + Python   | F1 全面停擺；Step 3 與 F2 不受影響   | 無狀態，可水平擴展          |
+| Backend API/Agent | FastAPI + Python   | F1 全面停擺；D4 與 F2 不受影響   | 無狀態，可水平擴展          |
 | KB Tools          | Python + lru_cache | 無法注入 KB；solver 退化為純 LLM 直答 | 啟動時即載入並快取          |
 | TRIZ KB MD        | 靜態檔案               | 同上                         | 隨 Backend image 部署 |
 | LLM Provider      | 外部 API             | 三條 solver 全部無法跑            | 重試 + 降級提示          |
@@ -506,7 +506,7 @@ graph TB
 | **L3** | SF  | 結構層（旁路） | ✅     | —                                                                                                  |
 
 
-**退場條件**：若 L1 的 improving/worsening 參數都無法抽取（資訊不完整）→ 退回 Step 3 補資訊；L3 仍可嘗試用自然語言推 Su-Field 模型。
+**退場條件**：若 L1 的 improving/worsening 參數都無法抽取（資訊不完整）→ 退回 D4 補資訊；L3 仍可嘗試用自然語言推 Su-Field 模型。
 
 #### 6.3 TC 路徑的定義來源
 
@@ -1005,7 +1005,7 @@ graph TB
 ```mermaid
 %%{init: {'theme': 'neutral'}}%%
 stateDiagram-v2
-    [*] --> Identified: Step 3 矛盾識別
+    [*] --> Identified: D4 矛盾識別
     Identified --> Classified: Analyst 標記 TC/PC/SF
     Classified --> Solving: 觸發 solve_triz
     Solving --> Solved: solver 回傳建議
@@ -1308,7 +1308,7 @@ flowchart LR
     C --> D[Pre-CAD 評分]
     D --> E[RD 簽核]
     E -.->|secondary 矛盾| A
-    E -.->|新發現的矛盾| F[Step 3 矛盾識別]
+    E -.->|新發現的矛盾| F[D4 矛盾識別]
     F --> A
 
     style A fill:#dbeafe,stroke:#1e3a8a,stroke-width:2px,color:#000

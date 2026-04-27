@@ -1162,7 +1162,7 @@ flowchart LR
 | [Appendix D](appendix-d--state-machine.md) v1.6                        | 子系統 Artifact 狀態機見本文件 §8.1                                |
 | [Appendix E](appendix-e--triz-scamper-flow.md) v11                         | 本文件是該流程圖的 SA 視角文字化；F1 分層輸出與 SIM/CCI 規則見該檔 v11 摘要（~~Phase B 已 v9 ���役~~） |
 | `../../02-design/specs/triz/E5x--triz-layered-drilldown-optimization.md` v1.0 | F1→F2 hand-off、`LayeredTrizSolution` 與本文件 §3.1、§6.4.4 對齊 |
-| `../_domain-knowledge/DK-01--design-philosophy-and-process.md` §Step P     | spatial_score 算術化，見本文件 §10                               |
+| `../_domain-knowledge/DK-01--design-philosophy-and-process.md` §X5         | spatial_score 算術化，見本文件 §10                               |
 
 
 ---

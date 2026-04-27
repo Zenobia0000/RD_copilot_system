@@ -164,13 +164,13 @@ stateDiagram-v2
 >
 > | 原 Phase B 檢查項 | 替代機制 | 說明 |
 > |:-----------------|:---------|:-----|
-> | 1. 跨矛盾解法衝突 | **SIM 矩陣** (ADR-008 D5) | SIM -1 評分在 Step 5a TRIZ 求解階段前置捕捉 |
+> | 1. 跨矛盾解法衝突 | **SIM 矩陣** (ADR-008 D5) | SIM -1 評分在 X2 TRIZ 求解階段前置捕捉 |
 > | 2. 參數影響分析 | **SIM 矩陣** | TC 層參數交互已由 SIM +1/0/-1 覆蓋 |
 > | 3. PC 狀態衝突 | **SIM 矩陣** | PC 衝突 ⊂ TC 衝突（ADR-007：PC 由 TC 派生，同 Px 反向衝突在 SIM TC 層即為 -1） |
 > | 4. 跨方案干涉 | **CCI** (ADR-008 D4) | CCI 連續指標 [0,1] 判定解法組合複雜度 |
 > | 5. 同矛盾多路徑風險 | **v11 已下線** | drill-down 為合法路徑 |
 >
-> Decision Hub 流程簡化為：RD 採納 → CCI 標籤 → 橫向比較 → MUST 快篩 → Evidence Coverage → Gate P。
+> Decision Hub 流程簡化為：RD 採納 → CCI 標籤 → 橫向比較 → MUST 快篩 → Evidence Coverage → Gate X5。
 
 
 ---
@@ -338,11 +338,11 @@ ADR-008 在雙軌流程中新增兩個跨切面：
 - SIM +1/0/-1 評分 → -1 衝突回流為��� TC → ≤2 輪收斂
 - 結果影響 Decision Hub 橫向比較（最優組合排序）
 
-**2. Evidence Registry 覆蓋檢查（Gate P 前）**
+**2. Evidence Registry 覆蓋檢查（Gate X5 前）**
 
-在推送 Gate P 審查前，新增 Evidence Coverage 門檻：
+在推送 Gate X5 審查前，新增 Evidence Coverage 門檻：
 - 所有 Agent 產出的 LLM 數值聲明已透��� `register_claim()` 註冊
-- VERIFIED + APPROXIMATE 佔比 ≥ 40% 方可進入 Gate P
+- VERIFIED + APPROXIMATE 佔比 ≥ 40% 方可進入 Gate X5
 - 未達標時 Decision Hub 顯示 Evidence 缺口報告，引導 RD 補充
 
 

@@ -517,7 +517,7 @@ export default function Create() {
   const [selectedAltId, setSelectedAltId] = useState<string | null>(null);
   const [comparedAltIds, setComparedAltIds] = useState<Set<string>>(new Set());
   const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
-  // Phase B is now manually triggered from the Decision Hub (Step 4),
+  // Phase B is now manually triggered from the Decision Hub (X1),
   // NOT auto-triggered when Phase A converges. This prevents the infinite
   // loop caused by TC/PC/SF solutions from the same contradiction conflicting.
 
@@ -1215,7 +1215,7 @@ export default function Create() {
       pre_cad_scores: { must: null, decoupling: null, testability: null, failureMech: null, mvpCadEffort: null } as unknown as Json,
       overall_pass: null,
     });
-    toast.success(`「${route.name}」已晉升為候選方案（Step 5）`);
+    toast.success(`「${route.name}」已晉升為候選方案（X2）`);
   };
   const deleteSubsystem = (ssId: string) => {
     const idx = localSubsystems.findIndex(s => s.id === ssId);
@@ -1564,7 +1564,7 @@ export default function Create() {
       }
 
       if (created === 0) {
-        toast.warning("尚無已採用的 TRIZ 解法，請先在 Step 1-2 採用解法，或手動新增方案");
+        toast.warning("尚無已採用的 TRIZ 解法，請先在 X1-X2 採用解法，或手動新增方案");
       } else {
         toast.success(`已從 ${adoptedTriz.length} 條 TRIZ 整合 ${created} 個候選方案`);
       }
@@ -1674,7 +1674,7 @@ export default function Create() {
     }
   };
 
-  // ── Step 1: Anti-Anchor (AI Generated) ──
+  // ── X1: Anti-Anchor (AI Generated) ──
   function renderAntiAnchor() {
     return (
       <div className="space-y-6">
@@ -2010,7 +2010,7 @@ export default function Create() {
     );
   }
 
-  // ── Step 2: TRIZ 解矛盾 — 分層 drill-down 診斷（v8: Phase A retired）──
+  // ── X2: TRIZ 解矛盾 — 分層 drill-down 診斷（v8: Phase A retired）──
   function renderTrizConvergence() {
     // v8: startPhaseA removed — L1 critic per-card replaces global Phase A scan
     const { state, confirmSeverity, forceContinue, retryBranch } = convergenceLoop;
@@ -2139,7 +2139,7 @@ export default function Create() {
     );
   }
 
-  // ── Step 3: Subsystem ──
+  // ── X3: Subsystem ──
   function renderSubsystem() {
     const confirmedCount = subsystems.filter(s => s.confirmed).length;
     const rdCount = subsystems.filter(s => s.source === "rd").length;
@@ -2402,7 +2402,7 @@ export default function Create() {
     );
   }
 
-  // ── Step 3: Alternatives (Decision Hub) ──
+  // ── X3: Alternatives (Decision Hub) ──
   function renderAlternatives() {
     // ── Candidate pool: aggregate from all sources ──
     const SOURCE_BADGE: Record<string, { label: string; cls: string }> = {
@@ -2603,7 +2603,7 @@ export default function Create() {
     );
   }
 
-  // ── Step 6: MUST ──
+  // ── X4: MUST ──
   function renderMust() {
     if (alternatives.length === 0) {
       return (
@@ -2730,7 +2730,7 @@ export default function Create() {
     );
   }
 
-  // ── Step 7: Pre-CAD ──
+  // ── X5: Pre-CAD ──
   function renderPreCad() {
     const eligible = alternatives.filter((a) => !Object.values(a.mustScores).includes("fail") && Object.values(a.mustScores).some((v) => v !== null));
     if (eligible.length === 0) {

@@ -35,7 +35,7 @@ export const queryKeys = {
     stats: (id: string | undefined) => ['projects', k(id), 'stats'] as const,
   },
 
-  // Layer 1: Step 1 — Problem Definition
+  // Layer 1: D1 — Problem Definition
   briefs: {
     all: ['briefs'] as const,
     detail: (projectId: string | undefined) => ['briefs', k(projectId)] as const,
@@ -58,7 +58,7 @@ export const queryKeys = {
     detail: (id: string | undefined) => ['contradictions', 'detail', k(id)] as const,
   },
 
-  // Layer 2: Step 1.2 — Assumption Management
+  // Layer 2: D2 — Assumption Management
   assumptions: {
     all: ['assumptions'] as const,
     byProject: (projectId: string | undefined) => ['assumptions', k(projectId)] as const,
@@ -73,7 +73,7 @@ export const queryKeys = {
     byProject: (projectId: string | undefined) => ['cld_edges', k(projectId)] as const,
   },
 
-  // Layer 3: Step 2 — Solution Exploration
+  // Layer 3: X1–X2 — Solution Exploration
   anti_anchor_routes: {
     all: ['anti_anchor_routes'] as const,
     byProject: (projectId: string | undefined) => ['anti_anchor_routes', k(projectId)] as const,
@@ -116,7 +116,7 @@ export const queryKeys = {
     byProject: (projectId: string | undefined) => ['compatibility_pairs', k(projectId)] as const,
   },
 
-  // Layer 4: Step 3 — Review & Decision
+  // Layer 4: X3–X5 — Review & Decision
   evidence_matrix: {
     all: ['evidence_matrix'] as const,
     byProject: (projectId: string | undefined) => ['evidence_matrix', k(projectId)] as const,

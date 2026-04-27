@@ -136,13 +136,13 @@ TRIZ 產出 N 條解法
 
 ## §4 與 E2E 流程的整合點
 
-### 4.1 在 Step 5a（TRIZ Solver）後新增判斷節點
+### 4.1 在 X2（TRIZ Solver）後新增判斷節點
 
 ```
-Step 5a: TRIZ 產出 N 條候選解法
+X2: TRIZ 產出 N 條候選解法
     │
     ▼
-Step 5a-X: 多解採納判斷 ← 本文件定義的流程
+X2-X: 多解採納判斷 ← 本文件定義的流程
     │
     ├── 可合併 → 合併為「複合 Concept Route」
     │             標記: composite = true
@@ -153,7 +153,7 @@ Step 5a-X: 多解採納判斷 ← 本文件定義的流程
     └── 互斥 → 各自成為獨立 Concept Route
     │
     ▼
-Step 6: 每條 Route 進入 Evidence Matrix 驗證
+V1: 每條 Route 進入 Evidence Matrix 驗證
 ```
 
 ### 4.2 Concept Route 資料模型擴展
@@ -402,7 +402,7 @@ ConceptRoute:
 
 ## §7 Copilot 自動化建議
 
-未來 Copilot 可在 Step 5a-X 自動輔助判斷：
+未來 Copilot 可在 X2-X 自動輔助判斷：
 
 ```yaml
 自動化判斷輸入:

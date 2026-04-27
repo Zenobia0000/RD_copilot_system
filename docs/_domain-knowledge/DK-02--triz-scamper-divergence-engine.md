@@ -152,9 +152,9 @@ Function Model [編號]:
 
 ---
 
-## 3. TRIZ 解法流程 (Step 5a)
+## 3. TRIZ 解法流程 (X2a)
 
-每條矛盾依 Step 3 標註的類型分派路徑：
+每條矛盾依 D4 標註的類型分派路徑：
 
 | 子步驟 | 適用類型 | 執行方式 | 動作 |
 |--------|---------|---------|------|
@@ -304,9 +304,9 @@ validation_passport:
 
 ---
 
-## 9. MUST 快篩 (Step 5e)
+## 9. MUST 快篩 (X2e)
 
-> MUST 快篩是 KT 框架的「前哨站」——完整 KT 決策在 Step 7。詳見 DK-03。
+> MUST 快篩是 KT 框架的「前哨站」——完整 KT 決策在 V3。詳見 DK-03。
 
 **快篩 MUST 條件清單**
 
@@ -322,7 +322,7 @@ validation_passport:
 **篩選規則**：
 1. 任一 MUST 不通過 = 直接淘汰
 2. 通過者進入 Set-Based 集合（3-5 條，含至少 1 條 Anti-Anchor）
-3. 完整 KT Decision Analysis 在 Step 7 執行
+3. 完整 KT Decision Analysis 在 V3 執行
 
 ---
 

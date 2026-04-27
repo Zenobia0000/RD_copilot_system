@@ -143,7 +143,7 @@ export function HumanReviewPanel({ branches, riskRegister, onConfirm, onRetry, o
             確認分級 → 進入多解採納
             <ArrowRight className="h-4 w-4 ml-1" />
           </Button>
-          <p className="text-xs text-muted-foreground">確認後將進入多解採納策略分析 (Step 5a-X)</p>
+          <p className="text-xs text-muted-foreground">確認後將進入多解採納策略分析 (X2)</p>
         </div>
       </CardContent>
     </Card>

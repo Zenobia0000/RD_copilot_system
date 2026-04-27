@@ -4,6 +4,8 @@
 
 **代碼對齊**：`backend/app/models/schemas.py` (92 Pydantic models) · `backend/app/core/gate_checks.py` · `backend/app/prompts/*.py`
 
+> **版本注記 (2026-04-27)**：全文件步驟編號已從舊 Step 1-8 遷移至 D/X/V 三段式編號。對照表見 §4.1。
+
 ---
 
 ## 1. Project 狀態機
@@ -23,7 +25,7 @@ DRAFT ──Gate 1 (1.1)──▶ PHASE_I ──Gate 3 (PG1)──▶ PHASE_II �
 
 ## 2. 七大核心工件 (Schema Reference)
 
-### 2.1 Constraint (Step 1 產出)
+### 2.1 Constraint (D1 產出)
 
 | 欄位 | 型別 | 說明 |
 |------|------|------|
@@ -37,7 +39,7 @@ DRAFT ──Gate 1 (1.1)──▶ PHASE_I ──Gate 3 (PG1)──▶ PHASE_II �
 
 **狀態**：Draft (建立) → Reviewed (RD 確認)
 
-### 2.2 Contradiction (Step 2-3 產出)
+### 2.2 Contradiction (D2-D4 產出)
 
 | 欄位 | 型別 | 說明 |
 |------|------|------|
@@ -59,7 +61,7 @@ DRAFT ──Gate 1 (1.1)──▶ PHASE_I ──Gate 3 (PG1)──▶ PHASE_II �
 
 **狀態**：Draft → Reviewed → Verified
 
-### 2.3 FunctionModel (Step 3 產出)
+### 2.3 FunctionModel (D4 產出)
 
 | 欄位 | 型別 | 說明 |
 |------|------|------|
@@ -75,7 +77,7 @@ DRAFT ──Gate 1 (1.1)──▶ PHASE_I ──Gate 3 (PG1)──▶ PHASE_II �
 
 **狀態**：Draft → Reviewed
 
-### 2.4 Breakpoint (Step 3 產出)
+### 2.4 Breakpoint (D4 產出)
 
 | 欄位 | 型別 | 說明 |
 |------|------|------|
@@ -89,7 +91,7 @@ DRAFT ──Gate 1 (1.1)──▶ PHASE_I ──Gate 3 (PG1)──▶ PHASE_II �
 
 **狀態**：Draft → Reviewed
 
-### 2.5 Concept Route (Step 5 產出)
+### 2.5 Concept Route (X2 產出)
 
 | 欄位 | 型別 | 說明 |
 |------|------|------|
@@ -106,9 +108,9 @@ DRAFT ──Gate 1 (1.1)──▶ PHASE_I ──Gate 3 (PG1)──▶ PHASE_II �
 | must_results | JSON | M1-M6 篩選結果 |
 | pre_cad_score | JSON | spatial/cost/safety/decoupling/supply (1-5) |
 
-**狀態**：Draft → Reviewed → Verified (Gate P) → Baselined (Gate 7) → Released (Gate 8)
+**狀態**：Draft → Reviewed → Verified (Gate X5) → Baselined (Gate V3) → Released (Gate V4)
 
-### 2.6 Evidence (Step 6/6e 產出)
+### 2.6 Evidence (V1/V2 產出)
 
 | 欄位 | 型別 | 說明 |
 |------|------|------|
@@ -122,7 +124,7 @@ DRAFT ──Gate 1 (1.1)──▶ PHASE_I ──Gate 3 (PG1)──▶ PHASE_II �
 
 **狀態**：Draft → Reviewed → Verified
 
-### 2.7 Risk (Step 6 產出)
+### 2.7 Risk (V1 產出)
 
 | 欄位 | 型別 | 說明 |
 |------|------|------|
@@ -145,7 +147,7 @@ DRAFT ──Gate 1 (1.1)──▶ PHASE_I ──Gate 3 (PG1)──▶ PHASE_II �
 
 ## 3. 輔助工件
 
-### Decision Record (Step 7 產出)
+### Decision Record (V3 產出)
 
 | 欄位 | 說明 |
 |------|------|
@@ -160,7 +162,7 @@ DRAFT ──Gate 1 (1.1)──▶ PHASE_I ──Gate 3 (PG1)──▶ PHASE_II �
 
 **狀態**：Draft → Reviewed → Released
 
-### Assumption (Step 4 產出)
+### Assumption (X1 產出)
 
 | 欄位 | 說明 |
 |------|------|
@@ -178,33 +180,35 @@ DRAFT ──Gate 1 (1.1)──▶ PHASE_I ──Gate 3 (PG1)──▶ PHASE_II �
 
 ### 4.1 文件名稱 ↔ 程式碼 gate_id 對照表
 
-> **⚠️ 重要 (2026-04-22)**：文件使用 Step-based 編號（Gate 1, Gate 2...），程式碼使用 Phase-dot-sequence 編號（1.1, 1.2, PG1...）。以下為明確對照：
+> **⚠️ 重要 (2026-04-27)**：文件使用 D/X/V 編號（Gate D1, Gate D3...），程式碼使用 Phase-dot-sequence 編號（1.1, 1.2, PG1...）。以下為明確對照。
+>
+> **步驟編號對照 (舊→新)**：Step 1→D1, Step 2→D2, Step 2b/2c→D3, Step 3→D4, Step 4→X1, Step 5-0/5a-0/5a→X2, Step 5b→X3, Step 5c→REMOVED, Step 5d→X4, Step 5e/P→X5, Step 6→V1, Step 6e→V2, Step 7→V3, Step 8→V4。
 
 | 文件名稱 | 程式碼 `gate_id` | 位置 | Phase 轉換 | 程式碼位置 |
 |----------|-----------------|------|-----------|-----------|
-| **Gate 1** | `1.1` | Step 1 完成 | DRAFT → PHASE_I | `gate_registry.py` |
-| **Gate 2** | `1.2` | Step 2 完成 | — | `gate_registry.py` |
-| **Gate 3** | `PG1` | Step 3 完成 | PHASE_I → PHASE_II | `gate_registry.py` |
-| **Gate 4** | `2.1` | Step 4 完成 | — | `gate_registry.py` |
-| *(MUST 快篩)* | `2.2` | Step 5e 完成 | — | `gate_registry.py` |
-| **Gate P** | `PG2` | Step P 完成 | PHASE_II → PHASE_III | `gate_registry.py` |
-| *(Decision 簽核)* | `3.2` | Step 7 完成 | — | `gate_registry.py` |
-| **Gate 8** | `PG3` | Step 8 完成 | PHASE_III → COMPLETED | `gate_registry.py` |
+| **Gate D1** | `1.1` | D1 完成 | DRAFT → DEFINE | `gate_registry.py` |
+| **Gate D3** | `1.2` | D3 完成 | — | `gate_registry.py` |
+| **Gate D4** | `PG1` | D4 完成 | DEFINE → EXPLORE | `gate_registry.py` |
+| **Gate X1** | `2.1` | X1 完成 | — | `gate_registry.py` |
+| *(MUST 快篩)* | `2.2` | X2 MUST 完成 | — | `gate_registry.py` |
+| **Gate X5** | `PG2` | X5 完成 | EXPLORE → VERIFY | `gate_registry.py` |
+| *(Decision 簽核)* | `3.2` | V3 完成 | — | `gate_registry.py` |
+| **Gate V4** | `PG3` | V4 完成 | VERIFY → COMPLETED | `gate_registry.py` |
 
-> **Note**: Gate C（Step 6 證據審查）和 Anti-Anchor Gate 在文件中有描述，但目前 **未註冊** 在 `gate_registry.py` 中。
+> **Note**: Gate C（V1 證據審查）和 Anti-Anchor Gate 在文件中有描述，但目前 **未註冊** 在 `gate_registry.py` 中。
 
 ### 4.2 Gate 通過條件
 
 | Gate (文件) | gate_id (程式碼) | 關鍵通過條件 |
 |-------------|-----------------|------------|
-| **Gate 1** | `1.1` | `critical_metrics` ≥ 3，每個有 target + method |
-| **Gate 2** | `1.2` | 假設 ≥ 10 條，Top 3 已標記；核心矛盾 ≥ 3 |
-| **Gate 3** | `PG1` | 斷路點 ≥ 3，每條矛盾有 TRIZ 正式句 + 類型標註；FM 已建構 |
-| **Gate 4** | `2.1` | Top 3 假設各有 1-2 週可完成的驗證設計 |
+| **Gate D1** | `1.1` | `critical_metrics` ≥ 3，每個有 target + method |
+| **Gate D3** | `1.2` | 假設 ≥ 10 條，Top 3 已標記；核心矛盾 ≥ 3 |
+| **Gate D4** | `PG1` | 斷路點 ≥ 3，每條矛盾有 TRIZ 正式句 + 類型標註；FM 已建構 |
+| **Gate X1** | `2.1` | Top 3 假設各有 1-2 週可完成的驗證設計 |
 | *(MUST)* | `2.2` | ≥ 1 alternative 的 `overall_pass: True` |
-| **Gate P** | `PG2` | ≥ 3 條架構路線 (含 ≥1 Anti-Anchor)；Pre-CAD Confidence = 100% |
+| **Gate X5** | `PG2` | ≥ 3 條架構路線 (含 ≥1 Anti-Anchor)；Pre-CAD Confidence = 100% |
 | *(Decision)* | `3.2` | WANT 評分有 Artifact ID (≠E0)；H 風險有緩解(≥E1)；KT 記錄已簽核 |
-| **Gate 8** | `PG3` | 新人/老闆/工程師都看得懂；所有工件 Baselined → Released |
+| **Gate V4** | `PG3` | 新人/老闆/工程師都看得懂；所有工件 Baselined → Released |
 
 ---
 
@@ -212,11 +216,11 @@ DRAFT ──Gate 1 (1.1)──▶ PHASE_I ──Gate 3 (PG1)──▶ PHASE_II �
 
 | Agent | Prompt 檔案 | 對應 Step |
 |-------|------------|----------|
-| Analyst | `backend/app/prompts/analyst.py` | Step 1-2 (brief extraction, mission rewrite, constraint/KPI suggestion) |
-| TRIZ Solver | `backend/app/prompts/triz_solver.py` | Step 3, 5a (TC/PC/SF instantiation) |
-| Evaluator | `backend/app/prompts/evaluator.py` | Step 5e, 7 (MUST verification, risk analysis, Pre-CAD scoring) |
-| Knowledge WB | `backend/app/prompts/knowledge_wb.py` | Step 8 (knowledge asset generation) |
-| TRIZ Critic | `backend/app/agents/triz_critic.py` | Step 5a-6 (secondary contradiction scan) |
+| Analyst | `backend/app/prompts/analyst.py` | D1-D2 (brief extraction, mission rewrite, constraint/KPI suggestion) |
+| TRIZ Solver | `backend/app/prompts/triz_solver.py` | D4, X2 (TC/PC/SF instantiation) |
+| Evaluator | `backend/app/prompts/evaluator.py` | X5, V3 (MUST verification, risk analysis, Pre-CAD scoring) |
+| Knowledge WB | `backend/app/prompts/knowledge_wb.py` | V4 (knowledge asset generation) |
+| TRIZ Critic | `backend/app/agents/triz_critic.py` | X2-V1 (secondary contradiction scan) |
 | ~~SCAMPER Feedback~~ | ~~`backend/app/agents/scamper_feedback.py`~~ | *(v9 移除)* |
 
 ---
@@ -227,28 +231,29 @@ DRAFT ──Gate 1 (1.1)──▶ PHASE_I ──Gate 3 (PG1)──▶ PHASE_II �
 
 | 分組 | 路由前綴 | 對應 Step |
 |------|---------|----------|
-| Brief & Definition | `/api/v1/projects/{pid}/definitions` | Step 1 |
-| Socratic Questions | `/api/v1/projects/{pid}/questions` | Step 2 |
-| Causal Loops | `/api/v1/projects/{pid}/causal-loops` | Step 3a |
-| Contradictions | `/api/v1/projects/{pid}/contradictions` | Step 3b |
-| Breakpoints | `/api/v1/projects/{pid}/breakpoints` | Step 3c |
-| Assumptions | `/api/v1/projects/{pid}/assumptions` | Step 4 |
-| TRIZ Solve | `/api/v1/projects/{pid}/triz` | Step 5a |
-| Subsystems | `/api/v1/projects/{pid}/subsystems` | Step 5b |
+| Brief & Definition | `/api/v1/projects/{pid}/definitions` | D1 |
+| Socratic Questions | `/api/v1/projects/{pid}/questions` | D2 |
+| Causal Loops | `/api/v1/projects/{pid}/causal-loops` | D3 |
+| Contradictions | `/api/v1/projects/{pid}/contradictions` | D3 |
+| Breakpoints | `/api/v1/projects/{pid}/breakpoints` | D4 |
+| Assumptions | `/api/v1/projects/{pid}/assumptions` | X1 |
+| TRIZ Solve | `/api/v1/projects/{pid}/triz` | X2 |
+| Subsystems | `/api/v1/projects/{pid}/subsystems` | X3 |
 | ~~SCAMPER~~ | ~~`/api/v1/projects/{pid}/scamper`~~ | *(v9 移除; 子系統端點遷移至 `/subsystems/`)* |
-| Alternatives | `/api/v1/projects/{pid}/alternatives` | Step 5d |
-| MUST | `/api/v1/projects/{pid}/must` | Step 5e |
-| Convergence | `/api/v1/projects/{pid}/convergence` | Decision Hub (Phase B) |
-| Evidence | `/api/v1/projects/{pid}/evidence` | Step 6 |
-| Risk | `/api/v1/projects/{pid}/risks` | Step 6 |
-| WANT & Decision | `/api/v1/projects/{pid}/want`, `/decision` | Step 7 |
-| Exports | `/api/v1/projects/{pid}/exports` | Step 8 |
+| Alternatives | `/api/v1/projects/{pid}/alternatives` | X4 |
+| MUST | `/api/v1/projects/{pid}/must` | X5 |
+| Convergence | `/api/v1/projects/{pid}/convergence` | X4 Decision Hub |
+| Evidence | `/api/v1/projects/{pid}/evidence` | V1 |
+| Risk | `/api/v1/projects/{pid}/risks` | V1 |
+| WANT & Decision | `/api/v1/projects/{pid}/want`, `/decision` | V3 |
+| Exports | `/api/v1/projects/{pid}/exports` | V4 |
 | Gates | `/api/v1/projects/{pid}/gates` | All |
 
 ---
 
-**版本**: v2.1
-**最後更新**: 2026-04-22
+**版本**: v2.2
+**最後更新**: 2026-04-27
 **變更紀錄**:
+- v2.2 (2026-04-27): 全文件步驟編號遷移至 D/X/V 三段式編號系統 (D1-D4 / X1-X5 / V1-V4)；舊 Step 5c (SCAMPER) 確認 REMOVED；§4.1 加入舊→新對照表；§4.2 Gate 名稱對齊新編號；§5-6 Prompt 與 API 路由對應 Step 更新
 - v2.1 (2026-04-22): 新增 Gate 文件名稱↔程式碼 gate_id 對照表（§4.1）；更新狀態機圖加入 gate_id
 - v2.0 (2026-04-21): 從系統規格定義書提取核心 data model 與 gate 條件；API 端點細節保留在 02-design/specs

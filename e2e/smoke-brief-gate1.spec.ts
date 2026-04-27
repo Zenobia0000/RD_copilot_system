@@ -12,7 +12,7 @@ import { test, expect } from "@playwright/test";
 
 const PROJECT_ID = "00000000-0000-0000-0000-000000000001";
 
-test.describe("Brief -> Gate 1", () => {
+test.describe("Brief -> Gate D1", () => {
   test("brief page loads with core UI sections", async ({ page }) => {
     // Navigate to the brief (TaskDefinition) page
     // The app has ProtectedRoute, so we may be redirected to /auth.
@@ -35,7 +35,7 @@ test.describe("Brief -> Gate 1", () => {
     await expect(page.locator("h1")).toContainText("任務定義");
 
     // Verify step subtitle
-    await expect(page.getByText("Step 1.1")).toBeVisible();
+    await expect(page.getByText("D1")).toBeVisible();
 
     // Verify the page shell rendered (not stuck on loading forever)
     // Either the form content or a loading skeleton should be present

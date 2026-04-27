@@ -23,7 +23,7 @@ export function MultiSolutionAdoptionPanel({ adoptionState, onConfirm }: Props) 
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
           <Link2 className="h-5 w-5 text-primary" />
-          多解採納策略 (Step 5a-X)
+          多解採納策略 (X2)
         </CardTitle>
         <p className="text-sm text-muted-foreground">
           AI 已分析 {solutionCount} 條採用解法的物理相容性與交互作用，推薦{' '}

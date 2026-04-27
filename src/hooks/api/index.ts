@@ -12,7 +12,7 @@ export { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 // Seed utilities (dev only)
 export { seedDemoProject, clearDemoData, seedShowcaseProjects, clearAllShowcaseData } from './seed';
 
-// --- Sprint 1: Projects + Step 1 ---
+// --- Sprint 1: Projects + D1 ---
 export { useProjects, useProject, useCreateProject, useUpdateProject, useDeleteProject, useProjectStats } from './useProjects';
 export {
   useBrief,
@@ -81,7 +81,7 @@ export {
   useTrackExperiments,
 } from './useTrack';
 
-// --- Sprint 2: Step 2 Solution Exploration ---
+// --- Sprint 2: X2 Solution Exploration ---
 export {
   useAntiAnchorRoutes,
   useCreateAntiAnchorRoute,
@@ -112,7 +112,7 @@ export { useSolutions, useCreateSolution, useUpdateSolution, useConvergenceGraph
 // Pre-CAD Review page hooks
 export { usePreCadSolutions, usePreCadConvergenceStats, useUpdatePreCadReview } from './usePreCadReview';
 
-// --- Sprint 3: Step 3 Review & Decision ---
+// --- Sprint 3: V1 Review & Decision ---
 export {
   useEvidenceMatrix,
   useCreateEvidenceRow,

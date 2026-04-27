@@ -53,7 +53,7 @@ parent: E3--architecture-and-design.md
 
 **尚未涵蓋（保留供未來參考）**：
 
-- 產品級 Step 流轉（Step 1→2→...→8）仍由前端驅動
+- 產品級 Step 流轉（D1→D2→...→V4）仍由前端驅動
 - Artifact 版本狀態管理（Draft → Reviewed → Verified → Baselined → Released）仍為手動/Gate 端點驅動
 
 ### 1.3 架構圖
@@ -127,25 +127,27 @@ graph TB
 ### 2.2 E2E 步驟自動化對照表
 
 > 步驟名稱與編號完全對齊 `[diagrams/appendix-d--state-machine.md](diagrams/appendix-d--state-machine.md)` Step 編號對照表。
+>
+> **v10 命名慣例**：D = Define (Phase I), X = eXplore (Phase II), V = Verify (Phase III)。
 
 
 | Step | 正式名稱 | Phase | 自動化等級 | 主要 Agent | 人類角色 | 路徑依賴風險 | 核心工件 |
 |------|---------|-------|-----------|-----------|---------|-------------|---------|
-| **1** | **問題界定** (白帽 + 5W1H + 素材上傳解讀) | I | AI-Assisted | Analyst + Knowledge | 提供原始需求、上傳素材、確認約束句 | 低 | Constraint |
-| **2** | **理解全貌** (蘇格拉底問答) | I | **AI-Driven** | Analyst + Knowledge | 參與問答、確認假設與矛盾 | **高** — 慣用架構偏見 | Contradiction, Assumption |
-| **2b** | **根因分析與功能建模** (5Why + KT Is/Is Not + FA + SF 診斷) | I | **AI-Driven** | Analyst | 確認根因假設、組件交互圖、子系統邊界 | **高** — 粒度錯誤風險 | 根因假設, Px 候選, FunctionModel |
-| **3** | **系統建模** (因果迴路 + TRIZ 矛盾 + 斷路點) | I | **AI-Driven** | Analyst + TRIZ Solver | 校準矛盾句、確認斷路點 | **高** — 傾向忽略矛盾 | Contradiction, Breakpoint |
-| **4** | **假設與驗證規劃** (HDA + 未知集合) | II | AI-Assisted | Analyst + Knowledge | 填寫假設台帳、定義未知集合 | 中 | Assumption |
-| **5a** | **TRIZ 解矛盾** (含 OZ-OT 前置 + 矩陣查表 + 原理具體化 + 架構健康度監控 + SIM 矩陣；**Anti-Anchor Sprint 並行**) | II | **Fully Auto** | TRIZ Solver + Analyst + Knowledge | 確認矛盾分級、審核 SIM 結果、審核非典型架構 | **最高** — 解法錨定 + Anti-Anchor | Concept Route (部分), SimMatrix, OzOtResult |
-| **5b** | **子系統定義** (三層階層 System→Module→Component；含 optional Spatial Discovery Validator) | II | AI-Driven | Analyst | 確認子系統清單、spatial score | 中 | Concept Route (部分), SpatialEstimate |
-| **5d** | **AI 方案生成 + Decision Hub** (整合 TRIZ + Anti-Anchor 晉升，每方案附 Validation Passport + CCI 複雜度指標；RD 採納方案 + CCI 標籤 + 橫向比較) | II | **AI-Driven** | Analyst + TRIZ Solver + Evaluator | 審核方案規格、檢視 CCI 判定（Evolution/Patch） | 中 | Concept Route, Interface, ComplexityCheckResult |
-| **P** | **Pre-CAD 資格審查** (MUST Go/No-Go 自動篩 + 人工 Pre-CAD Gate；Evidence Coverage ≥ 40%) | II | **AI-Driven** | Evaluator | 確認 MUST 判定、審核 Gate P 結果、決策保留路線 | 低 | Concept Route, Pre-CAD Review Report |
-| **6** | **設計審查** (CAD Gate - MVP CAD Review) | III | AI-Assisted | Evaluator + Knowledge | 繪製 MVP CAD、填寫 DR EM、黑帽質疑 | 低 | Evidence Matrix, Risk, MVP CAD Model |
-| **6e** | **證據補齊** (Evidence Closure) | III | AI-Assisted | Knowledge + Evaluator | 設計/執行最小實驗、收集證據 | 低 | Evidence |
-| **7** | **決策與行動** (KT Decision Analysis + 最小實驗) | III | Human-Led | Evaluator | 執行 KT 決策 (MUST→WANT→AC)、簽核 | 低 | Decision Record |
-| **8** | **內化與傳達** (費曼) | III | **Fully Auto** | Knowledge | 無需介入（知識回寫自動化） | 無 | Asset |
+| **D1** | **問題界定** (白帽 + 5W1H + 素材上傳解讀) | I | AI-Assisted | Analyst + Knowledge | 提供原始需求、上傳素材、確認約束句 | 低 | Constraint |
+| **D2** | **理解全貌** (蘇格拉底問答) | I | **AI-Driven** | Analyst + Knowledge | 參與問答、確認假設與矛盾 | **高** — 慣用架構偏見 | Contradiction, Assumption |
+| **D3** | **根因分析與功能建模** (5Why + KT Is/Is Not + FA + SF 診斷) | I | **AI-Driven** | Analyst | 確認根因假設、組件交互圖、子系統邊界 | **高** — 粒度錯誤風險 | 根因假設, Px 候選, FunctionModel |
+| **D4** | **系統建模** (因果迴路 + TRIZ 矛盾 + 斷路點) | I | **AI-Driven** | Analyst + TRIZ Solver | 校準矛盾句、確認斷路點 | **高** — 傾向忽略矛盾 | Contradiction, Breakpoint |
+| **X1** | **假設與驗證規劃** (HDA + 未知集合) | II | AI-Assisted | Analyst + Knowledge | 填寫假設台帳、定義未知集合 | 中 | Assumption |
+| **X2** | **TRIZ 解矛盾** (含 OZ-OT 前置 + 矩陣查表 + 原理具體化 + 架構健康度監控 + SIM 矩陣；**Anti-Anchor Sprint 並行**) | II | **Fully Auto** | TRIZ Solver + Analyst + Knowledge | 確認矛盾分級、審核 SIM 結果、審核非典型架構 | **最高** — 解法錨定 + Anti-Anchor | Concept Route (部分), SimMatrix, OzOtResult |
+| **X3** | **子系統定義** (三層階層 System→Module→Component；含 optional Spatial Discovery Validator) | II | AI-Driven | Analyst | 確認子系統清單、spatial score | 中 | Concept Route (部分), SpatialEstimate |
+| **X4** | **AI 方案生成 + Decision Hub** (整合 TRIZ + Anti-Anchor 晉升，每方案附 Validation Passport + CCI 複雜度指標；RD 採納方案 + CCI 標籤 + 橫向比較) | II | **AI-Driven** | Analyst + TRIZ Solver + Evaluator | 審核方案規格、檢視 CCI 判定（Evolution/Patch） | 中 | Concept Route, Interface, ComplexityCheckResult |
+| **X5** | **Pre-CAD 資格審查** (MUST Go/No-Go 自動篩 + 人工 Pre-CAD Gate；Evidence Coverage ≥ 40%) | II | **AI-Driven** | Evaluator | 確認 MUST 判定、審核 Gate X5 結果、決策保留路線 | 低 | Concept Route, Pre-CAD Review Report |
+| **V1** | **設計審查** (CAD Gate - MVP CAD Review) | III | AI-Assisted | Evaluator + Knowledge | 繪製 MVP CAD、填寫 DR EM、黑帽質疑 | 低 | Evidence Matrix, Risk, MVP CAD Model |
+| **V2** | **證據補齊** (Evidence Closure) | III | AI-Assisted | Knowledge + Evaluator | 設計/執行最小實驗、收集證據 | 低 | Evidence |
+| **V3** | **決策與行動** (KT Decision Analysis + 最小實驗) | III | Human-Led | Evaluator | 執行 KT 決策 (MUST→WANT→AC)、簽核 | 低 | Decision Record |
+| **V4** | **內化與傳達** (費曼) | III | **Fully Auto** | Knowledge | 無需介入（知識回寫自動化） | 無 | Asset |
 
-> **v10 簡化說明**（Elon 最簡路徑）：原 Step 2c（功能建模）併入 Step 2b（根因→功能模型為同一因果鏈）；原 Step 5-0（Anti-Anchor）降為 5a 並行任務；原 Step 5a-0（OZ-OT）併入 5a 子步驟（對齊 Appendix B 實作）；原 Step 5b.5（Spatial Discovery）降為 5b optional 子步驟；原 Step 5e（MUST 快篩）併入 Step P（連續兩道門合為複合 Gate）。~~Step 5c SCAMPER 已於 v9 移除~~。
+> **v10 簡化說明**（Elon 最簡路徑）：原 Step 2c（功能建模）併入 D3（根因→功能模型為同一因果鏈）；原 Step 5-0（Anti-Anchor）降為 X2 並行任務；原 Step 5a-0（OZ-OT）併入 X2 子步驟（對齊 Appendix B 實作）；原 Step 5b.5（Spatial Discovery）降為 X3 optional 子步驟；原 Step 5e（MUST 快篩）併入 X5（連續兩道門合為複合 Gate）。~~Step 5c SCAMPER 已於 v9 移除~~。
 
 
 ### 2.2a Gate 自動化判定
@@ -155,32 +157,32 @@ graph TB
 
 | Gate | 位置 | Gate 類型 | Phase 轉換 | 可否自動 | 判定邏輯 | Fallback |
 |------|------|-----------|-----------|---------|---------|---------|
-| **Gate 1** | Step 1 → Step 2 | 內部 Gate | **DRAFT → PHASE_I** | AI-Driven | 三個最不能失敗指標已明確且可量測 | 人類覆審 |
-| **Gate 2** | Step 2b → Step 3 | 內部 Gate | Phase I 內部 | AI-Driven | FunctionModel 完成 + ≥10 條假設 + Top 3 致命假設 + ≥3 條核心矛盾 | 人類覆審 |
-| **Gate 3** | Step 3 → Step 4 | 內部 Gate | **PHASE_I → PHASE_II** | AI-Driven | ≥1 因果迴路 + ≥3 斷路點 + 每條矛盾有 TRIZ 正式句 | 人類覆審 |
-| **Gate 4** | Step 4 → Step 5a | 內部 Gate | Phase II 內部 | AI-Driven | Top 3 假設每個有 1-2 週內可完成的驗證設計 | 人類覆審 |
-| **Gate P** | Step 5d → Step P | **Pre-CAD Gate** | Phase II 內部 | AI-Driven | **P1 自動篩**：MUST Go/No-Go + ≥3 路線 + ≥1 Anti-Anchor；**P2 人工審**：≥3 條架構級路線 + 每條有完整方案規格 + **Evidence Coverage ≥ 40%**（ADR-008 D3） | 人類覆審 |
-| — | Step P → Step 6 | Phase 轉換 | **PHASE_II → PHASE_III** | Human-Led | 候選收斂至 3-5 條 + Interface Contract 已更新 + 最小 CAD 範圍明確 | N/A |
-| **Gate 6** | Step 6 → Step 6e | 內部 Gate | Phase III 內部 | AI-Driven | 發現證據缺口，觸發 6e 迴圈 | 人類覆審 |
-| **Gate C** | Step 6 → Step 7 | **CAD Gate** | Phase III 內部 | Human-Led | 北極星 ≥ E2 + Evidence Matrix 所有 row 達標 + Top 10 風險有緩解 | N/A |
-| **Gate 7** | Step 7 → Step 8 | 內部 Gate | Phase III 內部 | Human-Led | KT 決策記錄完整已簽核 + 所有 H 風險有緩解 | N/A |
-| **Gate 8** | Step 8 → Done | 內部 Gate | **PHASE_III → COMPLETED** | AI-Driven | 所有核心工件 Baselined → Released | 人類覆審 |
+| **Gate D1** | D1 → D2 | 內部 Gate | **DRAFT → PHASE_I** | AI-Driven | 三個最不能失敗指標已明確且可量測 | 人類覆審 |
+| **Gate D3** | D3 → D4 | 內部 Gate | Phase I 內部 | AI-Driven | FunctionModel 完成 + ≥10 條假設 + Top 3 致命假設 + ≥3 條核心矛盾 | 人類覆審 |
+| **Gate D4** | D4 → X1 | 內部 Gate | **PHASE_I → PHASE_II** | AI-Driven | ≥1 因果迴路 + ≥3 斷路點 + 每條矛盾有 TRIZ 正式句 | 人類覆審 |
+| **Gate X1** | X1 → X2 | 內部 Gate | Phase II 內部 | AI-Driven | Top 3 假設每個有 1-2 週內可完成的驗證設計 | 人類覆審 |
+| **Gate X5** | X4 → X5 | **Pre-CAD Gate** | Phase II 內部 | AI-Driven | **P1 自動篩**：MUST Go/No-Go + ≥3 路線 + ≥1 Anti-Anchor；**P2 人工審**：≥3 條架構級路線 + 每條有完整方案規格 + **Evidence Coverage ≥ 40%**（ADR-008 D3） | 人類覆審 |
+| — | X5 → V1 | Phase 轉換 | **PHASE_II → PHASE_III** | Human-Led | 候選收斂至 3-5 條 + Interface Contract 已更新 + 最小 CAD 範圍明確 | N/A |
+| **Gate V1** | V1 → V2 | 內部 Gate | Phase III 內部 | AI-Driven | 發現證據缺口，觸發 V2 迴圈 | 人類覆審 |
+| **Gate C** | V1 → V3 | **CAD Gate** | Phase III 內部 | Human-Led | 北極星 ≥ E2 + Evidence Matrix 所有 row 達標 + Top 10 風險有緩解 | N/A |
+| **Gate V3** | V3 → V4 | 內部 Gate | Phase III 內部 | Human-Led | KT 決策記錄完整已簽核 + 所有 H 風險有緩解 | N/A |
+| **Gate V4** | V4 → Done | 內部 Gate | **PHASE_III → COMPLETED** | AI-Driven | 所有核心工件 Baselined → Released | 人類覆審 |
 
-> **v10 簡化**：原 Anti-Anchor Gate（5-0→5a）改為 5a 內部邏輯（≥1 非對標路線且通過 M1+M4，不通過則自動重新發散）；原 Step 5e MUST 快篩合併為 Gate P 的 P1 自動篩階段；Gate 2 位置從 Step 2c 改為 Step 2b（2c 已併入 2b）。
+> **v10 簡化**：原 Anti-Anchor Gate（5-0→5a）改為 X2 內部邏輯（≥1 非對標路線且通過 M1+M4，不通過則自動重新發散）；原 Step 5e MUST 快篩合併為 Gate X5 的 P1 自動篩階段；Gate D3 位置從 Step 2c 改為 D3（2c 已併入 D3）。
 
 
 ### 2.2b 架構健康度回退路徑
 
-Phase A（架構健康度監控）觸發強制停止時，採**漸進回退**而非一律回 Step 1：
+Phase A（架構健康度監控）觸發強制停止時，採**漸進回退**而非一律回 D1：
 
 
 | 觸發條件                                | 回退策略                                                             |
 | ----------------------------------- | ---------------------------------------------------------------- |
-| **矛盾節點 > 5**（扣除 SIM 已收斂 TC 對後的淨節點數） | ① 回 Step 2b 重建功能模型/根因分析 → ② 仍無法收斂則回 Step 1 |
-| **結構性循環矛盾**（組件 A↔B 互為因果） | 回 Step 2b 重建功能模型 |
-| **框架性循環矛盾**（問題定義自相矛盾） | 回 Step 2b 或 Step 1 |
+| **矛盾節點 > 5**（扣除 SIM 已收斂 TC 對後的淨節點數） | ① 回 D3 重建功能模型/根因分析 → ② 仍無法收斂則回 D1 |
+| **結構性循環矛盾**（組件 A↔B 互為因果） | 回 D3 重建功能模型 |
+| **框架性循環矛盾**（問題定義自相矛盾） | 回 D3 或 D1 |
 
-> **設計理由**：Step 2b（5Why/KT + FA/SF）提供了比 Step 1 更精準的修正入口。上游功能模型或根因假設的缺陷是架構健康度異常的最常見原因，直接回 Step 1 浪費已完成的有效分析。
+> **設計理由**：D3（5Why/KT + FA/SF）提供了比 D1 更精準的修正入口。上游功能模型或根因假設的缺陷是架構健康度異常的最常見原因，直接回 D1 浪費已完成的有效分析。
 
 ---
 
@@ -192,29 +194,29 @@ Phase A（架構健康度監控）觸發強制停止時，採**漸進回退**而
 
 #### 機制 1：Assumption Challenge（假設質疑）
 
-- **觸發點**：Step 2 蘇格拉底問答過程中
+- **觸發點**：D2 蘇格拉底問答過程中
 - **執行者**：Analyst Agent
-- **對齊**：DK-01 §Step 2 七類提問中的「假設」、「反思」與「重構」類
+- **對齊**：DK-01 §D2 七類提問中的「假設」、「反思」與「重構」類
 - **作法**：
   1. 從蘇格拉底問答中提取所有隱含假設（如「必須用齒輪傳動」）
   2. 對每個假設提出反問：「如果不用 X，還有什麼替代方案？」
   3. 產出 Assumption Register，標記 `challenged` / `confirmed`
-- **產出物**：Assumption 工件（Draft），供 Step 4 假設台帳引用
+- **產出物**：Assumption 工件（Draft），供 X1 假設台帳引用
 
 #### 機制 2：Forced Divergence（強制發散）
 
-- **觸發點**：Step 5a（Anti-Anchor 並行任務 + TRIZ 正向軌）
+- **觸發點**：X2（Anti-Anchor 並行任務 + TRIZ 正向軌）
 - **執行者**：TRIZ Solver Agent + Analyst Agent
 - **對齊**：DK-01 §5.1 Anti-Anchor Sprint 規則
 - **作法**：
-  1. Anti-Anchor 並行任務產出 3 種「非典型架構」概念（直入 5d 候選池）
+  1. Anti-Anchor 並行任務產出 3 種「非典型架構」概念（直入 X4 候選池）
   2. TRIZ 正向軌每個矛盾至少產出 3 條工程對映
   3. 至少 1 條必須是「跟競品在物理介面或核心機制上不相容」的路線
 - **閾值**：Anti-Anchor 內部檢查 — 三條概念路線中至少一條非對標且初步通過 M1 + M4（不通過則自動重新發散）
 
 #### 機制 3：Cross-Domain Analogical Search（跨域類比搜尋）
 
-- **觸發點**：Step 5a 並行執行期間
+- **觸發點**：X2 並行執行期間
 - **執行者**：Knowledge Agent
 - **作法**：
   1. 將核心矛盾抽象為功能語言（如「在有限空間內散熱」→「受限空間的能量轉移」）
@@ -224,29 +226,29 @@ Phase A（架構健康度監控）觸發強制停止時，採**漸進回退**而
 
 #### 機制 4：Anti-Anchor 內部檢查（反錨定）
 
-- **觸發點**：Step 5a Anti-Anchor 並行任務完成時（5a 內部邏輯）
+- **觸發點**：X2 Anti-Anchor 並行任務完成時（X2 內部邏輯）
 - **執行者**：Analyst Agent（Anti-Anchor 任務內自動判定）
 - **對齊**：DK-01 §5.1 Anti-Anchor Sprint 規則
 - **作法**：
   1. 檢查三條概念路線是否有至少一條「非對標」
   2. 非對標路線須初步通過 M1（空間約束）和 M4（解耦程度）
-  3. 不通過 → 自動重新發散（5a 內部迴圈，不影響 TRIZ 正向軌）
+  3. 不通過 → 自動重新發散（X2 內部迴圈，不影響 TRIZ 正向軌）
 
 #### 機制與 Step 對應總表
 
 
 | AI 機制                                     | 觸發 Step                                                                           | Agent                                 | 對齊整合流程章節                                                                                                                                                             |
 | ----------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Constraint Feasibility Check**          | **Step 1**                                                                        | **Analyst + Knowledge**               | **§Step 1 約束可行性驗證**                                                                                                                                                  |
-| Assumption Challenge                      | Step 2                                                                            | Analyst                               | §Step 2 蘇格拉底七類提問                                                                                                                                                     |
-| **Problem Reframing**                     | **Step 2**                                                                        | **Analyst**                           | **§Step 2 第七類「重構」提問**                                                                                                                                                |
-| **Source Ingestion**                      | **Step 1**                                                                        | **Knowledge**                         | **§Step 1 多模態素材輸入**                                                                                                                                                  |
-| Forced Divergence                         | Step 5a (Anti-Anchor 並行 + TRIZ 正向)                                                | TRIZ Solver + Analyst                 | §5.1 Anti-Anchor Sprint (5a 並行任務) + §5a TRIZ 解矛盾                                                                                                                    |
-| **Architecture Health Monitor + SIM/CCI** | **架構健康度: phase-agnostic (nodes > 5 halt); SIM: Step 5a (≥2 TC 前置); CCI: Step 5d** | **Analyst + TRIZ Solver + Evaluator** | **架構健康度 (節點>5 → ArchitectureHaltOverlay) + SIM 矩陣 (跨矛盾衝突前置, ADR-008 D5) + CCI 複雜度 (ADR-008 D4) + L1 critic badge (per-card 品質閘門, 取代原 Phase A)。~~Phase B 已於 v9 退役**~~ |
-| **Validation Passport Generation**        | **Step 5d**                                                                       | **Evaluator**                         | **每個候選方案自帶 Validation Passport**                                                                                                                                     |
-| **Socratic Follow-up**                    | **Step 2**                                                                        | **Analyst**                           | **回答深度分析 + 後續追問生成**                                                                                                                                                  |
-| **Brief Impact Analysis**                 | **Step 1-2**                                                                      | **Analyst**                           | **Brief 變更影響評估**                                                                                                                                                     |
-| Cross-Domain Search                       | Step 5a 並行                                                                        | Knowledge                             | §5.0 知識增強輸入 (Web 外部專利/新材料)                                                                                                                                           |
+| **Constraint Feasibility Check**          | **D1**                                                                            | **Analyst + Knowledge**               | **§D1 約束可行性驗證**                                                                                                                                                      |
+| Assumption Challenge                      | D2                                                                                | Analyst                               | §D2 蘇格拉底七類提問                                                                                                                                                         |
+| **Problem Reframing**                     | **D2**                                                                            | **Analyst**                           | **§D2 第七類「重構」提問**                                                                                                                                                    |
+| **Source Ingestion**                      | **D1**                                                                            | **Knowledge**                         | **§D1 多模態素材輸入**                                                                                                                                                      |
+| Forced Divergence                         | X2 (Anti-Anchor 並行 + TRIZ 正向)                                                     | TRIZ Solver + Analyst                 | §5.1 Anti-Anchor Sprint (X2 並行任務) + §X2 TRIZ 解矛盾                                                                                                                    |
+| **Architecture Health Monitor + SIM/CCI** | **架構健康度: phase-agnostic (nodes > 5 halt); SIM: X2 (≥2 TC 前置); CCI: X4**           | **Analyst + TRIZ Solver + Evaluator** | **架構健康度 (節點>5 → ArchitectureHaltOverlay) + SIM 矩陣 (跨矛盾衝突前置, ADR-008 D5) + CCI 複雜度 (ADR-008 D4) + L1 critic badge (per-card 品質閘門, 取代原 Phase A)。~~Phase B 已於 v9 退役**~~ |
+| **Validation Passport Generation**        | **X4**                                                                            | **Evaluator**                         | **每個候選方案自帶 Validation Passport**                                                                                                                                     |
+| **Socratic Follow-up**                    | **D2**                                                                            | **Analyst**                           | **回答深度分析 + 後續追問生成**                                                                                                                                                  |
+| **Brief Impact Analysis**                 | **D1-D2**                                                                         | **Analyst**                           | **Brief 變更影響評估**                                                                                                                                                     |
+| Cross-Domain Search                       | X2 並行                                                                             | Knowledge                             | §5.0 知識增強輸入 (Web 外部專利/新材料)                                                                                                                                           |
 
 
 ---
@@ -268,9 +270,9 @@ sequenceDiagram
     Note over ORC: Phase I: 定義問題空間
 
     RD->>ORC: 提交設計需求 + 上傳素材 (PDF/圖片/規格書/報告)
-    ORC->>KA: Step 1 - 素材解讀 (Source Ingestion) + 檢索歷史案例/產業基準
+    ORC->>KA: D1 - 素材解讀 (Source Ingestion) + 檢索歷史案例/產業基準
     KA-->>ORC: 素材提取結果 (約束/假設/數據/矛盾線索) + 知識補充 (KB-/WEB-)
-    ORC->>AA: Step 1 問題界定 - 結構化約束句 (含素材提取結果)
+    ORC->>AA: D1 問題界定 - 結構化約束句 (含素材提取結果)
     AA-->>ORC: Constraint (Draft) + Assumption (預填)
     ORC->>AA: 約束可行性驗證 (Constraint Feasibility Check)
     alt 約束物理不可能
@@ -284,59 +286,59 @@ sequenceDiagram
     end
     ORC->>RD: 審核 AI 提取結果 + 可行性判定
     RD-->>ORC: 確認/修正
-    ORC->>EA: Gate 1 檢查
-    EA-->>ORC: Gate 1 通過 (DRAFT→PHASE_I)
+    ORC->>EA: Gate D1 檢查
+    EA-->>ORC: Gate D1 通過 (DRAFT→PHASE_I)
 
-    ORC->>AA: Step 2 理解全貌 - 蘇格拉底七類提問 (含「重構」類: 質疑問題框架)
-    ORC->>KA: Step 2 - 歷史假設/失效機制文獻
+    ORC->>AA: D2 理解全貌 - 蘇格拉底七類提問 (含「重構」類: 質疑問題框架)
+    ORC->>KA: D2 - 歷史假設/失效機制文獻
     AA-->>ORC: Contradiction (Draft) + Assumption (Draft)
-    ORC->>AA: Step 2 - Assumption Challenge (假設質疑)
+    ORC->>AA: D2 - Assumption Challenge (假設質疑)
     AA-->>ORC: Assumption Register
     ORC->>RD: 審核矛盾列表 + 假設清單
     RD-->>ORC: 確認/修正
 
-    ORC->>AA: Step 2b 根因分析與功能建模 (5Why + KT + FA + SF)
+    ORC->>AA: D3 根因分析與功能建模 (5Why + KT + FA + SF)
     AA-->>ORC: 根因假設 + Px 候選 + FunctionModel (Draft)
     ORC->>RD: 確認根因 + 組件交互圖 + 子系統邊界
     RD-->>ORC: 確認/修正
-    ORC->>EA: Gate 2 檢查
-    EA-->>ORC: Gate 2 通過
+    ORC->>EA: Gate D3 檢查
+    EA-->>ORC: Gate D3 通過
 
-    ORC->>AA: Step 3 系統建模 - 因果迴路圖
-    ORC->>TA: Step 3 - TRIZ 矛盾正式化 (LLM翻譯 + 規則驗證)
-    ORC->>KA: Step 3 - FMEA/8D 歷史因果鏈
+    ORC->>AA: D4 系統建模 - 因果迴路圖
+    ORC->>TA: D4 - TRIZ 矛盾正式化 (LLM翻譯 + 規則驗證)
+    ORC->>KA: D4 - FMEA/8D 歷史因果鏈
     AA-->>ORC: 因果迴路圖 + 斷路點
     TA-->>ORC: TRIZ 矛盾句 (Contradiction Verified)
     ORC->>RD: 校準矛盾句
     RD-->>ORC: 確認
-    ORC->>EA: Gate 3 檢查
-    EA-->>ORC: Gate 3 通過 (PHASE_I→PHASE_II)
+    ORC->>EA: Gate D4 檢查
+    EA-->>ORC: Gate D4 通過 (PHASE_I→PHASE_II)
 
     Note over ORC: Phase II: 假設與發散
 
-    ORC->>AA: Step 4 假設與驗證規劃 - 假設台帳
-    ORC->>KA: Step 4 - 過往驗證方法/成本紀錄
+    ORC->>AA: X1 假設與驗證規劃 - 假設台帳
+    ORC->>KA: X1 - 過往驗證方法/成本紀錄
     AA-->>ORC: Assumption (Verified)
     ORC->>RD: 確認假設台帳 + 未知集合
     RD-->>ORC: 確認
-    ORC->>EA: Gate 4 檢查
-    EA-->>ORC: Gate 4 通過
+    ORC->>EA: Gate X1 檢查
+    EA-->>ORC: Gate X1 通過
 
-    Note over ORC: Step 5 內部並行發散
+    Note over ORC: X2-X4 內部並行發散
     par Anti-Anchor Sprint (並行任務)
         ORC->>AA: Anti-Anchor - 第一性原理 prompt
         ORC->>KA: Anti-Anchor - 跨域架構搜尋
-        AA-->>ORC: 3 種非典型架構概念 (附 Validation Passport, 直入 5d 候選池)
+        AA-->>ORC: 3 種非典型架構概念 (附 Validation Passport, 直入 X4 候選池)
     and TRIZ 正向軌 (每條矛盾獨立)
-        ORC->>AA: Step 5a - OZ-OT 分析 (鎖定 Px)
+        ORC->>AA: X2 - OZ-OT 分析 (鎖定 Px)
         AA-->>ORC: OzOtResult (OZ/OT/Px)
-        ORC->>TA: Step 5a - 矩陣查表 + 原理具體化
-        ORC->>KA: Step 5a - 佐證搜尋 (專利/文獻)
+        ORC->>TA: X2 - 矩陣查表 + 原理具體化
+        ORC->>KA: X2 - 佐證搜尋 (專利/文獻)
         TA-->>ORC: 每條矛盾 ≥3 條工程對映 + 受影響模組清單
-        ORC->>AA: Step 5a 架構健康度監控 (nodes > 5 halt, 循環偵測) + 矛盾分級
+        ORC->>AA: X2 架構健康度監控 (nodes > 5 halt, 循環偵測) + 矛盾分級
         alt 收斂圖節點 > 5
             AA-->>ORC: 🛑 強制暫停: 架構根本性問題
-            ORC->>RD: 漸進回退 (2c→2b→1)
+            ORC->>RD: 漸進回退 (D3→D1)
         else 循環矛盾
             AA-->>ORC: 🛑 強制暫停: 架構內在矛盾
             ORC->>RD: 回退至功能建模或問題定向
@@ -349,50 +351,50 @@ sequenceDiagram
             AA-->>ORC: 收斂 ✓
         end
     and 子系統定義 (獨立於 TRIZ 求解)
-        ORC->>AA: Step 5b - 子系統定義 (三層階層 System→Module→Component)
+        ORC->>AA: X3 - 子系統定義 (三層階層 System→Module→Component)
         AA-->>ORC: 子系統清單 (3-level hierarchy)
     end
 
-    ORC->>AA: Step 5d AI 方案生成 - 整合 TRIZ + Anti-Anchor 晉升
+    ORC->>AA: X4 AI 方案生成 - 整合 TRIZ + Anti-Anchor 晉升
     AA-->>ORC: Concept Route (Draft) + Interface Contract
     ORC->>EA: 為每個候選方案生成 Validation Passport + CCI 複雜度判定
     EA-->>ORC: Validation Passport + CCI 標籤 (Evolution/Weak Evolution/Patch)
-    ORC->>RD: Step 5d Decision Hub - RD 選定方案 + CCI 標籤 + 橫向比較
+    ORC->>RD: X4 Decision Hub - RD 選定方案 + CCI 標籤 + 橫向比較
     RD-->>ORC: 選定方案清單
 
-    ORC->>EA: Gate P 檢查 (P1 自動: MUST Go/No-Go + ≥3 路線 + ≥1 AA; P2 人工: Pre-CAD 審查)
-    EA-->>ORC: Gate P 結果
-    ORC->>RD: Step P Pre-CAD 資格審查 (Evidence Coverage ≥ 40%)
+    ORC->>EA: Gate X5 檢查 (P1 自動: MUST Go/No-Go + ≥3 路線 + ≥1 AA; P2 人工: Pre-CAD 審查)
+    EA-->>ORC: Gate X5 結果
+    ORC->>RD: X5 Pre-CAD 資格審查 (Evidence Coverage ≥ 40%)
     RD-->>ORC: 保留 3-5 條路線
     Note over ORC: Phase 轉換 (PHASE_II→PHASE_III)
 
-    RD->>ORC: Step 6 設計審查 - MVP CAD + DR EM
-    ORC->>KA: Step 6 - 歷史失效案例比對
-    ORC->>EA: Step 6 - 證據品質評分
+    RD->>ORC: V1 設計審查 - MVP CAD + DR EM
+    ORC->>KA: V1 - 歷史失效案例比對
+    ORC->>EA: V1 - 證據品質評分
 
     loop 證據補齊迴圈
         ORC->>EA: 檢查證據缺口
         alt 北極星證據 < E2
-            ORC->>AA: Step 6e 證據補齊 - 實驗設計
-            ORC->>KA: Step 6e - 方法檢索
+            ORC->>AA: V2 證據補齊 - 實驗設計
+            ORC->>KA: V2 - 方法檢索
             RD->>ORC: 實驗數據回傳
             ORC->>EA: 更新 Evidence Matrix
         end
     end
 
-    ORC->>EA: Gate C 檢查 (CAD Gate - Step 6 完成)
+    ORC->>EA: Gate C 檢查 (CAD Gate - V1 完成)
     EA-->>ORC: Gate C 通過 (北極星 ≥ E2, Evidence Matrix 達標)
 
-    ORC->>RD: Step 7 決策與行動 - KT Decision Analysis
-    ORC->>EA: Step 7 - KT 評分輔助 (WANT + AC)
+    ORC->>RD: V3 決策與行動 - KT Decision Analysis
+    ORC->>EA: V3 - KT 評分輔助 (WANT + AC)
     RD-->>ORC: KT 決策記錄簽核
-    ORC->>EA: Gate 7 檢查
-    EA-->>ORC: Gate 7 通過
+    ORC->>EA: Gate V3 檢查
+    EA-->>ORC: Gate V3 通過
 
-    ORC->>KA: Step 8 內化與傳達 - 知識回寫
+    ORC->>KA: V4 內化與傳達 - 知識回寫
     KA-->>ORC: 回寫完成 (6 類資產)
-    ORC->>EA: Gate 8 檢查
-    EA-->>ORC: Gate 8 通過 (PHASE_III→COMPLETED)
+    ORC->>EA: Gate V4 檢查
+    EA-->>ORC: Gate V4 通過 (PHASE_III→COMPLETED)
 ```
 
 
@@ -404,32 +406,32 @@ sequenceDiagram
 
 | 可並行的組合 | 前置條件 | 說明 |
 |-------------|---------|------|
-| Anti-Anchor Sprint ∥ TRIZ 正向軌 (5a) | Gate 4 通過 | 反向創意與正向 TRIZ 並行發散，候選匯流至 5d |
-| 不同矛盾句的 5a (TRIZ 解矛盾) | Gate 4 通過 | 每條矛盾獨立求解 |
-| 5a (TRIZ) 與 5b (子系統定義) | Gate 4 通過 | TRIZ 和子系統定義為互補路徑 |
+| Anti-Anchor Sprint ∥ TRIZ 正向軌 (X2) | Gate X1 通過 | 反向創意與正向 TRIZ 並行發散，候選匯流至 X4 |
+| 不同矛盾句的 X2 (TRIZ 解矛盾) | Gate X1 通過 | 每條矛盾獨立求解 |
+| X2 (TRIZ) 與 X3 (子系統定義) | Gate X1 通過 | TRIZ 和子系統定義為互補路徑 |
 | Knowledge Agent 預檢索 + 主流程 | 任何 Step | Knowledge Agent 可提前快取 |
 
-> **注意**：Anti-Anchor Sprint 為 5a 的並行任務（非獨立 Step），其產出直接進入 5d 候選池。5b 依賴 5a 解法方向指出受影響子系統，但不同矛盾的 5a 可與 5b 並行。所有並行產出匯聚到 5d (AI 方案生成) 做交叉組合，再由 Gate P 統一篩選。
+> **注意**：Anti-Anchor Sprint 為 X2 的並行任務（非獨立 Step），其產出直接進入 X4 候選池。X3 依賴 X2 解法方向指出受影響子系統，但不同矛盾的 X2 可與 X3 並行。所有並行產出匯聚到 X4 (AI 方案生成) 做交叉組合，再由 Gate X5 統一篩選。
 
 ### 11.4.3 Artifact State 轉換（對齊 State Machine）
 
 
 | Step                | 核心工件                      | 狀態轉換                 |
 | ------------------- | ------------------------- | -------------------- |
-| Step 1 → Gate 1     | Constraint                | Draft → Reviewed     |
-| Step 2 → Gate 2     | Contradiction, Assumption | Draft → Reviewed     |
-| Step 3 → Gate 3     | Contradiction             | Reviewed → Verified  |
-| Step 3 → Gate 3     | Breakpoint                | Draft → Reviewed     |
-| Step 4 → Gate 4     | Assumption                | Reviewed → Verified  |
-| Step 5d → Gate P    | Concept Route, Interface  | Draft → Reviewed     |
-| Step P (Pre-CAD 通過) | Concept Route             | Reviewed → Verified  |
-| Step P (Pre-CAD 通過) | Pre-CAD Review Report     | Draft → Reviewed     |
-| Step 6 → Gate 6     | Evidence Matrix, Risk     | Draft → Reviewed     |
-| Step 6 → Gate C     | Evidence Matrix           | Reviewed → Verified  |
-| Step 6 → Gate C     | MVP CAD Model             | Draft → Reviewed     |
-| Step 7 → Gate 7     | Concept Route             | Verified → Baselined |
-| Step 7 → Gate 7     | Decision Record           | Draft → Reviewed     |
-| Step 8 → Gate 8     | All Core Artifacts        | Baselined → Released |
+| D1 → Gate D1        | Constraint                | Draft → Reviewed     |
+| D2 → Gate D3        | Contradiction, Assumption | Draft → Reviewed     |
+| D4 → Gate D4        | Contradiction             | Reviewed → Verified  |
+| D4 → Gate D4        | Breakpoint                | Draft → Reviewed     |
+| X1 → Gate X1        | Assumption                | Reviewed → Verified  |
+| X4 → Gate X5        | Concept Route, Interface  | Draft → Reviewed     |
+| X5 (Pre-CAD 通過)    | Concept Route             | Reviewed → Verified  |
+| X5 (Pre-CAD 通過)    | Pre-CAD Review Report     | Draft → Reviewed     |
+| V1 → Gate V1        | Evidence Matrix, Risk     | Draft → Reviewed     |
+| V1 → Gate C         | Evidence Matrix           | Reviewed → Verified  |
+| V1 → Gate C         | MVP CAD Model             | Draft → Reviewed     |
+| V3 → Gate V3        | Concept Route             | Verified → Baselined |
+| V3 → Gate V3        | Decision Record           | Draft → Reviewed     |
+| V4 → Gate V4        | All Core Artifacts        | Baselined → Released |
 
 
 ---
@@ -461,23 +463,23 @@ sequenceDiagram
 analyst_agent:
   llm: claude-sonnet-4-6
   tools:
-    - functional_model_generator  # Step 3 產出因果迴路圖 + 功能樹
-    - assumption_extractor        # Step 2 假設質疑
-    - constraint_feasibility_checker  # Step 1 約束可行性驗證 (物理極限分析)
-    - problem_reframer               # Step 2 問題框架挑戰 (重構提問)
+    - functional_model_generator  # D4 產出因果迴路圖 + 功能樹
+    - assumption_extractor        # D2 假設質疑
+    - constraint_feasibility_checker  # D1 約束可行性驗證 (物理極限分析)
+    - problem_reframer               # D2 問題框架挑戰 (重構提問)
     # phase_b_cross_checker — v9 退役，由 SIM 矩陣 (ADR-008 D5) 前置覆蓋
     - architecture_health_monitor    # 架構健康度監控 (nodes > 5 → ArchitectureHaltOverlay, 循環偵測, phase-agnostic)
     # scamper_checklist — v9 移除（SCAMPER 7 動作為 TRIZ 40 原理子集）
-    - anti_anchor_generator       # Step 5a 並行任務: 非典型架構生成 (第一性原理 prompt, 保留 mechanism/cross_domain_source/validation_passport)
-    - socratic_follow_up          # Step 2 回答深度分析 + 後續追問生成
-    - brief_impact_analyzer       # Step 1-2 Brief 變更影響評估
+    - anti_anchor_generator       # X2 並行任務: 非典型架構生成 (第一性原理 prompt, 保留 mechanism/cross_domain_source/validation_passport)
+    - socratic_follow_up          # D2 回答深度分析 + 後續追問生成
+    - brief_impact_analyzer       # D1-D2 Brief 變更影響評估
   prompts:
     - system: "你是一位機械工程系統分析師..."
 
 triz_solver_agent:
   llm: claude-sonnet-4-6
   tools:
-    - triz_parameter_mapper       # Step 3 自然語言 → 39 參數
+    - triz_parameter_mapper       # D4 自然語言 → 39 參數
     - contradiction_matrix_lookup # Step 5a-1 矛盾矩陣查表
     - separation_principle_match  # Step 5a-2 物理矛盾 → 分離原理
     - standard_solution_match     # Step 5a-3 Su-Field → 76 標準解
@@ -493,17 +495,17 @@ triz_solver_agent:
 evaluator_agent:
   llm: claude-sonnet-4-6
   tools:
-    - must_rule_checker           # Gate P (P1 自動篩) MUST Go/No-Go
-    - kt_scorer                   # Step 7 KT 加權評分 (WANT + AC)
-    - evidence_quality_assessor   # Step 6 E-level 評估
-    - pre_cad_reviewer            # Step P 5 維度審查
-    - anti_anchor_gate_checker    # Step 5a 內部: Anti-Anchor 反錨定檢查 (並行任務完成時自動判定)
-    - validation_passport_generator # Step 5d 為每個候選方案生成 Validation Passport
+    - must_rule_checker           # Gate X5 (P1 自動篩) MUST Go/No-Go
+    - kt_scorer                   # V3 KT 加權評分 (WANT + AC)
+    - evidence_quality_assessor   # V1 E-level 評估
+    - pre_cad_reviewer            # X5 5 維度審查
+    - anti_anchor_gate_checker    # X2 內部: Anti-Anchor 反錨定檢查 (並行任務完成時自動判定)
+    - validation_passport_generator # X4 為每個候選方案生成 Validation Passport
     # phase_b_convergence_judge — v9 退役，由 CCI (ADR-008 D4) 取代
   templates:
     - DK-03--kt-decision-framework.md §MUST
-    - DK-01--design-philosophy-and-process.md §Step P
-    - DK-01--design-philosophy-and-process.md §Step 6
+    - DK-01--design-philosophy-and-process.md §X5
+    - DK-01--design-philosophy-and-process.md §V1
 
 knowledge_agent:
   llm: claude-haiku-4-5  # 快速檢索用輕量模型
@@ -512,8 +514,8 @@ knowledge_agent:
     - web_patent_search           # 專利搜尋 (Google Patents / Espacenet)
     - web_literature_search       # 論文搜尋
     - cross_domain_translator     # 異業→本業翻譯
-    - knowledge_writeback         # Step 8 回寫知識庫 (6 類資產)
-    - source_ingestion            # Step 1 多模態素材解讀 (PDF/圖片/Excel → 結構化提取)
+    - knowledge_writeback         # V4 回寫知識庫 (6 類資產)
+    - source_ingestion            # D1 多模態素材解讀 (PDF/圖片/Excel → 結構化提取)
   citation_format:
     rag: "KB-{領域}-{序號}"       # e.g., KB-FMEA-042
     web: "WEB-{類型}-{序號}"      # e.g., WEB-PAT-003
@@ -526,10 +528,10 @@ process_states:
   # 對應 State Machine 的 Process State
   - DRAFT → PHASE_I → PHASE_II → PHASE_III → COMPLETED
   # Step-level
-  - IDLE → STEP_1_ACTIVE → STEP_2_ACTIVE → STEP_2B_ACTIVE → STEP_3_ACTIVE
-    → STEP_4_ACTIVE → STEP_5_ACTIVE (含 5a + Anti-Anchor 並行 / 5b / 5d)
-    → STEP_P_ACTIVE → STEP_6_ACTIVE → STEP_6E_ACTIVE (迴圈)
-    → STEP_7_ACTIVE → STEP_8_ACTIVE → COMPLETED
+  - IDLE → STEP_D1_ACTIVE → STEP_D2_ACTIVE → STEP_D3_ACTIVE → STEP_D4_ACTIVE
+    → STEP_X1_ACTIVE → STEP_X2_ACTIVE (含 X2 + Anti-Anchor 並行 / X3 / X4)
+    → STEP_X5_ACTIVE → STEP_V1_ACTIVE → STEP_V2_ACTIVE (迴圈)
+    → STEP_V3_ACTIVE → STEP_V4_ACTIVE → COMPLETED
 
 artifact_states:
   # 對應 State Machine 的 Artifact State
@@ -539,16 +541,16 @@ agent_state:
   - idle → running → waiting_human → completed → error
 
 orchestrator_state:
-  current_step: "step_5a"
+  current_step: "step_x2"
   current_phase: "PHASE_II"
   parallel_tasks: ["triz_c001", "triz_c002"]
   gate_results:
-    gate_1: "passed"
-    gate_2: "passed"
-    gate_3: "passed"
-    gate_4: "passed"
+    gate_d1: "passed"
+    gate_d3: "passed"
+    gate_d4: "passed"
+    gate_x1: "passed"
     anti_anchor: "passed"
-    gate_p: "pending"
+    gate_x5: "pending"
   human_pending: []
   artifact_versions:
     constraint: "reviewed"
@@ -588,27 +590,27 @@ orchestrator_state:
 
 1. **輸入**：「eBike 中置馬達在長坡連續高負載下溫度超標，需在 150×80mm 空間內解決」
 2. **預期結果**：
-  - Step 1：Constraint (Draft) 含三個最不能失敗指標，Gate 1 通過
-  - Step 2：蘇格拉底問答產出 ≥10 假設 + ≥3 矛盾，Assumption Challenge 至少質疑「必須用風冷」
-  - Step 2b：5 Why 產出根因假設「散熱路徑被結構件遮擋」→ 初步 TC（散熱效率 vs 結構剛性）；KT 比較「爬坡 vs 平路」差異 → Px 候選「持續功率密度」；FA 組件交互圖顯示 馬達繞組→(有害熱)→殼體→(不足散熱)→環境；SF 狀態：S1(繞組) -F(熱場)→ S2(殼體) = 效能不足
-  - Step 3：因果迴路圖含熱-機-振耦合，TRIZ 矛盾句正式化（改善散熱 vs 惡化空間）
-  - Step 5a：Anti-Anchor 並行產出 3 種非典型架構（≥1 非對標，如磁力傳動）；OZ-OT 鎖定 Px = 殼體熱傳導係數（OZ: 馬達-殼體介面 3mm 範圍，OT: 爬坡持續 8min 內）；每條矛盾 ≥3 條 TRIZ 工程對映，含 ≥1 條非風冷方案（相變材料、液冷、熱管）；多 TC 時 SIM 矩陣顯示解法間交互（PCM + 液冷 = +1 互相強化）
-  - Step 5d：CCI 判定 — PCM 方案 CCI=0.25 (Evolution)；液冷方案 CCI=0.55 (Weak Evolution)；風冷強化方案 CCI=0.72 (Patch)
-  - Step P：MUST 快篩 + Pre-CAD 審查收斂至 3-5 條（≥1 Anti-Anchor）；Evidence Coverage ≥ 40%
-  - Step 8：散熱方案知識回寫至企業知識庫（6 類資產）
+  - D1：Constraint (Draft) 含三個最不能失敗指標，Gate D1 通過
+  - D2：蘇格拉底問答產出 ≥10 假設 + ≥3 矛盾，Assumption Challenge 至少質疑「必須用風冷」
+  - D3：5 Why 產出根因假設「散熱路徑被結構件遮擋」→ 初步 TC（散熱效率 vs 結構剛性）；KT 比較「爬坡 vs 平路」差異 → Px 候選「持續功率密度」；FA 組件交互圖顯示 馬達繞組→(有害熱)→殼體→(不足散熱)→環境；SF 狀態：S1(繞組) -F(熱場)→ S2(殼體) = 效能不足
+  - D4：因果迴路圖含熱-機-振耦合，TRIZ 矛盾句正式化（改善散熱 vs 惡化空間）
+  - X2：Anti-Anchor 並行產出 3 種非典型架構（≥1 非對標，如磁力傳動）；OZ-OT 鎖定 Px = 殼體熱傳導係數（OZ: 馬達-殼體介面 3mm 範圍，OT: 爬坡持續 8min 內）；每條矛盾 ≥3 條 TRIZ 工程對映，含 ≥1 條非風冷方案（相變材料、液冷、熱管）；多 TC 時 SIM 矩陣顯示解法間交互（PCM + 液冷 = +1 互相強化）
+  - X4：CCI 判定 — PCM 方案 CCI=0.25 (Evolution)；液冷方案 CCI=0.55 (Weak Evolution)；風冷強化方案 CCI=0.72 (Patch)
+  - X5：MUST 快篩 + Pre-CAD 審查收斂至 3-5 條（≥1 Anti-Anchor）；Evidence Coverage ≥ 40%
+  - V4：散熱方案知識回寫至企業知識庫（6 類資產）
 
 ### 11.6.2 檢查清單
 
 - 每個 Step 名稱與 `diagrams/appendix-d--state-machine.md` Step 編號對照表完全一致
 - 每個 Gate 的判定邏輯與 `_domain-knowledge/DK-01--design-philosophy-and-process.md` Gate 檢查點一致
 - Artifact State 轉換與 State Machine §Gate 與 Phase 轉換對照表一致
-- Step 5 內部子步驟（5a 含 Anti-Anchor 並行 + OZ-OT / 5b / 5d）順序與DK-01 §5.2 流程架構圖一致
+- X2-X4 內部子步驟（X2 含 Anti-Anchor 並行 + OZ-OT / X3 / X4）順序與DK-01 §5.2 流程架構圖一致
 - 並行規則與 State Machine §平行處理說明一致（TRIZ 與子系統定義並行）
 - MUST 規則 (M1-M6) 與 DK-03--kt-decision-framework.md §MUST 一致
-- Pre-CAD 審查 5 維度與 DK-01--design-philosophy-and-process.md §Step P 一致
+- Pre-CAD 審查 5 維度與 DK-01--design-philosophy-and-process.md §X5 一致
 - Knowledge Agent 的 citation 格式（KB-/WEB-）與DK-01 §1.4 知識引用規範一致
-- AutoTRIZ 子步驟（5a-1 至 5a-5）與DK-01 §5a AutoTRIZ 執行模式表一致
-- KT 決策在 Step 7（非 Gate P），MUST 快篩在 Gate P P1 自動篩（非 Step 7）
+- AutoTRIZ 子步驟（5a-1 至 5a-5）與DK-01 §X2 AutoTRIZ 執行模式表一致
+- KT 決策在 V3（非 Gate X5），MUST 快篩在 Gate X5 P1 自動篩（非 V3）
 
 ---
 
@@ -627,8 +629,8 @@ orchestrator_state:
 > | §7 驗證方式                          | §11.6   |
 >
 >
-> **v2.2 更新內容**（ADR-008 Auto-TRIZ v2 整合）：Analyst Agent 新增 5 個能力（`five_why`, `kt_is_is_not`, `function_analysis`, `oz_ot_analysis`, `entry_grading`）；TRIZ Solver Agent 新增 `sim_matrix`（多 TC 交互評分）、`complexity_check`（CCI 連續指標）；新增 `EvidenceRegistryService` 作為 cross-cutting 數據驗證層；§11.2 自動化對照表新增 Step 2b/2c；§11.5.4 新增 10 個 API endpoints。
+> **v2.2 更新內容**（ADR-008 Auto-TRIZ v2 整合）：Analyst Agent 新增 5 個能力（`five_why`, `kt_is_is_not`, `function_analysis`, `oz_ot_analysis`, `entry_grading`）；TRIZ Solver Agent 新增 `sim_matrix`（多 TC 交互評分）、`complexity_check`（CCI 連續指標）；新增 `EvidenceRegistryService` 作為 cross-cutting 數據驗證層；§11.2 自動化對照表新增 D3（原 Step 2b/2c）；§11.5.4 新增 10 個 API endpoints。
 > **v1.4 更新內容**（保留歷史）：~~Phase B 收斂掃描從 TRIZ step 移至 Decision Hub~~（v9 已退役，見下方）；~~SCAMPER 改為純創意工具~~（**v9 已移除** — SCAMPER 7 動作為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋）；語意去重（is_confirmatory 標記）保留於 SecondaryContradiction schema，前端過濾；子系統拆解改為三層階層（System→Module→Component）；假設提取新增可證偽性篩選（evidence_level E0-E4）。（Phase A 已於 v8 退役，其職責由 L1 critic badge per-card 品質閘門取代。**Phase B 已於 v9 退役**，其 5 項檢查由 SIM 矩陣（ADR-008 D5）和 CCI（ADR-008 D4）前置覆蓋——PC 衝突 ⊂ TC 衝突（ADR-007），SIM -1 即捕捉。）
-> **v1.3 更新**：收斂掃描原拆為 Phase A/B（Phase A 已於 v8 退役，由 L1 critic badge 取代；**Phase B 已於 v9 退役**，由 SIM + CCI 取代）；Analyst Agent 新增 socratic follow-up、brief-impact、first-principles Anti-Anchor；Evaluator Agent 新增 Validation Passport 生成；Anti-Anchor 概念可晉升為 Step 5 候選方案；Step 5d 整合 TRIZ + Anti-Anchor 候選；新增 3 個 API endpoints。（SCAMPER 已於 v9 移除 — 其 7 動作為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋。）
+> **v1.3 更新**：收斂掃描原拆為 Phase A/B（Phase A 已於 v8 退役，由 L1 critic badge 取代；**Phase B 已於 v9 退役**，由 SIM + CCI 取代）；Analyst Agent 新增 socratic follow-up、brief-impact、first-principles Anti-Anchor；Evaluator Agent 新增 Validation Passport 生成；Anti-Anchor 概念可晉升為 X2-X4（原 Step 5）候選方案；X4（原 Step 5d）整合 TRIZ + Anti-Anchor 候選；新增 3 個 API endpoints。（SCAMPER 已於 v9 移除 — 其 7 動作為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋。）
 > **v1.2 更新**：Knowledge Agent 新增 Source Ingestion；Analyst Agent 新增 Contradiction Convergence Graph；TRIZ Solver Agent 輸出新增受影響模組清單與潛在二次矛盾。
 

@@ -5,7 +5,6 @@ export type AccordionStepStatus = 'complete' | 'in_progress' | 'not_started';
 export interface CreateStepProgress {
   triz: AccordionStepStatus;
   subsystem: AccordionStepStatus;
-  scamper: AccordionStepStatus;
   alternatives: AccordionStepStatus;
   must: AccordionStepStatus;
   preCad: AccordionStepStatus;

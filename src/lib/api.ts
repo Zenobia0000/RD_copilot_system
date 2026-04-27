@@ -168,6 +168,25 @@ async function request<T>(path: string, body: unknown, opts?: RequestOptions<T>)
   return validateWithSchema(data, opts?.schema, path);
 }
 
+async function requestGet<T>(path: string, opts?: RequestOptions<T>): Promise<T> {
+  const headers: Record<string, string> = {};
+  const token = await getAuthToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  const res = await fetchWithTimeout(`${BASE_URL}${path}`, {
+    method: "GET",
+    headers,
+  }, opts?.timeoutMs);
+  if (!res.ok) {
+    const errorBody = await safeParseJsonError(res);
+    throw new ApiError(res.status, errorBody);
+  }
+  const data = await safeParseJson(res, path);
+  devAssertObject(data, path);
+  return validateWithSchema(data, opts?.schema, path);
+}
+
 /**
  * Extract error payload from a non-ok response.
  * FastAPI returns `{ "detail": "..." }` for most errors — surface that string
@@ -1224,6 +1243,25 @@ export interface UnknownFactorDiscoverResponse {
 
 export function unknownFactorDiscover(body: UnknownFactorDiscoverRequest) {
   return request<UnknownFactorDiscoverResponse>("/unknown-factors/discover", body, { timeoutMs: 300_000 });
+}
+
+// ─── Gate Check ─────────────────────────────────────────────────────────────
+
+export interface GateCheckItem {
+  label: string;
+  met: boolean;
+  detail: string;
+}
+
+export interface GateCheckResponse {
+  gate_id: string;
+  passed: boolean;
+  failed_reasons: string[];
+  checklist_items: GateCheckItem[];
+}
+
+export function gateCheck(gateId: string, projectId: string) {
+  return requestGet<GateCheckResponse>(`/gates/${gateId}/check?project_id=${projectId}`);
 }
 
 export { ApiError, ApiNetworkError, type RequestOptions };

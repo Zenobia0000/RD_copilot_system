@@ -104,6 +104,10 @@ export const queryKeys = {
     all: ['compatibility_pairs'] as const,
     byProject: (projectId: string | undefined) => ['compatibility_pairs', k(projectId)] as const,
   },
+  triz_consolidation_results: {
+    all: ['triz_consolidation_results'] as const,
+    byProject: (projectId: string | undefined) => ['triz_consolidation_results', k(projectId)] as const,
+  },
 
   // Layer 4: Step 3 — Review & Decision
   evidence_matrix: {

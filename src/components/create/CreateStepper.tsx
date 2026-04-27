@@ -1,15 +1,12 @@
 import { cn } from "@/lib/utils";
-import { Check, Zap, Target, LayoutGrid } from "lucide-react";
+import { Check, Target, LayoutGrid } from "lucide-react";
 import type { AccordionStepStatus } from "@/types/create";
-
-export type AnalysisTrack = "reverse" | "forward" | null;
 
 interface CreateStepperProps {
   steps: { label: string; shortLabel: string }[];
   statuses: AccordionStepStatus[];
   currentStep: number;
-  activeTrack: AnalysisTrack;
-  onStepClick: (step: number, track: AnalysisTrack) => void;
+  onStepClick: (step: number) => void;
 }
 
 function EvalChip({
@@ -36,69 +33,41 @@ function EvalChip({
   );
 }
 
-export function CreateStepper({ steps, statuses, currentStep, activeTrack, onStepClick }: CreateStepperProps) {
-  const HUB = 3;
-  const EVAL = [4, 5];
+export function CreateStepper({ steps, statuses, currentStep, onStepClick }: CreateStepperProps) {
+  const HUB = 2;
+  const EVAL = [3, 4];
 
-  const isReverseActive = activeTrack === "reverse";
-  const isForwardActive = activeTrack === "forward";
-  const isHubActive = currentStep === HUB && activeTrack === null;
-
-  const reverseComplete = statuses[0] === "complete";
-  // Forward is "complete" when both sub-steps are done
-  const forwardComplete = statuses[1] === "complete" && statuses[2] === "complete";
-  const forwardHasProgress = statuses[1] !== "not_started";
+  const isAnalysisActive = currentStep <= 1;
+  const isHubActive = currentStep === HUB;
+  const analysisComplete = statuses[0] === "complete" && statuses[1] === "complete";
+  const analysisHasProgress = statuses[0] !== "not_started";
 
   return (
     <div className="space-y-3">
 
-      {/* ── Layer 1: Dual Analysis — two symmetric cards ── */}
-      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">雙軌分析</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
-        {/* v3.0 DEPRECATED: Anti-Anchor Sprint card retired — de-anchoring merged into TRIZ L1 flow */}
-        <button
-          onClick={() => onStepClick(0, "reverse")}
-          className={cn(
-            "text-left rounded-lg border-2 p-4 transition-all cursor-pointer",
-            "hover:border-amber-300 hover:bg-amber-50/30",
-            isReverseActive && "border-amber-400 shadow-sm bg-amber-50/40",
-            !isReverseActive && "border-muted",
+      {/* ── Layer 1: TRIZ Analysis (single entry — de-anchoring built into L1) ── */}
+      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">TRIZ 分析</p>
+      <button
+        onClick={() => onStepClick(0)}
+        className={cn(
+          "w-full text-left rounded-lg border-2 p-4 transition-all cursor-pointer",
+          "hover:border-blue-300 hover:bg-blue-50/30",
+          isAnalysisActive && "border-blue-400 shadow-sm bg-blue-50/40",
+          !isAnalysisActive && "border-muted",
+        )}
+      >
+        <div className="flex items-center gap-2 mb-1.5">
+          <Target className={cn("h-4 w-4", isAnalysisActive ? "text-blue-500" : "text-muted-foreground")} />
+          <span className="text-xs font-semibold">TRIZ 解矛盾 + 子系統定義</span>
+          {analysisComplete && <Check className="h-3.5 w-3.5 text-green-500 ml-auto" />}
+          {analysisHasProgress && !analysisComplete && (
+            <span className="text-[9px] text-muted-foreground ml-auto">分析中</span>
           )}
-        >
-          <div className="flex items-center gap-2 mb-1.5">
-            <Zap className={cn("h-4 w-4", isReverseActive ? "text-amber-500" : "text-muted-foreground")} />
-            <span className="text-xs font-semibold">跨域去錨定 (TRIZ L1)</span>
-            {reverseComplete && <Check className="h-3.5 w-3.5 text-green-500 ml-auto" />}
-          </div>
-          <p className="text-[10px] text-muted-foreground leading-relaxed">
-            跨域去錨定 — 已整合至 TRIZ L1 實例化流程，從約束出發產出非典型架構概念
-          </p>
-        </button>
-
-        {/* Forward: TRIZ E2E (single node, deductive) */}
-        <button
-          onClick={() => onStepClick(1, "forward")}
-          className={cn(
-            "text-left rounded-lg border-2 p-4 transition-all cursor-pointer",
-            "hover:border-blue-300 hover:bg-blue-50/30",
-            isForwardActive && "border-blue-400 shadow-sm bg-blue-50/40",
-            !isForwardActive && "border-muted",
-          )}
-        >
-          <div className="flex items-center gap-2 mb-1.5">
-            <Target className={cn("h-4 w-4", isForwardActive ? "text-blue-500" : "text-muted-foreground")} />
-            <span className="text-xs font-semibold">正向分析</span>
-            {forwardComplete && <Check className="h-3.5 w-3.5 text-green-500 ml-auto" />}
-            {forwardHasProgress && !forwardComplete && (
-              <span className="text-[9px] text-muted-foreground ml-auto">分析中</span>
-            )}
-          </div>
-          <p className="text-[10px] text-muted-foreground leading-relaxed">
-            TRIZ 矛盾解 → 子系統分解 — 從矛盾出發，系統化產出候選方案
-          </p>
-        </button>
-      </div>
+        </div>
+        <p className="text-[10px] text-muted-foreground leading-relaxed">
+          從矛盾出發，L1 內建跨域去錨定 → L2 根因分離 → L3 結構旁路，再定義子系統與介面契約
+        </p>
+      </button>
 
       {/* ── Layer 2: Decision Hub ── */}
       <div className="flex items-center justify-center py-1">
@@ -108,7 +77,7 @@ export function CreateStepper({ steps, statuses, currentStep, activeTrack, onSte
       </div>
 
       <button
-        onClick={() => onStepClick(HUB, null)}
+        onClick={() => onStepClick(HUB)}
         className={cn(
           "w-full text-left rounded-lg border-2 p-3 transition-all cursor-pointer",
           "hover:border-violet-300 hover:bg-violet-50/30",
@@ -133,8 +102,8 @@ export function CreateStepper({ steps, statuses, currentStep, activeTrack, onSte
             key={stepIdx}
             label={steps[stepIdx].shortLabel}
             status={statuses[stepIdx]}
-            isCurrent={currentStep === stepIdx && activeTrack === null}
-            onClick={() => onStepClick(stepIdx, null)}
+            isCurrent={currentStep === stepIdx}
+            onClick={() => onStepClick(stepIdx)}
           />
         ))}
       </div>

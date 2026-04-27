@@ -1,16 +1,29 @@
 # ADR-003: LLM 服務層強化 — Retry、驗證、Token 管理、Prompt 版控
 
-- **Status**: Accepted (Phase 1 implemented; Phase 2-3 deferred to post-MVP)
-- **Date**: 2026-03-13 (proposed) → 2026-04-21 (status updated)
+- **Status**: Superseded (2026-04-27)
+- **Date**: 2026-03-13 (proposed) → 2026-04-21 (status updated) → 2026-04-27 (superseded)
 - **Deciders**: Development Team
+- **Superseded By**: ADR-006 (Harness 架構 — model_adapter + prompt_assembler)
 
-> **Implementation Note (2026-04-21)**:
+> **Superseded Notice (2026-04-27)**:
+>
+> 本 ADR 已封存。封存原因：
+>
+> 1. **Phase 1 已實作並保留於程式碼中** — retry decorator、Pydantic validation、prompt 分離仍有效，但已被 Harness 層包裝。
+> 2. **Phase 2 被 ADR-006 取代** — Prompt 外部化原計劃為 `prompts/templates/*.md`，現由 `backend/app/harness/prompt_assembler.py` (context engineering + cache budget) 實現；Token tracking 由 `backend/app/observability/` 處理。
+> 3. **Phase 3 被 ADR-006 取代** — Model routing 原計劃為 sonnet/haiku 按複雜度切換，現由 `backend/app/harness/model_adapter.py` 封裝 `_call_provider` 實現。
+>
+> 歷史參考價值：Phase 1 的設計決策（retry 策略、Pydantic 驗證模式）仍是現行 Harness 層的基礎。
+
+---
+
+> **Implementation Note (2026-04-21)** *(歷史記錄)*:
 > - ✅ Phase 1 — Retry: `backend/app/agents/base.py` (`retry_on_transient` decorator, exponential backoff)
 > - ✅ Phase 1 — Output validation: `call_llm_structured()` with Pydantic model validation
 > - ✅ Phase 1 — Prompt separation: `backend/app/prompts/` (4 files: analyst, triz_solver, evaluator, knowledge)
-> - ⏳ Phase 2 — Token budget tracking: Not implemented
-> - ⏳ Phase 2 — External `.md` prompt files (currently Python string constants): Deferred per ADR-006
-> - ⏳ Phase 3 — Model routing / A-B testing: Not implemented
+> - ⏳ Phase 2 — Token budget tracking: Not implemented → **Superseded by ADR-006 prompt_assembler**
+> - ⏳ Phase 2 — External `.md` prompt files: **Superseded by ADR-006 prompt_assembler**
+> - ⏳ Phase 3 — Model routing / A-B testing: **Superseded by ADR-006 model_adapter**
 
 ## Context
 

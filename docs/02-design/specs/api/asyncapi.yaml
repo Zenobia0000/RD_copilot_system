@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Design Copilot — Async Event Channels
-  version: 0.1.0
+  version: 0.2.0
   description: |
     RD Design Copilot 的非同步事件通道規格。
 
@@ -227,6 +227,59 @@ channels:
           type: string
           format: uuid
 
+  # ---------------------------------------------------------------------------
+  # v0.2.0 新增 — ADR-008 Auto-TRIZ v2 tables
+  # ---------------------------------------------------------------------------
+
+  projectFunctionModels:
+    address: "realtime:public:function_models:project_id=eq.{project_id}"
+    description: |
+      功能模型即時同步（ADR-008）。
+      觸發場景：
+        - POST /analyst/function-analysis → INSERT/UPDATE
+    messages:
+      functionModelChanged:
+        $ref: "#/components/messages/PostgresChangeEvent"
+    parameters:
+      project_id:
+        description: UUID of the project
+        schema:
+          type: string
+          format: uuid
+
+  projectEvidenceClaims:
+    address: "realtime:public:evidence_claims:project_id=eq.{project_id}"
+    description: |
+      證據主張即時同步（ADR-008）。
+      觸發場景：
+        - POST /evidence/claims → INSERT
+        - POST /evidence/claims/{id}/verify → UPDATE
+    messages:
+      evidenceClaimChanged:
+        $ref: "#/components/messages/PostgresChangeEvent"
+    parameters:
+      project_id:
+        description: UUID of the project
+        schema:
+          type: string
+          format: uuid
+
+  projectSimMatrices:
+    address: "realtime:public:sim_matrices:project_id=eq.{project_id}"
+    description: |
+      多 TC 交互矩陣即時同步（ADR-008）。
+      觸發場景：
+        - POST /triz/sim-matrix → INSERT/UPDATE
+    messages:
+      simMatrixChanged:
+        $ref: "#/components/messages/PostgresChangeEvent"
+    parameters:
+      project_id:
+        description: UUID of the project
+        schema:
+          type: string
+          format: uuid
+
 operations:
   onContradictionChange:
     action: receive
@@ -287,6 +340,25 @@ operations:
     channel:
       $ref: "#/channels/projectComponentOverrides"
     summary: React to spatial component override changes
+
+  # v0.2.0 新增
+  onFunctionModelChange:
+    action: receive
+    channel:
+      $ref: "#/channels/projectFunctionModels"
+    summary: React to function model changes (ADR-008)
+
+  onEvidenceClaimChange:
+    action: receive
+    channel:
+      $ref: "#/channels/projectEvidenceClaims"
+    summary: React to evidence claim registration/verification (ADR-008)
+
+  onSimMatrixChange:
+    action: receive
+    channel:
+      $ref: "#/channels/projectSimMatrices"
+    summary: React to SIM matrix changes (ADR-008)
 
 components:
   securitySchemes:

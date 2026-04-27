@@ -30,6 +30,8 @@ parent: [E3--architecture-and-design.md](http://E3--architecture-and-design.md)
 > **觀點**：Systems Analyst
 > **相關文件**：`E3--ai-agent-detailed-design.md`、`_domain-knowledge/DK-01--design-philosophy-and-process.md`、`../02-design/specs/triz/E5x--triz-layered-drilldown-optimization.md`
 > **文件目的**：以 SA 視角拆解「正向分析・子系統定義」階段（F2 + F2.5）的所有架構面向——actors、use cases、context、container、component、data、sequence、state、deployment——每張圖以 Mermaid 呈現，供開發、測試、維運與後續迭代共同對齊。
+>
+> **ADR-008 擴充 (2026-04-27)**：Auto-TRIZ v2 引入 Function Analysis (FA) 作為子系統定義的上游輸入。FA 由 Analyst Agent `function_analysis()` 執行，產出組件交互圖（有效/有害/不足/過度交互）+ SF 模型 + 子系統邊���定義，確保 F2 子系統拆解在正確的系統粒度上進行。FA 結果持久化於 `function_models` 表，F2 應消費 `subsystem_boundary` JSONB 欄位作為三層階層的初始化輸入。
 
 ---
 
@@ -1251,6 +1253,44 @@ flowchart TD
 2. `derive_su_field_from_tc` 失敗（LLM 無法推出有意義 S1/S2/F）→ L3 以 warning 降級，L1/L2 不受影響。
 3. 前端 `Create.tsx` 移除 `cType === 'TC'` 互斥閘門，`improving/worsening_param` 無條件傳出。
 
+### §B.0.1 OZ-OT / SIM / CCI 擴充合約（ADR-008, 2026-04-27）
+
+> 以下擴充項由 ADR-008 Auto-TRIZ v2 Closed-Loop Integration 引入，補充 §B.0 TC-Only 合約。
+
+**OZ-OT 作為 L2 前置條件**
+
+`solve_triz_layered()` 進入 L2 Root Cause 前，**必須**先完成 OZ-OT 分析並鎖定 Px 物理變數。流程：
+
+1. Analyst Agent 呼叫 `oz_ot_analysis(contradiction_id)` → 產出 `OzOtResult { oz_zone, ot_time, px_variable }`
+2. `OzOtResult.px_variable` 回寫至 `contradictions` 表（`oz_zone`, `ot_time`, `px_variable` 三欄）
+3. L2 `_solve_pc()` 接收 Px 做為分離原理搜尋的錨點 → 比純 TC 翻譯更精準
+4. Px 鎖定失敗時提供 3 種回退策略：`broaden_oz`（放寬操作空間）、`split_tc`（拆分矛盾）、`reframe`（重新框架問題）
+
+**SIM 矩陣（多 TC 場景）**
+
+當專案含 ≥2 條已正式化的 TC 時，自動觸發 SIM 矩陣評估：
+
+1. TRIZ Solver Agent 呼叫 `sim_matrix(contradiction_ids)` → 產出 `SimMatrixResult { matrix, conflict_pairs, optimal_combination }`
+2. 矩陣每格為 +1（互利）/ 0（無關）/ -1（衝突）
+3. -1 交互升級為新 TC，回流至 Step 3（≤2 輪收斂）
+4. 結果持久化至 `sim_matrices` 表
+
+**CCI 複雜度檢查（取代二元 Evolution/Patch）**
+
+`complexity_check()` 在方案候選確認後執行：
+
+1. 四維計算：組件數變化 / 能耗變化 / 認知負荷 / 演化趨勢對齊度
+2. CCI ∈ [0, 1]：≤0.3 Evolution / 0.3-0.6 Weak Evolution / >0.6 Patch
+3. Patch 不阻塞出貨，但必須記錄技術債
+4. 結果持久化至方案的 `complexity_check_result` 欄位
+
+**Evidence Registry（跨層服務）**
+
+所有 Agent 的 LLM 數值聲明必須透過 `EvidenceRegistryService.register_claim()` 註冊：
+
+1. 自動 Tavily WebSearch 驗證 → 標記 VERIFIED / APPROXIMATE / UNVERIFIED
+2. Gate P 退出條件：Evidence Coverage（VERIFIED + APPROXIMATE 佔比）≥ 40%
+
 ## 正向分析・TRIZ 解矛盾：系統架構說明書（SA 視角）
 
 > **觀點**：Systems Analyst
@@ -2334,7 +2374,7 @@ graph LR
 | `LayeredTrizSolution[]`                   | 每個 LTS 包含 L1/L2/L3 分層；F2 樹節點的 `related_contradictions` 欄位記錄 LTS id + 採納的層 |
 | `differential_analysis.recommended_route` | F2 預設綁定到推薦路線（primary）；RD 可在 F2 切換為 fallback 或自訂組合                         |
 | `affected_modules`                        | 來自各層 suggestions 的聚合；協助 F2 命名                                             |
-| `secondary_contradictions`                | 進入下一輪 F1（自動觸發 Phase A 收斂掃描）。L2 深挖可能引發的二次矛盾通常比 L1 多，需特別追蹤                  |
+| `secondary_contradictions`                | 透過 `is_confirmatory` 語意去重追蹤，不再觸發額外收斂掃描。L2 深挖可能引發的二次矛盾通常比 L1 多，需特別追蹤                  |
 
 
 #### 10.1a 與既有單路徑 API 的相容性
@@ -2362,25 +2402,7 @@ graph TB
 
 #### 10.3 與 secondary_contradictions 的迴圈
 
-每條 TrizSuggestion 都可能引發新矛盾，這些 secondary 矛盾會被回灌到 Phase A 收斂掃描，觸發新一輪 F1：
-
-```mermaid
-%%{init: {'theme': 'neutral'}}%%
-flowchart LR
-    F1A[F1 第一輪] --> S1[Suggestion 1<br/>secondary: C2]
-    F1A --> S2[Suggestion 2<br/>secondary: C3]
-    S1 -.->|回饋| Conv[Phase A<br/>收斂掃描]
-    S2 -.->|回饋| Conv
-    Conv --> F1B[F1 第二輪<br/>解 C2 + C3]
-    F1B --> Done{完全收斂?}
-    Done -->|是| F2X[進入 F2]
-    Done -->|否| Conv
-
-    style F1A fill:#dbeafe,stroke:#1e3a8a,stroke-width:2px,color:#000
-    style F1B fill:#dbeafe,stroke:#1e3a8a,stroke-width:2px,color:#000
-    style Conv fill:#fef3c7,stroke:#92400e,stroke-width:2px,color:#000
-    style F2X fill:#bbf7d0,stroke:#14532d,stroke-width:2px,color:#000
-```
+每條 TrizSuggestion 都可能引發新矛盾，這些 secondary 矛盾透過 `is_confirmatory` 語意去重在 schema 層級追蹤，不再觸發獨立的收斂掃描。Secondary 矛盾在 Decision Hub 的 Phase B 交叉檢查中統一處理。
 
 
 
@@ -2468,7 +2490,7 @@ mindmap
 | L2 critic 過度遲鈍           | 規則 + LLM 都判 L1 已足夠          | RD 提供「強制深挖」按鈕作為人為兜底                                               |
 | deepen_link 推導錯誤         | LLM 把 (#21, #17) 推成不相關的物理參數 | deepen_link 必須附信心分數；< 0.6 時 UI 提示 RD 確認                           |
 | differential_analysis 偏頗 | LLM 永遠推薦 L2+L3 而忽略 effort   | recommended_route 必須附 rationale 欄位且引用各層 effort 估計                 |
-| secondary 矛盾爆量           | L2 深挖比 L1 更容易引發二次矛盾         | Phase A 收斂閾值化（見 §12.2 高優先），每個矛盾的 secondary 數有上限                   |
+| secondary 矛盾爆量           | L2 深挖比 L1 更容易引發二次矛盾         | 每個矛盾的 secondary 數有上限；透過 `is_confirmatory` 語意去重控制                   |
 
 
 #### 12.2 後續迭代方向
@@ -2480,7 +2502,6 @@ mindmap
 | KB 版本化                 | 讓不同專案可指定 TRIZ KB 版本                               | 低   |
 | 矩陣 cell 結構化            | 把 02_contradiction_matrix.md 改為 JSON 或 SQL，避免解析脆弱 | 中   |
 | Cross-domain 案例庫       | 累積真實的跨域具體化案例，注入 prompt 提升品質                       | 中   |
-| Phase A 收斂閾值化          | secondary 迴圈設停損點，避免無限遞迴                           | 高   |
 | Suggestion → CAD trace | 從 adopted 建議追蹤到實際 CAD 變更                          | 低   |
 
 
@@ -2516,7 +2537,7 @@ flowchart LR
 | 矩陣查表 LLM 容易出錯                           | 規則引擎查表 + LLM 只負責具體化                                                                         | §9.3                                                   |
 | 抽象原理 RD 不會用                             | LLM 在工程脈絡下具體化（≥80 字 + 至少 1 跨域）                                                              | §6.3                                                   |
 | 建議無法 trace 到 module                     | 強制 affected_modules 欄位                                                                      | §10.2                                                  |
-| secondary 矛盾被遺漏                         | 強制 secondary_contradictions 欄位 + 回饋至 Phase A                                                | §10.3                                                  |
+| secondary 矛盾被遺漏                         | 強制 secondary_contradictions 欄位 + `is_confirmatory` 語意去重追蹤                                    | §10.3                                                  |
 | KB regex 解析脆弱                           | 啟動時 lru_cache 一次性解析 + 退化 fallback                                                           | §11                                                    |
 | LLM 回應非 JSON                            | 三條 solver 都有 empty_fallback                                                                 | §7.4                                                   |
 | 表面解與根因解被同級競爭（v1.1）                      | 分層 drill-down + LayeredTrizSolution + differential_analysis                                 | §6.2 §6.7 §7.0 §7.6                                    |
@@ -3538,18 +3559,26 @@ flowchart LR
 ### Step 編號對照
 
 
-| 新編號        | 名稱                                             | Phase   | 核心工件類型                                   |
-| ---------- | ---------------------------------------------- | ------- | ---------------------------------------- |
-| Step 1     | 問題界定                                           | I       | Constraint                               |
-| Step 2     | 理解全貌（蘇格拉底）                                     | I       | Contradiction, Assumption                |
-| Step 3     | 系統建模（因果迴路+TRIZ矛盾+斷路點）                          | I       | Contradiction, Breakpoint                |
-| Step 4     | 假設與驗證規劃（HDA+未知集合）                              | II      | Assumption                               |
-| **Step 5** | **創造與調整（TRIZ解矛盾→子系統定義→SCAMPER變形→方案集合→MUST快篩）** | **II**  | Concept Route, Interface                 |
-| **Step P** | **Pre-CAD 設計審查 (Pre-CAD Gate)**                | **II**  | Pre-CAD Review Report                    |
-| **Step 6** | **設計審查 (CAD Gate - MVP CAD Review)**           | **III** | Concept Route, Evidence Matrix, Risk     |
-| Step 6e    | 證據補齊 (Evidence Closure)                        | III     | Evidence                                 |
-| Step 7     | 決策與行動（KT Decision Analysis+最小實驗）               | III     | Concept Route, Decision Record, Evidence |
-| Step 8     | 內化與傳達（費曼）                                      | III     | Asset                                    |
+| 新編號            | 名稱                                             | Phase   | 核心工件類型                                   |
+| -------------- | ---------------------------------------------- | ------- | ---------------------------------------- |
+| Step 1         | 問題界定（白帽 + 5W1H + 素材上傳解讀）                      | I       | Constraint                               |
+| Step 2         | 理解全貌（蘇格拉底問答）                                   | I       | Contradiction, Assumption                |
+| **Step 2b**    | **(v2.2) 問題定向（5 Why + KT Is/Is Not）**          | **I**   | 根因假設, Px 候選                              |
+| **Step 2c**    | **(v2.2) 功能建模（FA + SF 診斷）**                    | **I**   | FunctionModel                            |
+| Step 3         | 系統建模（因果迴路+TRIZ矛盾+斷路點）                          | I       | Contradiction, Breakpoint                |
+| Step 4         | 假設與驗證規劃（HDA+未知集合）                              | II      | Assumption                               |
+| **Step 5-0**   | **Anti-Anchor Sprint（反路徑依賴，第一性原理）**            | **II**  | —                                        |
+| **Step 5a-0**  | **(v2.2) OZ-OT 分析（鎖定 Px + TC→PC 橋樑）**         | **II**  | OzOtResult                               |
+| **Step 5a**    | **TRIZ 解矛盾（矩陣查表 + 原理具體化 + Phase A 掃描）**       | **II**  | Concept Route (部分), SimMatrix             |
+| **Step 5b**    | **子系統定義（三層階層 System→Module→Component）**         | **II**  | Concept Route (部分)                       |
+| **Step 5c**    | **SCAMPER 模組變形（純創意工具）**                        | **II**  | Concept Route (部分)                       |
+| **Step 5d**    | **AI 方案生成 + Decision Hub（整合 + CCI 複雜度指標）**     | **II**  | Concept Route, Interface, ComplexityCheckResult |
+| **Step 5e**    | **MUST 快篩（Go/No-Go 淘汰）**                      | **II**  | Concept Route                            |
+| **Step P**     | **Pre-CAD 設計審查 (Pre-CAD Gate)**                | **II**  | Pre-CAD Review Report                    |
+| **Step 6**     | **設計審查 (CAD Gate - MVP CAD Review)**           | **III** | Concept Route, Evidence Matrix, Risk     |
+| Step 6e        | 證據補齊 (Evidence Closure)                        | III     | Evidence                                 |
+| Step 7         | 決策與行動（KT Decision Analysis+最小實驗）               | III     | Concept Route, Decision Record, Evidence |
+| Step 8         | 內化與傳達（費曼）                                      | III     | Asset                                    |
 
 
 ### 核心流程狀態機 (Process State Machine)
@@ -3559,11 +3588,15 @@ flowchart LR
 stateDiagram-v2
     state "Phase I: 定義問題空間" as PhaseI {
         state "Step 1: 問題界定" as S1
-        state "Step 2: 理解全貌" as S2
+        state "Step 2: 理解全貌（蘇格拉底）" as S2
+        state "Step 2b: 問題定向（5Why+KT）" as S2b
+        state "Step 2c: 功能建模（FA+SF）" as S2c
         state "Step 3: 系統建模" as S3
 
         S1 --> S2 : Gate 1
-        S2 --> S3 : Gate 2
+        S2 --> S2b : 揭露假設後
+        S2b --> S2c : 根因鎖定後
+        S2c --> S3 : Gate 2
     }
 
     state "Phase II: 假設與發散" as PhaseII {
@@ -3607,20 +3640,24 @@ stateDiagram-v2
     }
 
     state "正向演繹軌 (Forward Track)" as ForwardTrack {
+        state "5a-0: OZ-OT 分析 (Px 鎖定)" as S5a_0
         state "5a: TRIZ 三路徑候選生成" as S5a
-        state "Phase A: 健康度摘要卡" as S5a_phA
+        state "Architecture Health Monitor" as S5a_health
         state "5b: 子系統定義 (3-level)" as S5b
         state "5c: SCAMPER 創意工具" as S5c
 
+        note right of S5a_0 : OZ + OT → Px 物理變數\nL2 PC 深挖的前置條件\n(v2.2 ADR-008)
         note right of S5a : TC/PC/SF 三路徑\n全部 pending 生成
-        note right of S5a_phA : 摘要卡 (score/health/counts)\n僅 warning/critical/circular\n時展開圖形
+        note right of S5a_health : nodes > 5 → critical → halt\n循環矛盾 → halt\n(phase-agnostic)
         note right of S5b : System → Module → Component\n+ 6-dim interface contracts
         note right of S5c : 創意工具，無收斂回饋\n風險為資訊性備註
 
-        S5a --> S5a_phA : 三路徑產出
-        S5a_phA --> S5a : warning/critical → 繼續求解
-        S5a_phA --> S1 : 🛑 循環矛盾 → 強制回到問題定義
-        S5a_phA --> S5b : healthy/minor → 進入子系統
+        S5a_0 --> S5a : Px locked → TRIZ 求解
+        S5a --> S5a_health : 三路徑產出
+        S5a_health --> S5a : warning/critical → 繼續求解
+        S5a_health --> S2c : 🛑 結構性循環 → 回功能建模
+        S5a_health --> S2b : 🛑 框架性循環 → 回問題定向
+        S5a_health --> S5b : healthy/minor → 進入子系統
         S5b --> S5c : 每個子系統執行 SCAMPER
     }
 
@@ -3630,28 +3667,28 @@ stateDiagram-v2
     note right of S5d : 候選池匯流\nRD adopt/skip\nPhase B 手動觸發\n同矛盾多路徑警告
 
     [*] --> S5_0
-    [*] --> S5a
+    [*] --> S5a_0
     S5_0 --> S5d : Anti-Anchor 候選 (附 VP)
     S5c --> S5d : SCAMPER 候選
-    S5a_phA --> S5d : TRIZ 候選 (healthy)
+    S5a_health --> S5d : TRIZ 候選 (healthy)
     S5d --> S5e : RD adopted 候選 → MUST Go/No-Go
     S5e --> [*] : 通過 → Pre-CAD
 ```
 
 
 
-> **矛盾收斂圖 + 架構健康度監控 (Phase A / Phase B)**：收斂掃描分為兩個階段：
+> **矛盾收斂圖 + 架構健康度監控**：
 >
-> - **Phase A（健康度摘要卡，Step 2 起可執行）**：以精簡摘要卡呈現（score / health / counts 內嵌顯示），**僅在 warning / critical / circular 時展開完整圖形**（ConvergenceGraph 使用 React Flow + Dagre 佈局）。分析矛盾空間的 inter-contradiction 衝突、循環依賴、覆蓋缺口。**不需要方案/替代方案**。**Phase A 無分支概念，BranchExplorationPanel 已移除**。
+> - **Architecture Health Monitor（phase-agnostic）**：nodes > 5 → critical → halt。L1 critic badge 取代舊版全域收斂掃描。`is_confirmatory` 語意去重仍存在於 schema。
 > - **Phase B（方案交叉檢查，由 RD 在 Decision Hub 手動觸發）**：完整的 alternative × contradiction 交叉比對，檢查二次矛盾。收斂分數公式使用 `resolved`、`fatal`、`major`、`clean_alts` 權重。**Phase B 不再自動啟動，改由 RD 在決策中心明確觸發**。
 >
 > 新矛盾分級為 Fatal/Major/Minor：
 >
 > - **Fatal + Major**：必須回到 5a 繼續求解，直到完全收斂。**不設硬性次數上限**。
 > - **Minor**：記入 Risk Register，不阻擋流程。
-> - **架構健康度監控**（非告警，是強制停止）：
->   - 節點 > 5 → 🛑 **強制回到 Step 1**：「矛盾級聯超過 5 個節點。這不是 TRIZ 問題，是架構問題。回到問題定義重新選擇架構方向。」
->   - 循環矛盾 → 🛑 **強制回到 Step 1**：「架構內在矛盾，無法透過 TRIZ 解決。必須根本重構。」
+> - **架構健康度監控**（非告警，是強制停止；v1.3 改為漸進回退）：
+>   - 節點 > 5（扣除 SIM 已收斂 TC 對）→ 🛑 **漸進回退**：① 回 Step 2c 重建功能模型 → ② 仍 >5 則回 Step 2b 重新根因分析 → ③ 仍無法收斂則回 Step 1 重新問題界定。「矛盾級聯超過 5 個節點。這不是 TRIZ 問題，是架構問題。」
+>   - 循環矛盾 → 🛑 **依循環類型回退**：結構性循環（組件 A↔B 互為因果）→ 回 Step 2c 重建功能模型；框架性循環（問題定義自相矛盾）→ 回 Step 2b 或 Step 1。「架構內在矛盾，無法透過 TRIZ 解決。必須根本重構。」
 > - **Pre-CAD Confidence Score**：`已收斂 (Fatal+Major) / 總 (Fatal+Major) × 100%`，Gate P 門檻 = 100%。
 >
 > **核心洞察**：矛盾數量是架構健康度的診斷信號。健康架構有 1-3 個矛盾；>5 個矛盾意味著在給錯誤架構打補丁。最好的設計流程不是「解矛盾最厲害」，而是「選到矛盾最少的架構」。
@@ -3711,6 +3748,29 @@ stateDiagram-v2
 > **Steps 1-8 的完整 R&R 定義已移至** [E3--ai-agent-detailed-design.md §11.2](E3--ai-agent-detailed-design.md#112-逐步自動化分級)（自動化等級 + Agent 分配）及 [DK-01](../_domain-knowledge/DK-01--design-philosophy-and-process.md)（流程層 Gate 條件）。
 >
 > 本附錄僅保留上方的狀態機視覺化圖。
+
+### ADR-008 新增 Artifact 生命週期（2026-04-27）
+
+以下 5 個 artifact 由 ADR-008 Auto-TRIZ v2 引入。
+
+> **編號對照**：「TRIZ Step」為 Auto-TRIZ Skill 內部步驟（`/triz-model` = Step 1、`/triz-solve` = Step 2+3、`/triz-verify` = Step 4）；「E2E Step」為本文件 Appendix D 定義的整合流程步驟。兩套編號互不相同，請依上下文區分。
+
+| Artifact | TRIZ Skill Step | E2E Step | 建立者 | 生命週期 | 持久化 |
+|----------|----------------|----------|--------|---------|--------|
+| **FunctionModel** | TRIZ Step 1 (FA) | E2E Step 2c 功能建模 | Analyst Agent `function_analysis()` | Draft → Reviewed（Gate 3 出口） | `function_models` 表 |
+| **OzOtResult** | TRIZ Step 2 (OZ-OT) | E2E Step 5a-0 OZ-OT 分析 | Analyst Agent `oz_ot_analysis()` | Draft → Reviewed（L2 入口前鎖定） | `contradictions` 表 `oz_zone/ot_time/px_variable` 欄 |
+| **SimMatrixResult** | TRIZ Step 2+3 (SIM) | E2E Step 5a TRIZ 解矛盾 | TRIZ Solver `sim_matrix()`，≥2 TC 觸發 | Draft → Final（≤2 輪收斂後凍結） | `sim_matrices` 表 |
+| **ComplexityCheckResult** | TRIZ Step 4 (CCI) | E2E Step 5d Decision Hub | TRIZ Solver `complexity_check()` | — （一次性計算，不可變） | 方案 `complexity_check_result` 欄 |
+| **EvidenceClaim** | — （跨步驟） | — （跨步驟） | 所有 Agent LLM 輸出時自動註冊 | Registered → VERIFIED / APPROXIMATE / UNVERIFIED | `evidence_claims` 表 |
+
+**EvidenceClaim 驗證流程**：
+```
+Agent LLM 輸出含數值聲明
+  → EvidenceRegistryService.register_claim()
+  → Tavily WebSearch 交叉驗證
+  → 標記 VERIFIED / APPROXIMATE / UNVERIFIED
+  → Gate P 退出: Evidence Coverage ≥ 40%
+```
 
 ---
 
@@ -3773,7 +3833,7 @@ flowchart TB
 
         subgraph FORWARD["正向路徑 — 系統化解矛盾"]
             direction TB
-            F1["F1: TRIZ 解矛盾 (v11 分層化)<br/>solve_triz_layered orchestrator<br/>L1 (TC 必跑) + L2 (PC 條件觸發) + L3 (SF 必跑旁路)<br/>輸出: LayeredTrizSolution[] + differential_analysis<br/>Phase A: 矛盾健康度"]
+            F1["F1: TRIZ 解矛盾 (v11 分層化)<br/>solve_triz_layered orchestrator<br/>L1 (TC 必跑) + L2 (PC 條件觸發) + L3 (SF 必跑旁路)<br/>輸出: LayeredTrizSolution[] + differential_analysis<br/>Architecture Health Monitor"]
             F2["F2: 子系統定義<br/>System→Module→Component 3 層<br/>+ 6 維介面契約"]
             F2S["F2.5: Spatial Discovery Validator<br/>Reference library 覆寫 + 算術<br/>→ Package Map (SVG)<br/>(overlay 為 optional，不限制創意)"]
             F3["F3: SCAMPER 變形（創意工具）<br/>7 創意行動 × 子系統<br/>風險標註，不觸發 re-scan"]
@@ -3816,8 +3876,7 @@ flowchart TB
 | **方法獨立**                  | 反向（創意）和正向（演繹）是兩種本質不同的方法，不應讓創意工具再跑演繹收斂                                             |
 | **正向路徑分層** (v11)          | F1 內部 TC/PC/SF 是同一矛盾的三層 drill-down，不是互斥三選一。由 `solve_triz_layered` orchestrator 調度 |
 | **反向路徑簡化**                | Anti-Anchor 自帶 Validation Passport，直接進候選池。不需要 R2-R4（TRIZ/子系統/SCAMPER）             |
-| **產出與選擇分離**               | 正向路徑：TRIZ 步驟產出 `LayeredTrizSolution`（Phase A），採納在決策中心（Phase B）                    |
-| Phase A = 矛盾健康度           | 正向路徑 TRIZ 步驟呼叫 `startPhaseA()`（含語意去重）                                             |
+| **產出與選擇分離**               | 正向路徑：TRIZ 步驟產出 `LayeredTrizSolution`（含 Architecture Health Monitor），採納在決策中心（Phase B） |
 | Phase B = 方案交叉檢查          | 決策中心 RD 採納後手動觸發 `startPhaseB()`，只送 adopted 解法                                     |
 | **同 LTS 跨層 = 合法組合** (v11) | Phase B 對同一 LayeredTrizSolution 內的多層解 SKIP 互斥檢查；只有跨矛盾才比對                          |
 | ~~同矛盾多路徑警告~~ (v10 規則)     | **v11 已下線**。drill-down 是合法路徑而非缺陷                                                  |
@@ -3870,28 +3929,9 @@ stateDiagram-v2
 
 ---
 
-### 3. 收斂迴圈：Phase A / Phase B 分離
+### 3. 收斂迴圈：Phase B
 
-#### Phase A：矛盾空間健康度（TRIZ 步驟使用）
-
-```mermaid
-%%{init: {'theme': 'neutral'}}%%
-flowchart TB
-    subgraph PHASE_A["Phase A — startPhaseA()"]
-        direction TB
-        A_START["TRIZ 步驟觸發"]
-        A_BUILD["buildInitialGraph()<br/>從 Contradiction[] 建構 DAG"]
-        A_DEDUP["語意去重<br/>embedding cosine ≥ 0.92 → 標記 is_confirmatory<br/>僅保留 primary，confirmatory 不進 DAG"]
-        A_SCAN["POST /convergence/scan<br/>phase: A<br/>只送 contradictions（已去重），不送 alternatives"]
-        A_RESULT["矛盾空間健康度<br/>交互衝突 / 循環依賴 / 覆蓋盲區"]
-        A_DONE["converged / halted<br/>→ 停止，不自動觸發 Phase B"]
-        A_START --> A_BUILD --> A_DEDUP --> A_SCAN --> A_RESULT --> A_DONE
-    end
-
-    style PHASE_A fill:#FEF3C7,stroke:#F59E0B
-```
-
-
+> **v8 變更**：Phase A 收斂掃描已退役。矛盾空間健康度改由 Architecture Health Monitor（phase-agnostic，nodes > 5 → critical → halt）監控。L1 critic badge 取代 Phase A 的全域收斂功能。`is_confirmatory` 語意去重仍存在於 schema 層級。
 
 #### Phase B：方案交叉檢查（決策中心使用）
 
@@ -3936,7 +3976,7 @@ halted = forcePause
 | 重試分支        | `retryBranch(id)`                 | 該分支 status → exploring，排程下一輪            |
 | 注入新矛盾       | `addContradiction()`              | 加入 graph，若 fatal/major 自動觸發 re-scan     |
 | 覆寫 severity | `confirmSeverity()`               | 手動修正 AI 判定的 severity                    |
-| 重新執行        | `startPhaseA()` / `startPhaseB()` | generation counter 防舊回呼污染               |
+| 重新執行        | `startPhaseB()`                   | generation counter 防舊回呼污染               |
 
 
 ---
@@ -4013,7 +4053,7 @@ flowchart TB
 
 |                   | v7（舊）                                               | v8（現在）                            |
 | ----------------- | --------------------------------------------------- | --------------------------------- |
-| newContradictions | fatal/major → 自動 addContradiction + Phase A re-scan | 顯示為風險標註，不觸發 re-scan               |
+| newContradictions | fatal/major → 自動 addContradiction + re-scan         | 顯示為風險標註，不觸發 re-scan               |
 | 確認流程              | 有未回饋矛盾 → 警告阻擋                                       | 無阻擋，所有風險在決策中心統一處理                 |
 | 定位                | 分析工具（產出需要收斂驗證）                                      | **創意工具**（產出直接進池，與 Anti-Anchor 同級） |
 
@@ -4058,7 +4098,6 @@ flowchart TB
 | -------------------- | --------------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------- | -------------------------------- |
 | Anti-Anchor 生成       | mission + constraints       | AI 產出非典型架構（創意工具，自帶 Validation Passport）                                                 | `AntiAnchorRoute[].length ≥ 3`                           | **直接進反向候選池**，不經 TRIZ/子系統/SCAMPER |
 | **TRIZ 分層求解** (v11)  | 矛盾集 + severity              | `solve_triz_layered`：L1 必跑 + L3 必跑 + L2 critic 觸發 + deepen_link + differential_analyzer | `LayeredTrizSolution[]`（含 L1/L2?/L3 + recommended_route） | 不做 Phase B                       |
-| Phase A 掃描           | `startPhaseA()`             | 語意去重（`is_confirmatory` 過濾）→ 矛盾空間健康度                                                     | converged / halted                                       | 不觸發 Phase B                      |
 | 子系統定義                | TRIZ 矛盾親和性                  | RD/AI 定義 System→Module→Component 3 層 + 6 維介面契約                                          | `Subsystem[confirmed]`                                   | 解鎖 SCAMPER                       |
 | SCAMPER 展開           | 已確認子系統                      | 7 行動 × N 子系統（創意工具，不觸發 re-scan）                                                          | `ScamperVariant[adopted]` + 風險標註                         | 直接進候選池                           |
 | **決策中心採納** (v11)     | 所有候選池                       | **RD 採納 LTS 推薦組合 / 自訂組合 / 單層**                                                          | adopted Alternative[]（標註層級）                              | —                                |
@@ -4090,7 +4129,7 @@ flowchart TB
 | Gate           | 條件                                           |
 | -------------- | -------------------------------------------- |
 | **反向路徑**       | Anti-Anchor routes.length ≥ 3（完成即可，無後續步驟）    |
-| 正向: F1 TRIZ    | Phase A converged 或 trizSolutions.length > 0 |
+| 正向: F1 TRIZ    | health != critical/circular 且 trizSolutions.length > 0 |
 | 正向: F2 子系統     | confirmed subsystems > 0                     |
 | 正向: F3 SCAMPER | SCAMPER adopted > 0                          |
 
@@ -4114,8 +4153,8 @@ flowchart TB
 
 | 元件                        | 職責                                                 | 性質        |
 | ------------------------- | -------------------------------------------------- | --------- |
-| `useConvergenceLoop`      | 收斂迴圈 driver。`startPhaseA()` / `startPhaseB()` 分離觸發 | 狀態 hook   |
-| `/convergence/scan` API   | Phase A: 矛盾空間分析；Phase B: 方案交叉（同 LTS 跨層 SKIP 互斥）    | 後端 AI     |
+| `useConvergenceLoop`      | 收斂迴圈 driver。`startPhaseB()` 觸發                       | 狀態 hook   |
+| `/convergence/scan` API   | Phase B: 方案交叉檢查（同 LTS 跨層 SKIP 互斥）                    | 後端 AI     |
 | `ConvergenceDashboard`    | 顯示 confidence %、fatal/major/minor 計數               | 純展示       |
 | `BranchExplorationPanel`  | 顯示各矛盾分支的探索輪次                                       | 純展示       |
 | `HumanReviewPanel`        | converged / halted 時的人類審查介面                        | 純展示       |
@@ -4123,5 +4162,23 @@ flowchart TB
 | `HealthMonitor`           | 渲染 health 燈號                                       | 純展示       |
 | `ConvergenceGraph`        | 渲染矛盾 DAG                                           | 純展示       |
 | **Decision Hub**          | 攤平所有候選、RD 路徑選擇、Phase B 觸發、橫向比較                     | **核心互動區** |
+
+### ADR-008 擴充：SIM 分支與 Evidence Registry 整合（2026-04-27）
+
+ADR-008 在雙軌流程中新增兩個跨切面：
+
+**1. SIM 矩陣分支（Forward 路徑 F1 後）**
+
+當 Forward TRIZ (F1) ���出涵蓋 ≥2 條 TC 的解法候選時，觸發 SIM 矩陣評估：
+- 位置：F1 → **SIM 評估** → F2（取代直接 F1→F2）
+- SIM +1/0/-1 評分 → -1 衝突回流為��� TC → ≤2 輪收斂
+- 結果影響 Decision Hub 橫向比較（最優組合排序）
+
+**2. Evidence Registry 覆蓋檢查（Gate P 前）**
+
+在推送 Gate P 審查前，新增 Evidence Coverage 門檻：
+- 所有 Agent 產出的 LLM 數值聲明已透��� `register_claim()` 註冊
+- VERIFIED + APPROXIMATE 佔比 ≥ 40% 方可進入 Gate P
+- 未達標時 Decision Hub 顯示 Evidence 缺口報告，引導 RD 補充
 
 

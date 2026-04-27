@@ -1,6 +1,6 @@
 # E3 — 系統互動流程 (System Interaction Flow)
 
-> **版本**: v1.1 | **日期**: 2026-04-23
+> **版本**: v1.2 | **日期**: 2026-04-27
 > **定位**: 本文檔是 [E3 架構](E3--architecture-and-design.md) 的 **user-facing 視角**，對照 [00-discover/E1x--user-journey-map](../00-discover/E1x--user-journey-map.md)（現狀痛點）描繪 **設計後的目標體驗流**。
 > **範疇**: 從使用者動作 → 跨子系統互動 → State Machine 狀態轉換的 end-to-end 任務流程。
 > **來源**: 從 `../00-discover/E1--project-brief-and-prd.md` §2.4 Day-in-the-Life 與 `E3--architecture-and-design.md` Appendix A–E 推導，不引入新流程設計。
@@ -27,15 +27,20 @@
 
 ```mermaid
 graph LR
-    S0["(v1.1) Entry<br/>入口分級<br/>Level A/B/C"] --> S1["Step 1<br/>問題界定<br/>Constraint"]
+    S0["Entry<br/>入口分級<br/>Level A/B/C"] --> S1["Step 1<br/>問題界定<br/>Constraint"]
     S1 --> S2["Step 2<br/>理解全貌<br/>Socratic + 5Why/KT"]
-    S2 --> S2c["(v1.1) Step 2c<br/>功能建模 FA<br/>FunctionModel"]
+    S2 --> S2c["Step 2c<br/>功能建模 FA<br/>FunctionModel"]
     S2c --> S3["Step 3<br/>系統建模<br/>Contradiction"]
     S3 --> S4["Step 4<br/>假設驗證規劃<br/>Assumption"]
-    S4 --> S5a0["(v1.1) Step 5a-0<br/>OZ-OT 分析<br/>Px 鎖定"]
-    S5a0 --> S5["Step 5<br/>雙軌分析<br/>Anti-Anchor ∥ TRIZ"]
-    S5 --> S5d["Step 5d<br/>Decision Hub<br/>候選池匯流"]
-    S5d --> SP["Step P<br/>Pre-CAD 審查<br/>Concept Route"]
+
+    S4 --> S5aa["Step 5-0<br/>Anti-Anchor<br/>啟發探索"]
+    S5aa -.->|"concept seed"| S5a0
+
+    S4 --> S5a0["Step 5a-0<br/>OZ-OT 分析<br/>Px 鎖定"]
+    S5a0 --> S5a["Step 5a<br/>TRIZ 求解<br/>(含 AA seed)"]
+    S5a --> S5d["Step 5d<br/>Decision Hub<br/>候選池匯流"]
+    S5d --> S5e["Step 5e<br/>MUST 快篩<br/>Go/No-Go"]
+    S5e --> SP["Step P<br/>Pre-CAD 審查<br/>Concept Route"]
     SP --> S6["Step 6<br/>CAD 審查<br/>Evidence Matrix"]
     S6 --> S7["Step 7<br/>KT 決策<br/>Decision Record"]
     S7 --> S8["Step 8<br/>費曼內化<br/>Asset"]
@@ -43,15 +48,19 @@ graph LR
     style S0 fill:#F3E8FF
     style S1 fill:#E0F2FE
     style S2c fill:#E0F2FE
+    style S5aa fill:#FFE4E1
     style S5a0 fill:#FEF3C7
-    style S5 fill:#FEF3C7
+    style S5a fill:#FEF3C7
     style S5d fill:#FEF3C7
+    style S5e fill:#FEF3C7
     style SP fill:#DCFCE7
     style S6 fill:#DCFCE7
     style S7 fill:#E9D5FF
 ```
 
-**設計後情緒曲線對比現狀**：發想階段（Step 5）情緒由 😤 焦躁 → 😊 有工具支撐；審查階段（Step 6-7）由 😰 緊張 → 😌 有證據鏈可溯。
+> **v1.2 變更**：Anti-Anchor 從「與 TRIZ 平行的方案產生器」重新定位為「TRIZ 的啟發 seed 來源」（虛線箭頭）；Decision Hub 與 Pre-CAD 之間插入 Step 5e MUST 快篩節點。
+
+**設計後情緒曲線對比現狀**：發想階段（Step 5）情緒由焦躁 → 有工具支撐；審查階段（Step 6-7）由緊張 → 有證據鏈可溯。
 
 ---
 
@@ -62,6 +71,8 @@ graph LR
 > **對齊痛點**: PP-1 經驗鎖定、PP-2 假設隱藏
 > **對應 PRD**: §2.4 Day-in-the-Life 場景 + E3 Appendix B (Forward TRIZ Solver)
 > **合約更新**: 依 [ADR-007](adrs/ADR-007-tc-only-explore-pc-sf-derivation-in-create.md)（2026-04-15），Explore 階段矛盾識別改為 **TC-only**；PC/SF 於 Create 階段 `solve_triz_layered` 入口自 TC 派生，使用者不再需要「選擇 TC/PC/SF」。
+> **ADR-008 補充 (2026-04-27)**：所有 Agent LLM 輸出中的數值聲明會透過 `EvidenceRegistryService.register_claim()` 自動註冊並交叉驗證（Tavily WebSearch），標記 VERIFIED / APPROXIMATE / UNVERIFIED。此為跨步驟 cross-cutting 行為，不逐一標示於下方序列圖中。
+> **ADR-006 補充 (2026-04-27)**：TRIZ Layered 解題管線（L1→Critic→L2→L3）已由 `harness/orchestrator.py` 後端編排（非 client-driven），前端仍驅動產品級 Step 流轉。
 
 ### 2.1 Sequence Diagram
 
@@ -122,8 +133,7 @@ sequenceDiagram
     EV-->>UI: assumptions[] + weak_points[] + required_verifications[]
 
     UI->>UI: 候選進入 Decision Hub (5d)
-    RD->>UI: 手動觸發 Phase B 交叉檢查
-    UI-->>RD: 通過 → MUST 快篩 (5e) → Pre-CAD
+    Note over UI: 後續 Phase B + MUST + Gate P 見 Scenario 3 (§4)
 ```
 
 ### 2.2 跨子系統互動對照
@@ -139,18 +149,17 @@ sequenceDiagram
 | 啟動 TRIZ | Forward TRIZ Solver (Appendix B) | TrizSuggestion: pending → generated |
 | 採納 L2 路線 | Evaluator (VP 生成) | Concept Route: — → Draft |
 | **(v1.1) CCI 複雜度檢查** | TRIZ Solver | ComplexityCheck: — → Evolution / Weak Evolution / Patch |
-| 觸發 Phase B | Decision Hub | Convergence Phase B 執行 |
-| 通過 MUST | Evaluator | Concept Route: Draft → Reviewed (Gate P 前置) |
-| **(v1.1) Evidence Coverage 檢查** | EvidenceRegistry | Gate 退出：coverage ≥ 40% |
+| 候選進入 Decision Hub | Decision Hub | SolutionCandidate: — → adopted（後續 Phase B + MUST + Gate P 見 §4） |
 
 ---
 
-## §3 Scenario 2 — RD 用 Reverse Anti-Anchor 探索非典型架構
+## §3 Scenario 2 — RD 用 Anti-Anchor 啟發非典型概念，經 TRIZ 轉化為工程方案
 
 > **角色**: Persona 1 資深 RD 張三（或新人）
 > **觸發**: 想避免「太快收斂到安全牌」
-> **對齊痛點**: PP-1 經驗鎖定（最高優先級）、PP-3 風險後置
-> **對應**: E3 Appendix C (Reverse Anti-Anchor Architecture)
+> **對齊痛點**: PP-1 經驗鎖定（最高優先級）
+> **對應**: E3 Appendix C (Reverse Anti-Anchor) → Appendix B (Forward TRIZ Solver)
+> **v1.2 變更**: Anti-Anchor 從「直入 Decision Hub 的方案產生器」重新定位為「TRIZ 的啟發 seed 來源」。產出經 TRIZ 流程工程化後再進 Decision Hub。
 
 ### 3.1 Sequence Diagram
 
@@ -161,7 +170,9 @@ sequenceDiagram
     participant AA as Analyst Agent
     participant KB as Knowledge Agent
     participant EV as Evaluator
+    participant TS as TRIZ Solver
 
+    Note over UI: === Phase I: Anti-Anchor 啟發 ===
     RD->>UI: 點擊「反向探索」卡片 (Step 5-0)
     UI->>AA: 啟動 Anti-Anchor Sprint
     Note over AA: 第一性原理 prompt:<br/>物理原則 + 因果鏈量化<br/>+ 邊界條件 + 邏輯謬誤守衛
@@ -170,17 +181,29 @@ sequenceDiagram
     KB-->>AA: ≥2 條跨域解法 + citations
     AA->>AA: 產出 3 條非典型 Route
     AA->>EV: 每條附 Validation Passport (VP)
-    EV-->>AA: VP (assumptions, weak_points, required_verifications, confidence_level)
+    EV-->>AA: VP (assumptions, weak_points, confidence_level)
 
     AA-->>UI: 3 條 Route (mechanism + cross_domain_source + VP)
     UI-->>RD: 呈現非典型架構 + 最小驗證實驗
+    Note over UI: Route: — → generated (Inspiration 標籤)
 
-    RD->>UI: 展開 VP 檢查假設合理性
-    RD->>UI: 晉升為候選方案 (source=anti_anchor)
-    Note over UI: Route: draft → promoted_candidate
+    Note over UI: === Phase II: 概念篩選 + TRIZ 轉化 ===
+    RD->>UI: 展開 VP，選擇有潛力的概念
+    RD->>UI: 點擊「以此為 seed 啟動 TRIZ」
+    Note over UI: Route: generated → seeded_to_triz
 
-    UI->>UI: Route 直入 Decision Hub (不經 TRIZ/子系統/SCAMPER)
-    UI-->>RD: 決策中心攤平比較 (Anti-Anchor ∥ TRIZ ∥ SCAMPER 候選)
+    UI->>AA: formalize_contradiction(seed=anti_anchor_route)
+    AA-->>UI: TC 矛盾句 (improving/worsening_param) + seed_source 標記
+
+    UI->>AA: oz_ot_analysis(contradiction_id, fa_result)
+    AA-->>UI: OZ + OT + Px + PC 造句
+
+    UI->>TS: solve_triz_layered(TC + OZ-OT context, seed_source=anti_anchor)
+    TS-->>UI: LayeredTrizSolution (L1/L2/L3) + anti_anchor_lineage
+    UI-->>RD: 分層 drill-down 卡片 + 「源自 Anti-Anchor」標記
+
+    RD->>UI: 採納方案進 Decision Hub (5d)
+    Note over UI: SolutionCandidate (source=triz, seed_source=anti_anchor)
 ```
 
 ### 3.2 跨子系統互動對照
@@ -188,59 +211,115 @@ sequenceDiagram
 | 使用者動作 | 觸發子系統 | 觸發狀態轉換 |
 |-----------|-----------|-------------|
 | 點擊反向探索 | Reverse Anti-Anchor (Appendix C) | Route: — → pending |
-| AI 產出 Route | Analyst + Knowledge | Route: pending → generated |
+| AI 產出 Route | Analyst + Knowledge | Route: pending → generated (Inspiration) |
 | VP 生成 | Evaluator | VP 附加至 Route |
-| 展開 VP | UI (Create 頁面) | 檢視 assumptions/weak_points |
-| 晉升候選 | Decision Hub | Route: generated → promoted_candidate |
-| 進入決策中心 | Decision Hub | SolutionCandidate (source=anti_anchor) 建立 |
+| 展開 VP 篩選概念 | UI (Create 頁面) | 檢視 assumptions/confidence |
+| **以概念為 seed 啟動 TRIZ** | **Analyst (formalize_contradiction)** | **Route: generated → seeded_to_triz; Contradiction: — → Verified** |
+| **OZ-OT 分析** | **Analyst Agent** | **OzOtResult: — → Px Locked** |
+| **TRIZ 三層求解** | **Forward TRIZ Solver (Appendix B)** | **LayeredTrizSolution: — → generated** |
+| 進入 Decision Hub | Decision Hub | SolutionCandidate (source=triz, seed_source=anti_anchor) |
 
-**Anti-Anchor Gate 閾值**：三條概念路線中至少一條「非對標」且通過 M1（空間約束）+ M4（解耦程度）；否則回退重新發散。
+**Anti-Anchor 啟發閾值**：三條概念路線中至少一條「非對標」（物理機制與現有方案不同源）；若全部為同源變形，回退重新發散。篩選後的 seed 進入 TRIZ 流程，不再需要獨立通過 M1/M4 — 品質檢查由 TRIZ 流程的 Critic + CCI 負責。
+
+### 3.3 設計決策：為什麼 Anti-Anchor 不直接進 Decision Hub
+
+> **v1.2 變更** (2026-04-27)：Anti-Anchor 路線從「直入 Decision Hub」改為「seed → TRIZ 轉化 → Decision Hub」。
+
+**根因分析（第一性原理）**：
+
+Anti-Anchor 的定位是啟發工具（打破路徑依賴），但 v1.0/v1.1 的流程將其產出直接放入 Decision Hub 與 TRIZ 方案並列比較。Decision Hub 下游的 Gate P 要求 Interface Contract + 最小 CAD 範圍 + Evidence Coverage ≥ 40%，Anti-Anchor 路線天生缺乏這些交付物（因為它跳過了 OZ-OT、子系統分解、Evidence Registry 等步驟），導致下游審查迴圈浪費預估 10-18 天，且 PP-3（風險後置）、PP-4（決策不可追溯）迴歸。
+
+**修正原則**：讓啟發歸啟發、工程歸工程。Anti-Anchor 負責「看到不一樣的」，TRIZ 負責「做得出來的」。
+
+**保留的 Anti-Anchor 價值**：
+- `seed_source` 標記全程可追溯（`SolutionCandidate.seed_source = "anti_anchor"`）
+- VP 的 `cross_domain_source` 欄位保留，在 TRIZ L1 查矩陣時作為額外 context
+- `seed_source=anti_anchor` 的 TRIZ 方案在候選池中可追溯，確保不全部收斂為同源方案
 
 ---
 
-## §4 Scenario 3 — RD 主管在 Pre-CAD Gate 做收斂審查
+## §4 Scenario 3 — Phase B 收斂 + Pre-CAD Gate 審查
 
-> **角色**: Persona 2 RD 主管 李四
-> **觸發**: Step 5 候選池已匯流 3+ 條路線，需縮至 3-5 條進入 CAD
-> **對齊痛點**: PP-4 決策不可追溯、PP-6 證據缺口不可見
-> **對應**: E3 Appendix D State Machine (Gate P) + `Pre_CAD_Review_Template`
+> **v1.2 變更**：將原 Scenario 3 拆分為兩段，明確 RD（Phase B 收斂）與主管（Gate P 審查）的職責邊界。
+> `seed_source=anti_anchor` 的 TRIZ 方案在候選池中保留追溯標記。
 
-### 4.1 Flow Diagram
+### 4.1 Phase B 收斂（RD 張三 主導）
+
+> **角色**: Persona 1 RD 張三
+> **觸發**: Decision Hub 已匯流 3+ 條路線（含 TRIZ-only + AA-seeded TRIZ + SCAMPER）
+> **對齊痛點**: PP-3 風險後置
+> **對應**: E3 Appendix D State Machine + Appendix E Decision Hub
 
 ```mermaid
 flowchart TD
-    Start(["Step 5 候選池匯流"]) --> Hub["Decision Hub<br/>Anti-Anchor ∥ TRIZ ∥ SCAMPER 候選"]
+    Start(["Step 5d 候選池匯流"]) --> Hub["Decision Hub<br/>TRIZ ∥ AA-seeded TRIZ ∥ SCAMPER"]
     Hub --> PhB{"RD 手動觸發<br/>Phase B 交叉檢查?"}
     PhB -->|未觸發| Wait["等待 RD 決策"]
-    PhB -->|已觸發| Conv["Phase B: 方案 × 矛盾交叉比對<br/>檢查二次矛盾"]
+    PhB -->|已觸發| Conv["Phase B: 方案 x 矛盾交叉比對<br/>檢查二次矛盾"]
 
-    Conv --> Heat{"架構健康度"}
-    Heat -->|節點 > 5| Halt1["🛑 強制回 Step 1<br/>架構問題非 TRIZ 問題"]
-    Heat -->|循環矛盾| Halt2["🛑 強制回 Step 1<br/>架構內在矛盾"]
+    Conv --> SimDedup["SIM 去重:<br/>扣除 SIM 已收斂 TC 對"]
+    SimDedup --> Heat{"架構健康度<br/>(淨節點數)"}
+    Heat -->|節點 > 5| Halt1["漸進回退:<br/>① 回 Step 2c 重建功能模型<br/>② 仍 >5 → 回 Step 2b<br/>③ 仍無法收斂 → 回 Step 1"]
+    Heat -->|循環矛盾| Halt2["依循環類型回退:<br/>結構性 → 回 Step 2c<br/>框架性 → 回 Step 2b/1"]
     Heat -->|healthy| MUST["5e MUST 快篩 (Go/No-Go)"]
 
-    MUST --> DS{"Diversity Score<br/>≥ 0.4 且 ≥3 條<br/>(含 ≥1 Anti-Anchor)?"}
-    DS -->|不通過| Back["回 5-0 重新發散"]
-    DS -->|通過| GateP["Gate P: Pre-CAD Review"]
-
-    GateP --> TL{"主管審查:<br/>每條路線有<br/>Interface Contract +<br/>最小 CAD 範圍?"}
-    TL -->|通過| PhaseIII["Phase II → Phase III<br/>Concept Route: Reviewed → Verified"]
-    TL -->|不通過| Fix["回 Step 5 補強"]
+    MUST --> RouteCheck{"≥3 條路線<br/>(含 ≥1 seed_source=anti_anchor)?"}
+    RouteCheck -->|不通過,矛盾≥2| Back["回 Step 5-0 / 5a 重新發散"]
+    RouteCheck -->|不通過,矛盾<2| Back2["回 Step 2c 檢視功能模型粒度"]
+    RouteCheck -->|通過| EvCheck{"Evidence Coverage<br/>≥ 40%?"}
+    EvCheck -->|不通過| BackEv["提示補充證據"]
+    EvCheck -->|通過| Notify["系統推送 Gate P<br/>審查請求至主管 Dashboard"]
 
     style Halt1 fill:#FEE2E2
     style Halt2 fill:#FEE2E2
-    style PhaseIII fill:#DCFCE7
+    style Notify fill:#DBEAFE
 ```
 
-### 4.2 跨子系統互動對照
+**Phase B 收斂互動對照**
 
-| 使用者動作 | 觸發子系統 | 觸發狀態轉換 |
-|-----------|-----------|-------------|
-| RD 觸發 Phase B | Decision Hub + Analyst (收斂圖) | Convergence Phase B 啟動 |
-| 架構健康度監控 | Analyst Agent | 節點>5 或循環 → 🛑 回 Step 1 |
-| MUST 快篩 | Evaluator | Concept Route 逐條 Go/No-Go |
-| Diversity Score 計算 | Evaluator | DS ≥ 0.4 門檻檢查 |
-| 主管簽核 Pre-CAD | Human-in-the-Loop | Concept Route: Reviewed → Verified；Pre-CAD Report: Draft → Reviewed；**PHASE_II → PHASE_III** |
+| 使用者動作 | 角色 | 觸發子系統 | 觸發狀態轉換 |
+|-----------|------|-----------|-------------|
+| 觸發 Phase B | RD 張三 | Decision Hub + Analyst (收斂圖) | Convergence Phase B 啟動 |
+| 架構健康度監控 | 系統自動 | Analyst Agent | 節點>5（SIM 去重後）→ 漸進回退 2c→2b→1；循環矛盾 → 依類型回退（結構性→2c / 框架性→2b 或 1） |
+| MUST 快篩 | 系統自動 | Evaluator | Concept Route 逐條 Go/No-Go |
+| 路線多樣性檢查 | 系統自動 | Evaluator | ≥3 條路線 + ≥1 Anti-Anchor |
+| Evidence Coverage 檢查 | 系統自動 | EvidenceRegistryService | **Evidence Coverage ≥ 40%**（VERIFIED + APPROXIMATE 佔比，ADR-008 D3）；未達標則提示補充證據 |
+| 檢視 CCI 標籤 | RD 張三 | Decision Hub (CCI overlay) | — （資訊性，不觸發狀態轉換；顯示 Evolution / Weak Evolution / Patch 分類） |
+| 推��審查請求 | 系統自動 | Notification Service | Gate P: — → Pending Review（路線多樣性 + Evidence Coverage 均通過後觸發） |
+
+### 4.2 Gate P 審查（RD 主管 李四 主導）
+
+> **角色**: Persona 2 RD 主管 李四
+> **觸發**: 系統在路線多樣性 + Evidence Coverage 通過後，自動推送 Gate P 審查請求至主管 Dashboard
+> **使用介面**: Review 頁面（非 Create 頁面）
+> **對齊痛點**: PP-4 決策不可追溯、PP-6 證據缺口不可見
+> **對應**: E3 Appendix D State Machine (Gate P) + `Pre_CAD_Review_Template`
+
+```mermaid
+flowchart TD
+    Notify(["系統推送 Gate P 審查請求"]) --> Open["主管開啟 Review 頁面"]
+    Open --> Review["逐條審查路線:<br/>1. Interface Contract 完整度<br/>2. 最小 CAD 範圍<br/>3. Evidence Coverage ≥ 40%<br/>4. seed_source 追溯鏈"]
+
+    Review --> TL{"每條路線<br/>滿足退出條件?"}
+    TL -->|通過| Sign["主管簽核"]
+    TL -->|不通過| Fix["退回 RD 補強<br/>（明確指出缺失項目）"]
+
+    Sign --> PhaseIII["Phase II → Phase III<br/>Concept Route: Reviewed → Verified"]
+    Fix --> Back["RD 回 Step 5a / 5b 補強"]
+
+    style PhaseIII fill:#DCFCE7
+    style Fix fill:#FEF3C7
+```
+
+**Gate P 審查互動對照**
+
+| 使用者動作 | 角色 | 觸發子系統 | 觸發狀態轉換 |
+|-----------|------|-----------|-------------|
+| 收到審查通知 | 系統 → 主管 | Notification Service | — |
+| 開啟 Review 頁面 | RD 主管 李四 | UI (Review 頁面) | — |
+| 逐條審查 Interface Contract + CAD 範圍 | RD 主管 李四 | Human-in-the-Loop | — |
+| 簽核 Pre-CAD | RD 主管 李四 | Human-in-the-Loop | Concept Route: Reviewed → Verified; Pre-CAD Report: Draft → Reviewed; **PHASE_II → PHASE_III** |
+| 退回補強 | RD 主管 李四 | Human-in-the-Loop | Gate P: Pending Review → Returned（附退回理由） |
 
 ---
 
@@ -254,7 +333,8 @@ flowchart TD
 | 2 | 參與蘇格拉底問答 | — | Analyst | Contradiction: Draft → Reviewed | §11.4.1 主流程序列圖 |
 | 3 | 校準 TRIZ 矛盾句 | Forward TRIZ Solver | TRIZ Solver + Analyst | Contradiction: Reviewed → Verified | Appendix B |
 | 4 | 填寫假設台帳 | — | Analyst + Knowledge | Assumption: Reviewed → Verified | §11.2 逐步自動化分級 |
-| 5-0 | 啟動 Anti-Anchor | Reverse Anti-Anchor | Analyst + Knowledge | Route: — → generated → promoted_candidate | Appendix C |
+| 5-0 | 啟動 Anti-Anchor 啟發 | Reverse Anti-Anchor | Analyst + Knowledge | Route: — → generated (Inspiration) | Appendix C |
+| 5-0→5a | 以 AA 概念為 seed 啟動 TRIZ | Forward TRIZ (seeded) | Analyst + TRIZ Solver | Route: generated → seeded_to_triz; LayeredTrizSolution: — → generated | Appendix B + C |
 | 5a | 啟動 TRIZ 三路徑 | Forward TRIZ | TRIZ Solver | LayeredTrizSolution: — → generated | Appendix B |
 | 5b | 定義子系統 | Forward Subsystem Discovery | Analyst | Subsystem: — → Draft (3-level) | Appendix A |
 | 5c | SCAMPER 變形 | Forward Subsystem | TRIZ Solver + Knowledge | SCAMPER Candidate: — → generated | Appendix E |
@@ -272,9 +352,9 @@ flowchart TD
 
 | 現狀痛點 (PP) | 現狀表現 | 目標體驗流對應點 | 緩解機制 |
 |--------------|---------|-----------------|---------|
-| PP-1 經驗鎖定 | 直覺搜尋過去方案 | Scenario 2 Anti-Anchor + Scenario 1 TRIZ 跨域類比 | Forced Divergence + Anti-Anchor Gate |
+| PP-1 經驗鎖定 | 直覺搜尋過去方案 | Scenario 2 Anti-Anchor 啟發 → TRIZ 轉化 | Forced Divergence（啟發）+ TRIZ 收斂（工程化） |
 | PP-2 假設隱藏 | 預設答案未明說 | Scenario 1 蘇格拉底七類提問 | Assumption Challenge (E3--architecture-and-design.md §11.3.2 機制 1) |
-| PP-3 風險後置 | Proto 才爆問題 | Scenario 3 Pre-CAD Gate + 架構健康度監控 | Phase B 交叉檢查 + 節點>5 強停 |
+| PP-3 風險後置 | Proto 才爆問題 | Scenario 3 Phase B (RD) + Gate P (主管) + 架構健康度監控 | Phase B 交叉檢查（SIM 去重後淨節點）+ 漸進回退（2c→2b→1）；Anti-Anchor 經 TRIZ 工程化確保 OZ-OT + CCI 完備 |
 | PP-4 決策不可追溯 | 半年後無法回溯 | Scenario 3 Validation Passport + KT Decision Record | 自動留痕（Artifact 狀態流轉） |
 | PP-5 溝通斷層 | PM/RD/主管語言不同 | Step 1 約束改寫 + Step 8 費曼摘要 | 統一 Artifact schema |
 | PP-6 證據缺口不可見 | 不知哪些需補數據 | Scenario 3 DR Evidence Matrix + Gate C | Evidence Level E0-E4 自動標記 |

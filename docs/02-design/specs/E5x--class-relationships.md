@@ -2,8 +2,8 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.0`
-**最後更新 (Last Updated):** `2026-04-15`
+**文件版本 (Document Version):** `v2.0`
+**最後更新 (Last Updated):** `2026-04-27`
 **主要作者 (Lead Author):** `Architecture Team`
 **審核者 (Reviewers):** `Backend Lead, Frontend Lead`
 **狀態 (Status):** `Active`
@@ -32,7 +32,7 @@
 呈現 **RD Design Copilot** 核心 Pydantic/TS 類別結構與主要 Agent 類別之間的關係。
 
 ### 1.2 建模範圍
-- **包含**：`backend/app/agents/*.py` 核心 Agent 類別；`backend/app/models/schemas.py` 核心 Pydantic 類別；`src/types/*.ts` 前端鏡像類型。
+- **包含**：`backend/app/agents/*.py` 核心 Agent 類別；`backend/app/harness/*.py` Harness 架構層（v2.0 新增）；`backend/app/models/schemas.py` 核心 Pydantic 類別；`backend/app/services/*.py` 關鍵服務；`src/types/*.ts` 前端鏡像類型。
 - **排除**：第三方 SDK 類別、測試類、UI 純展示組件。
 - **抽象層級**：公開介面與主要欄位。
 
@@ -97,6 +97,64 @@ classDiagram
     TrizSolverAgent ..> KnowledgeAgent : cites evidence
     EvaluatorAgent ..> KnowledgeAgent : cites evidence
 ```
+
+### 2.1b Harness 架構層類別圖（v2.0 新增，ADR-006）
+
+```mermaid
+classDiagram
+    direction TB
+
+    class HarnessAgent~DepsT, OutputT~ {
+        +name: str
+        +system_prompt: str
+        +output_type: type[OutputT]
+        +run_sync(prompt, deps): OutputT
+    }
+
+    class ModelAdapter {
+        +call_provider(messages, model): Response
+        +emit_token_usage(name, usage, latency)
+    }
+
+    class ToolRegistry {
+        +TOOL_REGISTRY: dict
+        +register_tool(name, desc, schema) decorator
+        +dispatch_tool(name, input): Output
+        +get_mcp_specs(): list[Tool]
+    }
+
+    class SolverRegistry {
+        +SOLVER_REGISTRY: dict
+        +register_solver(name) decorator
+        +dispatch(name, req): Response
+    }
+
+    class SkillLoader {
+        +load_all(): int
+        +get_skills(): dict
+    }
+
+    class Orchestrator {
+        +solve_triz_layered(req): Response
+    }
+
+    class PromptAssembler {
+        +assemble_prompt(template, knowledge, context): Prompt
+    }
+
+    class MCPServer {
+        +serve_stdio()
+    }
+
+    HarnessAgent ..> ModelAdapter : delegates LLM calls
+    HarnessAgent ..> PromptAssembler : assembles context
+    Orchestrator ..> HarnessAgent : sequences agents
+    Orchestrator ..> SolverRegistry : registered as solver
+    MCPServer ..> ToolRegistry : exposes tools
+    SkillLoader ..> ToolRegistry : registers skills as tools
+```
+
+> **遷移狀態**：`AnalystAgent`、`EvaluatorAgent`、`TrizSolverAgent`、`TrizCriticAgent`、`KnowledgeAgent`、`KnowledgeWritebackAgent` 已透過 `harness_call()` / `HarnessAgent` 呼叫 LLM。`ScamperFeedbackAgent` 尚未遷移，仍直接使用 `BaseAgent.call_llm_json`。雙路徑並存期間，`BaseAgent` 保留為 legacy 基底。
 
 ### 2.2 Backend Pydantic 核心 Schema 圖（TRIZ 分層）
 
@@ -199,6 +257,47 @@ classDiagram
     Assumption ..> LinkedContradiction
 ```
 
+### 2.4 Auto-TRIZ v2 新增 Schema 圖（v2.0 新增，ADR-008）
+
+```mermaid
+classDiagram
+    direction TB
+
+    class EntryGradingResponse {
+        +level: "A"|"B"|"C"
+        +reasoning: str
+        +recommended_steps: list[str]
+    }
+
+    class FunctionAnalysisResponse {
+        +components: list[ComponentInteraction]
+        +sf_diagnosis: SfDiagnosis
+        +subsystem_boundaries: list
+    }
+
+    class OzOtAnalysisResponse {
+        +oz_zone: str
+        +ot_time: str
+        +px_variable: str
+        +separation_hints: list[str]
+    }
+
+    class RegisterClaimResponse {
+        +id: str
+        +claim_text: str
+        +claim_type: str
+        +status: str
+        +confidence_score: float
+    }
+
+    class CoverageResponse {
+        +total_claims: int
+        +verified_count: int
+        +coverage_ratio: float
+        +by_type: dict[str, ClaimTypeCoverage]
+    }
+```
+
 ---
 
 ## 3. 主要類別/組件職責
@@ -214,6 +313,16 @@ classDiagram
 | `EvidenceReference` | 所有 AI 回答 citation 標準結構 | 被幾乎所有 response 引用 | `models/schemas.py` |
 | `Assumption` (FE) | 假設模型 | `CLDNode`, `LinkedContradiction` | `src/types/assumption.ts` |
 | `KtDecision` (FE) | KT 決策記錄 | `Signature`, `ActionItem`, `AdverseConsequence` | `src/types/decisionRecord.ts` |
+| **v2.0 新增 — Harness 架構層（ADR-006）** | | | |
+| `HarnessAgent` | 型別安全 LLM 呼叫封裝；取代直接 `call_llm_json` | `ModelAdapter`, `PromptAssembler` | `harness/agent_base.py` |
+| `ModelAdapter` | Pydantic AI Model → 多 provider dispatch | `BaseAgent._call_provider` | `harness/model_adapter.py` |
+| `ToolRegistry` | `@register_tool` 裝飾器；自動 JSON Schema + MCP spec | MCP Server | `harness/tool_registry.py` |
+| `SolverRegistry` | `@register_solver` 可插拔解題器 | Orchestrator | `harness/solver_registry.py` |
+| `SkillLoader` | 掃描 `skills/*/SKILL.md` frontmatter 載入知識 | `ToolRegistry` | `harness/skill_loader.py` |
+| `Orchestrator` | L1→critic→L2→L3 管線 + Supabase 持久化 | `HarnessAgent`, `SolverRegistry` | `harness/orchestrator.py` |
+| `PromptAssembler` | Cache-aware 上下文組裝 | `SkillLoader` | `harness/prompt_assembler.py` |
+| **v2.0 新增 — Evidence Registry（ADR-008）** | | | |
+| `EvidenceRegistryService` | 證據主張註冊 + WebSearch 驗證 + 覆蓋率統計 | `web_search`, Supabase | `services/evidence_registry.py` |
 
 ---
 
@@ -243,6 +352,11 @@ classDiagram
 | **Adapter** | `src/integrations/` snake↔camel 欄位轉換 | 隔離 BE/FE 命名差 |
 | **Codegen** | `pydantic2ts`：`schemas.py → src/types/generated/` | 單一事實來源 |
 | **Dependency Injection** | FastAPI `Depends(...)` 注入 agents / supabase client | 可測試性 |
+| **v2.0 新增 — Harness 模式** | | |
+| **Decorator Registry** | `@register_tool` / `@register_solver` 裝飾器自動註冊 | 零配置新增工具/解題器 |
+| **Plugin (SKILL.md)** | `skills/*/SKILL.md` frontmatter 定義知識 bundle | 啟動時自動發現，hot-reload |
+| **Typed Agent Wrapper** | `HarnessAgent[DepsT, OutputT]` 泛型封裝 | Pydantic 輸出保證型別安全 |
+| **MCP Bridge** | ToolRegistry → FastMCP stdio server | 同一工具集可被 API + Claude Code 消費 |
 
 ---
 
@@ -301,3 +415,4 @@ classDiagram
 | 日期 | 審核人 | 版本 | 變更摘要 |
 |---|---|---|---|
 | 2026-04-15 | Architecture Team | v1.0 | 初稿；對齊 VibeCoding 10 模板 |
+| 2026-04-27 | Architecture Team | v2.0 | 新增 Harness 架構層類別圖（ADR-006）；新增 ADR-008 schemas；新增 EvidenceRegistryService；更新設計模式表 |

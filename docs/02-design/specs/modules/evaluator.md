@@ -2,8 +2,8 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.0`
-**最後更新 (Last Updated):** `2026-04-15`
+**文件版本 (Document Version):** `v1.1`
+**最後更新 (Last Updated):** `2026-04-27`
 **主要作者 (Lead Author):** `Backend AI Agents Team`
 **審核者 (Reviewers):** `Tech Lead, QA Lead, RD Reviewer Lead`
 **狀態 (Status):** `Draft (Pilot)`
@@ -18,6 +18,26 @@
 **對應 BDD Feature**: `[docs/02-design/E5x--bdd-scenarios.md` §Feature 3 (Pre-CAD)](../../E5x--bdd-scenarios.md)
 **對應素材**: `[specs/review-templates/E5x--pre-cad-review-template.md](../review-templates/E5x--pre-cad-review-template.md)`
 **對應 API**: `POST /pre-cad-reviews/:rid/ai-analyze`, `GET /must/`*（`backend/app/routers/pre_cad.py`, `backend/app/routers/must.py`）
+
+---
+
+### Harness 遷移狀態（v1.1 新增，ADR-006）
+
+`evaluator.py` 已完全遷移至 Harness 架構：
+
+| 函式 | Harness 呼叫方式 | Agent Name |
+|------|----------------|------------|
+| `assess_risks` | `harness_call()` | `evaluator_risk` |
+| `evaluate_must` | `harness_call()` | `evaluator_must` |
+| `analyze_pre_cad` | `harness_call()` | `evaluator_pre_cad` |
+| `generate_want_seeds` | `harness_call()` | `evaluator_want_seed` |
+| `scan_convergence` | `harness_call()` | `evaluator_convergence` |
+| `issue_validation_passport` | `harness_call()` | `evaluator_passport` |
+| `assess_brief_quality` | `_harness_call_dict()` + `HarnessAgent` | `evaluator_brief_quality` |
+| `assess_depth_quality` | `_harness_call_dict()` + `HarnessAgent` | `evaluator_depth_quality` |
+| `assess_experiment_coverage` | `_harness_call_dict()` + `HarnessAgent` | `evaluator_experiment_coverage` |
+
+所有 LLM 呼叫均透過 `harness/agent_base.py` 路由至 `model_adapter.py` 多 provider dispatch。
 
 ---
 

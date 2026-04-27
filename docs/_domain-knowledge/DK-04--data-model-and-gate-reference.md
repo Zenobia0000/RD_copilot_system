@@ -238,7 +238,7 @@ DRAFT ──Gate 1 (1.1)──▶ PHASE_I ──Gate 3 (PG1)──▶ PHASE_II �
 | SCAMPER | `/api/v1/projects/{pid}/scamper` | Step 5c |
 | Alternatives | `/api/v1/projects/{pid}/alternatives` | Step 5d |
 | MUST | `/api/v1/projects/{pid}/must` | Step 5e |
-| Convergence | `/api/v1/projects/{pid}/convergence` | Step 5a (Phase A/B) |
+| Convergence | `/api/v1/projects/{pid}/convergence` | Decision Hub (Phase B) |
 | Evidence | `/api/v1/projects/{pid}/evidence` | Step 6 |
 | Risk | `/api/v1/projects/{pid}/risks` | Step 6 |
 | WANT & Decision | `/api/v1/projects/{pid}/want`, `/decision` | Step 7 |

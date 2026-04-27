@@ -35,7 +35,7 @@
 ## Ⅰ. BDD 核心原則
 
 1. **從對話開始**：每個 Feature 對應 E3x §2/§3/§4 的 Scenario；變更前由 RD / PM / QA 三方確認。
-2. **由外而內**：情境用 UI 可觀察的行為描述，不涉及 Phase A/B 內部編排。
+2. **由外而內**：情境用 UI 可觀察的行為描述，不涉及收斂掃描內部編排。
 3. **通用語言 (Ubiquitous Language)**：
    - `分層 drill-down`（TRIZ L1/L2/L3）
    - `子系統 (subsystem)`、`介面契約 (interface contract)`

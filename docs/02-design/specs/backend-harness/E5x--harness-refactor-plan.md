@@ -1,7 +1,7 @@
 # Backend Harness 重構計畫
 
-- **Status**: Planned
-- **Date**: 2026-04-15
+- **Status**: ✅ Implemented（Phase 0-5 完成，2026-04-24）
+- **Date**: 2026-04-15（計畫）→ 2026-04-24（完成）
 - **Owner**: Backend Team
 - **ADR**: [ADR-006 Harness Architecture](../../../01-define/adrs/ADR-006-harness-architecture.md)
 - **Scope**: `backend/app/*`（不動前端、不動 gate/evaluator registry）
@@ -38,26 +38,25 @@ backend/app/
 │   ├── mcp_server.py              ← stdio/SSE MCP server
 │   ├── mcp_client.py              ← 消費外部 MCP
 │   └── orchestrator.py            ← 線性 L1→L2→L3 orchestrator
-├── agents/                        ← 全數改寫為 HarnessAgent
-│   ├── analyst.py
-│   ├── triz_solver.py
-│   ├── evaluator.py
-│   ├── scamper_feedback.py
-│   ├── knowledge.py
-│   ├── anti_anchor.py
-│   └── subsystem_decomposer.py
-├── solvers/                       ← NEW 可插拔 solver
-│   └── triz_layered/
-├── skills/                        ← NEW Skill bundles
-│   └── ebike_reference_library/
-│       ├── SKILL.md
-│       └── data/
+├── agents/                        ← 大部分已改寫為 harness_call（見下方遷移狀態）
+│   ├── analyst.py                 ✅ 全函式 harness_call（含原 anti_anchor / subsystem 邏輯）
+│   ├── triz_solver.py             ✅ L1/L2/L3 層透過 HarnessAgent + prompt_assembler
+│   ├── triz_critic.py             ✅ harness_call
+│   ├── evaluator.py               ✅ harness_call + HarnessAgent
+│   ├── knowledge.py               ✅ harness_call
+│   ├── knowledge_wb.py            ✅ harness_call
+│   ├── scamper_feedback.py        ⚠️ 尚未遷移（仍用 call_llm_json）
+│   └── base.py                    保留 _call_provider（model_adapter 底層）
+├── skills/                        ← NEW Skill bundles（知識型）
+│   ├── triz_39_parameters/SKILL.md
+│   ├── triz_76_standards/SKILL.md
+│   └── triz_separation_principles/SKILL.md
 └── main.py                        ← lifespan 啟動 skill_loader + mcp_server
 ```
 
 ## 4. 分階段實作
 
-### Phase 0 — 依賴與骨架（無行為改變）
+### Phase 0 — 依賴與骨架（無行為改變）✅ 完成 2026-04-24
 
 **任務**：
 - 加入 `pydantic-ai>=0.0.14`、`mcp>=1.0` 到 `backend/pyproject.toml`
@@ -69,7 +68,7 @@ backend/app/
 - 既有 API 無行為改變
 - `python -c "from app.harness import HarnessAgent"` 不報錯
 
-### Phase 1 — Tool Registry + MCP Server 殼
+### Phase 1 — Tool Registry + MCP Server 殼 ✅ 完成 2026-04-24
 
 **任務**：
 - 實作 `harness/tool_registry.py`：`@register_tool(name, description, schema)`
@@ -83,7 +82,9 @@ backend/app/
 - Claude Code MCP 設定後可呼叫 `lookup_matrix(6, 14)` 拿到 `[35, 10, 21, 16]`
 - `python -m app.harness.mcp_server` 可啟動
 
-### Phase 2 — HarnessAgent Base + Multi-Provider Model Adapter
+### Phase 2 — HarnessAgent Base + Multi-Provider Model Adapter ✅ 完成 2026-04-24
+
+> **實際遷移狀態**：原計畫「全 agent 一次轉」，實際為漸進式遷移。6/7 agent 檔案已使用 `harness_call` / `HarnessAgent`；`scamper_feedback.py` 尚未遷移。`anti_anchor.py` 與 `subsystem_decomposer.py` 不作為獨立檔案存在，邏輯整合至 `analyst.py`。
 
 **Phase 2a：基礎建設**
 
@@ -125,7 +126,9 @@ backend/app/
 - 同一組矛盾 refactor 前後 token / latency 差異 <5%
 - Feature flag `USE_HARNESS_ORCHESTRATOR` 可切換新舊路徑（並行一週）
 
-### Phase 3 — Orchestrator + Solver Registry
+### Phase 3 — Orchestrator + Solver Registry ✅ 完成 2026-04-24
+
+> **實際差異**：`solvers/` 目錄最終未獨立建立。Solver 邏輯保留在 `agents/triz_solver.py` 內，透過 `@register_solver("triz_layered")` 註冊到 `solver_registry`。`orchestrator.py` 直接引用 agent 層函式。
 
 **任務**：
 
@@ -150,7 +153,9 @@ backend/app/
 - 換頁資料仍在（2026-04-15 Supabase 持久化不 regress）
 - 三 RD flag（severity / quick_mode / force_l2）行為不變
 
-### Phase 4 — Skill Loader + 範例 Skill
+### Phase 4 — Skill Loader + 範例 Skill ✅ 完成 2026-04-24
+
+> **實際差異**：範例 skill 非 `ebike_reference_library`（domain-specific），改為 3 個 TRIZ 知識型 skill：`triz_39_parameters`、`triz_76_standards`、`triz_separation_principles`。符合 CLAUDE.md 域無關原則。
 
 **任務**：
 
@@ -167,9 +172,11 @@ backend/app/
 - 新增 `skills/demo_skill/SKILL.md` 後重啟即可被 agent 呼叫
 - 不需改核心 code
 
-### Phase 5 — MCP Client + 文件
+### Phase 5 — MCP Client + 文件 ✅ 完成 2026-04-24
 
-**任務**：
+> **實際差異**：`mcp_client.py` 已建立但為最小實作（骨架），尚未完整消費外部 `.mcp.json` 工具。文件更新部分由本次 spec 調整補齊。
+
+**���務**：
 
 - `harness/mcp_client.py`：啟動時讀 `.mcp.json`
   - 支援 stdio / SSE / HTTP transport
@@ -202,17 +209,18 @@ backend/app/
 
 | 檔案 | 改動 |
 |---|---|
-| `agents/*.py` | 全數改為 HarnessAgent；保留舊函式 thin wrapper |
+| `agents/*.py` | 6/7 已改為 harness_call/HarnessAgent；scamper_feedback.py 待遷移 |
 | `routers/triz.py::solve_layered` | 改走 solver_registry.dispatch |
 | `main.py` lifespan | 加入 skill_loader + mcp_server 啟動 |
 | `pyproject.toml` | 加 `pydantic-ai`、`mcp` |
 
 ### 新增
 
-- `backend/app/harness/` × 7 檔
-- `backend/app/solvers/triz_layered/`
-- `backend/app/skills/ebike_reference_library/`
-- `backend/tests/harness/test_*.py` × 4 檔
+- `backend/app/harness/` × 9 檔（agent_base, model_adapter, tool_registry, solver_registry, skill_loader, mcp_server, mcp_client, orchestrator, prompt_assembler）
+- ~~`backend/app/solvers/triz_layered/`~~ — 未獨立建目錄，邏輯留在 agents/triz_solver.py
+- `backend/app/skills/` × 3 知識型 skill（triz_39_parameters, triz_76_standards, triz_separation_principles）
+- `backend/app/tools/triz_kb_tools.py`（@register_tool 裝飾的 MCP 工具）
+- `backend/tests/harness/test_*.py`（67 tests passing）
 
 ## 6. 驗證策略
 

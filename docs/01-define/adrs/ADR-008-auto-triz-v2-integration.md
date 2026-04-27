@@ -1,7 +1,7 @@
 # ADR-008: Auto-TRIZ v2 閉環流程整合 — FA / OZ-OT / SIM / CCI / Evidence Registry
 
-- **Status:** Proposed
-- **Date:** 2026-04-23
+- **Status:** In Progress (2026-04-27)
+- **Date:** 2026-04-23 (proposed) → 2026-04-27 (in progress)
 - **Deciders:** Sunny (PO) · Backend AI Agents Team · Frontend Lead
 - **Extends:** ADR-007（TC-only Explore + PC/SF Create 派生）
 - **Upstream:** `docs_harness/auto_triz_strategy.md` (Auto-TRIZ v2 框架)

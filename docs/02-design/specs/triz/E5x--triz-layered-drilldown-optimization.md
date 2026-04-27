@@ -529,7 +529,7 @@ F2 行為變化：
 
 - F2 預設依 `differential_analysis.recommended_route` 的 primary 路線綁定到子系統。
 - RD 可在 F2 覆寫選擇（例：改採 fallback 或自訂組合）。
-- 若 L2 的 secondary_contradictions 產生新矛盾 → 回饋 Phase A 新一輪 F1。
+- 若 L2 的 secondary_contradictions 產生新矛盾 → 透過 `is_confirmatory` 語意去重追蹤（Phase A 已於 v8 退役）。
 
 #### §8.1.1 與 `Forward_Subsystem_Discovery_Architecture.md`（F2 SA）的用語與資料銜接
 
@@ -686,7 +686,7 @@ def phase_b_check_conflict(sol_a, sol_b):
 3. 用 §7 案例輸入 → 確認產出 `LayeredTrizSolution`
 4. 進入決策中心採納「推薦路線」→ 確認 Phase B 不跳「同矛盾多路徑警告」
 5. 進入 F2 → 確認 subsystem 綁定到 L2 + L3 的組合建議
-6. 產生 secondary_contradictions → 確認回饋 Phase A 正常
+6. 產生 secondary_contradictions → 確認 `is_confirmatory` 語意去重追蹤正常
 
 ---
 

@@ -90,7 +90,7 @@
 
 | Spec | 解決的問題 |
 |------|-----------|
-| [`specs/ux/E5x--create-ux-spec.md`](specs/ux/E5x--create-ux-spec.md) | Create 頁面完整 UX 規格（Tab ①–④、區塊 A/B/C、v8.1 Phase A 退役） |
+| [`specs/ux/E5x--create-ux-spec.md`](specs/ux/E5x--create-ux-spec.md) | Create 頁面完整 UX 規格（Tab ①–④、區塊 A/B/C） |
 
 ### §3.4 Review Templates
 
@@ -129,7 +129,7 @@
 
 ### §5.1 必要條件 (Blocker)
 
-- [x] 所有 Create Tab 的 IA 已凍結於 `specs/ux/E5x--create-ux-spec.md` (v8.1 Phase A 退役後)
+- [x] 所有 Create Tab 的 IA 已凍結於 `specs/ux/E5x--create-ux-spec.md` (v8.1)
 - [x] TRIZ 分層 drill-down 架構凍結於 `specs/triz/E5x--triz-layered-drilldown-optimization.md` v1.0
 - [x] 多解採納策略凍結於 `specs/triz/E5x--triz-multi-solution-adoption-strategy.md` v1.1 (M1–M6)
 - [x] 子系統持久化邊界凍結於 `specs/explore/E5x--subsystem-persistence-policy.md`

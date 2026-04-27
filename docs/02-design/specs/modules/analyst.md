@@ -25,6 +25,12 @@
 - `POST /analyst/cld`, `POST /analyst/anti-anchor`
 - `POST /analyst/formalize-contradiction`, `POST /analyst/decompose-tc`
 - `POST /analyst/extract-assumptions`, `POST /analyst/discover-unknowns`
+- **v1.1 (ADR-008) Analyst v2 endpoints** (`backend/app/routers/analyst_v2.py`):
+- `POST /analyst/five-why` — 5Why 根因分析
+- `POST /analyst/kt-analysis` — KT Is/IsNot 問題範圍界定
+- `POST /analyst/function-analysis` — 功能分析（FA + SF 診斷）
+- `POST /analyst/oz-ot-analysis` — OZ-OT-Px 分析
+- `POST /analyst/entry-grading` — 問題複雜度分級（Level A/B/C）
 
 ---
 

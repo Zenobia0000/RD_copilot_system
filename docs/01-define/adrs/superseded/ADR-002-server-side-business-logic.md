@@ -1,10 +1,23 @@
 # ADR-002: 缺失的伺服器端業務邏輯 — 狀態機、Gate、Workflow
 
-- **Status**: Accepted (Implemented via FastAPI, not Supabase triggers as originally proposed)
-- **Date**: 2026-03-13 (proposed) → 2026-04-21 (status updated)
+- **Status**: Superseded (2026-04-27)
+- **Date**: 2026-03-13 (proposed) → 2026-04-21 (status updated) → 2026-04-27 (superseded)
 - **Deciders**: Development Team
+- **Superseded By**: ADR-006 (Harness 架構)、ADR-008 (Auto-TRIZ v2 閉環流程)
 
-> **Implementation Note (2026-04-21)**:
+> **Superseded Notice (2026-04-27)**:
+>
+> 本 ADR 已封存。封存原因：
+>
+> 1. **8-Gate 規格使用舊步驟編號** — 本文定義的 Gate 1.1 (Step 1.1→1.2)、Gate 1.2 (Step 1.2→1.3)、Phase Gate 1-3 等，均基於舊的 Step 1.x→2.x→3.x 流程。現行系統採 Auto-TRIZ v2 的 Step 0→1→2→3→4→5 + Decision Hub + Gate P，步驟編號與 Gate 條件已完全不對應。
+> 2. **原決策「Supabase DB trigger 實作」從未執行** — 實際以 FastAPI `gate_registry.py` (Python decorator) 實作，與本 ADR 的 Decision 段落（PL/pgSQL + RPC）矛盾。
+> 3. **Gate 條件已由 ADR-008 重新定義** — Evidence Coverage ≥ 40%、CCI 複雜度檢查等新條件取代了原 8-Gate 中的多數退出條件。
+>
+> 歷史參考價值：本文記錄了 v1.0 初期的 7 項業務邏輯缺口識別，仍可作為架構演進的考古資料。
+
+---
+
+> **Implementation Note (2026-04-21)** *(歷史記錄)*:
 > Items implemented differently from proposal — via FastAPI endpoints instead of Supabase DB Functions:
 > - ✅ #1 State machine: `backend/app/core/gate_registry.py` (declarative, not Supabase trigger)
 > - ✅ #2 Gate checks: `backend/app/routers/gates.py` + `core/gate_checks.py`

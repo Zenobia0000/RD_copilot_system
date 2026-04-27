@@ -45,7 +45,8 @@ RD Design Copilot v1.0 — AI 驅動的早期概念設計決策平台
 | 後端框架 | FastAPI (Python 3.12) | 非同步 REST API + 多 Agent 編排 |
 | 資料庫 | Supabase (PostgreSQL) | Auth + DB + RLS + Realtime |
 | 前端 ORM | supabase-js v2 | 前端直連 Supabase（CRUD 層） |
-| LLM | Claude API (claude-sonnet-4-6) | 5 類 Agent 呼叫 |
+| LLM | Claude API (claude-sonnet-4-6) | 5 類 Agent 呼叫（HarnessAgent 封裝，ADR-006） |
+| Agent 框架 | Pydantic AI + MCP（ADR-006） | HarnessAgent[Deps, Output] typed wrapper + MCP 雙向 |
 | 前端 | React 18 + TypeScript + Vite | 6+1 頁架構 (Apple 設計哲學) |
 | UI 元件庫 | shadcn/ui + Tailwind CSS | Delta 品牌設計系統 |
 | 驗證 | Pydantic 2.0+ / Zod | 後端/前端雙重 Schema 驗證 |
@@ -71,7 +72,7 @@ RD Design Copilot v1.0 — AI 驅動的早期概念設計決策平台
 | Phase Gate 1 | Step 1.3→2.1 | PHASE_1→PHASE_2 | ≥1 CLD + ≥3 斷路點 + 矛盾正式化 |
 | Gate 2.1 | Step 2.1→2.2 | Phase 2 內部 | ≥3 高風險假設各有實驗 |
 | Gate 2.2 | Step 2.2→2.3 | Phase 2 內部 | ≥3 方案 + MUST 通過 |
-| Phase Gate 2 | Step 2.3→3.1 | PHASE_2→PHASE_3 | ≥1 Pre-CAD overall_pass |
+| Phase Gate 2 | Step 2.3→3.1 | PHASE_2→PHASE_3 | ≥1 Pre-CAD overall_pass + Evidence Coverage ≥ 40%（ADR-008 D3） |
 | Gate 3.2 | Step 3.2→3.3 | Phase 3 內部 | DecisionRecord 簽核 + WANT 有證據 |
 | Phase Gate 3 | Step 3.3→Done | PHASE_3→COMPLETED | 所有核心工件 Released |
 
@@ -142,6 +143,17 @@ RD Design Copilot v1.0                              狀態     完成日
     ├── WP-7.1: Docker 部署                         ✅ Done   2026-03-13
     ├── WP-7.2: API 文件 (OpenAPI auto-gen)         🔸 部分   —
     └── WP-7.3: 使用手冊                            ⏳ TODO
+
+WP-8: Auto-TRIZ v2 Integration (ADR-008)              ⏳ 0/193h
+    ├── WP-8.1: DB Migration (function_models, evidence_claims, sim_matrices)
+    ├── WP-8.2: AnalystAgent 擴充 (5Why/KT/FA/OZ-OT/Entry Grading)
+    ├── WP-8.3: TrizSolverAgent 擴充 (SIM/CCI/solve_layered)
+    ├── WP-8.4: Evidence Registry Service
+    ├── WP-8.5-8.6: Frontend Conditional Stepper + Create 擴充
+    └── WP-8.7: Docs + BDD + E2E Acceptance
+
+WP-9: Harness Architecture (ADR-006)                  ⚡ 152/176h (86%)
+    └── Phase 0-5 核心實作已完成 (commit 3ce5738)
 ```
 
 ### 3.1 完成度統計
@@ -600,3 +612,11 @@ Day 3 (03-13) ████████████████████  M6: 
 | Interface Contract | 介面契約，6 維度 (包封/載荷/訊號/熱/基準/維修) |
 | Anti-Anchor | 反錨定衝刺，生成 ≥1 個與既有方案不相容的非典型架構 |
 | Contradiction Convergence | 矛盾收斂圖，DAG 結構追蹤所有矛盾直到完全收斂 |
+| FA (Function Analysis) | 功能分析，組件交互圖（有效/有害/不足/過度��+ SF 模型 + ��系統邊���定義（ADR-008） |
+| OZ-OT | ���作空間 (Operational Zone) + ��作時間 (Operational Time)，鎖定 Px 物理變數（ADR-008） |
+| SIM Matrix | 多 TC 交互評分矩陣，+1（互利）/ 0（無關）/ -1（衝突），≤2 輪收斂（ADR-008） |
+| CCI | Continuous Complexity Index，連續複雜度指標 [0,1]，取代二元 Evolution/Patch（ADR-008） |
+| Evidence Registry | 跨 Agent LLM 數值聲明註冊 + Tavily 驗證，Coverage ≥ 40% 為 Gate P 退出條件（ADR-008） |
+| Entry Grading | 入口成熟度分級：Level A（5步 Stepper）/ B（3-tab）/ C（SF-only）（ADR-008） |
+| Conditional Stepper | Explore 頁條件��步驟器，依 Entry Grading 顯示不同步驟數（ADR-008 D6） |
+| HarnessAgent | Pydantic AI typed agent wrapper `HarnessAgent[DepsT, OutputT]`，所有 Agent 的基礎封裝（ADR-006） |

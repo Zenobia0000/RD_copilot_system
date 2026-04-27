@@ -1,25 +1,32 @@
 # ADR-006: Backend Harness 架構 — Pydantic AI + MCP + Skills
 
-- **Status**: Deferred (Accepted → Deferred 2026-04-22)
-- **Date**: 2026-04-15
-- **Deferred Date**: 2026-04-22
+- **Status**: Accepted & Implemented (2026-04-24)
+- **Date**: 2026-04-15 (proposed) → 2026-04-22 (deferred) → 2026-04-24 (implemented)
 - **Deciders**: RD + Development Team
-- **Supersedes**: 部分取代 ADR-003 Phase 3（LLM 介面層抽象）
-- **Related**: ADR-002（後端業務邏輯）、ADR-003（LLM 服務強化）
+- **Supersedes**: ADR-002（Gate 實作策略）、ADR-003 Phase 2-3（prompt 外部化 + model routing）
+- **Related**: ADR-008（Auto-TRIZ v2，建立在 Harness 之上）
 
-## Implementation Status (2026-04-22)
+## Implementation Status (2026-04-27)
 
-> **⚠️ 本 ADR 尚未實作。** 截至 2026-04-22，backend 仍採「FastAPI + module-level plain functions」架構：
-> - `backend/app/harness/` 目錄 **不存在**
-> - `backend/app/skills/` 目錄 **不存在**
-> - `backend/app/solvers/` 目錄 **不存在**
-> - Agent 模組（`agents/analyst.py`, `agents/triz_solver.py` 等）皆為 **plain functions**，無 class-based agent、無 Pydantic AI `Agent[Deps, Output]` 封裝
-> - 無 MCP server/client 實作
-> - `pydantic-ai` 未列入 `pyproject.toml` 依賴
+> **All phases (Phase 0-5) implemented.** Commit `3ce5738` (2026-04-24) 完成 Harness 架構全部階段。
 >
-> 本 ADR 記錄的是規劃中的架構方向，實際實作時程待定。所有引用本 ADR 的文件（如 E3 SS11.5.1）應理解為「目標架構」而非「當前實作」。
+> 已實作模組（`backend/app/harness/`）：
+> - `agent_base.py` — `HarnessAgent[Deps, Output]` typed agent wrapper (Phase 2a)
+> - `model_adapter.py` — Pydantic AI `Model` wrapping `_call_provider` (Phase 2a)
+> - `prompt_assembler.py` — Context engineering with cache budget (Phase 2a)
+> - `tool_registry.py` — Decorator-based tool registration + MCP spec gen (Phase 1)
+> - `solver_registry.py` — Pluggable solver dispatch (Phase 3)
+> - `orchestrator.py` — L1→Critic→L2→L3 pipeline coordinator (Phase 3)
+> - `skill_loader.py` — Filesystem-based skill discovery (Phase 4)
+> - `mcp_server.py` — FastMCP stdio server (Phase 1)
+> - `mcp_client.py` — External MCP tool consumer (Phase 5)
 >
-> **當前實作**：Router → module-level agent function → `base.py` multi-provider LLM client → Supabase persistence。詳見 `backend/app/agents/base.py`。
+> 已實作 Skills（`backend/app/skills/`）：
+> - `triz_39_parameters/` — 39 工程參數知識庫
+> - `triz_76_standards/` — 76 標準解知識庫
+> - `triz_separation_principles/` — 分離原理知識庫
+>
+> Agents 已全部重構為 `HarnessAgent` 封裝（`scamper_feedback.py` 除外，pending）。
 
 ## Context
 

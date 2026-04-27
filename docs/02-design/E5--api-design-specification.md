@@ -365,7 +365,7 @@ URL 路徑版本（未來 `/v2/`）；目前僅一版。
 **破壞性變更**：改欄位名、刪欄位、改型別 → 必升主版；同步 Pydantic schema + pydantic2ts 重新生成 TS。
 
 ### 9.3 棄用策略
-`TBD — <be-lead TBD>`（目前無正式棄用，Phase A 掃描與 OLD `/triz/solve` 已標記 deprecated）。
+`TBD — <be-lead TBD>`（目前無正式棄用，OLD `/triz/solve` 已標記 deprecated；Phase A 掃描已於 v8 退役移除）。
 
 ---
 

@@ -1,8 +1,19 @@
 # ADR-004: 測試與 DevOps 基礎設施
 
-- **Status**: Proposed
-- **Date**: 2026-03-13
+- **Status**: Superseded (2026-04-27)
+- **Date**: 2026-03-13 (proposed) → 2026-04-27 (superseded)
 - **Deciders**: Development Team
+- **Superseded By**: 待撰寫新 ADR（Harness 架構下的測試策略）
+
+> **Superseded Notice (2026-04-27)**:
+>
+> 本 ADR 已封存。封存原因：
+>
+> 1. **從未實作** — Status 停留在 Proposed，`backend/tests/` 仍為空。
+> 2. **測試目標已過時** — 本文假設 16 個 AI endpoint 的舊 router 結構（test_brief, test_socratic, test_cld...），ADR-006 Harness 重構後 backend 結構已根本改變（agents 改為 HarnessAgent、orchestrator 管線、solver registry）。
+> 3. **前端測試目標已過時** — 本文假設 `useContradictionScan`、`useConvergenceLoop` 等 hooks，ADR-008 新增 8 個 hooks（useEntryGrading, useFunctionAnalysis, useOzOtAnalysis...），測試範圍需重新規劃。
+>
+> 下一步：需撰寫新的測試策略 ADR，覆蓋 Harness agent 單元測試、orchestrator pipeline 測試、TRIZ KB 確定性測試、以及 Auto-TRIZ v2 E2E 場景。
 
 ## Context
 

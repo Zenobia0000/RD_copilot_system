@@ -2,8 +2,8 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.0`
-**最後更新 (Last Updated):** `2026-04-15`
+**文件版本 (Document Version):** `v1.1`
+**最後更新 (Last Updated):** `2026-04-27`
 **主要作者 (Lead Author):** `Backend AI Agents Team`
 **狀態 (Status):** `Active`
 **對應 VibeCoding 模板:** `07_module_specification_and_tests.md`
@@ -34,12 +34,27 @@
 | 8   | `SubsystemDecomposerAgent`                   | (service in `scamper.py` + `spatial_`*)         | 子系統發現與介面契約                        | Appendix A + E | ✓ `[subsystem-decomposer.md](subsystem-decomposer.md)`            |
 
 
+### Backend Harness (`backend/app/harness/`) — v1.1 新增（ADR-006）
+
+| 模組 | 職責 |
+| --- | --- |
+| `agent_base.py` | `HarnessAgent[DepsT, OutputT]` 型別安全 LLM 封裝 + `harness_call()` 便利函式 |
+| `model_adapter.py` | Pydantic AI Model → 多 provider dispatch |
+| `tool_registry.py` | `@register_tool` 裝飾器 + 自動 MCP spec |
+| `solver_registry.py` | `@register_solver` 可插拔解題器 |
+| `skill_loader.py` | 掃描 `skills/*/SKILL.md` 載入知識 |
+| `mcp_server.py` | FastMCP stdio server |
+| `orchestrator.py` | L1→critic→L2→L3 管線 |
+| `prompt_assembler.py` | Cache-aware 上下文組裝 |
+
+
 ### Backend Services (`backend/app/services/`)
 
 
 | 模組                                          | 職責                         |
 | ------------------------------------------- | -------------------------- |
 | `evidence_retrieval.py`                     | citation / evidence ref 查詢 |
+| `evidence_registry.py`                      | 證據主張註冊 + WebSearch 驗證 + 覆蓋率統計（v1.1 ADR-008） |
 | `web_search.py`                             | 外部 web 補充                  |
 | `reference_library.py`                      | TRIZ 40 原理 / 76 標準解 靜態資料   |
 | `package_svg.py`                            | 子系統視覺化 (SVG)               |
@@ -52,6 +67,7 @@
 | 模組                         | 職責               |
 | -------------------------- | ---------------- |
 | `triz_kb.py`               | 矛盾矩陣 / 39×39 知識庫 |
+| `triz_kb_tools.py`         | `@register_tool` MCP 工具（v1.1） |
 | `contradiction_tree.py`    | 矛盾分解樹            |
 | `separation_principles.py` | 4 種分離原理          |
 
@@ -79,6 +95,7 @@
 - **Knowledge RAG** → `knowledge.md`（citation / 多模態 ingest，所有 agent 共用）
 - **Analyst** → `analyst.md`（Discover/Define 主 LLM actor；Brief / Socratic / Formalize / Decompose / Anti-Anchor prompt 入口）— 2026-04-15 補齊
 - **ScamperFeedback** → `scamper-feedback.md`（Appendix E 非收斂迴圈閉環，相似度去重 + Supabase 寫回）— 2026-04-15 補齊
+- **EvidenceRegistry** → `[evidence-registry.md](evidence-registry.md)`（ADR-008 證據主張註冊/驗證/覆蓋率）— 2026-04-23 新增（v1.1）
 
 `TrizCriticAgent` 的 DbC 已內嵌於 `triz-solver.md` drill-down 邏輯（不獨立 pilot）。其餘模組（services / tools / frontend hooks）採 lazy-spec 策略：進 WBS 前由 owner 依 `[VibeCoding 07 模板](../../../../rd_assistant_design_system/VibeCoding_Workflow_Templates/07_module_specification_and_tests.md)` 填寫。
 

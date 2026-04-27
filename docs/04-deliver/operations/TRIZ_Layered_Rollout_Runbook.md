@@ -120,7 +120,7 @@ Observability：
    ```
 2. 在 production 環境設置 `VITE_TRIZ_LAYERED_MODE=true`（與程式碼預設一致，也可省略）。
 3. 發佈 FE bundle。
-4. 更新 `pages/Create.tsx` 的 `[啟動 Phase A]` 按鈕，永遠呼叫 `trizSolveLayered`；移除條件分支。
+4. 更新 `pages/Create.tsx` 呼叫 `trizSolveLayered`；移除條件分支（Phase A 已於 v8 退役，按鈕已移除）。
 5. 保留 `POST /triz/solve` endpoint 作為底層 primitive，內部用於 `solve_triz_layered` orchestrator 的三個 sub-call。
 6. 通知下游（F2 subsystem discovery）可使用 `SubsystemSuggestRequest.layered_triz_solutions` 欄位。
 

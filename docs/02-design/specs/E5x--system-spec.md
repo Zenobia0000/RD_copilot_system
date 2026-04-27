@@ -1,10 +1,18 @@
 # RD Design Copilot — 系統規格定義書
 
-**版本**: v1.1
-**日期**: 2026-02-24
+**版本**: v2.0
+**日期**: 2026-04-27
 **範圍**: MVP (v0.5) — 8 步驟全流程之 API + UI 規格
 
-> **v1.1 更新**：Step 編號按實際執行順序重新編排（原 Step 6→Step 5、原 Step 5→Step 6）；新增 Step 5 內部流程（TRIZ→子系統→SCAMPER→方案→MUST）詳細說明。
+> **v2.0 更新**（2026-04-27）：
+> - 修正技術堆疊（Supabase Postgres / React 19 / Harness 架構）
+> - 新增 Entry Level A/B/C 條件式路徑（ADR-008）
+> - 新增 Harness 架構層概述（ADR-006）
+> - Project 表加入 `entry_level`；Contradiction 表加入 `oz_zone` / `ot_time` / `px_variable`
+> - 新增 function_models / evidence_claims / sim_matrices 資料表
+> - 新增 Analyst v2 (5 endpoints) + Evidence Registry (3 endpoints) API
+>
+> **v1.1 更新**（2026-02-24）：Step 編號按實際執行順序重新編排（原 Step 6→Step 5、原 Step 5→Step 6）；新增 Step 5 內部流程（TRIZ→子系統→SCAMPER→方案→MUST）詳細說明。
 
 ---
 
@@ -29,6 +37,7 @@
 | name | String(200) | 專案名稱 |
 | description | Text | 專案描述 |
 | phase | String(20) | DRAFT → PHASE_I → PHASE_II → PHASE_III → COMPLETED |
+| entry_level | String(1) | **A** / **B** / **C**（問題複雜度分級，影響 Step 流程路徑）|
 | created_at | DateTime | 建立時間 |
 | updated_at | DateTime | 更新時間 |
 
@@ -56,9 +65,56 @@ DRAFT ──Gate 1──▶ PHASE_I ──Gate 3──▶ PHASE_II ──Gate 5�
 | Gate 7 | Step 7 完成後 | — (Phase III 內部) |
 | Gate 8 | Step 8 完成後 | **PHASE_III → COMPLETED** |
 
-Gate 條件由 `gate_service.py` 自動檢查，不滿足則拒絕推進。
+Gate 條件�� `gate_service.py` 自動檢查，不滿足則拒絕推進。
 
-### 2.3 Step 執行順序
+### 2.3 Entry Level 條件式路徑（v2.0 新增，ADR-008）
+
+專案建立時由 AI 分級（`POST /analyst/entry-grading`），決定 Explore 階段的流程深度：
+
+| Level | 條件 | Explore 流程 | 適用情境 |
+|-------|------|-------------|----------|
+| **A** | 症狀模糊，需引導 | 5 步 Stepper：Problem Scoping → FA → Socratic → Contradictions → CLD | 新手 / 初次接觸問題 |
+| **B** | 已知 TC，專家級 | 原 3 Tab（FA 為 side panel） | 熟練 RD 工程師 |
+| **C** | 功能缺失，無 trade-off | SF-only 快速路徑 | 補功能需求 |
+
+Level 由 `EntryGradingResponse.level` 決定，存入 `projects.entry_level`。前端根據此值切換 Conditional Stepper 或 3-Tab UI。
+
+### 2.4 Auto-TRIZ v2 新增資料表（ADR-008）
+
+#### FunctionModel（功能模型）
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| id | UUID | PK |
+| project_id | FK → Project | |
+| components | JSON | 組件交互清單 `[{name, role, interactions[]}]` |
+| sf_diagnosis | JSON | 物質-場診斷結果 |
+| subsystem_boundaries | JSON | 子系統邊界定義 |
+
+#### EvidenceClaim（證據註冊）
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| id | String | CLM-{proj}-{seq:04d} |
+| project_id | FK → Project | |
+| claim_text | Text | 主張內容 |
+| claim_type | String | assumption / hypothesis / result / constraint |
+| status | String | unverified → verified / refuted / partial |
+| verification_sources | JSON | 驗證來源清單 |
+| confidence_score | Float [0,1] | 可信度 |
+| linked_artifact_id | String (nullable) | 關聯工件 ID |
+| linked_artifact_type | String (nullable) | 關聯工件類型 |
+
+#### SimMatrix（多 TC 交互矩陣）
+
+| 欄位 | 型別 | 說��� |
+|------|------|------|
+| id | UUID | PK |
+| project_id | FK → Project | |
+| matrix_data | JSON | N×N 交互矩陣 (+1/0/−1) |
+| contradiction_ids | JSON | 參與矛盾 ID 清單 |
+
+### 2.5 Step 執行順序
 
 | Step | 名稱 | Phase | 說明 |
 |------|------|-------|------|
@@ -254,6 +310,9 @@ flowchart LR
 | engineering_desc | Text |
 | physical_contradiction | Text |
 | source | Text |
+| oz_zone | String (nullable) | 操作區域（v2.0 新增，ADR-008 OZ-OT 分析） |
+| ot_time | String (nullable) | 操作時間（v2.0 新增） |
+| px_variable | String (nullable) | 物理矛盾變數（v2.0 新增） |
 
 ##### API 端點
 
@@ -1023,18 +1082,58 @@ ALT-001:
 
 ---
 
-## 8. 技術規格
+## 8. ���術規格
 
 | 項目 | 規格 |
 |------|------|
-| 語言 | Python 3.11+ |
-| API 框架 | FastAPI |
-| ORM | SQLAlchemy 2.0+ |
-| 資料庫 | SQLite (MVP) / PostgreSQL (Production) |
-| Schema 驗證 | Pydantic 2.0+ |
-| LLM | Anthropic Claude (claude-sonnet-4-6) |
-| 前端 | Streamlit |
-| 容器化 | Docker + docker-compose |
+| 語言 | Python 3.11+（後端）/ TypeScript 5.x（前端） |
+| API 框架 | FastAPI + Uvicorn |
+| 資料庫 | **Supabase (PostgreSQL)**（直接透過 supabase-py SDK，無 ORM） |
+| Schema 驗證 | Pydantic v2 |
+| Agent 框架 | **Pydantic AI** + **MCP** — Harness 架構（見 [ADR-006](../../01-define/adrs/ADR-006-harness-architecture.md)） |
+| LLM | 多 Provider：Anthropic Claude / OpenAI / Azure / Gemini / Qwen（透過 `model_adapter.py`） |
+| 前端 | **React 19 + Vite + Tailwind CSS + shadcn/ui** |
+| 狀態管理 | React Query（TanStack Query） |
+| 即時同步 | Supabase Realtime（Postgres NOTIFY → WebSocket） |
+| 測試 | pytest + pytest-asyncio（後端）/ Vitest + Playwright E2E（前端） |
+| 容器化 | Docker + docker-compose + Nginx |
+
+### 8.1 Harness 架構層（v2.0 新��，ADR-006）
+
+後端採用 **Hybrid Harness** 架構，位於 `backend/app/harness/`：
+
+| 模組 | 職責 |
+|------|------|
+| `agent_base.py` | `HarnessAgent[DepsT, OutputT]` — 型別安全的 LLM 呼叫封裝 |
+| `model_adapter.py` | Pydantic AI Model → 多 provider dispatch（保留 exponential backoff） |
+| `tool_registry.py` | `@register_tool` 裝飾器 + 自動 MCP spec 產出 |
+| `solver_registry.py` | `@register_solver` 可插拔解題器 |
+| `skill_loader.py` | 掃描 `skills/*/SKILL.md` frontmatter，啟動時載入 |
+| `mcp_server.py` | stdio MCP server，將 registered tools 曝露給 Claude Code |
+| `orchestrator.py` | L1→critic→L2→L3 線性管線，每層 Supabase 持久化 |
+| `prompt_assembler.py` | Cache-aware 上下文組裝（static_system / dynamic_context 分離） |
+
+呼叫鏈：`routers → agents → harness → services/tools → models`
+
+### 8.2 Auto-TRIZ v2 新增 API（ADR-008）
+
+#### Analyst v2 Endpoints
+
+| Method | Path | 功能 | Response Model |
+|--------|------|------|----------------|
+| POST | `/analyst/five-why` | 5Why 根因分析 | `FiveWhyResponse` |
+| POST | `/analyst/kt-analysis` | KT Is/IsNot 分析 | `KtIsIsNotResponse` |
+| POST | `/analyst/function-analysis` | 功能分析（FA + SF 診斷） | `FunctionAnalysisResponse` |
+| POST | `/analyst/oz-ot-analysis` | OZ-OT-Px 分析（鎖定操作區/時/變數） | `OzOtAnalysisResponse` |
+| POST | `/analyst/entry-grading` | 問題複雜度分級（A/B/C） | `EntryGradingResponse` |
+
+#### Evidence Registry Endpoints
+
+| Method | Path | 功能 | Response Model |
+|--------|------|------|----------------|
+| POST | `/evidence/claims` | 註冊證據主張 | `RegisterClaimResponse` |
+| POST | `/evidence/claims/{claim_id}/verify` | 驗證主張（WebSearch + 數值比對） | `VerifyClaimResponse` |
+| GET | `/evidence/coverage/{project_id}` | 專案證據覆蓋率統計 | `CoverageResponse` |
 
 ---
 

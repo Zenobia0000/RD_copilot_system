@@ -72,7 +72,7 @@
 ### 尚未動工 (⏳)
 - **WP 7.4 lazy fetch**：目前一次 Promise.all 所有矛盾；展開才 fetch 為優化
 - **WP 8.7 L2 手動編輯 Dialog**：允許 RD 直接改 `derived_parameter` 與 `separation_type` 後 re-fetch L2
-- **WP 11.3 Phase A 回饋迴路**：L2 `secondary_contradictions` 回饋 Phase A 新一輪（需 F2 實際執行後才能驗證）
+- ~~WP 11.3 Phase A 回饋迴路~~：v8 退役，`secondary_contradictions` 透過 `is_confirmatory` 語意去重追蹤
 - **WP 11.4 MUST 快篩**：MUST evaluator 讀取 `layered_solution` 對整張卡片判 pass/fail
 - **WP 11.5 Pre-CAD 五維**：Pre-CAD analyzer 讀取 `layered.recommendedRoute` 對應層組合作為 mechanism 輸入
 - **WP 12.5 Playwright E2E 錄影**：元件層測試完備，全流程錄影待補
@@ -109,7 +109,7 @@
 ## 邏輯流程（摘要）
 
 ```
-Phase A → contradictions[{id, pair, severity}]
+contradictions[{id, pair, severity}]
     ↓
 solve_triz_layered orchestrator (NEW)
     ├── L1：_solve_tc (既有 primitive，永遠跑)
@@ -159,11 +159,11 @@ F2 subsystem-suggestions 以 adopted_route 為 related_contradictions 主綁定
 | 4 | 後端：L1 critic + L2 deepen_link | critic helper + _derive_pc_from_tc |
 | 5 | 後端：differential_analysis prompt | LLM 跨層比對 + recommended_route |
 | 6 | 後端：API endpoint + Phase B 修訂 | `POST /triz/solve-layered` + `phase_b_directive` 消費 |
-| 7 | 前端：區塊 A 矛盾總覽 + Phase A | severity badge、quick_mode toggle |
+| 7 | 前端：區塊 A 矛盾總覽 | severity badge、quick_mode toggle |
 | 8 | 前端：區塊 B 分層診斷卡 | L1/L2/L3 垂直堆疊 + critic badge + deepen_link 視覺化 |
 | 9 | 前端：區塊 B differential_analysis 面板 + 採納三按鈕 | recommended_route + 自訂對話框 |
 | 10 | 前端：決策中心 layered 卡片類型 | ConceptRouteCard 擴展 + 層採納徽章 |
-| 11 | 整合、狀態與下游銜接 | F2 hand-off 升級、MUST/Pre-CAD 消費、Phase A 回饋 |
+| 11 | 整合、狀態與下游銜接 | F2 hand-off 升級、MUST/Pre-CAD 消費、Phase B 銜接 |
 | 12 | 遷移、測試、可觀測性、文件 | feature flag 灰度、契約測、E2E、§6 文件同步 |
 
 ---
@@ -241,7 +241,7 @@ F2 subsystem-suggestions 以 adopted_route 為 related_contradictions 主綁定
 
 ---
 
-## 7.0 前端：Tab ① 區塊 A — 矛盾總覽 + Phase A
+## 7.0 前端：Tab ① 區塊 A — 矛盾總覽
 
 | 任務 ID | 工作項 | 交付物 / 完成準則 | 依賴 | 狀態 |
 |---------|--------|-------------------|------|------|
@@ -301,7 +301,7 @@ F2 subsystem-suggestions 以 adopted_route 為 related_contradictions 主綁定
 |---------|--------|-------------------|------|------|
 | 11.1 | **F2 hand-off 升級**：`POST /scamper/subsystem-suggestions` 請求體新增 `layered_triz_solutions[]`（§8.1.1） | 向後相容：同時支援扁平 `contradictions[]` fallback | 6.2 | ✅ `SubsystemSuggestRequest.layered_triz_solutions: list[LayeredTrizSolution]` 新增（default=[]），向後相容 `contradictions[]` 保留；smoke test 驗證 serialize round-trip |
 | 11.2 | F2 內部以 **`adopted_route`**（or `recommended_route` 若未採納）作為 `related_contradictions` 主綁定（F2 SA §6.4.4） | 整合測試：L2+L3 採納 → subsystem 綁定到此組合 | 11.1 | ✅ `backend/app/agents/triz_solver.py::_serialize_layered_triz_for_f2_prompt` 把 LTS 序列化為 prompt bullet（含 `recommended_route.primary`、`rationale`、每層具體 mechanism + deepen_link derived_param + Su-Field state）；`suggest_subsystems` 把 LTS 行放在 `contradictions` 之前；`tests/test_f2_layered_handoff.py` 5 項全綠（serialisation + 整合 + legacy back-compat）|
-| 11.3 | **Phase A 回饋迴路**：L2 產生的 `secondary_contradictions` 回饋 Phase A 新一輪 F1（§8.1） | 循環測試：生成 → 採納 → 新矛盾 → 再生成不 crash | 6.1 | ⏳ 待 F2 回饋迴路 |
+| 11.3 | ~~Phase A 回饋迴路~~（v8 退役）：L2 `secondary_contradictions` 透過 `is_confirmatory` 語意去重追蹤，不再觸發自動 re-scan | — | — | ❌ v8 退役 |
 | 11.4 | **MUST 快篩**：layered Concept Route 的 MUST 檢查對整張卡片（而非每層獨立）判 pass/fail | 每層 assumptions 匯總為卡片層級 evidence_level_floor | 10.1 | ⏳ 待 MUST evaluator 讀取 `layered_solution` 並整合 |
 | 11.5 | **Pre-CAD 五維**：layered 卡片的 mechanism 以 recommended_route 對應的層組合作為輸入；trace 需可展開到各層 | UX v7 Pre-CAD 表格對齊 | 10.3 | ⏳ 待 Pre-CAD analyzer 讀取 `layered_solution.layered.recommendedRoute` |
 | 11.6 | Supabase 持久化：`layered_triz_solutions` table（或以 JSONB 欄位掛在 contradiction 上）；`concept_routes` 新增 `type=layered` 與 `layered_solution` JSONB 欄位 | migration SQL + RLS policy | 1.5, 2.x | ✅ `supabase/migrations/010_triz_layered_drilldown.sql`：`concept_routes.layered_solution` JSONB + CHECK constraint `route_type IN ('single','composite','layered')` + 新表 `layered_triz_solutions` (id, project_id, contradiction_id, l1/l2/l3 JSONB, differential_analysis, phase_b_directive, RLS policies, updated_at trigger) |
@@ -316,7 +316,7 @@ F2 subsystem-suggestions 以 adopted_route 為 related_contradictions 主綁定
 | 12.2 | **黃金案例回歸**：§7 e-bike 馬達散熱（#21 × #17）案例紙上流程可跑通，L1/L2/L3/differential 輸出符合 §7.2–§7.5 | CI 黃金測試 | 3.x, 4.x, 5.x | ✅ `tests/test_triz_layered.py::TestSolveTrizLayeredGoldenCase::test_ebike_motor_cooling` — 覆蓋 id / L1 4 建議 / critic trigger / L2 deepen_link / L3 bridge / recommended_route=[L2,L3] / phase_b_directive |
 | 12.3 | 後端：`solve_triz_layered` / critic / deepen_link / differential pure function 單元測試 | coverage ≥ 80% | 3.x, 4.x, 5.x | ✅ 18 個新測試（7 `TestShouldTriggerL2` + 5 `TestL1Critic` + 3 `TestDerivePcFromTc` + 3 `TestSolveTrizLayeredGoldenCase`），全部綠燈；整合 `tests/test_triz_solver.py` 29 項綠燈（2 pre-existing 失敗與本案無關） |
 | 12.4 | API **契約測試**（Pact 或 schema snapshot）：`/triz/solve-layered`、Phase B endpoint、F2 升級後的 hand-off | 破壞性更動失敗 | 6.x, 11.1 | ✅ `backend/tests/test_triz_layered_api.py` 8 項：happy path / quick_mode / 422 missing / 422 unknown severity / legacy `/triz/solve` 回歸 / schema snapshot 守門（top-level fields frozen + PhaseBDirective defaults + SeparationType enum frozen） |
-| 12.5 | FE **E2E**：啟動 Phase A → LayeredTrizSolution 展開 → 採納推薦 → 決策中心 layered 卡片 → Phase B converged → MUST 通過 → Pre-CAD | 錄影 artifact | 7.x, 8.x, 9.x, 10.x, 11.x | 🟡 元件層測試覆蓋：`LayeredSolutionCard.test.tsx` 9 項全綠；全體 `vitest run` 8 suite / 76 項全綠。Create 頁面層 E2E + Playwright 錄影待整合落地 |
+| 12.5 | FE **E2E**：LayeredTrizSolution 展開 → 採納推薦 → 決策中心 layered 卡片 → Phase B converged → MUST 通過 → Pre-CAD | 錄影 artifact | 7.x, 8.x, 9.x, 10.x, 11.x | 🟡 元件層測試覆蓋：`LayeredSolutionCard.test.tsx` 9 項全綠；全體 `vitest run` 8 suite / 76 項全綠。Create 頁面層 E2E + Playwright 錄影待整合落地 |
 | 12.6 | **回歸**：flag off 時舊 `/triz/solve` + 舊 FE 行為不變 | 舊案例無退化 | 1.4 | ✅ `/triz/solve` endpoint 未改動；既有 `tests/test_triz_solver.py` 除 2 項 pre-existing 失敗外皆綠燈 |
 | 12.7 | 可觀測性：`solve_triz_layered` 各層耗時 metric、critic 觸發率、recommended_route 分布（primary vs fallback） | Dashboard 欄位 | 3.x, 5.x | 🟡 已於 orchestrator 外層包 `phase_timer("solve_triz_layered")` + `emit_counter("triz_layered_solved", severity, l2_ran, quick_mode)`；完整 dashboard 待 12.1 灰度前配置 |
 | 12.8 | **文件同步**（對應 §6 三份文件修改指引）：`Forward_TRIZ_Solver_Architecture.md` / `triz-to-scamper-flow.md` / `TRIZ_Multi_Solution_Adoption_Strategy.md` 章節級更新 | Doc PR；§11.1 「TC/PC/SF 互斥」語句清零 | 全案 | ✅ `Forward_TRIZ_Solver_Architecture.md` v1.2（§13 摘要表新增 `check_phase_b_conflict` / `/triz/solve-layered` endpoint / F2 hand-off 升級三列）+ `triz-to-scamper-flow.md` v11 + `TRIZ_Multi_Solution_Adoption_Strategy.md` v1.1 + `create-ux-spec.md` v7；grep 確認無殘留「三選一」語句 |
@@ -363,7 +363,7 @@ F2 subsystem-suggestions 以 adopted_route 為 related_contradictions 主綁定
                                                            │
 10.1 ConceptRouteCard layered ──► 10.2 層徽章 ──► 10.3 第二眼 ──► 10.4 第三眼 ──► 10.5 警告重寫 ──► 10.6 phase_b_directive 附帶
                                                            │
-11.1 F2 hand-off 升級 ──► 11.2 adopted_route 綁定 ──► 11.3 Phase A 回饋 ──► 11.4 MUST 卡片層級 ──► 11.5 Pre-CAD trace ──► 11.6 Supabase 持久化
+11.1 F2 hand-off 升級 ──► 11.2 adopted_route 綁定 ──► 11.3 (v8 退役) ──► 11.4 MUST 卡片層級 ──► 11.5 Pre-CAD trace ──► 11.6 Supabase 持久化
                                                            │
 12.1 flag 灰度 ──► 12.2 黃金案例 ──► 12.3 單測 ──► 12.4 契約測 ──► 12.5 E2E ──► 12.6 舊流程回歸 ──► 12.7 metric ──► 12.8/12.9 文件
 ```

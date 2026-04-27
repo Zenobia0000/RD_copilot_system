@@ -1,8 +1,19 @@
 # ADR-005: 超出 SOW 範圍的已實作功能
 
-- **Status**: Accepted
-- **Date**: 2026-03-13
+- **Status**: Superseded (2026-04-27)
+- **Date**: 2026-03-13 (accepted) → 2026-04-27 (superseded)
 - **Deciders**: Development Team
+- **Superseded By**: ADR-008 (Auto-TRIZ v2 閉環流程)
+
+> **Superseded Notice (2026-04-27)**:
+>
+> 本 ADR 已封存。封存原因：
+>
+> 1. **Evidence Retrieval Service 被 ADR-008 Evidence Registry 取代升級** — 原設計為單純的 Tavily 搜尋 + 引用附加，ADR-008 升級為 cross-cutting claim registration + auto-verify + Evidence Coverage ≥ 40% Gate 退出條件。`backend/app/services/evidence_retrieval.py` 功能已併入 `evidence_registry.py`。
+> 2. **Multi-Solution Adoption (M1-M5) 併入 Decision Hub + SIM matrix** — ADR-008 的 SIM matrix（+1/0/-1 interaction scoring）取代了原 `concept_routes` + `compatibility_pairs` 的靜態相容性判斷，並新增 -1 interaction 自動回流為新 TC 的機制。
+> 3. **Configurable MUST 仍有效** — 此項未被取代，但作為單一功能不足以支撐獨立 ADR，已納入現行系統基線。
+>
+> 歷史參考價值：本文記錄了三項超範圍功能的初始動機與設計取捨。
 
 ## Context
 

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Design Copilot Backend
-  version: 0.1.0
+  version: 0.2.0
   description: |
     RD Design Copilot — AI-driven early-stage concept design decision platform.
     Integrates SCAMPER/TRIZ divergence + KT decision convergence + evidence-driven 8-Gate process.
@@ -72,6 +72,11 @@ tags:
     description: Validation passport generation for solution hypotheses
   - name: observability
     description: Web Vitals ingestion (auth-less)
+  # --- v0.2.0 新增 (ADR-008) ---
+  - name: 分析 v2 analyst-v2
+    description: "Auto-TRIZ v2 analysis: 5Why, KT Is/IsNot, Function Analysis, OZ-OT, Entry Grading"
+  - name: 證據登錄 evidence
+    description: Evidence claim registration, verification (WebSearch), coverage statistics
 
 paths:
   # =========================================================================
@@ -1060,6 +1065,170 @@ paths:
       responses:
         "204":
           description: Metric accepted (no content)
+
+  # =========================================================================
+  # Analyst v2 (ADR-008 Auto-TRIZ v2)
+  # =========================================================================
+  /api/v1/analyst/five-why:
+    post:
+      operationId: analyzeFiveWhy
+      tags: [分析 v2 analyst-v2]
+      summary: 5Why root cause analysis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FiveWhyRequest"
+      responses:
+        "200":
+          description: 5Why chain result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FiveWhyResponse"
+
+  /api/v1/analyst/kt-analysis:
+    post:
+      operationId: analyzeKtIsIsNot
+      tags: [分析 v2 analyst-v2]
+      summary: KT Is/IsNot problem scoping
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KtIsIsNotRequest"
+      responses:
+        "200":
+          description: KT analysis result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KtIsIsNotResponse"
+
+  /api/v1/analyst/function-analysis:
+    post:
+      operationId: analyzeFunctionModel
+      tags: [分析 v2 analyst-v2]
+      summary: Function Analysis (component interactions + SF diagnosis)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FunctionAnalysisRequest"
+      responses:
+        "200":
+          description: Function model result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FunctionAnalysisResponse"
+
+  /api/v1/analyst/oz-ot-analysis:
+    post:
+      operationId: analyzeOzOt
+      tags: [分析 v2 analyst-v2]
+      summary: OZ-OT-Px analysis (lock operation zone, time, Px variable)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OzOtAnalysisRequest"
+      responses:
+        "200":
+          description: OZ-OT-Px result with separation hints
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OzOtAnalysisResponse"
+
+  /api/v1/analyst/entry-grading:
+    post:
+      operationId: gradeEntry
+      tags: [分析 v2 analyst-v2]
+      summary: Problem complexity grading (Level A/B/C)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EntryGradingRequest"
+      responses:
+        "200":
+          description: Grading result with recommended flow
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EntryGradingResponse"
+
+  # =========================================================================
+  # Evidence Registry (ADR-008)
+  # =========================================================================
+  /api/v1/evidence/claims:
+    post:
+      operationId: registerClaim
+      tags: [證據登錄 evidence]
+      summary: Register a new evidence claim
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterClaimRequest"
+      responses:
+        "200":
+          description: Registered claim record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterClaimResponse"
+
+  /api/v1/evidence/claims/{claim_id}/verify:
+    post:
+      operationId: verifyClaim
+      tags: [證據登錄 evidence]
+      summary: Verify or update a claim's status
+      parameters:
+        - name: claim_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyClaimRequest"
+      responses:
+        "200":
+          description: Updated claim record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifyClaimResponse"
+
+  /api/v1/evidence/coverage/{project_id}:
+    get:
+      operationId: getEvidenceCoverage
+      tags: [證據登錄 evidence]
+      summary: Project-level evidence coverage statistics
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Coverage statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoverageResponse"
 
 components:
   securitySchemes:
@@ -3977,3 +4146,270 @@ components:
           type: string
           nullable: true
       required: [name, value, id]
+
+    # -----------------------------------------------------------------------
+    # Analyst v2 (ADR-008)
+    # -----------------------------------------------------------------------
+    FiveWhyRequest:
+      type: object
+      properties:
+        project_id:
+          type: string
+        problem_statement:
+          type: string
+        context:
+          type: string
+          default: ""
+      required: [project_id, problem_statement]
+
+    FiveWhyResponse:
+      type: object
+      properties:
+        why_chain:
+          type: array
+          items:
+            type: object
+        root_causes:
+          type: array
+          items:
+            type: string
+
+    KtIsIsNotRequest:
+      type: object
+      properties:
+        project_id:
+          type: string
+        problem_statement:
+          type: string
+        context:
+          type: string
+          default: ""
+      required: [project_id, problem_statement]
+
+    KtIsIsNotResponse:
+      type: object
+      properties:
+        is_items:
+          type: array
+          items:
+            type: object
+        is_not_items:
+          type: array
+          items:
+            type: object
+        distinctions:
+          type: array
+          items:
+            type: string
+
+    FunctionAnalysisRequest:
+      type: object
+      properties:
+        project_id:
+          type: string
+        system_description:
+          type: string
+        components:
+          type: array
+          items:
+            type: string
+          default: []
+        contradictions:
+          type: array
+          items:
+            type: object
+          default: []
+      required: [project_id, system_description]
+
+    FunctionAnalysisResponse:
+      type: object
+      properties:
+        components:
+          type: array
+          items:
+            type: object
+        sf_diagnosis:
+          type: object
+        subsystem_boundaries:
+          type: array
+          items:
+            type: object
+
+    OzOtAnalysisRequest:
+      type: object
+      properties:
+        project_id:
+          type: string
+        contradiction_id:
+          type: string
+        tc_description:
+          type: string
+        improving_param:
+          type: integer
+          nullable: true
+        worsening_param:
+          type: integer
+          nullable: true
+      required: [project_id, contradiction_id, tc_description]
+
+    OzOtAnalysisResponse:
+      type: object
+      properties:
+        oz_zone:
+          type: string
+        ot_time:
+          type: string
+        px_variable:
+          type: string
+        separation_hints:
+          type: array
+          items:
+            type: string
+          default: []
+
+    EntryGradingRequest:
+      type: object
+      properties:
+        project_id:
+          type: string
+        problem_description:
+          type: string
+        available_data:
+          type: object
+          default: {}
+      required: [project_id, problem_description]
+
+    EntryGradingResponse:
+      type: object
+      properties:
+        level:
+          type: string
+          enum: [A, B, C]
+        reasoning:
+          type: string
+        recommended_steps:
+          type: array
+          items:
+            type: string
+          default: []
+
+    # -----------------------------------------------------------------------
+    # Evidence Registry (ADR-008)
+    # -----------------------------------------------------------------------
+    RegisterClaimRequest:
+      type: object
+      properties:
+        project_id:
+          type: string
+        claim_text:
+          type: string
+        claim_type:
+          type: string
+          enum: [assumption, hypothesis, result, constraint]
+        linked_artifact_id:
+          type: string
+          nullable: true
+        linked_artifact_type:
+          type: string
+          nullable: true
+      required: [project_id, claim_text, claim_type]
+
+    RegisterClaimResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        project_id:
+          type: string
+        claim_text:
+          type: string
+        claim_type:
+          type: string
+        status:
+          type: string
+          default: unverified
+        verification_sources:
+          type: array
+          items:
+            type: object
+          default: []
+        confidence_score:
+          type: number
+          default: 0.0
+        linked_artifact_id:
+          type: string
+          nullable: true
+        linked_artifact_type:
+          type: string
+          nullable: true
+
+    VerifyClaimRequest:
+      type: object
+      properties:
+        verification_source:
+          type: object
+        new_status:
+          type: string
+          enum: [unverified, verified, refuted, partial]
+        confidence_score:
+          type: number
+          minimum: 0
+          maximum: 1
+          nullable: true
+      required: [verification_source, new_status]
+
+    VerifyClaimResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        verification_sources:
+          type: array
+          items:
+            type: object
+          default: []
+        confidence_score:
+          type: number
+          nullable: true
+        updated_at:
+          type: string
+          nullable: true
+
+    CoverageResponse:
+      type: object
+      properties:
+        total_claims:
+          type: integer
+          default: 0
+        verified_count:
+          type: integer
+          default: 0
+        refuted_count:
+          type: integer
+          default: 0
+        partial_count:
+          type: integer
+          default: 0
+        unverified_count:
+          type: integer
+          default: 0
+        coverage_ratio:
+          type: number
+          default: 0.0
+        by_type:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              total:
+                type: integer
+              verified:
+                type: integer
+              refuted:
+                type: integer
+              partial:
+                type: integer
+              unverified:
+                type: integer

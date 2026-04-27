@@ -70,7 +70,7 @@ supersedes: E3 v1.4 (2026-03-26)
 | 類別   | 文件                                                                                                                  |
 | ---- | ------------------------------------------------------------------------------------------------------------------- |
 | 上游輸入 | `docs/00-discover/E1--project-brief-and-prd.md`（需求來源）、`docs/00-discover/E1x--assumption-risk-register.md`           |
-| 決策紀錄 | `docs/01-define/adrs/ADR-001..005`                                                                                  |
+| 決策紀錄 | `docs/01-define/adrs/ADR-001..008`（含 ADR-006 Harness Architecture、ADR-008 Auto-TRIZ v2 Integration）                |
 | 下游展開 | `docs/02-design/E5--api-design-specification.md`、`docs/02-design/E5x--frontend-architecture.md`                     |
 | 交付文件 | `docs/04-deliver/E9--deployment-and-operations-guide.md`、`docs/04-deliver/E8--security-and-readiness-checklists.md` |
 | 計劃文件 | `docs/01-define/E3--wbs-development-plan.md`                                                                        |
@@ -105,7 +105,7 @@ supersedes: E3 v1.4 (2026-03-26)
 | ------------ | -------------------------------------------- | --------------------------------- |
 | G1 擴大設計可能性空間 | Anti-Anchor Sprint + TRIZ + SCAMPER 三路發散     | Analyst + TRIZ Solver + Knowledge |
 | G2 未知可見可追蹤   | 假設台帳 + Validation Passport + Evidence Matrix | Analyst + Evaluator               |
-| G3 前置風險驗證    | 矛盾收斂圖 Phase A/B + 最小實驗設計                     | Analyst + Evaluator               |
+| G3 前置風險驗證    | Phase B 收斂交叉檢查（Decision Hub 手動觸發）+ 架構健康度監控 + 最小實驗設計 | Analyst + Evaluator               |
 | G4 決策可審查可複用  | KT Decision Analysis + 6 類資產知識回寫             | Evaluator + Knowledge             |
 | G5 提升溝通效率    | Gate 自動化 + 一頁式報告                             | Orchestrator + Evaluator          |
 | G6 用戶願意使用    | 漸進式負擔 + AI 預填                                | Frontend UX                       |
@@ -186,7 +186,7 @@ graph LR
     subgraph boundary ["🏗️ RD Design Copilot"]
         direction LR
         web[Web Frontend<br/>React 18 + Vite + TS<br/>shadcn/ui + TanStack Query<br/>19 頁面]
-        api[AI Orchestration API<br/>FastAPI + Pydantic AI<br/>21 Routers / 38+ endpoints]
+        api[AI Orchestration API<br/>FastAPI + Pydantic AI<br/>21+ Routers / 48+ endpoints]
         pg[(Supabase PostgreSQL<br/>37 表 · RLS · Gate RPC)]
         auth[Supabase Auth<br/>Email + OAuth]
         storage[Supabase Storage<br/>素材上傳]
@@ -244,6 +244,7 @@ graph LR
         llm_svc[LLMService<br/>anthropic-sdk + tenacity<br/>Retry · Pydantic 驗證]
         triz_kb[TRIZ KB<br/>39 參數 · 矩陣 · 40 原理<br/>分離原理 · 76 標準解]
         evidence_svc[Evidence Retrieval<br/>httpx + Tavily<br/>ISO/EN/IEC · 專利]
+        evidence_reg[EvidenceRegistryService<br/>LLM claim 註冊 + 驗證<br/>Coverage ≥ 40% Gate P<br/><small>ADR-008 cross-cutting</small>]
     end
 
     pg[(Supabase PostgreSQL)]
@@ -327,6 +328,8 @@ graph LR
 | **ADR-003** | LLM 服務層強化 — Phase 1 完成 (Retry + Pydantic 驗證 + Prompt 分離)       | tenacity、call_llm_structured、prompts/*.py                               |
 | **ADR-004** | 務實測試策略 — 38+ AI 端點、Docker 部署、Playwright deferred               | pytest (84 tests)、Vitest (92 tests)、docker-compose                      |
 | **ADR-005** | 範圍擴充 — Evidence Retrieval + Multi-Solution + Configurable MUST | Tavily API、concept_routes/compatibility_pairs 2 張新表、MustCriterionConfig |
+| **ADR-006** | Harness Architecture — Pydantic AI spine + MCP + Skills（Accepted & Implemented 2026-04-24） | `backend/app/harness/` 全模組（agent_base, model_adapter, tool_registry, solver_registry, orchestrator, skill_loader, mcp_server, mcp_client）；所有 Agent 重構為 HarnessAgent |
+| **ADR-008** | Auto-TRIZ v2 Closed-Loop Integration — FA/OZ-OT/SIM/CCI/Evidence Registry | 3 張新表（function_models, evidence_claims, sim_matrices）；contradictions 增欄；10 個新 API endpoints；Conditional Stepper UI |
 
 
 ### 4.3 關鍵相依與替換成本
@@ -381,6 +384,10 @@ graph LR
 | **Knowledge Assets**                           | `knowledge_entries`, `learned_components`                                                         | `LearnedComponentPromote`*                                                                                                   | Step 8 (§11.2) + Appendix A §9 |
 | **Gate & Traceability**                        | `gate_checks`, `traceability_links`（migration 002）                                                | `GateCheckResponse`, `GateCheckItem`                                                                                         | §11.4 Gate 判定                  |
 | **Unknown Factors & LLM Usage**（ADR-002/003）   | `unknown_factors`, `llm_usage_logs`                                                               | `DiscoveredUnknownFactor`                                                                                                    | P1 (§11.5)                     |
+| **Function Models（ADR-008 新增）**               | `function_models`（project_id, component_interactions JSONB, sf_diagnosis JSONB, subsystem_boundary JSONB） | `FunctionModel`, `ComponentInteraction`, `SfDiagnosis`                                                                       | Step 1 FA (§11.2 v2.2)         |
+| **Evidence Claims（ADR-008 新增）**               | `evidence_claims`（claim_id, claim_text, status VERIFIED/APPROXIMATE/UNVERIFIED, verification_sources JSONB） | `EvidenceClaim`                                                                                                              | Cross-cutting (§11.5 v2.2)     |
+| **SIM Matrices（ADR-008 新增）**                  | `sim_matrices`（project_id, contradiction_ids JSONB, matrix JSONB, optimal_combination JSONB, rounds_used INT） | `SimMatrixResult`                                                                                                            | Step 3 SIM (§11.2 v2.2)        |
+| **Contradictions 增欄（ADR-008）**                | `contradictions` 新增 `oz_zone TEXT`, `ot_time TEXT`, `px_variable TEXT`（nullable）                   | `OzOtResult`, `ComplexityCheckResult`                                                                                        | Step 2 OZ-OT (§11.2 v2.2)      |
 
 
 ### 5.3 資料存取模式
@@ -666,7 +673,7 @@ Radix UI 提供 WAI-ARIA 基礎；a11y 審計 — **TBD — UX Owner TBD by v1.1
 | **Gate**                 | Phase/Step 之間的品質關卡（Gate 1-8 + Anti-Anchor / Gate P / Gate C；§11.4.3）                               |
 | **Phase / Step**         | Phase I-III + Step 1-8 的雙層狀態機（Appendix D）                                                          |
 | **Validation Passport**  | 每個候選方案自帶的驗證護照（assumptions[], weak_points[], required_verifications[], confidence_level）；§11.3 機制 7 |
-| **Phase A / Phase B 收斂** | Phase A：矛盾空間健康度；Phase B：方案×矛盾交叉檢查（Appendix E §3）                                                   |
+| **Phase B 收斂**            | 方案×矛盾交叉檢查（Decision Hub 手動觸發；Appendix E §3）。Phase A 已於 v8 退役，其職責由 L1 critic badge 取代              |
 | **北極星證據**                | Evidence Matrix 中最關鍵的證據列，Gate C 要求 E2+                                                             |
 | **TRIZ TC / PC / SF**    | Technical Contradiction / Physical Contradiction / Su-Field 三層 drill-down（Appendix B / E）          |
 
@@ -682,7 +689,7 @@ Radix UI 提供 WAI-ARIA 基礎；a11y 審計 — **TBD — UX Owner TBD by v1.1
 | 版本       | 日期             | 變更                                                                                           | 作者        |
 | -------- | -------------- | -------------------------------------------------------------------------------------------- | --------- |
 | v1.2     | —              | Knowledge Source Ingestion + Contradiction Convergence Graph                                 | —         |
-| v1.3     | —              | 收斂掃描拆 Phase A/B + Socratic Follow-up + Validation Passport                                   | —         |
+| v1.3     | —              | 收斂掃描 + Socratic Follow-up + Validation Passport（Phase A 已於 v8 退役，僅保留 Phase B）              | —         |
 | v1.4     | 2026-03-26     | Phase B 改為 Decision Hub 手動觸發、SCAMPER 純創意、3-level 子系統、可證偽性                                    | —         |
 | **v2.0** | **2026-04-15** | **重構對齊 VibeCoding 05 三部分/十章節骨架；新增 §1-§10 Part 1；原 §1-§7 降為 §11.x；Appendix A-E 保留原樣為 Part 3** | ARCH + TL |
 

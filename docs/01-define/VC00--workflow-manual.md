@@ -29,7 +29,7 @@
 ## 1. 使用原則（適用於兩種模式）
 
 - **以文檔為契約**：本專案以 `docs/` 為 SSOT；所有 gate 決策回溯至對應 E1–E9 / GRx 文件。
-- **小步快跑、可回溯**：ADR-001～ADR-005 已建立決策脈絡，見 [`01-define/adrs/`](../01-define/adrs/)。
+- **小步快跑、可回溯**：ADR-001～ADR-008 已建立決策脈絡，見 [`01-define/adrs/`](../01-define/adrs/)。其中 ADR-006（Harness Architecture，Accepted & Implemented 2026-04-24）與 ADR-008（Auto-TRIZ v2 Integration）為近期重大架構決策。
 - **風險前置、代價後置**：Pre-CAD Gate（見 [`02-design/specs/review-templates/E5x--pre-cad-review-template`](../02-design/specs/review-templates/E5x--pre-cad-review-template.md)）在開發前攔截設計偏差。
 - **模式可升降級**：專案主幹採完整流程（E1–E9 齊備）；子模組（如 WS-G L3 Su-Field 平行旁路）允許 MVP 節奏。
 
@@ -83,7 +83,7 @@
 - 產出：
   - [`01-define/E2--statement-of-work.md`](../01-define/E2--statement-of-work.md)（Approved, TR2 passed）
   - [`01-define/E3--architecture-and-design.md`](../01-define/E3--architecture-and-design.md)（Approved, TR3 passed；含 Appendix A–E：Forward Subsystem Discovery / Forward TRIZ Solver / Reverse Anti-Anchor / State Machine / TRIZ→SCAMPER Flow）
-  - ADR-001..005 見 [`01-define/adrs/`](../01-define/adrs/)
+  - ADR-001..008 見 [`01-define/adrs/`](../01-define/adrs/)（含 ADR-006 Harness Architecture、ADR-007 TC-Only、ADR-008 Auto-TRIZ v2）
 - 相關互動流：[`E3x--system-interaction-flow`](../01-define/E3--system-interaction-flow.md)
 - Gate：**已通過 TR2、TR3**
 - 待補：E4 ERD（Planned — [`01-define/diagrams/E4--06_erd`](../01-define/) TBD — <owner TBD> by <YYYY-MM-DD TBD>）
@@ -101,7 +101,7 @@
 ### A4 開發與驗證（Build & Verify）— 對應 DEVELOP TR6/TR7
 - WBS：
   - 主 WBS（release 軸）[`E3--wbs-development-plan`](../01-define/E3--wbs-development-plan.md)
-  - Feature workstreams：[`wbs-workstreams/`](../01-define/wbs-workstreams/README.md) — WS-D..H
+  - Feature workstreams：[`wbs-workstreams/`](../01-define/wbs-workstreams/README.md) — WS-D..I（含 WS-I Auto-TRIZ v2 Integration，193h，ADR-008）
 - Migrations：[`03-develop/migrations/`](../03-develop/) (001 MUST criteria, 002 KPI current value, 003 evidence entries)
 - Gate：**TR6 / TR7 尚未啟動（`.`）**；GR6 / GR7 模板待填
 - RACI：DEV R、TL/QA A
@@ -173,7 +173,7 @@ graph TD
 | 階段 (5D) | Gate | 模式 A（完整）實際產出 | 模式 B（MVP）退化產出 |
 | :-- | :-- | :-- | :-- |
 | DISCOVER | TR0-1 | E1 PRD + E1x 系列 | （不適用，主幹專案） |
-| DEFINE | TR2-3 | E2 SoW、E3 Arch、ADR-001..005、WBS 主+Addendum | 內嵌於 spec |
+| DEFINE | TR2-3 | E2 SoW、E3 Arch、ADR-001..008、WBS 主+Addendum + WS-I | 內嵌於 spec |
 | DESIGN | TR4-5 | E5 Overview、specs/{ux,triz,explore,review-templates} | spec 內 Tech Spec 區塊 |
 | DEVELOP | TR6-7 | GR6 / GR7（Template）、migrations 001-003 | 手寫 diff + PR 說明 |
 | DELIVER | TR8-10 | E8（Planned）、E9（Draft）、Runbooks、GR10 | MVP 輕量 checklist |
@@ -196,7 +196,7 @@ graph TD
 ## 7. 附錄：檢查清單（摘錄）
 
 - **PRD**：E1 v3.0 已包含問題陳述、非目標、KPI。下一步為 market sizing 數據驗證。
-- **架構**：ADR-001..005 + E3 Appendix A–E 已記錄權衡；NFR 可測性 TBD。
+- **架構**：ADR-001..008 + E3 Appendix A–E 已記錄權衡；ADR-006（Harness）+ ADR-008（Auto-TRIZ v2）為近期重大決策；NFR 可測性 TBD。
 - **設計**：E5 overview + specs/triz/explore 已涵蓋；ERD (E4) 待補。
 - **安全**：隱私種子已立，E8 checklist 未開工。
 - **上線**：Runbook 已就緒，備份/告警演練 TBD — <owner TBD> by <YYYY-MM-DD TBD>。

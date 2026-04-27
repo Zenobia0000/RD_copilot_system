@@ -2,8 +2,8 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.1`
-**最後更新 (Last Updated):** `2026-04-23`
+**文件版本 (Document Version):** `v1.2`
+**最後更新 (Last Updated):** `2026-04-27`
 **主要作者 (Lead Author):** `Backend AI Agents Team`
 **審核者 (Reviewers):** `Tech Lead, QA Lead`
 **狀態 (Status):** `In Progress`
@@ -18,6 +18,8 @@
 **對應 BDD Feature**: [`docs/02-design/E5x--bdd-scenarios.md` §Feature 1](../../E5x--bdd-scenarios.md)
 **對應 Spec**: [`specs/triz/E5x--triz-layered-drilldown-optimization.md`](../triz/E5x--triz-layered-drilldown-optimization.md) · [`specs/triz/E5x--triz-multi-solution-adoption-strategy.md`](../triz/E5x--triz-multi-solution-adoption-strategy.md)
 **對應 API**: `POST /triz/solve-layered`, `POST /triz/sim-matrix` (v1.1), `POST /triz/complexity-check` (v1.1)
+**Harness 遷移**: ✅ L1/L2/L3 層透過 `HarnessAgent` + `prompt_assembler` 呼叫（v1.2）；orchestrator 序列化管線
+**OZ-OT-Px 消費**: 若 `contradictions` 表存在 `oz_zone` / `ot_time` / `px_variable`，triz_solver 將其注入 prompt context，使 L2 PC 深挖以 Px 為錨（v1.2，ADR-008）
 
 ---
 

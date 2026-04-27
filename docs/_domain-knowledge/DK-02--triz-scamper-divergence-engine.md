@@ -188,17 +188,9 @@ TRIZ_解法_[編號]:
 
 ## 4. 矛盾收斂圖 (Convergence Graph)
 
-收斂掃描分為兩階段：
+> **v8 變更**：Phase A（矛盾空間健康度）已退役，其職責由 L1 critic badge（per-card 品質閘門）取代。僅保留 Phase B。
 
-### Phase A：矛盾空間健康度 (Step 2 起可執行)
-
-- 分析 inter-contradiction 衝突、循環依賴、覆蓋缺口
-- **不需要方案**——從 Step 2 識別矛盾後即可運行
-- 顯示為一行摘要卡（score / health / counts），僅在 warning / critical / circular 時展開完整 DAG
-- ConvergenceGraph 使用 React Flow + Dagre 自動 DAG 佈局
-- API: `POST /convergence/scan` (phase=A)
-
-### Phase B：方案交叉檢查 (RD 手動觸發)
+### Phase B：方案交叉檢查 (Decision Hub 手動觸發)
 
 - 完整的 alternative × contradiction 交叉比對
 - 每個解法與 CLD/Interface Contract 交叉比對，識別受影響模組

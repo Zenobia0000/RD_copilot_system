@@ -1,5 +1,13 @@
 # Create 頁面 UX 設計規格
 
+> **v9.0 (2026-04-27)**：**Auto-TRIZ v2 整合（ADR-008）**。
+> - 新增 **Entry Grading Modal**：專案建立時 AI 自動分級（A/B/C），決定 Explore 流程深度。
+> - 新增 **Conditional Stepper**（Level A 五步引導 / Level B 三 Tab / Level C SF-only 快速路徑）。
+> - Tab ① Block B 新增 **OZ-OT Panel**：顯示操作區域（OZ）、操作時間（OT）、物理矛盾變數（Px），支援 inline 編輯。
+> - 矛盾卡片新增 **CCI Badge**（Concept Complexity Index）：以 evolution / patch 色彩區分複雜度等級。
+> - Tab ③ Block C 新增 **Evidence Coverage Gauge**：即時顯示專案證據覆蓋率（verified / partial / unverified 三態）。
+> - 前端新元件：`ConditionalStepper.tsx`、`EntryGradingModal.tsx`、`OzOtPanel.tsx`、`CciBadge.tsx`、`EvidenceCoverageGauge.tsx`。
+>
 > **v8.1 (2026-04-13)**：**Tab ① ConvergenceDashboard 移除**。
 > - Phase A 退役後，Tab ① 已無全域收斂數據來源。Dashboard 顯示的 `Confidence 0% / 0 節點 / 0/0 Fatal` 皆為初始值，對 RD 無參考價值。
 > - 品質閘門由每張 `LayeredSolutionCard` 的 **L1 critic badge** 承擔（per-card 粒度）。
@@ -351,7 +359,7 @@
 
 | 元素 | 互動 | 說明 |
 |------|------|------|
-| ~~Tab ① ConvergenceDashboard~~ | ~~Confidence / Health / Fatal·Major·Minor~~ | v8.1 移除：Phase A 退役後 Tab ① 無數據來���。ConvergenceDashboard 僅在決策中心 Phase B 執行後顯示 |
+| ~~Tab ① ConvergenceDashboard~~ | ~~Confidence / Health / Fatal·Major·Minor~~ | v8.1 移除：Phase A 退役後 Tab ① 無數據來源��。ConvergenceDashboard 僅在決策中心 Phase B 執行後顯示 |
 | 決策中心 ConvergenceDashboard | Confidence / Health / Fatal·Major·Minor | Phase B 掃描完成後才渲染（`phase === 'B' && status !== 'idle'`） |
 | Risk Register | minor 清單 | 展開 |
 | 反向無收斂分析 | 創意工具不做收斂分析 | — |
@@ -415,7 +423,7 @@
 | 內部索引 | 顯示 | Stepper 層 | 內容層 |
 |----------|------|-----------|--------|
 | 0 | 反向探索 | 左卡片 | Anti-Anchor 操作 |
-| 1 | 正向: Tab ① TRIZ | 右卡片 | TRIZ 分層 drill-down 診斷（L1/L2/L3 + differential_analysis）+ Phase A |
+| 1 | 正向: Tab ① TRIZ | 右卡片 | TRIZ 分層 drill-down 診斷（L1/L2/L3 + differential_analysis） |
 | 2 | 正向: Tab ② 子系統 | 右卡片 | 3 層架構樹 + 6 維契約 + Spatial Discovery |
 | 3 | 正向: Tab ③ SCAMPER | 右卡片 | 創意變形 |
 | 4 | 決策中心 | 獨立區塊 | adopt/skip + Phase B |
@@ -464,3 +472,73 @@
 | ④ Pre-CAD 五維雷達 spatial 算術 | `Forward_Subsystem_Discovery_Architecture.md` | §5.2 Pre-CAD spatial_score 改算術 |
 
 > **注意**：若架構文件版本升級（v10+），本 spec 必須同步檢查上表對應章節是否仍然成立，避免 UX 與架構脫鉤。
+
+---
+
+## v9.0 新增元件規格（ADR-008 Auto-TRIZ v2）
+
+### Entry Grading Modal（`EntryGradingModal.tsx`）
+
+**觸發時機**：專案建立後首次進入 Explore 頁。
+
+**流程**：
+1. Modal 顯示「請描述您的問題」+ 上下文欄位
+2. 呼叫 `POST /analyst/entry-grading`
+3. AI 回傳 Level A/B/C + reasoning + recommended_steps
+4. RD 確認或手動覆寫 level
+5. 結果寫入 `projects.entry_level`，控制後續 UI 路徑
+
+**視覺**：
+- Level A（症狀模糊）：顯示完整 5 步 stepper 提示
+- Level B（已知 TC）：顯示「直接進入分析」提示
+- Level C（功能缺失）：顯示「SF-only 快速路徑」提示
+
+### Conditional Stepper（`ConditionalStepper.tsx`）
+
+**位置**：Explore 頁主導航。
+
+| Level | 呈現方式 | 步驟 |
+|-------|---------|------|
+| **A** | 五步線性 Stepper | ① Problem Scoping (5Why/KT) → ② Function Analysis → ③ Socratic Q&A → ④ Contradictions → ⑤ CLD |
+| **B** | 三 Tab（現有 UI） | Tab ① Contradictions · Tab ② Socratic · Tab ③ CLD（FA 為 side panel） |
+| **C** | 單步 SF-only | 直接進入 SF 分析，跳過 TC 流程 |
+
+**切換邏輯**：讀取 `project.entry_level`；若未分級，先觸發 Entry Grading Modal。
+
+### OZ-OT Panel（`OzOtPanel.tsx`）
+
+**位置**：Tab ① Block B（正向分析卡片），矛盾展開後內嵌。
+
+**欄位**：
+| 欄位 | 來源 | 可編輯 |
+|------|------|--------|
+| OZ（操作區域） | `POST /analyst/oz-ot-analysis` 回傳 | 是（inline text） |
+| OT（操作時間） | 同上 | 是 |
+| Px（物理矛盾變數） | 同上 | 是 |
+| 分離策略提示 | `separation_hints[]` | 否（唯讀 badge 列） |
+
+**互動**：RD 編輯後自動 patch `contradictions` 表的 `oz_zone` / `ot_time` / `px_variable`。
+
+### CCI Badge（`CciBadge.tsx`）
+
+**位置**：矛盾卡片右上角（與 severity badge 並列）。
+
+**資料來源**：`triz_solver.complexity_check()` 回傳的 CCI 值。
+
+| CCI 結果 | 色彩 | 意義 |
+|----------|------|------|
+| Evolution | green | 系統性進化，低複雜度 |
+| Patch | amber | 局部修補，需注意技術債 |
+| Unknown | gray | 尚未執行 complexity check |
+
+### Evidence Coverage Gauge（`EvidenceCoverageGauge.tsx`）
+
+**位置**：Tab ③ Block C（候選方案決策中心）頂部。
+
+**資料來源**：`GET /evidence/coverage/{project_id}` 回傳的 `CoverageResponse`。
+
+**視覺**：
+- 環形進度條顯示 `coverage_ratio`（0-100%）
+- 內部三態分佈條：verified (green) / partial (amber) / unverified (red)
+- 滑鼠 hover 顯示 by_type 明細
+- 門檻線：40% 預設（低於時顯示警告 toast）

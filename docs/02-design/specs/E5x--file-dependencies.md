@@ -2,8 +2,8 @@
 
 ---
 
-**文件版本 (Document Version):** `v1.0`
-**最後更新 (Last Updated):** `2026-04-15`
+**文件版本 (Document Version):** `v2.0`
+**最後更新 (Last Updated):** `2026-04-27`
 **主要作者 (Lead Author):** `Architecture Team`
 **審核者 (Reviewers):** `Backend Lead, Frontend Lead`
 **狀態 (Status):** `Active`
@@ -38,7 +38,7 @@
 ## 2. 核心依賴原則
 
 - **依賴倒置 (DIP)**：`agents/` 與 `routers/` 均依賴 `models/schemas.py`（抽象契約），不依賴具體 LLM client。
-- **無循環 (ADP)**：`routers → agents → tools/services → models`；模型層為葉節點，禁止回依賴。
+- **無循環 (ADP)**：`routers → agents → harness → tools/services → models`；模型層為葉節點，禁止回依賴。（v2.0：新增 `harness/` 層）
 - **穩定依賴 (SDP)**：`models/schemas.py`（最穩定）被全專案依賴；`routers/`（最不穩定，常增端點）不被其他層依賴。
 - **前端獨立性**：`src/` 僅依賴 `backend` 的 OpenAPI schema（透過 `pydantic2ts` 產生的 `src/types/generated/`），**不**直接 import backend code。
 
@@ -71,6 +71,8 @@ graph TD
         BE_Middleware[middleware/]
         BE_Routers[routers/]
         BE_Agents[agents/]
+        BE_Harness["harness/ ← v2.0 ADR-006"]
+        BE_Skills["skills/ ← v2.0 SKILL.md bundles"]
         BE_Services[services/]
         BE_Tools[tools/]
         BE_Core[core/]
@@ -91,17 +93,21 @@ graph TD
 
     BE_Main --> BE_Middleware
     BE_Main --> BE_Routers
+    BE_Main -. "lifespan: skill_loader + mcp_server" .-> BE_Harness
     BE_Routers --> BE_Agents
     BE_Routers --> BE_Schemas
-    BE_Agents --> BE_Services
-    BE_Agents --> BE_Tools
-    BE_Agents --> BE_Prompts
+    BE_Agents --> BE_Harness
+    BE_Harness --> BE_Services
+    BE_Harness --> BE_Tools
+    BE_Harness --> BE_Prompts
+    BE_Harness --> BE_Schemas
+    BE_Harness --> BE_Skills
     BE_Agents --> BE_Schemas
     BE_Services --> BE_Core
     BE_Tools --> KB
     BE_Core --> Supabase
-    BE_Agents --> Anthropic
-    BE_Agents --> OpenAI
+    BE_Harness --> Anthropic
+    BE_Harness --> OpenAI
     BE_Services --> WebSearch
 
     FE_Integrations -. "HTTPS JSON" .-> BE_Main
@@ -112,7 +118,7 @@ graph TD
     classDef kb fill:#f3e5f5,stroke:#333
 
     class FE_Pages,FE_Components,FE_Hooks,FE_Types,FE_Integrations,FE_Lib fe
-    class BE_Main,BE_Middleware,BE_Routers,BE_Agents,BE_Services,BE_Tools,BE_Core,BE_Prompts,BE_Schemas be
+    class BE_Main,BE_Middleware,BE_Routers,BE_Agents,BE_Harness,BE_Skills,BE_Services,BE_Tools,BE_Core,BE_Prompts,BE_Schemas be
     class Supabase,Anthropic,OpenAI,WebSearch ext
     class KB kb
 ```
@@ -124,14 +130,19 @@ graph LR
     R[routers/*.py] --> A[agents/*.py]
     R --> S[models/schemas.py]
     R --> MW[middleware/*.py]
-    A --> T[tools/*.py]
-    A --> SV[services/*.py]
-    A --> P[prompts/*.py]
+    A --> H["harness/*.py ← v2.0"]
     A --> S
+    H --> T[tools/*.py]
+    H --> SV[services/*.py]
+    H --> P[prompts/*.py]
+    H --> SK["skills/*/SKILL.md"]
+    H --> S
     SV --> C[core/*.py]
     T --> KB[triz_kb data]
     MW --> C
 ```
+
+> **v2.0 變更**：`agents/` 不再直接依賴 `tools/` / `services/`，改透過 `harness/` 層（`HarnessAgent` + `ToolRegistry` + `PromptAssembler`）間接存取。`ScamperFeedbackAgent` 為例外，尚未遷移。
 
 ### 3.3 依賴規則說明
 
@@ -151,8 +162,10 @@ graph LR
 | **FE Integrations** | API 呼叫封裝 + snake↔camel adapter | `src/integrations/` |
 | **FE Types** | 型別（手寫 + pydantic2ts 產出） | `src/types/` |
 | **BE Routers** | HTTP endpoint 定義、Pydantic 驗證 | `backend/app/routers/` |
-| **BE Agents** | 多 agent 編排、LLM 呼叫 | `backend/app/agents/` |
-| **BE Services** | evidence retrieval、web search、spatial 計算 | `backend/app/services/` |
+| **BE Agents** | 多 agent 編排、LLM 呼叫（透過 harness） | `backend/app/agents/` |
+| **BE Harness** | Agent 基底（`HarnessAgent`）、tool/solver registry、MCP server、orchestrator、prompt assembler | `backend/app/harness/` |
+| **BE Skills** | TRIZ 知識 bundle（SKILL.md frontmatter + 靜態資料） | `backend/app/skills/` |
+| **BE Services** | evidence registry、evidence retrieval、web search、spatial 計算 | `backend/app/services/` |
 | **BE Tools** | TRIZ KB、矛盾樹、分離原理（靜態或半靜態） | `backend/app/tools/` |
 | **BE Models** | Pydantic schemas（★唯一事實來源） | `backend/app/models/schemas.py` |
 | **BE Core** | config, auth, supabase client, gate registry | `backend/app/core/` |
@@ -169,11 +182,20 @@ graph LR
 2. 呼叫 `src/hooks/useLayeredTrizSolve.ts`
 3. 透過 `src/integrations/api.ts` 發出 `POST /triz/solve-layered`（payload type from `src/types/generated/`）
 4. Backend `routers/triz.py` → 驗證 `SolveTrizLayeredRequest` (schemas.py)
-5. → `agents/triz_solver.py` → `tools/triz_kb.py` + `services/evidence_retrieval.py`
-6. → Anthropic/OpenAI 呼叫（由 `core/config.py` 注入 client）
-7. 返回 `SolveTrizLayeredResponse` → router → adapter → hook → 元件
+5. → `harness/orchestrator.py` (v2.0) → 序列化 L1→critic→L2→L3 管線
+6. → `agents/triz_solver.py` → `harness/agent_base.py` (HarnessAgent) → `harness/prompt_assembler.py` + `tools/triz_kb.py`
+7. → `harness/model_adapter.py` → Anthropic/OpenAI 呼叫
+8. 每層 Supabase 持久化 → 返回 `SolveTrizLayeredResponse` → router → adapter → hook → 元件
 
-**結論**：單向、遵循 DIP；路徑無循環。
+**結論**：單向、遵循 DIP；路徑無循環。v2.0 新增 `harness/` 中介層但不改變單向性。
+
+### 5.3 場景：Entry Grading + Evidence Coverage（v2.0 新增）
+
+**Entry Grading**：
+`routers/analyst_v2.py` → `agents/analyst.py::analyze_entry_grading` → `harness/agent_base.py::harness_call` → `harness/model_adapter.py` → LLM
+
+**Evidence Coverage**：
+`routers/evidence.py` → `services/evidence_registry.py::get_coverage` → `core/supabase.py` → Supabase
 
 ### 5.2 場景：Pre-CAD Gate 六維評分
 `routers/pre_cad.py` → `agents/evaluator.py` → `core/evaluator_registry.py` + `services/evidence_retrieval.py` → `models/schemas.py`。符合分層。
@@ -203,6 +225,8 @@ graph LR
 | `anthropic` | TBD | Claude API | 中（rate limit/價格） |
 | `openai` | TBD | GPT API | 中 |
 | `supabase` | TBD | DB + Auth | 低 |
+| `pydantic-ai` | >=0.0.14 | Harness Agent spine（v2.0 ADR-006） | 中（pre-1.0 API） |
+| `mcp` | >=1.0 | MCP server/client protocol（v2.0 ADR-006） | 中（Anthropic 維護） |
 | `react` | ^19 | UI | 中（19 為新版） |
 | `vite` | latest | 打包 | 低 |
 | `@tanstack/react-query` | TBD | 前端資料 | 低 |

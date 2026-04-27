@@ -34,7 +34,7 @@
 本專案的「為何 → 什麼 → 如何」對應：
 - **為何 (Why)**：解決 RD 在 TRIZ/SCAMPER/KT 方法論上的操作障礙——見 [`E1--project-brief-and-prd`](../00-discover/E1--project-brief-and-prd.md) 與 [`E1x--user-journey-map`](../00-discover/E1x--user-journey-map.md)。
 - **什麼 (What)**：使用者在 Forward TRIZ / Reverse Anti-Anchor / Pre-CAD 三場景取得可用解——見 [`E3x--system-interaction-flow`](../01-define/E3x--system-interaction-flow.md)。
-- **如何 (How)**：以 BaaS-first（ADR-001）+ Server-side logic（ADR-002）+ LLM hardening（ADR-003）+ QA/DevOps（ADR-004）實現——見 [`01-define/adrs/`](../01-define/adrs/)。
+- **如何 (How)**：以 BaaS-first（ADR-001）+ Server-side logic（ADR-002）+ LLM hardening（ADR-003）+ QA/DevOps（ADR-004）+ Harness Architecture（ADR-006）+ Auto-TRIZ v2（ADR-008）實現——見 [`01-define/adrs/`](../01-define/adrs/)。
 
 **品質內建原則**：Pre-CAD Gate、MUST Rulebook、Evidence Matrix 三層 review，見 [`02-design/specs/review-templates/`](../02-design/_MOC.md)。
 
@@ -77,6 +77,9 @@
         *   ADR-003 LLM Service Hardening
         *   ADR-004 QA/DevOps Infrastructure
         *   ADR-005 Scope Expansion
+        *   ADR-006 Harness Architecture — Pydantic AI spine + MCP + Skills（Accepted & Implemented 2026-04-24）
+        *   ADR-007 TC-Only Contract — Explore 僅 TC，PC/SF 於 Create 派生
+        *   ADR-008 Auto-TRIZ v2 Integration — FA/OZ-OT/SIM/CCI/Evidence Registry（觸發 WS-I + Module 8.0）
     *   **API 設計規格**：收斂於 [`02-design/E5--system-design-overview.md`](../02-design/E5--system-design-overview.md) §2-3 (Active, TR4 passed)
     *   **Schema Codegen Workflow**：[`02-design/E6x--schema-codegen-workflow.md`](../02-design/E6x--schema-codegen-workflow.md)（Pydantic → TS）
 
@@ -96,12 +99,13 @@
     *   **模組 Spec 位置**：[`02-design/specs/triz/`](../02-design/_MOC.md) + [`specs/explore/`](../02-design/_MOC.md)
     *   **WBS 任務分解（契約式開發的入口）**：
         *   主 WBS（release 軸）[`01-define/E3x--wbs-development-plan.md`](../01-define/E3x--wbs-development-plan.md) — WS-A API 對齊 / WS-B E2E 差距 / WS-C Mock→Live（2026-04-15 統整）
-        *   Addendum（feature 軸）[`E3x--wbs-development-plan-addendum`](../01-define/E3x--wbs-development-plan-addendum.md) — WS-D..H
+        *   Addendum（feature 軸）[`E3x--wbs-development-plan-addendum`](../01-define/E3x--wbs-development-plan-addendum.md) — WS-D..I
             *   [WS-D TRIZ 分層開發](../01-define/wbs-workstreams/WS-D--triz-layered-drilldown-development.md)
             *   [WS-E 子系統介面](../01-define/wbs-workstreams/WS-E--subsystem-interface-development.md)
             *   [WS-F TC→多 PC 分解](../01-define/wbs-workstreams/WS-F--tc-to-multipc-decomposition.md)
             *   [WS-G L3 Su-Field 平行旁路](../01-define/wbs-workstreams/WS-G--l3-sf-parallel-check.md)
             *   [WS-H Playwright E2E 補測](../01-define/wbs-workstreams/WS-H--playwright-e2e-followup.md)
+            *   [WS-I Auto-TRIZ v2 Integration](../01-define/wbs-workstreams/WS-I--auto-triz-v2-integration.md)（193h，ADR-008）
     *   **Migrations**：[`03-develop/migrations/`](../03-develop/_MOC.md)（001 MUST criteria、002 KPI current value、003 evidence entries）
     *   **Gate Review 模板**：GR6 Code Complete / GR7 Integration — Template 狀態，待填寫 — TBD — <owner TBD> by <YYYY-MM-DD TBD>
 

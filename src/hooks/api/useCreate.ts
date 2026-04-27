@@ -1,8 +1,7 @@
 /**
  * API hooks for Create page (Step 2 — Solution Exploration)
  *
- * Covers: Anti-Anchor Routes, TRIZ Solutions, Subsystems,
- * SCAMPER Variants, and Alternatives.
+ * Covers: TRIZ Solutions, Subsystems, and Alternatives.
  *
  * All hooks use the generic useSupabaseQuery / useSupabaseMutation
  * helpers and perform snake_case → camelCase mapping at the hook layer.

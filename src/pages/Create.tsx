@@ -82,7 +82,7 @@ import type { Json } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useTrackAssumptions } from "@/hooks/api/useTrack";
 import { useBrief, useConstraints, useKpis } from "@/hooks/api/useBrief";
-import { trizSolveLayered, riskAnalyze, mustEvaluate, validationPassportGenerate, spatialComponentOverride, spatialLearnedComponent, scamperSpatialOverlay } from "@/lib/api";
+import { trizSolveLayered, riskAnalyze, mustEvaluate, validationPassportGenerate, spatialComponentOverride, spatialLearnedComponent, subsystemSpatialOverlay } from "@/lib/api";
 import type { LayeredTrizSolution, TrizSeverity, AdoptedLayerId } from "@/types/layeredTriz";
 import { LayeredSolutionCard } from "@/components/create/LayeredSolutionCard";
 import type { AdoptionMode } from "@/components/create/LayeredSolutionCard";
@@ -1004,7 +1004,7 @@ export default function Create() {
     for (const b of payload.module_mass_budgets) {
       massBudget[b.name] = b.max_mass_g;
     }
-    const resp = await scamperSpatialOverlay({
+    const resp = await subsystemSpatialOverlay({
       project_id: id,
       subsystems: (payload.subsystems ?? []) as unknown[],
       overlay: { zones: zonesDict, mass_budget_g: massBudget },

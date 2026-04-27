@@ -1,7 +1,7 @@
 /**
  * API client for communicating with the FastAPI backend.
  *
- * All AI-powered features (TRIZ, Socratic, CLD, Anti-Anchor, Risk, etc.)
+ * All AI-powered features (TRIZ, Socratic, CLD, Risk, etc.)
  * go through this client instead of using mock data + setTimeout.
  */
 
@@ -996,8 +996,8 @@ export interface SpatialOverlayResponse {
   package_map: PackageMap;
 }
 
-export function scamperSpatialOverlay(body: SpatialOverlayRequest) {
-  return request<SpatialOverlayResponse>("/scamper/spatial-overlay", body, { timeoutMs: 60_000 });
+export function subsystemSpatialOverlay(body: SpatialOverlayRequest) {
+  return request<SpatialOverlayResponse>("/subsystems/spatial-overlay", body, { timeoutMs: 60_000 });
 }
 
 export interface SpatialComponentOverrideRequest {

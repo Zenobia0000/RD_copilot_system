@@ -1,11 +1,6 @@
 """Analyst Agent — brief extraction, Socratic Q&A, CLD.
 
 Ref: AI_Agent_Architecture.md §1.1 Analyst Agent
-
-Note (v3.0): Anti-Anchor functionality has been retired and merged into
-TRIZ L1 instantiation as a built-in "cross-domain de-anchoring" UX step.
-The generate_anti_anchor() function below is deprecated but kept for
-backward compatibility.
 """
 
 import json
@@ -31,7 +26,6 @@ from app.prompts.analyst import (
     SOCRATIC_BRIEF_IMPACT,
     SOCRATIC_AUTO_TAG,
     CLD_GENERATION,
-    ANTI_ANCHOR_GENERATION,
     SOCRATIC_INSIGHT_EXTRACTION,
     CONTRADICTION_FORMALIZATION,
     SU_FIELD_DERIVATION_FROM_TC,
@@ -40,7 +34,6 @@ from app.prompts.analyst import (
     TC_TO_MULTI_PC_DECOMPOSITION,
     PURPOSE_CONTRADICTION,
     PURPOSE_CLD,
-    PURPOSE_ANTI_ANCHOR,
     PURPOSE_DECOMPOSITION,
     FIVE_WHY_ANALYSIS,
     KT_IS_IS_NOT,
@@ -80,8 +73,6 @@ from app.models.schemas import (
     SocraticAutoTagResponse,
     CldGenerationRequest,
     CldGenerationResponse,
-    AntiAnchorRequest,
-    AntiAnchorResponse,
     ContradictionFormalizeRequest,
     ContradictionFormalizeResponse,
     SuFieldModel,
@@ -568,36 +559,6 @@ def _flatten_to_str(value) -> str:
         return " | ".join(f"{k.replace('_', ' ').capitalize()}: {v}" 
                           for k, v in value.items())
     return str(value)
-
-
-def generate_anti_anchor(req: AntiAnchorRequest) -> AntiAnchorResponse:  # v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1
-    # NOTE (§9.4): callers should pre-filter contradictions to leaf nodes
-    # using get_contradiction_leaves() before building `current_constraints`
-    # / `existing_alternatives`.  This avoids duplicate parent+child entries
-    # when a TC has been decomposed into child PCs.
-    socratic_insights = _extract_socratic_insights(
-        getattr(req, "socraticAnswers", None) or [],
-        purpose=PURPOSE_ANTI_ANCHOR,
-    )
-    prompt = ANTI_ANCHOR_GENERATION.format(
-        mission=req.mission,
-        current_constraints="\n".join(f"- {c}" for c in req.current_constraints),
-        existing_alternatives="\n".join(f"- {a}" for a in req.existing_alternatives),
-        socratic_insights=socratic_insights,
-    )
-    if settings.use_harness_agents:
-        from app.harness.agent_base import harness_call
-        return harness_call("analyst_anti_anchor", ANALYST_SYSTEM, prompt, AntiAnchorResponse)
-    raw = call_llm_json(ANALYST_SYSTEM, prompt)
-    data = json.loads(raw)
-    # Even if the prompt requires a string, the LLM may still return a dict.
-    for alt in data.get("alternatives", []):
-        for key in ("mechanism", "why_unconventional",
-                     "potential_advantage", "cross_domain_source"):
-            if key in alt and not isinstance(alt[key], str):
-                alt[key] = _flatten_to_str(alt[key])
-
-    return AntiAnchorResponse(**data)
 
 
 def decompose_tc_to_pcs(req: ContradictionDecomposeRequest) -> ContradictionDecomposeResponse:

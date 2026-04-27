@@ -239,23 +239,8 @@ Rules:
 """
 
 # ---------------------------------------------------------------------------
-# Convergence Scan
-#
-# v8 NOTE: Phase A (CONVERGENCE_SCAN_PHASE_A) has been retired. Its six
-# responsibilities are now handled by v7's layered architecture:
-#   - Well-formedness → L1 status="error" + critic badge
-#   - Severity → directly drives L2 trigger
-#   - Hidden contradictions → Step 2 Socratic + Step 3 formalization
-#   - Cross-contradiction dedup → Phase B crossLtsRedundancyWarnings
-#   - Global convergence score → per-LTS differential_analysis
-#   - Architecture halt → ArchitectureHaltOverlay (phase-agnostic, via Phase B)
-#
-# Only Phase B (CONVERGENCE_SCAN) survives — it cross-checks adopted
-# alternatives against contradictions. See create-ux-spec.md v8.
+# Convergence Scan — cross-checks adopted alternatives against contradictions
 # ---------------------------------------------------------------------------
-
-# Phase A prompt removed — was here as CONVERGENCE_SCAN_PHASE_A (~105 lines).
-# Git history preserves the full template for reference if ever needed.
 
 CONVERGENCE_SCAN = """\
 <task>

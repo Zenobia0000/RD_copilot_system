@@ -367,40 +367,6 @@ curl -X POST http://localhost:8000/api/v1/assumptions/extract \
 
 ---
 
-## 6. Alternatives (Anti-Anchor)
-
-### 6.1 Anti-Anchor Sprint
-
-Generate 3+ non-typical architecture concepts to break path dependency.
-
-```
-POST /api/v1/alternatives/anti-anchor
-```
-
-**Request Body**
-
-| Field | Type | Required |
-|-------|------|----------|
-| `project_id` | string | yes |
-| `mission` | string | yes |
-| `current_constraints` | string[] | yes |
-| `existing_alternatives` | string[] | no |
-
-**Response** `AntiAnchorResponse`
-
-| Field | Type |
-|-------|------|
-| `routes` | `AntiAnchorRoute[]` (name, description, is_non_typical, rationale) |
-
-```bash
-curl -X POST http://localhost:8000/api/v1/alternatives/anti-anchor \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"project_id":"uuid","mission":"Design motor controller","current_constraints":["Weight <= 2kg"]}'
-```
-
----
-
 ## 7. TRIZ
 
 ### 7.1 Solve Contradiction

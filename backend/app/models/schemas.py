@@ -363,41 +363,6 @@ class ValidationPassport(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# X2: Anti-Anchor Routes
-# v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1.
-# These schemas are kept for backward compatibility and import safety.
-# They will be removed in the next major version.
-# ---------------------------------------------------------------------------
-
-class AntiAnchorRequest(BaseModel):
-    project_id: str
-    mission: str
-    current_constraints: list[str]
-    existing_alternatives: list[str] = Field(default_factory=list)
-    socraticAnswers: list[str] = Field(default_factory=list)
-
-
-class AntiAnchorRoute(BaseModel):
-    name: str
-    mechanism: str = ""  # core mechanism description
-    description: str = ""  # LLM may omit; fallback to mechanism
-    is_non_typical: bool = True
-    rationale: str = ""
-    why_unconventional: str = ""
-    potential_advantage: str = ""
-    cross_domain_source: str = ""
-    validation_passport: ValidationPassport | None = None
-
-    def model_post_init(self, __context) -> None:
-        if not self.description and self.mechanism:
-            self.description = self.mechanism
-
-
-class AntiAnchorResponse(BaseModel):
-    routes: list[AntiAnchorRoute] = Field(default_factory=list, validation_alias="alternatives")
-
-
-# ---------------------------------------------------------------------------
 # Validation Passport Generation (on-demand for solutions without one)
 # ---------------------------------------------------------------------------
 
@@ -405,7 +370,7 @@ class ValidationPassportRequest(BaseModel):
     project_id: str
     solution_name: str
     mechanism: str
-    source: str = ""  # triz_tc / triz_pc / scamper / manual (anti_anchor retired v3.0)
+    source: str = ""  # triz_tc / triz_pc / manual
     constraints: list[str] = Field(default_factory=list)
     kpis: list[str] = Field(default_factory=list)
 
@@ -843,7 +808,7 @@ class ConvergenceScanRequest(BaseModel):
     mission: str = ""
     constraints: list[str] = Field(default_factory=list)
     kpis: list[str] = Field(default_factory=list)
-    phase: str = "B"  # v8: always "B" — Phase A retired (L1 critic subsumes)
+    phase: str = "B"
     # v7 WP 10.6: optional Phase B directives for layered Concept Routes.
     # Empty list → legacy behaviour (flat mode). Non-empty → scanner pairs
     # alternatives by lts_id and applies SKIP / WARN / CHECK per §8.3.

@@ -125,29 +125,6 @@ _CONTRADICTION_FORMALIZE_PC_RESPONSE = json.dumps({
     "confidence": 0.80,
 })
 
-_ANTI_ANCHOR_RESPONSE = json.dumps({
-    "routes": [
-        {
-            "name": "Axial Flux Pancake Motor",
-            "description": "Flat axial-flux topology instead of conventional radial-flux, achieving higher torque density in compact form factor",
-            "is_non_typical": True,
-            "rationale": "Breaks the assumption that mid-drive must use radial-flux geometry",
-        },
-        {
-            "name": "Printed Copper Winding",
-            "description": "PCB-based stator windings using heavy-copper printed circuit technology, eliminating hand winding",
-            "is_non_typical": True,
-            "rationale": "Challenges traditional wire winding cost structure",
-        },
-        {
-            "name": "Halbach Array Rotor",
-            "description": "Self-shielding Halbach magnet arrangement to maximize airgap flux while reducing back-iron weight",
-            "is_non_typical": True,
-            "rationale": "Addresses efficiency vs weight contradiction from a magnetic circuit perspective",
-        },
-    ],
-})
-
 _TRIZ_TC_RESPONSE = json.dumps({
     "suggestions": [
         {
@@ -497,35 +474,6 @@ class TestEbikeE2EScenario:
     # -----------------------------------------------------------------------
     # Phase 2: Diverge
     # -----------------------------------------------------------------------
-
-    # v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1
-    @pytest.mark.skip(reason="v3.0: Anti-Anchor retired — de-anchoring merged into TRIZ L1")
-    @patch("app.agents.analyst.call_llm_json")
-    def test_step_x1_anti_anchor(self, mock_llm, client):
-        """Phase 2, X1: Generate anti-anchor alternatives to break path dependency."""
-        mock_llm.return_value = _ANTI_ANCHOR_RESPONSE
-        brief = getattr(self.__class__, "_brief", json.loads(_BRIEF_EXTRACT_RESPONSE))
-
-        resp = client.post("/api/v1/alternatives/anti-anchor", json={
-            "project_id": PROJECT_ID,
-            "mission": MISSION,
-            "current_constraints": [c["description"] for c in brief["constraints"]],
-            "existing_alternatives": [],
-        })
-
-        assert resp.status_code == 200
-        anti = resp.json()
-
-        assert len(anti["routes"]) >= 3
-        for route in anti["routes"]:
-            assert route["is_non_typical"] is True
-            assert route["name"]
-            assert route["description"]
-
-        route_names = [r["name"] for r in anti["routes"]]
-        assert "Axial Flux Pancake Motor" in route_names
-
-        self.__class__._anti_anchor = anti
 
     @patch("app.agents.triz_solver.call_llm_json")
     @patch("app.agents.triz_solver.lookup_matrix", return_value=[35, 28, 1])

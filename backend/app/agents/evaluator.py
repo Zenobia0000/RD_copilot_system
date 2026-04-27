@@ -11,7 +11,6 @@ from app.prompts.evaluator import (
     EVALUATOR_SYSTEM,
     RISK_ANALYSIS,
     CONVERGENCE_SCAN,
-    # CONVERGENCE_SCAN_PHASE_A removed in v8 — L1 critic subsumes Phase A
     MUST_EVALUATION,
     PRE_CAD_ANALYSIS,
     WANT_CRITERIA_SEED,
@@ -338,9 +337,6 @@ def scan_convergence(req: ConvergenceScanRequest) -> ConvergenceScanResponse:
     constraints = "\n".join(f"- {c}" for c in req.constraints) or "（尚無）"
     kpis = "\n".join(f"- {k}" for k in req.kpis) or "（尚無）"
 
-    # v8: Phase A retired — only Phase B (full alternative × contradiction cross-check)
-    # remains. L1 critic + severity-driven L2 trigger + differential_analysis
-    # subsume Phase A's per-contradiction health assessment.
     alternatives_for_prompt, skip_notes = _apply_layered_directives(req)
     if skip_notes:
         import logging

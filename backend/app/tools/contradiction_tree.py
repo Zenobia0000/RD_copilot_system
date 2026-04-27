@@ -3,9 +3,6 @@
 Uses the `parent_contradiction_id` FK from migration 009 to provide
 leaves-only filtering for downstream consumers (CLD).
 
-Note (v3.0): Anti-Anchor has been retired — de-anchoring merged into TRIZ L1.
-References to Anti-Anchor in this module are historical.
-
 Ref: docs/e2e/module/Explore_TC_to_MultiPC_Decomposition_WBS.md §9.3.1
 """
 from __future__ import annotations

@@ -69,6 +69,8 @@
 - `evidence_claims` — 跨步驟證據聲明自動註冊（claim_text, status VERIFIED/APPROXIMATE/UNVERIFIED, verification_sources JSONB）
 - `sim_matrices` — SIM 交互矩陣（contradiction_ids JSONB, matrix JSONB, optimal_combination JSONB, rounds_used INT）
 
+> **CCI（Complexity Check）**無獨立表 — `POST /triz/complexity-check` 為無狀態計算端點（`ComplexityCheckRequest` → `ComplexityCheckResponse`），CCI 結果嵌入 `alternatives.pre_cad_scores` JSONB 欄位，不另行 persist。
+
 ### 2.5 Review & Decision（Layer 4）
 - `evidence_matrix` — E0–E5 evidence level 矩陣
 - `evidence_entries` — 量測值 entry（FK 到 kpis / experiments）
@@ -465,9 +467,9 @@ erDiagram
 
 所有專案子表套用統一模式（`000_full_deploy.sql` Part 11）；新增表多半為 "authenticated USING(true)" 共享讀寫。
 
-### 5.1 統一 project-child 模式（24 張表）
+### 5.1 統一 project-child 模式（27 張表）
 
-套用於：`briefs, constraints, kpis, socratic_questions, contradictions, assumptions, cld_nodes, cld_edges, anti_anchor_routes` *(v3.0 退役但 RLS 保留)*`, triz_solutions, subsystems, alternatives, concept_routes, compatibility_pairs, evidence_matrix, risks, decisions, want_criteria, want_scores, adverse_consequences, signatures, action_items, knowledge_entries` *(v9: `scamper_variants` 已移除)*
+套用於：`briefs, constraints, kpis, socratic_questions, contradictions, assumptions, cld_nodes, cld_edges, anti_anchor_routes` *(v3.0 退役但 RLS 保留)*`, triz_solutions, subsystems, alternatives, concept_routes, compatibility_pairs, evidence_matrix, risks, decisions, want_criteria, want_scores, adverse_consequences, signatures, action_items, knowledge_entries` *(v9: `scamper_variants` 已移除)*`, function_models, evidence_claims, sim_matrices` *(ADR-008, migration 013)*
 
 | Action | Policy                                                                                 |
 |--------|----------------------------------------------------------------------------------------|
@@ -491,9 +493,9 @@ erDiagram
 | `unknown_factors`               | `authenticated` 皆可管理                      |
 | `contradiction_assumption_links`| `authenticated` SELECT/INSERT/DELETE（無 UPDATE）|
 | `layered_triz_solutions`        | `authenticated` SELECT/INSERT/UPDATE/DELETE 全開 |
-| `function_models`               | `authenticated` SELECT/INSERT/UPDATE/DELETE 全開（ADR-008） |
-| `evidence_claims`               | `authenticated` SELECT/INSERT/UPDATE/DELETE 全開（ADR-008） |
-| `sim_matrices`                  | `authenticated` SELECT/INSERT/UPDATE/DELETE 全開（ADR-008） |
+| ~~`function_models`~~           | ~~已移至 §5.1 project-child 模式（migration 013 啟用 RLS）~~ |
+| ~~`evidence_claims`~~           | ~~已移至 §5.1 project-child 模式（migration 013 啟用 RLS）~~ |
+| ~~`sim_matrices`~~              | ~~已移至 §5.1 project-child 模式（migration 013 啟用 RLS）~~ |
 
 ### 5.4 特例
 
@@ -503,13 +505,20 @@ erDiagram
 | `review_attachments`             | SELECT auth.uid() IS NOT NULL；INSERT/DELETE 限 `user_id = auth.uid()` |
 | `storage.objects` (review-attachments bucket) | INSERT 限 authenticated；SELECT 公開；DELETE 限 owner folder prefix |
 
-### 5.5 未啟用 RLS 的表
+### 5.5 未啟用 RLS 的表（4 張 — 需補齊）
 
-以下 migration 新增表未顯式 `ENABLE ROW LEVEL SECURITY`，**TBD** — Backend Lead TBD by 2026-04-30 TBD 補齊：
-- `experiments`（000_full_deploy 未加 RLS；但在 project-child array 外）
-- `project_spatial_overlay` / `project_component_overrides` / `learned_components`（006/007 migration 未顯式啟用）
+以下 migration 新增表未顯式 `ENABLE ROW LEVEL SECURITY`，需在後續 migration 補齊：
+
+| Table | Migration | 建議 RLS 模式 | 理由 |
+|-------|-----------|--------------|------|
+| `experiments` | 000 | **project-child**（同 §5.1） | 有 `project_id` FK，應與其他 project-child 表一致 |
+| `project_spatial_overlay` | 006 | **project-child**（同 §5.1） | PK 即 `project_id` FK |
+| `project_component_overrides` | 007 | **project-child**（同 §5.1） | 有 `project_id` FK |
+| `learned_components` | 007 | **共享讀寫**（同 §5.3 `knowledge_articles`） | 全域共享元件庫，非 project-scoped |
 
 > **Risk**：未啟用 RLS 的表可能洩漏跨租戶資料。E8 AI-14（Supabase RLS 測試覆蓋跨租戶）行動項涵蓋此風險。
+>
+> **Action**：建立 `migration 014_rls_backfill.sql`，對前 3 張表套用 §5.1 模式，`learned_components` 套用 `authenticated USING(true)` 全開模式。
 
 ---
 
@@ -532,4 +541,4 @@ erDiagram
 |---------|------------|------------|---------------------------------------------|
 | v1.0    | 2026-04-15 | Backend TBD | 初稿：依 migration 000–010 抽出 36 張表、41 條 FK、5 張子 ERD、RLS 矩陣 |
 | v1.1    | 2026-04-27 | — | `anti_anchor_routes` 標記為 v3.0 退役（Anti-Anchor 併入 TRIZ L1 跨域去錨定）；表定義保留供歷史參照 |
-| v1.2    | 2026-04-27 | — | 補齊 ADR-008 新增 3 表：`function_models`、`evidence_claims`、`sim_matrices`；新增 FK #42-44；新增 RLS 政策 |
+| v1.2    | 2026-04-27 | — | 補齊 ADR-008 新增 3 表：`function_models`、`evidence_claims`、`sim_matrices`；新增 FK #42-44；RLS 歸類至 §5.1 project-child（migration 013 已啟用）；§5.5 補齊 4 表 RLS 建議方案；CCI 無獨立表說明 |

@@ -145,6 +145,48 @@ class TestRealCommands:
 
 
 # ────────────────────────────────────────────────────────────────────────────
+# Lint: every real command must meet baseline quality bars + resolve cleanly
+# ────────────────────────────────────────────────────────────────────────────
+
+_PROJECT_SKILLS_DIR = _PROJECT_ROOT / ".claude" / "skills"
+_ALL_REAL_COMMAND_NAMES = sorted(
+    p.stem for p in _REAL_COMMANDS_DIR.glob("*.md") if p.is_file()
+)
+
+
+@pytest.mark.parametrize("cmd_name", _ALL_REAL_COMMAND_NAMES)
+class TestCommandLint:
+    """Run once per command — no command is skipped."""
+
+    def test_loads_without_error(self, cmd_name):
+        load_command(_REAL_COMMANDS_DIR, cmd_name)
+
+    def test_has_description(self, cmd_name):
+        cmd = load_command(_REAL_COMMANDS_DIR, cmd_name)
+        assert cmd.description, (
+            f"/{cmd_name} has empty frontmatter `description` — required by "
+            f"Claude Code spec for slash-command UX"
+        )
+
+    def test_body_is_substantial(self, cmd_name):
+        cmd = load_command(_REAL_COMMANDS_DIR, cmd_name)
+        assert len(cmd.body) >= 100, (
+            f"/{cmd_name} body too short ({len(cmd.body)} chars) — "
+            f"likely placeholder"
+        )
+
+    def test_resolve_succeeds(self, cmd_name):
+        """Either it points at an existing skill, or it runs inline. Both
+        are valid — but resolve_command must not raise."""
+        from app.harness.command import resolve_command
+        resolve_command(
+            commands_root=_REAL_COMMANDS_DIR,
+            skills_root=_PROJECT_SKILLS_DIR,
+            name=cmd_name,
+        )
+
+
+# ────────────────────────────────────────────────────────────────────────────
 # resolve_command — skill source vs inline source
 # ────────────────────────────────────────────────────────────────────────────
 

@@ -227,3 +227,53 @@ class TestRealClaudeSkills:
         for expected in ("triz-scoping", "triz-model", "triz-contradict",
                          "triz-verify", "triz-wi", "tr-router"):
             assert expected in skills, f"missing skill: {expected}"
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Lint: every real skill must meet baseline quality bars
+# ────────────────────────────────────────────────────────────────────────────
+
+# Skills authored by the project — anything present in .claude/skills/
+# (sub-dirs only). pytest discovers these at collect time so missing skills
+# fail fast.
+_ALL_REAL_SKILL_DIRS = sorted(
+    p.name for p in _REAL_SKILLS_DIR.iterdir()
+    if p.is_dir() and (p / "SKILL.md").is_file()
+)
+
+
+@pytest.mark.parametrize("skill_dir", _ALL_REAL_SKILL_DIRS)
+class TestSkillLint:
+    """Run once per skill — no skill is skipped."""
+
+    def test_loads_without_error(self, skill_dir):
+        """Parser must accept the SKILL.md (frontmatter optional, body any)."""
+        load_skill(_REAL_SKILLS_DIR, skill_dir)
+
+    def test_body_is_substantial(self, skill_dir):
+        """A 200-char floor catches accidentally-empty SKILL.md files. Real
+        skills run from 2KB to 25KB; nothing legitimate sits below 200."""
+        skill = load_skill(_REAL_SKILLS_DIR, skill_dir)
+        assert len(skill.body) >= 200, (
+            f"{skill_dir} body too short ({len(skill.body)} chars) — "
+            f"likely placeholder or accidentally truncated"
+        )
+
+    def test_body_has_some_structure(self, skill_dir):
+        """Every skill body should expose at least one markdown heading.
+        Headings indicate sections (Phase, Step, Overview, etc.) — without
+        them the prompt is just a wall of text."""
+        skill = load_skill(_REAL_SKILLS_DIR, skill_dir)
+        assert "\n#" in skill.body or skill.body.startswith("#"), (
+            f"{skill_dir} body has no markdown headings — wall of text"
+        )
+
+    def test_name_matches_directory_when_set(self, skill_dir):
+        """If frontmatter declares `name`, it must match the directory name —
+        otherwise the discoverable identity (dir name) and the declared
+        identity diverge and downstream resolution breaks."""
+        skill = load_skill(_REAL_SKILLS_DIR, skill_dir)
+        assert skill.name == skill_dir, (
+            f"{skill_dir}/SKILL.md declares name={skill.name!r} but lives "
+            f"in dir {skill_dir!r} — these must match"
+        )

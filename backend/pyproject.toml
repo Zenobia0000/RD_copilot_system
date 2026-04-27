@@ -38,3 +38,7 @@ select = ["E", "F", "I", "N", "W"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+markers = [
+    "live: hits the real Anthropic/Azure API. Skipped by default; run with `pytest -m live`.",
+]
+addopts = "-m 'not live'"

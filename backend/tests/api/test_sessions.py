@@ -534,6 +534,79 @@ class TestRunStreamErrors:
         )
         assert resp.status_code == 404
 
+    def test_tool_failure_propagates_as_is_error_event(self, client, fake_project, fake_harness):
+        """A failing tool call must surface to the SSE stream as
+        tool_result with is_error=True — silent failures would let the
+        frontend mistake an error for a success."""
+        # Glob with relative path → fs tool returns is_error=True
+        fake_harness.responses.append(
+            FakeResponse(
+                content=[
+                    FakeToolUseBlock(id="t_bad", name="Glob", input={"pattern": "*", "path": "relative/dir"}),
+                ],
+                stop_reason="tool_use",
+                stream_events=[],
+            )
+        )
+        fake_harness.responses.append(
+            FakeResponse(
+                content=[FakeTextBlock(text="adapted")],
+                stop_reason="end_turn",
+                stream_events=[FakeTextEvent(text="adapted")],
+            )
+        )
+        sess = client.post(SESSIONS_BASE, json={}).json()
+        resp = client.post(
+            f"{SESSIONS_BASE}/{sess['session_id']}/run/stream",
+            json={"command": "/echo"},
+        )
+
+        events = _parse_sse(resp.text)
+        tool_result_events = [e for e in events if e["event"] == "tool_result"]
+        assert len(tool_result_events) == 1
+        assert tool_result_events[0]["data"]["is_error"] is True
+        assert "absolute" in tool_result_events[0]["data"]["content"]
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Inline-command end-to-end through stream (parallel to sync coverage)
+# ────────────────────────────────────────────────────────────────────────────
+
+class TestRunStreamInlineCommand:
+    def test_inline_command_streams_correctly(self, client, fake_project, fake_harness):
+        """When a command has no `載入 **skill**` ref, run/stream still
+        works — the command body is the system prompt, source label is
+        'Command: <name>'."""
+        inline = fake_project / ".claude" / "commands" / "status.md"
+        inline.write_text(
+            "---\ndescription: status\n---\n"
+            "Read .triz-state.json and report progress.\n",
+            encoding="utf-8",
+        )
+        fake_harness.responses.append(
+            FakeResponse(
+                content=[FakeTextBlock(text="status: idle")],
+                stop_reason="end_turn",
+                stream_events=[FakeTextEvent(text="status: idle")],
+            )
+        )
+        sess = client.post(SESSIONS_BASE, json={}).json()
+
+        resp = client.post(
+            f"{SESSIONS_BASE}/{sess['session_id']}/run/stream",
+            json={"command": "/status"},
+        )
+
+        assert resp.status_code == 200
+        # The system prompt sent to the model should carry "Command: status"
+        sys_prompt = fake_harness.calls[0]["system"]
+        assert "Command: status" in sys_prompt
+        assert "Read .triz-state.json" in sys_prompt
+        # And the stream should have produced a normal done event
+        events = _parse_sse(resp.text)
+        assert events[-1]["event"] == "done"
+        assert events[-1]["data"]["final_text"] == "status: idle"
+
     def test_loop_error_emits_error_event_and_records_run(
         self, client, fake_project, fake_harness,
     ):

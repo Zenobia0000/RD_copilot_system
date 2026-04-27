@@ -411,3 +411,20 @@ class TestAllowedToolsWhitelist:
 
         call_tools = {t["name"] for t in client.messages.calls[0]["tools"]}
         assert call_tools == {"Read", "Write"}
+
+    def test_empty_whitelist_passes_empty_tools(self):
+        """A skill could declare `allowed-tools: []` to run pure-chat with
+        no tool surface. Loop should still complete; API receives tools=[]."""
+        client = FakeAnthropicClient.with_responses(
+            FakeResponse(content=[FakeTextBlock(text="just chat")], stop_reason="end_turn")
+        )
+        loop = AgentLoop(
+            client=client, model="m", system_prompt="s",
+            tool_registry=_registry_with_echo(),
+            allowed_tools=[],
+        )
+
+        result = loop.run("hello")
+
+        assert result.final_text == "just chat"
+        assert client.messages.calls[0]["tools"] == []

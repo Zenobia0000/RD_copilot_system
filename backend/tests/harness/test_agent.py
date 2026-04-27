@@ -37,14 +37,47 @@ class FakeToolUseBlock:
 
 
 @dataclass
+class FakeTextEvent:
+    """Minimal stand-in for Anthropic's high-level `text` stream event."""
+
+    text: str
+    type: str = "text"
+
+
+@dataclass
 class FakeResponse:
     content: list[Any]
     stop_reason: str
+    stream_events: list[Any] = field(default_factory=list)
+    """Events yielded during messages.stream(). Empty = no streaming use."""
+
+
+class FakeStream:
+    """Context manager mimicking the SDK's MessageStream return type."""
+
+    def __init__(self, *, events: list[Any], final: FakeResponse) -> None:
+        self._events = events
+        self._final = final
+
+    def __enter__(self) -> "FakeStream":
+        return self
+
+    def __exit__(self, *_: Any) -> bool:
+        return False
+
+    def __iter__(self):
+        return iter(self._events)
+
+    def get_final_message(self) -> FakeResponse:
+        return self._final
 
 
 @dataclass
 class FakeMessages:
-    """The .messages namespace on the Anthropic client."""
+    """The .messages namespace on the Anthropic client. Both .create() and
+    .stream() pull from the same `responses` queue, so a test that drives the
+    streaming loop just sets stream_events on its FakeResponses."""
+
     responses: list[FakeResponse]
     calls: list[dict[str, Any]] = field(default_factory=list)
 
@@ -58,6 +91,16 @@ class FakeMessages:
                 f"after {len(self.calls)} call(s)"
             )
         return self.responses.pop(0)
+
+    def stream(self, **kwargs: Any) -> FakeStream:
+        self.calls.append(copy.deepcopy(kwargs))
+        if not self.responses:
+            raise AssertionError(
+                f"FakeAnthropicClient ran out of mocked stream responses "
+                f"after {len(self.calls)} call(s)"
+            )
+        response = self.responses.pop(0)
+        return FakeStream(events=list(response.stream_events), final=response)
 
 
 @dataclass

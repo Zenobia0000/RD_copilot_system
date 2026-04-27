@@ -16,18 +16,27 @@ the event loop.
 
 from __future__ import annotations
 
+import dataclasses
+import json
 import threading
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from app.harness.agent import AgentLoop, AgentLoopError
+from app.harness.agent import (
+    AgentLoop,
+    AgentLoopError,
+    DoneEvent,
+    ErrorEvent,
+    HarnessEvent,
+)
 from app.harness.cli import build_system_prompt, find_project_root
 from app.harness.command import CommandParseError, resolve_command
 from app.harness.config import HarnessClient, HarnessConfigError, build_client, load_env
@@ -184,16 +193,20 @@ def get_session(
     )
 
 
-@router.post("/{session_id}/run", response_model=RunCommandResponse)
-def run_command(
+def _prepare_run(
+    *,
     session_id: str,
     req: RunCommandRequest,
-    user: dict = Depends(get_current_user),
-    harness: HarnessClient = Depends(get_harness_client),
-) -> RunCommandResponse:
-    record = _get_session_for_user(session_id, user["sub"])
+    user_id: str,
+    harness: HarnessClient,
+) -> tuple[SessionRecord, AgentLoop, str]:
+    """Shared setup for /run and /run/stream.
 
-    # Resolve command → skill (mirrors the CLI; both speak the same convention)
+    Returns (session record, configured AgentLoop, resolved user_message).
+    Raises HTTPException on session/command/skill resolution failures.
+    """
+    record = _get_session_for_user(session_id, user_id)
+
     try:
         project_root = _project_root()
     except FileNotFoundError as exc:
@@ -220,7 +233,6 @@ def run_command(
             detail=f"malformed: {exc}",
         )
 
-    # Compose + run
     system_prompt = build_system_prompt(
         project_root=project_root,
         instructions_label=resolved.label,
@@ -240,6 +252,34 @@ def run_command(
         max_tokens=req.max_tokens,
     )
 
+    return record, loop, user_message
+
+
+def _record_run(record: SessionRecord, command: str, *, iterations: int, tool_calls: int, stop_reason: str) -> None:
+    """Append a run summary to the session's history."""
+    with _SESSIONS_LOCK:
+        record.runs.append(
+            {
+                "command": command,
+                "ran_at": _now_iso(),
+                "iterations": iterations,
+                "tool_calls": tool_calls,
+                "stop_reason": stop_reason,
+            }
+        )
+
+
+@router.post("/{session_id}/run", response_model=RunCommandResponse)
+def run_command(
+    session_id: str,
+    req: RunCommandRequest,
+    user: dict = Depends(get_current_user),
+    harness: HarnessClient = Depends(get_harness_client),
+) -> RunCommandResponse:
+    record, loop, user_message = _prepare_run(
+        session_id=session_id, req=req, user_id=user["sub"], harness=harness,
+    )
+
     try:
         result = loop.run(user_message)
     except AgentLoopError as exc:
@@ -248,21 +288,96 @@ def run_command(
             detail=f"agent loop failed: {exc}",
         )
 
-    # Append to session history (best-effort; failure shouldn't 500 the response)
-    with _SESSIONS_LOCK:
-        record.runs.append(
-            {
-                "command": req.command,
-                "ran_at": _now_iso(),
-                "iterations": result.iterations,
-                "tool_calls": result.tool_calls,
-                "stop_reason": result.stop_reason,
-            }
-        )
+    _record_run(
+        record, req.command,
+        iterations=result.iterations,
+        tool_calls=result.tool_calls,
+        stop_reason=result.stop_reason,
+    )
 
     return RunCommandResponse(
         final_text=result.final_text,
         iterations=result.iterations,
         tool_calls=result.tool_calls,
         stop_reason=result.stop_reason,
+    )
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# SSE streaming variant
+# ────────────────────────────────────────────────────────────────────────────
+
+def _format_sse(event: HarnessEvent) -> str:
+    """Render a HarnessEvent as one SSE message (event line + data line + blank).
+
+    The `type` field on the dataclass maps to SSE's `event:` line; remaining
+    fields go into the JSON `data:` payload.
+    """
+    payload = dataclasses.asdict(event)
+    event_name = payload.pop("type")
+    data = json.dumps(payload, ensure_ascii=False)
+    return f"event: {event_name}\ndata: {data}\n\n"
+
+
+def _sse_generator(
+    *, record: SessionRecord, command: str, loop: AgentLoop, user_message: str,
+) -> Iterator[str]:
+    """Wrap loop.stream() into an SSE byte stream and append the session run
+    record once the stream completes."""
+    iterations = 0
+    tool_calls = 0
+    stop_reason = "incomplete"
+    try:
+        for event in loop.stream(user_message):
+            if isinstance(event, DoneEvent):
+                iterations = event.iterations
+                tool_calls = event.tool_calls
+                stop_reason = event.stop_reason
+            yield _format_sse(event)
+    except Exception as exc:  # noqa: BLE001 — last-resort: never let stream silently die
+        yield _format_sse(
+            ErrorEvent(message=f"unhandled {type(exc).__name__}: {exc}")
+        )
+    finally:
+        _record_run(
+            record, command,
+            iterations=iterations,
+            tool_calls=tool_calls,
+            stop_reason=stop_reason,
+        )
+
+
+@router.post("/{session_id}/run/stream")
+def run_command_stream(
+    session_id: str,
+    req: RunCommandRequest,
+    user: dict = Depends(get_current_user),
+    harness: HarnessClient = Depends(get_harness_client),
+) -> StreamingResponse:
+    """Server-Sent Events variant of /run.
+
+    Each agent event becomes one SSE message:
+      event: text_delta    | data: {"text": "…"}
+      event: tool_use      | data: {"id": "tu_…", "name": "Read", "input": {…}}
+      event: tool_result   | data: {"tool_use_id": "tu_…", "content": "…", "is_error": false}
+      event: iteration_end | data: {"iteration": 1, "stop_reason": "tool_use"}
+      event: done          | data: {"final_text": "…", "iterations": 2, …}
+      event: error         | data: {"message": "…"}
+
+    The connection stays open until done or error fires. Frontends should
+    close the EventSource on either terminal event.
+    """
+    record, loop, user_message = _prepare_run(
+        session_id=session_id, req=req, user_id=user["sub"], harness=harness,
+    )
+
+    return StreamingResponse(
+        _sse_generator(
+            record=record, command=req.command, loop=loop, user_message=user_message,
+        ),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # disable nginx buffering if proxied
+        },
     )

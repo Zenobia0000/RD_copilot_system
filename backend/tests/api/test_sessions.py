@@ -7,6 +7,7 @@ Handler logic uses two test-side overrides:
 
 from __future__ import annotations
 
+import json
 import time
 from unittest.mock import patch
 
@@ -22,6 +23,7 @@ from tests.harness.test_agent import (
     FakeAnthropicClient,
     FakeResponse,
     FakeTextBlock,
+    FakeTextEvent,
     FakeToolUseBlock,
 )
 
@@ -385,3 +387,178 @@ class TestRunCommandHappyPath:
         assert first_user_msg["role"] == "user"
         assert "echo" in first_user_msg["content"]
         assert len(first_user_msg["content"]) > 5
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# /run/stream — Server-Sent Events
+# ────────────────────────────────────────────────────────────────────────────
+
+def _parse_sse(body: str) -> list[dict]:
+    """Parse an SSE response body into [{'event': ..., 'data': {...}}, ...]."""
+    out = []
+    for chunk in body.split("\n\n"):
+        if not chunk.strip():
+            continue
+        event = None
+        data = None
+        for line in chunk.split("\n"):
+            if line.startswith("event:"):
+                event = line[len("event:"):].strip()
+            elif line.startswith("data:"):
+                data = json.loads(line[len("data:"):].strip())
+        out.append({"event": event, "data": data})
+    return out
+
+
+class TestRunStreamAuth:
+    def test_without_token_returns_401(self, client_no_auth):
+        resp = client_no_auth.post(
+            f"{SESSIONS_BASE}/abc/run/stream", json={"command": "/triz"},
+        )
+        assert resp.status_code == 401
+
+
+class TestRunStreamHappyPath:
+    def test_streams_text_deltas_then_done(self, client, fake_project, fake_harness):
+        fake_harness.responses.append(
+            FakeResponse(
+                content=[FakeTextBlock(text="hello world")],
+                stop_reason="end_turn",
+                stream_events=[
+                    FakeTextEvent(text="hello "),
+                    FakeTextEvent(text="world"),
+                ],
+            )
+        )
+        sess = client.post(SESSIONS_BASE, json={}).json()
+
+        resp = client.post(
+            f"{SESSIONS_BASE}/{sess['session_id']}/run/stream",
+            json={"command": "/echo", "user_message": "hi"},
+        )
+
+        assert resp.status_code == 200
+        assert resp.headers["content-type"].startswith("text/event-stream")
+        assert resp.headers.get("cache-control") == "no-cache"
+
+        events = _parse_sse(resp.text)
+        names = [e["event"] for e in events]
+        assert names == ["text_delta", "text_delta", "iteration_end", "done"]
+        assert events[0]["data"]["text"] == "hello "
+        assert events[1]["data"]["text"] == "world"
+        assert events[2]["data"]["stop_reason"] == "end_turn"
+        assert events[3]["data"]["final_text"] == "hello world"
+        assert events[3]["data"]["iterations"] == 1
+        assert events[3]["data"]["tool_calls"] == 0
+
+    def test_tool_use_emits_tool_use_then_tool_result_events(
+        self, client, fake_project, fake_harness,
+    ):
+        fake_harness.responses.append(
+            FakeResponse(
+                content=[
+                    FakeToolUseBlock(
+                        id="tu_1", name="Glob",
+                        input={"pattern": "*.md", "path": str(fake_project)},
+                    ),
+                ],
+                stop_reason="tool_use",
+                stream_events=[],
+            )
+        )
+        fake_harness.responses.append(
+            FakeResponse(
+                content=[FakeTextBlock(text="found stuff")],
+                stop_reason="end_turn",
+                stream_events=[FakeTextEvent(text="found stuff")],
+            )
+        )
+        sess = client.post(SESSIONS_BASE, json={}).json()
+
+        resp = client.post(
+            f"{SESSIONS_BASE}/{sess['session_id']}/run/stream",
+            json={"command": "/echo", "user_message": "list md files"},
+        )
+
+        events = _parse_sse(resp.text)
+        names = [e["event"] for e in events]
+        # iter1: iter_end(tool_use) → tool_use → tool_result
+        # iter2: text_delta → iter_end(end_turn) → done
+        assert names == [
+            "iteration_end",
+            "tool_use",
+            "tool_result",
+            "text_delta",
+            "iteration_end",
+            "done",
+        ]
+        assert events[1]["data"]["name"] == "Glob"
+        assert events[2]["data"]["tool_use_id"] == "tu_1"
+        assert events[2]["data"]["is_error"] is False
+        assert events[5]["data"]["tool_calls"] == 1
+
+    def test_records_run_in_session_history(self, client, fake_project, fake_harness):
+        fake_harness.responses.append(
+            FakeResponse(
+                content=[FakeTextBlock(text="ok")],
+                stop_reason="end_turn",
+                stream_events=[FakeTextEvent(text="ok")],
+            )
+        )
+        sess = client.post(SESSIONS_BASE, json={}).json()
+        client.post(
+            f"{SESSIONS_BASE}/{sess['session_id']}/run/stream",
+            json={"command": "/echo"},
+        )
+
+        # GET should now show one run record from the streamed run
+        record = client.get(f"{SESSIONS_BASE}/{sess['session_id']}").json()
+        assert len(record["runs"]) == 1
+        assert record["runs"][0]["command"] == "/echo"
+        assert record["runs"][0]["stop_reason"] == "end_turn"
+
+
+class TestRunStreamErrors:
+    def test_unknown_session_returns_404(self, client):
+        resp = client.post(
+            f"{SESSIONS_BASE}/sess_nope/run/stream",
+            json={"command": "/triz"},
+        )
+        assert resp.status_code == 404
+
+    def test_unknown_command_returns_404(self, client, fake_project, fake_harness):
+        sess = client.post(SESSIONS_BASE, json={}).json()
+        resp = client.post(
+            f"{SESSIONS_BASE}/{sess['session_id']}/run/stream",
+            json={"command": "/ghost"},
+        )
+        assert resp.status_code == 404
+
+    def test_loop_error_emits_error_event_and_records_run(
+        self, client, fake_project, fake_harness,
+    ):
+        # Unknown stop_reason → AgentLoopError → ErrorEvent in stream
+        fake_harness.responses.append(
+            FakeResponse(
+                content=[FakeTextBlock(text="x")],
+                stop_reason="refusal",
+                stream_events=[FakeTextEvent(text="x")],
+            )
+        )
+        sess = client.post(SESSIONS_BASE, json={}).json()
+
+        resp = client.post(
+            f"{SESSIONS_BASE}/{sess['session_id']}/run/stream",
+            json={"command": "/echo"},
+        )
+        assert resp.status_code == 200
+
+        events = _parse_sse(resp.text)
+        # Last event should be an error
+        assert events[-1]["event"] == "error"
+        assert "refusal" in events[-1]["data"]["message"]
+
+        # Run was still recorded (with stop_reason="incomplete")
+        record = client.get(f"{SESSIONS_BASE}/{sess['session_id']}").json()
+        assert len(record["runs"]) == 1
+        assert record["runs"][0]["stop_reason"] == "incomplete"

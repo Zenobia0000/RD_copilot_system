@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Iterator
 
 from anthropic import Anthropic
 
@@ -44,6 +44,79 @@ class AgentResult:
 
     messages: list[dict[str, Any]] = field(default_factory=list)
     """Full conversation transcript for debugging."""
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Stream events — yielded by AgentLoop.stream()
+# ────────────────────────────────────────────────────────────────────────────
+
+@dataclass(frozen=True)
+class TextDeltaEvent:
+    """A piece of text streamed from the model. Concatenate to get the
+    running response."""
+
+    text: str
+    type: str = "text_delta"
+
+
+@dataclass(frozen=True)
+class ToolUseEvent:
+    """The model decided to call a tool. Fires before dispatch."""
+
+    id: str
+    name: str
+    input: dict[str, Any]
+    type: str = "tool_use"
+
+
+@dataclass(frozen=True)
+class ToolResultEvent:
+    """A tool finished. is_error=True surfaces handler failures."""
+
+    tool_use_id: str
+    content: str
+    is_error: bool
+    type: str = "tool_result"
+
+
+@dataclass(frozen=True)
+class IterationEndEvent:
+    """One model call (one stream) just finished. Emitted before any
+    follow-up tool dispatch or the next iteration."""
+
+    iteration: int
+    stop_reason: str
+    type: str = "iteration_end"
+
+
+@dataclass(frozen=True)
+class DoneEvent:
+    """Terminal event. Either end_turn or max_tokens."""
+
+    final_text: str
+    iterations: int
+    tool_calls: int
+    stop_reason: str
+    type: str = "done"
+
+
+@dataclass(frozen=True)
+class ErrorEvent:
+    """Terminal event for unrecoverable loop errors. The stream() generator
+    yields this then stops; callers should treat it like done."""
+
+    message: str
+    type: str = "error"
+
+
+HarnessEvent = (
+    TextDeltaEvent
+    | ToolUseEvent
+    | ToolResultEvent
+    | IterationEndEvent
+    | DoneEvent
+    | ErrorEvent
+)
 
 
 class AgentLoopError(RuntimeError):
@@ -148,6 +221,113 @@ class AgentLoop:
         raise AgentLoopError(
             f"agent did not finish within {self._max_iterations} iterations"
         )
+
+    def stream(self, user_message: str) -> Iterator[HarnessEvent]:
+        """Streaming variant of run(). Yields HarnessEvents as they happen:
+        text deltas as the model generates, tool_use/tool_result around each
+        dispatch, iteration_end after each model call, and a terminal done
+        or error.
+
+        Same control flow as run() — the only difference is we use
+        messages.stream() and emit events instead of returning AgentResult
+        at the end. AgentLoopError becomes a final ErrorEvent.
+        """
+        try:
+            yield from self._stream_impl(user_message)
+        except AgentLoopError as exc:
+            yield ErrorEvent(message=str(exc))
+
+    def _stream_impl(self, user_message: str) -> Iterator[HarnessEvent]:
+        messages: list[dict[str, Any]] = [
+            {"role": "user", "content": user_message}
+        ]
+        tool_schemas = self._registry.to_anthropic_schemas(only=self._allowed)
+        tool_calls = 0
+
+        for iteration in range(1, self._max_iterations + 1):
+            logger.debug("agent stream iter %d (model=%s)", iteration, self._model)
+
+            with self._client.messages.stream(
+                model=self._model,
+                max_tokens=self._max_tokens,
+                system=self._system_prompt,
+                tools=tool_schemas,
+                messages=messages,
+            ) as stream:
+                # Emit text deltas as they arrive. Tool-use blocks aren't
+                # surfaced here — they're processed from the final message
+                # below, where the input is fully assembled.
+                for event in stream:
+                    delta = _text_delta(event)
+                    if delta is not None:
+                        yield TextDeltaEvent(text=delta)
+                final = stream.get_final_message()
+
+            messages.append(
+                {"role": "assistant", "content": _content_to_dicts(final.content)}
+            )
+            stop = final.stop_reason
+            yield IterationEndEvent(iteration=iteration, stop_reason=stop or "unknown")
+
+            if stop == "end_turn" or stop == "max_tokens":
+                yield DoneEvent(
+                    final_text=_extract_text(final.content),
+                    iterations=iteration,
+                    tool_calls=tool_calls,
+                    stop_reason=stop,
+                )
+                return
+
+            if stop == "tool_use":
+                tool_results = []
+                tool_use_blocks = [
+                    b for b in final.content if getattr(b, "type", None) == "tool_use"
+                ]
+                if not tool_use_blocks:
+                    raise AgentLoopError(
+                        "stop_reason=tool_use but no tool_use blocks in response"
+                    )
+                for block in tool_use_blocks:
+                    tool_calls += 1
+                    args = dict(block.input or {})
+                    yield ToolUseEvent(id=block.id, name=block.name, input=args)
+                    result = self._registry.dispatch(block.name, args)
+                    yield ToolResultEvent(
+                        tool_use_id=block.id,
+                        content=result.content,
+                        is_error=result.is_error,
+                    )
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": result.content,
+                            "is_error": result.is_error,
+                        }
+                    )
+                messages.append({"role": "user", "content": tool_results})
+                continue
+
+            raise AgentLoopError(
+                f"unexpected stop_reason {stop!r} on iteration {iteration}"
+            )
+
+        raise AgentLoopError(
+            f"agent did not finish within {self._max_iterations} iterations"
+        )
+
+
+def _text_delta(event: Any) -> str | None:
+    """Extract a text delta from a stream event, or None.
+
+    The SDK emits BOTH raw `content_block_delta` events AND high-level `text`
+    convenience events for the same chunk while iterating MessageStream — so
+    handling both would duplicate every delta. We pick the high-level form
+    (simpler and provider-stable) and ignore raw content_block_deltas here.
+    """
+    if getattr(event, "type", None) == "text":
+        return getattr(event, "text", None)
+    return None
 
 
 def _extract_text(content: list[Any]) -> str:

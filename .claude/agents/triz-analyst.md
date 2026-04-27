@@ -28,7 +28,7 @@ model: opus
 | `04_separation_principles.md` | 4 大分離原則 + 控制方程 | PC 分離策略選擇時讀取 |
 | `05_76_standard_solutions.md` | 76 Su-Field 標準解 (5 大類) | SF 狀態路由後讀取對應 Class |
 
-流程文件位於 `docs/auto_triz_strategy.md`。
+流程文件位於 `docs/_domain-knowledge/`（DK-01 設計哲學與流程、DK-02 TRIZ 發散引擎、DK-03 KT 決策框架、DK-04 資料模型與 Gate 參考）。
 
 ## 分析流程
 

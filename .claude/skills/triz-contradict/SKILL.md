@@ -7,7 +7,7 @@ description: TRIZ Step 2+3 TC/PC/SF 解題管線。參數映射、矩陣查表�
 
 ## Overview
 
-本 skill 實作 Auto-TRIZ 閉環流程的 Step 2 + Step 3（Section 3.5-4.4 of `docs/auto_triz_strategy.md`）。
+本 skill 實作 Auto-TRIZ 閉環流程的 Step 2 + Step 3（TC/PC/SF 機制見 `docs/_domain-knowledge/DK-02--triz-scamper-divergence-engine.md`；流程定位見 `docs/_domain-knowledge/DK-01--design-philosophy-and-process.md`）。
 
 **三種模式：**
 1. **TC 主路徑**：單一 TC → 參數映射 → 矩陣查表 → 原理具體化 → OZ-OT-Px → PC → 分離 → SF

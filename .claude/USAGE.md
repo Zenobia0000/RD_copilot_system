@@ -235,8 +235,7 @@ auto_triz_x1c01/
 │   └── context/triz/              # Session 狀態
 │
 ├── docs/
-│   ├── auto_triz_strategy.md      # 完整策略框架 (968 行)
-│   └── uml/                      # 11 個 UML 流程圖
+│   └── _domain-knowledge/        # 方法論知識庫 (DK-00~04)
 │
 └── triz_knowledge_base/           # TRIZ 靜態參照表
     ├── 01_39_parameters.md        # 39 工程參數

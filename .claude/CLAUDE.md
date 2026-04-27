@@ -29,7 +29,7 @@
 
 ### 知識庫
 
-TRIZ 靜態參照表位於 `triz_knowledge_base/`，策略文件位於 `docs/auto_triz_strategy.md`。
+TRIZ 靜態參照表位於 `triz_knowledge_base/`，方法論文件位於 `docs/_domain-knowledge/`（DK-01 流程、DK-02 TRIZ 發散、DK-03 KT 收斂、DK-04 資料模型）。
 
 ### Session 狀態
 
@@ -100,7 +100,7 @@ TR = Technology Review（產品開發里程碑），非 NASA TRL。結構上最�
 | 流程狀態（TRIZ） | Skill | Skill（狀態機） | `.claude/context/triz/.triz-state.json` |
 | 流程狀態（TR） | Skill | Skill（狀態機） | `.claude/context/triz/.tr-state.json` |
 | 工程交付物 | Skill（triz-wi） | **工程師**（人） | `docs/engineering/` |
-| 方法論知識庫 | 人 | Skill（參考） | `docs/` 或 `triz_knowledge_base/` |
+| 方法論知識庫 | 人 | Skill（參考） | `docs/_domain-knowledge/` 或 `triz_knowledge_base/` |
 | Gate review 報告 | Skill（tr-gate） | **工程師**（人） | `docs/engineering/gate_reviews/` |
 | 測試報告 | Skill（tr-test） | **工程師**（人） | `docs/engineering/test_reports/` |
 | DFM 審查報告 | Skill（tr-dfm） | **工程師**（人） | `docs/engineering/dfm_reviews/` |
@@ -109,7 +109,7 @@ TR = Technology Review（產品開發里程碑），非 NASA TRL。結構上最�
 
 1. **Skill 產出、Skill 消費** → `.claude/context/`（內部工作記憶）
 2. **Skill 產出、人消費** → `docs/engineering/`（工程師交付物）
-3. **人撰寫、Skill 參考** → `docs/` 或 `triz_knowledge_base/`（知識庫）
+3. **人撰寫、Skill 參考** → `docs/_domain-knowledge/` 或 `triz_knowledge_base/`（知識庫）
 4. **狀態 JSON 只能由 Skill 修改**，不可手動編輯
 
 ### Skill 通用性原則

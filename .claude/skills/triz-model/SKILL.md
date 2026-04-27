@@ -7,7 +7,7 @@ description: TRIZ Step 1 功能建模。引導建立組件交互圖、SF 診斷�
 
 ## Overview
 
-本 skill 實作 Auto-TRIZ 閉環流程的 Step 1（功能建模機制見 `docs/_domain-knowledge/DK-02--triz-scamper-divergence-engine.md`；流程定位見 `docs/_domain-knowledge/DK-01--design-philosophy-and-process.md`）。
+本 skill 實作 Auto-TRIZ 閉環流程的 Step 1（功能建模機制見 `docs/_domain-knowledge/DK-02--triz-mechanics.md` §5；流程定位見 `docs/_domain-knowledge/DK-01--auto-triz-process.md` §4）。
 
 Step 1 不需要載入 KB — 靠工程師建模。但產出是所有後續 KB 查詢的輸入，必須確保完整。
 

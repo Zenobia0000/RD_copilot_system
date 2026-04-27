@@ -29,7 +29,7 @@
 
 ### 知識庫
 
-TRIZ 靜態參照表位於 `triz_knowledge_base/`，方法論文件位於 `docs/_domain-knowledge/`（DK-01 流程、DK-02 TRIZ 發散、DK-03 KT 收斂、DK-04 資料模型）。
+TRIZ 靜態參照表位於 `triz_knowledge_base/`，方法論文件位於 `docs/_domain-knowledge/`（DK-01 Auto-TRIZ 流程、DK-02 TRIZ 機制、DK-03 多 agent 編排、DK-04 資料模型/Gate、DK-05 領域底盤）。SSOT 策略文件位於 `docs/_harness/auto_triz_strategy.md`。
 
 ### Session 狀態
 
@@ -86,7 +86,7 @@ TR1-TR10 工程執行追蹤，從 TRIZ 概念凍結 (TR0) 銜接到量產釋放 
 
 ### 與國際標準的關係
 
-TR = Technology Review（產品開發里程碑），非 NASA TRL。結構上最接近 VDA MLA (ML0-ML7)，品質交付物對齊 APQP（FMEA、Control Plan、PPAP）。詳見 `docs/engineering/tr_gate_framework.md`。
+TR = Technology Review（產品開發里程碑），非 NASA TRL。結構上最接近 VDA MLA (ML0-ML7)，品質交付物對齊 APQP（FMEA、Control Plan、PPAP）。方法論定義見 DK-04 §3；案例參考 `docs/_harness/engineering/tr_gate_framework.md`。
 
 ---
 
@@ -99,8 +99,9 @@ TR = Technology Review（產品開發里程碑），非 NASA TRL。結構上最�
 | Session 過程記錄 | Skill | Skill（跨步驟傳遞） | `.claude/context/triz/session-*.md` |
 | 流程狀態（TRIZ） | Skill | Skill（狀態機） | `.claude/context/triz/.triz-state.json` |
 | 流程狀態（TR） | Skill | Skill（狀態機） | `.claude/context/triz/.tr-state.json` |
-| 工程交付物 | Skill（triz-wi） | **工程師**（人） | `docs/engineering/` |
+| 工程交付物（runtime）| Skill（triz-wi） | **工程師**（人） | `docs/engineering/`（首次執行時建立） |
 | 方法論知識庫 | 人 | Skill（參考） | `docs/_domain-knowledge/` 或 `triz_knowledge_base/` |
+| SSOT 策略 + 案例參考 | 人（既有）| Skill（參考） | `docs/_harness/`（auto_triz_strategy / engineering 案例 / interview / uml） |
 | Gate review 報告 | Skill（tr-gate） | **工程師**（人） | `docs/engineering/gate_reviews/` |
 | 測試報告 | Skill（tr-test） | **工程師**（人） | `docs/engineering/test_reports/` |
 | DFM 審查報告 | Skill（tr-dfm） | **工程師**（人） | `docs/engineering/dfm_reviews/` |
@@ -134,4 +135,4 @@ TR = Technology Review（產品開發里程碑），非 NASA TRL。結構上最�
 
 | Agent | 用途 |
 | :--- | :--- |
-| `triz-analyst` | TRIZ 分析推理（TC/PC/SF、矩陣查表、分離策略、SIM 評估）|
+| `triz-analyst` | TRIZ Step 2 fan-out worker（接 supervisor 派的單一 TC，獨立做 TC→PC→SF 推理；多 TC 時並行 spawn N 個）。設計依據見 DK-03 §6-7。|

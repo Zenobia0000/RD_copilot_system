@@ -7,7 +7,7 @@ description: TRIZ Step 4 驗證與複雜度檢查。判定解法為進化或補�
 
 ## Overview
 
-本 skill 實作 Auto-TRIZ 閉環流程的 Step 4（驗證流程與 Gate 條件見 `docs/_domain-knowledge/DK-01--design-philosophy-and-process.md`；Px 分離與標準解見 `docs/_domain-knowledge/DK-02--triz-scamper-divergence-engine.md`）。
+本 skill 實作 Auto-TRIZ 閉環流程的 Step 4（驗證流程與 Gate 條件見 `docs/_domain-knowledge/DK-01--auto-triz-process.md` §7；Px 分離與標準解見 `docs/_domain-knowledge/DK-02--triz-mechanics.md` §3-5；製造領域第五問見 `docs/_domain-knowledge/DK-05--domain-fundamentals.md` §5.2）。
 
 接收 Step 2-3 產出的解法方案（F/S/OZ/OT + 分離策略 + 標準解），執行：
 1. Px 分離驗證

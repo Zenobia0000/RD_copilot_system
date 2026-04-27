@@ -1547,82 +1547,62 @@ PrincipleScore = 0.40 × PhysicsRelevance + 0.30 × DomainFit + 0.30 × Feasibil
 
 ---
 
-## Multi-TC 平行處理策略
+## Multi-TC 平行處理策略（Agent tool fan-out）
 
-當有多個獨立 TC 時，使用 Agent tool 平行處理以加速：
+當判定為 SIM 路徑時（多個 TC 獨立、無明顯主從），把每個 TC 派給 `triz-analyst` worker 平行處理 — DK-03 §6 Step 2 規定的 Map-Reduce Fan-out 模式。
 
-### 場景 1：Multi-TC 獨立解題（SIM 路徑）
+### 派發契約
 
-每個 TC 的 Step 3（OZ-OT-Px → PC → 分離 → SF）可平行執行。使用 Agent tool 發出多個平行呼叫：
+`Agent` tool 接受兩個參數（schema 由 harness 註冊，模型直接看得到）：
+- `agent`：worker 名稱，**必為 `triz-analyst`**（除非有更專精的 worker 可選）
+- `prompt`：給 worker 的單一 user message。**self-contained** — worker 看不到主對話歷史
 
-```
-# 在同一個回應中發出多個 Agent 呼叫（平行執行）：
+worker 會在獨立 context window 跑 TC→PC→SF 完整推理，回傳精煉 summary。worker 之間互不通訊。
 
-Agent({
-  description: "TC1 Step 3 解題",
-  subagent_type: "general-purpose",
-  prompt: "你是 TRIZ 分析師。針對以下 TC 執行 Step 3 完整流程：
-    TC1: 改善 P#{improve} ({name}) vs 惡化 P#{worsen} ({name})
-    候選原理: {principles}
-    系統背景: {context}
-    
-    請依序執行：
-    1. OZ-OT 鎖定 → Px 搜索
-    2. PC 造句 + Px 驗證
-    3. 分離策略選擇（時間/空間/條件/系統層級）
-    4. SF 標準解匹配
-    5. 產出 F/S/OZ/OT 解法方案
-    
-    以結構化 markdown 輸出。"
-})
+### 場景 1：多 TC SIM 路徑
 
-Agent({
-  description: "TC2 Step 3 解題",
-  subagent_type: "general-purpose",
-  prompt: "（同上格式，填入 TC2 的參數）"
-})
-```
-
-各 Agent 回傳後，彙整所有解法方案進入 SIM 精篩。
-
-### 場景 2：Step 3 內部平行（單一 TC）
-
-單一 TC 的 Step 3c（分離策略）和 Step 3d（SF 標準解）可平行執行，因為兩者輸入相同（Px + PC）但分析路徑獨立：
+對每個獨立 TC 派一個 worker。**在同一個回應中發出多個 `Agent` 呼叫**才會真正平行（Anthropic SDK 同 turn 多 tool_use blocks 是平行語意）：
 
 ```
-# 平行呼叫分離策略和 SF 匹配：
+Agent(agent="triz-analyst", prompt="""
+解 TC1：改善 P{n_improve}（{改善名稱}）vs 惡化 P{n_worsen}（{惡化名稱}）。
+候選原理（矩陣查表結果）：[{principle_ids}]
+系統背景：{subsystem 描述、現有 SF 圖摘要}
+OZ/OT 候選（若 Step 0/2b 已收）：{...}
 
-Agent({
-  description: "分離策略分析",
-  subagent_type: "general-purpose",
-  prompt: "針對以下 PC，選擇最佳分離策略：
-    PC: Px 必須是 {A}（為了 {P1}）且 {非A}（為了 {P2}）
-    OZ: {位置}  OT: {時間}
-    
-    評估四種分離：時間分離、空間分離、條件分離、系統層級分離。
-    選出最適合的，給出控制方程和邊界條件。"
-})
+依 DK-02 §3-5：OZ-OT 鎖 Px → PC 造句 → 分離策略（含三問驗證）→
+SF 標準解 + 科學效應 → 寫入黑板 session-step3-tc1-{timestamp}.md。
 
-Agent({
-  description: "SF 標準解匹配",
-  subagent_type: "general-purpose",
-  prompt: "針對以下 SF 狀態，匹配最佳標準解：
-    SF 狀態: {有害/不足/缺失}
-    S1: {工具}  F: {場}  S2: {物件}
-    系統背景: {context}
-    
-    從 76 標準解中匹配最適合的 Class 和 Solution。"
-})
+回我精煉 summary（< 200 字）含：Px、最優分離類型、F+S 一句話描述、黑板路徑。
+""")
+
+Agent(agent="triz-analyst", prompt="""
+解 TC2：（同上格式）
+""")
+
+# 同一個回應內，視 TC 數量發出 N 個（最多 3-5 個甜蜜點，DK-03 §3.5）
 ```
 
-### 使用條件
+收到 N 個 summary 後，彙整進入 §Step 3b 精篩 SIM。
 
-| 條件 | 平行策略 |
-|:-----|:---------|
-| 單一 TC | Step 3c + 3d 平行（可選，加速用） |
-| 2-3 個獨立 TC（SIM 路徑） | 每個 TC 各開一個 Agent 平行解題 |
-| 瓶頸 TC 路徑 | 不平行 — 只解瓶頸 TC |
-| TC 數 > 3 | 分批平行（每批最多 3 個 Agent） |
+### 場景 2：瓶頸 TC 路徑（不要平行）
+
+單一瓶頸 TC 不需 fan-out — 直接 inline 跑 Step 3 流程。fan-out 反而增加 context overhead 沒收益。
+
+### 場景 3：Step 3 內部子任務不要平行
+
+避免把單一 TC 的「分離策略 vs SF 標準解」拆成兩個 worker — 兩者上下游高度耦合（分離策略決定 SF 大類路由，DK-02 §5.3）。獨立 agent 看不到對方輸出會 drift（Cognition 警告）。inline 跑就好。
+
+### 平行使用條件
+
+| 條件 | 策略 |
+|:-----|:-----|
+| 單一 TC（含瓶頸路徑）| inline，不派 worker |
+| 2-5 個獨立 TC（SIM 路徑）| 每 TC 一個 `triz-analyst` worker，**同一回應內**全部派出 |
+| TC 數 > 5 | 取最重要的 3-5 個先派；剩餘排隊下一批 |
+| Step 3 內部子任務 | inline，不平行（context cohesion 重於速度）|
+
+> 反模式（DK-03 §5）：迴圈中 spawn 一個等回應再 spawn 下一個 = sequential fake-parallelism，付 N 倍 context overhead 卻沒省牆鐘。
 
 ---
 

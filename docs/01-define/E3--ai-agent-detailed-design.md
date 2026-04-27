@@ -132,7 +132,7 @@ graph TB
 
 ### 2.2 E2E 步驟自動化對照表
 
-> 步驟名稱與編號完全對齊 `E3--appendices-sa-perspectives.md` Appendix D Step 編號對照表。
+> 步驟名稱與編號完全對齊 [`diagrams/appendix-d--state-machine.md`](diagrams/appendix-d--state-machine.md) Step 編號對照表。
 
 | Step | 正式名稱 | Phase | 自動化等級 | 主要 Agent | 人類角色 | 路徑依賴風險 | 核心工件 |
 |------|---------|-------|-----------|-----------|---------|-------------|---------|
@@ -169,7 +169,7 @@ graph TB
 | Gate 7 | Step 7 | Step 8 | KT Decision 簽核完成 |
 | Gate 8 | Step 8 | COMPLETED | 知識回寫完成 |
 
-> **權威定義**：Gate 判定邏輯與自動化等級見 [§11.4.3](E3--ai-agent-detailed-design.md#1143-gate-自動化判定)；State Machine 視覺化見 [Appendix D](E3--appendices-sa-perspectives.md#appendix-d-state-machine)。
+> **權威定義**：Gate 判定邏輯與自動化等級見 [§11.4.3](E3--ai-agent-detailed-design.md#1143-gate-自動化判定)；State Machine 視覺化見 [Appendix D](diagrams/appendix-d--state-machine.md)。
 
 ### 2.2b 架構健康度回退路徑
 
@@ -684,7 +684,7 @@ orchestrator_state:
 
 ### 11.6.2 檢查清單
 
-- [ ] 每個 Step 名稱與 `E3--appendices-sa-perspectives.md` Appendix D Step 編號對照表完全一致
+- [ ] 每個 Step 名稱與 `diagrams/appendix-d--state-machine.md` Step 編號對照表完全一致
 - [ ] 每個 Gate 的判定邏輯與 `_domain-knowledge/DK-01--design-philosophy-and-process.md` Gate 檢查點一致
 - [ ] Artifact State 轉換與 State Machine §Gate 與 Phase 轉換對照表一致
 - [ ] Step 5 內部子步驟（5-0/5a/5b/5c/5d/5e）順序與DK-01 §5.2 流程架構圖一致
@@ -702,16 +702,16 @@ orchestrator_state:
 | 本文件章節 | 對應的 E2E 文件 | 對應章節 |
 |-----------|----------------|---------|
 | §1 Agent 定義 | PRD_RD_Design_Copilot.md | §AI 角色邊界表 |
-| §2.2 自動化對照表 | E3--appendices-sa-perspectives.md (Appendix D) | §Step 編號對照 + §R&R |
-| §2.3 R&R 對照 | E3--appendices-sa-perspectives.md (Appendix D) | §各 Step R&R |
+| §2.2 自動化對照表 | diagrams/appendix-d--state-machine.md | §Step 編號對照 + §R&R |
+| §2.3 R&R 對照 | diagrams/appendix-d--state-machine.md | §各 Step R&R |
 | §3 路徑依賴機制 | PRD_RD_Design_Copilot.md | §Pain Points |
 | §4.1 序列圖 | DK-01--design-philosophy-and-process.md | §流程總覽 + 各 Step |
-| §4.2 並行規則 | E3--appendices-sa-perspectives.md (Appendix D) | §平行處理說明 |
+| §4.2 並行規則 | diagrams/appendix-d--state-machine.md | §平行處理說明 |
 | §4.3 Gate 判定 | 整合流程.md + State_Machine.md | §Gate 與 Phase 轉換對照 |
-| §4.4 Artifact 轉換 | E3--appendices-sa-perspectives.md (Appendix D) | §Gate 關鍵工件狀態轉換 |
+| §4.4 Artifact 轉換 | diagrams/appendix-d--state-machine.md | §Gate 關鍵工件狀態轉換 |
 | §5.2 機制對應 | DK-01--design-philosophy-and-process.md | §5.1 Anti-Anchor + §5a TRIZ |
 | §6.2 TRIZ KB | triz_knowledge_base/README.md | §注入策略 |
-| §6.3 State Management | E3--appendices-sa-perspectives.md (Appendix D) | §雙層狀態機 |
+| §6.3 State Management | diagrams/appendix-d--state-machine.md | §雙層狀態機 |
 | §7.2 MUST 驗證 | DK-03--kt-decision-framework.md §MUST | 全文 |
 | §7.2 Pre-CAD 驗證 | DK-01--design-philosophy-and-process.md §Step P | 全文 |
 | §7.2 Evidence 驗證 | DK-01--design-philosophy-and-process.md §Step 6 | 全文 |

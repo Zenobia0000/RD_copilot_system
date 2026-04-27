@@ -716,6 +716,6 @@ Radix UI 提供 WAI-ARIA 基礎；a11y 審計 — **TBD — UX Owner TBD by v1.1
 | ---------------------------------------------------------------------- | ------------------------------------------------------- | ----- |
 | **E3--architecture-and-design.md** (本文)                                | Part 1: 架構總覽 (C4, Tech Stack, Data, NFR, Risk, Roadmap) | ~634  |
 | [E3--ai-agent-detailed-design.md](E3--ai-agent-detailed-design.md)     | Part 2: AI Agent 協作架構詳細設計 (§11)                         | ~625  |
-| [E3--appendices-sa-perspectives.md](E3--appendices-sa-perspectives.md) | Part 3: SA 視角附錄 (Appendix A-E)                          | ~4156 |
+| [E3--appendices-sa-perspectives.md](E3--appendices-sa-perspectives.md) | Part 3: SA 視角附錄索引 (→ diagrams/appendix-a~e)               | ~40 (索引) |
 
 

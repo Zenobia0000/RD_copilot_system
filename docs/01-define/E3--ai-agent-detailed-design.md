@@ -424,7 +424,7 @@ sequenceDiagram
 | Gate | 位置 | Gate 類型 | Phase 轉換 | 可否自動 | 判定邏輯 | Fallback |
 |------|------|-----------|-----------|---------|---------|---------|
 | **Gate 1** | Step 1 → Step 2 | 內部 Gate | **DRAFT → PHASE_I** | AI-Driven | 三個最不能失敗指標已明確且可量測 | 人類覆審 |
-| **Gate 2** | Step 2 → Step 3 | 內部 Gate | Phase I 內部 | AI-Driven | ≥10 條假設 + Top 3 致命假設 + ≥3 條核心矛盾 | 人類覆審 |
+| **Gate 2** | Step 2c → Step 3 | 內部 Gate | Phase I 內部 | AI-Driven | FunctionModel 完成 + ≥10 條假設 + Top 3 致命假設 + ≥3 條核心矛盾 | 人類覆審 |
 | **Gate 3** | Step 3 → Step 4 | 內部 Gate | **PHASE_I → PHASE_II** | AI-Driven | ≥1 因果迴路 + ≥3 斷路點 + 每條矛盾有 TRIZ 正式句 | 人類覆審 |
 | **Gate 4** | Step 4 → Step 5 | 內部 Gate | Phase II 內部 | AI-Driven | Top 3 假設每個有 1-2 週內可完成的驗證設計 | 人類覆審 |
 | **Anti-Anchor** | Step 5-0 → Step 5a | 內部 Gate | Phase II 內部 | **Fully Auto** | ≥1 非對標路線且初步通過 M1 + M4 | 自動回退 5-0 |

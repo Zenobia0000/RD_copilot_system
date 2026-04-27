@@ -3569,7 +3569,7 @@ flowchart LR
 | Step 4         | 假設與驗證規劃（HDA+未知集合）                              | II      | Assumption                               |
 | **Step 5-0**   | **Anti-Anchor Sprint（反路徑依賴，第一性原理）**            | **II**  | —                                        |
 | **Step 5a-0**  | **(v2.2) OZ-OT 分析（鎖定 Px + TC→PC 橋樑）**         | **II**  | OzOtResult                               |
-| **Step 5a**    | **TRIZ 解矛盾（矩陣查表 + 原理具體化 + Phase A 掃描）**       | **II**  | Concept Route (部分), SimMatrix             |
+| **Step 5a**    | **TRIZ 解矛盾（矩陣查表 + 原理具體化 + Architecture Health Monitor）** | **II**  | Concept Route (部分), SimMatrix             |
 | **Step 5b**    | **子系統定義（三層階層 System→Module→Component）**         | **II**  | Concept Route (部分)                       |
 | **Step 5c**    | **SCAMPER 模組變形（純創意工具）**                        | **II**  | Concept Route (部分)                       |
 | **Step 5d**    | **AI 方案生成 + Decision Hub（整合 + CCI 複雜度指標）**     | **II**  | Concept Route, Interface, ComplexityCheckResult |

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any
+from pathlib import Path
+from typing import Any, Callable
+
+from anthropic import Anthropic
 
 from app.harness.tools.base import Tool, ToolResult
 from app.harness.tools.fs import GlobTool, ReadTool, WriteTool
@@ -62,9 +65,50 @@ class ToolRegistry:
 
 
 def default_registry() -> ToolRegistry:
-    """Registry pre-loaded with the fs tool subset (Read/Write/Glob)."""
+    """Registry pre-loaded with the fs tool subset (Read/Write/Glob).
+
+    Note: this registry deliberately omits the Agent tool. Use
+    `default_registry_with_agent()` for the main loop, and pass `default_registry`
+    itself as the sub_registry_factory so subagents can't recurse."""
     reg = ToolRegistry()
     reg.register(ReadTool())
     reg.register(WriteTool())
     reg.register(GlobTool())
+    return reg
+
+
+def default_registry_with_agent(
+    *,
+    client: Anthropic,
+    default_model: str,
+    agents_root: Path,
+    sub_registry_factory: Callable[[], "ToolRegistry"] | None = None,
+) -> ToolRegistry:
+    """Main-loop registry: fs tools + the Agent tool for spawning subagents.
+
+    Args:
+        client: Anthropic client used by sub-loops.
+        default_model: Model fallback when an agent definition omits `model`.
+        agents_root: Directory containing `.claude/agents/<name>.md`.
+        sub_registry_factory: Factory for sub-loop registries. Defaults to
+            `default_registry` (fs tools, no Agent — nested spawn forbidden).
+            Override only if subagents need a different tool surface.
+    """
+    # Late import to keep registry.py free of agent-specific deps at module
+    # load time (and to avoid the import cycle agent.py ↔ tools/agent.py).
+    from app.harness.tools.agent import AgentTool, AgentToolConfig
+
+    factory = sub_registry_factory or default_registry
+
+    reg = default_registry()
+    reg.register(
+        AgentTool(
+            AgentToolConfig(
+                client=client,
+                default_model=default_model,
+                agents_root=agents_root,
+                sub_registry_factory=factory,
+            )
+        )
+    )
     return reg

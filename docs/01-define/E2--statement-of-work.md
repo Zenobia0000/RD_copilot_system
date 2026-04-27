@@ -20,7 +20,7 @@ RD Design Copilot v1.0 — AI 驅動的早期概念設計決策平台
 | 架構級返工次數 | 3-5 次/專案 | ≤2 次 |
 | 設計審查效率 | 3-4 小時/會議 | ≤2 小時 |
 | 假設驗證覆蓋率 | <30% | ≥80% |
-| 方案探索路線數 | 1-2 條 | ≥3 條 |
+| 探索完整度 | 僅跑 1-2 條直覺路線 | TRIZ 三路徑 + AA Sprint 皆執行，≥1 條存活 |
 | 決策可追溯性 | 低 | 100% |
 | 工具採用率 | N/A | ≥70% |
 
@@ -71,7 +71,7 @@ RD Design Copilot v1.0 — AI 驅動的早期概念設計決策平台
 | Gate 1.2 | Step 1.2→1.3 | Phase 1 內部 | ≥10 假設 + ≥3 高風險 + ≥3 矛盾 |
 | Phase Gate 1 | Step 1.3→2.1 | PHASE_1→PHASE_2 | ≥1 CLD + ≥3 斷路點 + 矛盾正式化 |
 | Gate 2.1 | Step 2.1→2.2 | Phase 2 內部 | ≥3 高風險假設各有實驗 |
-| Gate 2.2 | Step 2.2→2.3 | Phase 2 內部 | ≥3 方案 + MUST 通過 |
+| Gate 2.2 | Step 2.2→2.3 | Phase 2 內部 | 探索完整度 pass + ≥1 方案 MUST 通過 |
 | Phase Gate 2 | Step 2.3→3.1 | PHASE_2→PHASE_3 | ≥1 Pre-CAD overall_pass + Evidence Coverage ≥ 40%（ADR-008 D3） |
 | Gate 3.2 | Step 3.2→3.3 | Phase 3 內部 | DecisionRecord 簽核 + WANT 有證據 |
 | Phase Gate 3 | Step 3.3→Done | PHASE_3→COMPLETED | 所有核心工件 Released |

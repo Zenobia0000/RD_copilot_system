@@ -88,12 +88,11 @@ stateDiagram-v2
         note right of SX2_AA : 直入候選池\n附 Validation Passport\n≥1 非對標路線
         note right of SX2_OZ : OZ + OT → Px 物理變數\nL2 PC 深挖前置條件
         note right of SX2_TRIZ : TC/PC/SF 三路徑\n全部 pending 生成
-        note right of SX2_health : nodes > 5 → halt\n循環矛盾 → halt
+        note right of SX2_health : nodes > 5 → halt
 
         SX2_OZ --> SX2_TRIZ : Px locked → TRIZ 求解
         SX2_TRIZ --> SX2_health : 三路徑產出
         SX2_health --> SX2_TRIZ : warning/critical → 繼續求解
-        SX2_health --> SD3 : 🛑 結構性/框架性循環 → 回根因分析
     }
 
     state "X3: 子系統定義 (3-level)" as SX3
@@ -114,16 +113,16 @@ stateDiagram-v2
 
 > **矛盾收斂圖 + 架構健康度監控**：
 >
-> - **Architecture Health Monitor（phase-agnostic）**：nodes > 5 → critical → halt。L1 critic badge 取代舊版全域收斂掃描。`is_confirmatory` 語意去重仍存在於 schema。
+> - **Architecture Health Monitor（X2 SIM 出口，`SX2_health`）**：nodes > 5 → critical → halt。L1 critic badge 取代舊版全域收斂掃描。`is_confirmatory` 語意去重仍存在於 schema。
 > - **~~Phase B~~（v9 退役）**：原方案交叉檢查已退役。其 5 項檢查全部由 SIM 矩陣（ADR-008 D5，TC 層跨矛盾衝突前置）和 CCI（ADR-008 D4，解法品質判定）覆蓋。PC 衝突 ⊂ TC 衝突（ADR-007），SIM -1 即捕捉。
+> - **~~循環矛盾~~（v2.1 退役）**：循環矛盾由 SIM §5.3 診斷（合併為 PC 或分離）+ Section 7 喊停（Px 不可行時）前置攔截，不再於 X4 重複檢查。
 >
 > 新矛盾分級為 Fatal/Major/Minor：
 >
 > - **Fatal + Major**：必須回到 X2 繼續求解，直到完全收斂。**不設硬性次數上限**。
 > - **Minor**：記入 Risk Register，不阻擋流程。
-> - **架構健康度監控**（非告警，是強制停止；v1.3 改為漸進回退）：
+> - **架構健康度監控**（X2 SIM 出口執行；非告警，是強制停止；v1.3 改為漸進回退）：
 >   - 節點 > 5（扣除 SIM 已收斂 TC 對）→ 🛑 **漸進回退**：① 回 D3 重建功能模型/根因分析 → ② 仍無法收斂則回 D1 重新問題界定。「矛盾級聯超過 5 個節點。這不是 TRIZ 問題，是架構問題。」
->   - 循環矛盾 → 🛑 **依循環類型回退**：結構性循環（組件 A↔B 互為因果）→ 回 D3 重建功能模型；框架性循環（問題定義自相矛盾）→ 回 D3 或 D1。「架構內在矛盾，無法透過 TRIZ 解決。必須根本重構。」
 > - **Pre-CAD Confidence Score**：`已收斂 (Fatal+Major) / 總 (Fatal+Major) × 100%`，Gate X5 門檻 = 100%。
 >
 > **核心洞察**：矛盾數量是架構健康度的診斷信號。健康架構有 1-3 個矛盾；>5 個矛盾意味著在給錯誤架構打補丁。最好的設計流程不是「解矛盾最厲害」，而是「選到矛盾最少的架構」。

@@ -70,7 +70,7 @@ flowchart TB
             direction TB
             SELECT["RD 採納：drill-down 組合或單層<br/>預設依 differential_analysis.recommended_route<br/>同 LTS 跨層為合法組合，不再警告"]
             CCI_CHECK["CCI 複雜度標籤<br/>Evolution / Weak Evolution / Patch"]
-            COMPARE["橫向比較<br/>來源 / 機制 / 假設 / 驗證需求 / 信心<br/>+ 跨層 differential_analysis"]
+            COMPARE["橫向比較 (≥2 路線時)<br/>來源 / 機制 / 假設 / 驗證需求 / 信心<br/>+ 跨層 differential_analysis"]
             SELECT --> CCI_CHECK --> COMPARE
         end
 
@@ -170,7 +170,7 @@ stateDiagram-v2
 > | 4. 跨方案干涉 | **CCI** (ADR-008 D4) | CCI 連續指標 [0,1] 判定解法組合複雜度 |
 > | 5. 同矛盾多路徑風險 | **v11 已下線** | drill-down 為合法路徑 |
 >
-> Decision Hub 流程簡化為：RD 採納 → CCI 標籤 → 橫向比較 → MUST 快篩 → Evidence Coverage → Gate X5。
+> Decision Hub 流程簡化為：RD 採納 → CCI 標籤 → 橫向比較（≥2 路線時） → MUST 快篩 → 探索完整度 → Evidence Coverage → Gate X5。
 
 
 ---
@@ -325,7 +325,7 @@ flowchart TB
 | `HealthMonitor`           | 渲染 health 燈號                                       | 純展示       |
 | `ConvergenceGraph`        | 渲染矛盾 DAG                                           | 純展示       |
 | `HumanReviewPanel`        | halted 時的人類審查介面                                    | 純展示       |
-| **Decision Hub**          | 攤平所有候選、RD 路徑選擇、CCI 標籤、橫向比較                       | **核心互動區** |
+| **Decision Hub**          | 攤平所有候選、RD 路徑選擇、CCI 標籤、橫向比較（≥2 路線時）             | **核心互動區** |
 
 ### ADR-008 擴充：SIM 分支與 Evidence Registry 整合（2026-04-27）
 

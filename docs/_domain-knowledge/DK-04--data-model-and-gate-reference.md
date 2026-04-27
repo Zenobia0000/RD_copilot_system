@@ -206,7 +206,7 @@ DRAFT ──Gate D1 (1.1)──▶ PHASE_I ──Gate D4 (PG1)──▶ PHASE_II
 | **Gate D4** | `PG1` | 斷路點 ≥ 3，每條矛盾有 TRIZ 正式句 + 類型標註；FM 已建構 |
 | **Gate X1** | `2.1` | Top 3 假設各有 1-2 週可完成的驗證設計 |
 | *(MUST)* | `2.2` | ≥ 1 alternative 的 `overall_pass: True` |
-| **Gate X5** | `PG2` | ≥ 3 條架構路線 (含 ≥1 Anti-Anchor)；Pre-CAD Confidence = 100% |
+| **Gate X5** | `PG2` | 探索完整度 pass（TRIZ 三路徑 + AA Sprint 皆執行）+ ≥1 存活路線；Pre-CAD Confidence = 100% |
 | *(Decision)* | `3.2` | WANT 評分有 Artifact ID (≠E0)；H 風險有緩解(≥E1)；KT 記錄已簽核 |
 | **Gate V4** | `PG3` | 新人/老闆/工程師都看得懂；所有工件 Baselined → Released |
 

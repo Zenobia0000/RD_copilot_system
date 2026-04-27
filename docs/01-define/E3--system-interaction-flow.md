@@ -191,6 +191,8 @@ sequenceDiagram
 
 ### 2.2 跨子系統互動對照
 
+> **頁面軌跡**：P01 Auth → P03 ProjectList → P04 Dashboard → P08 Create (Step 0–4)
+
 | 使用者動作 | 觸發子系統 (Appendix) | 觸發狀態轉換 (State Machine) |
 |-----------|---------------------|----------------------------|
 | 上傳 Brief (D1) | Knowledge Agent (E3--architecture-and-design.md §11.5.2) | DRAFT → PHASE_I |
@@ -262,6 +264,8 @@ sequenceDiagram
 
 ### 3.2 跨子系統互動對照
 
+> **頁面軌跡**：P04 Dashboard → P08 Create (Step 0 Anti-Anchor → Step 1 TRIZ) → P07 Track
+
 | 使用者動作 | 觸發子系統 | 觸發狀態轉換 |
 |-----------|-----------|-------------|
 | 點擊反向探索 | Reverse Anti-Anchor (Appendix C) | Route: — → pending |
@@ -294,61 +298,56 @@ Anti-Anchor 的定位是啟發工具（打破路徑依賴），但 v1.0/v1.1 的
 
 ## §4 Scenario 3 — Decision Hub 品質評估 + Pre-CAD Gate 審查
 
-> **v1.3 變更**：Phase B 收斂掃描已退役（v9）。其 5 項檢查全部由 SIM 矩陣（ADR-008 D5）和 CCI（ADR-008 D4）前置覆蓋。Decision Hub 流程簡化為：RD 採納 → CCI 標籤 → 橫向比較 → MUST 快篩 → Evidence Coverage → Gate X5。
+> **v1.3 變更**：Phase B 收斂掃描已退役（v9）。其 5 項檢查全部由 SIM 矩陣（ADR-008 D5）和 CCI（ADR-008 D4）前置覆蓋。Decision Hub 流程簡化為：RD 採納 → CCI 標籤 → 橫向比較（≥2 路線時） → MUST 快篩 → 探索完整度 → Evidence Coverage → Gate X5。
 > **v2.0 變更**：MUST 快篩從獨立步驟（舊 Step 5e）併入 X5 作為 P1 自動篩階段。
+> **v2.1 變更**：Architecture Health Monitor 回歸 X2（對齊 Appendix D state machine `SX2_health`）；X4 移除循環矛盾分支（SIM §5.3 + Section 7 已前置攔截）；X5 RouteCheck 從「≥3 路線」改為「探索完整度」（衡量 process 而非 output count）+ 移除矛盾數分流（Pre-CAD Confidence = 100% 使「矛盾≥2」不可達）。
 > `seed_source=anti_anchor` 的 TRIZ 方案在候選池中保留追溯標記。
 
 ### 4.1 Decision Hub 品質評估（RD 張三 主導）
 
 > **角色**: Persona 1 RD 張三
-> **觸發**: Decision Hub 已匯流 3+ 條路線（含 TRIZ-only + AA-seeded TRIZ）
+> **觸發**: Decision Hub 已匯流候選路線（TRIZ-only + AA-seeded TRIZ）
 > **對齊痛點**: PP-3 風險後置
 > **對應**: E3 Appendix D State Machine + Appendix E Decision Hub
 
 ```mermaid
 flowchart TD
     Start(["X4 候選池匯流"]) --> Hub["Decision Hub<br/>TRIZ ∥ AA-seeded TRIZ"]
-    Hub --> Adopt["RD 採納方案<br/>+ CCI 標籤 (Evolution/Weak/Patch)<br/>+ 橫向比較"]
+    Hub --> Adopt["RD 採納方案<br/>+ CCI 標籤 (Evolution/Weak/Patch)<br/>+ 橫向比較 (≥2 路線時)"]
 
-    Adopt --> SimDedup["SIM 去重:<br/>扣除 SIM 已收斂 TC 對"]
-    SimDedup --> Heat{"架構健康度<br/>(淨節點數)"}
-    Heat -->|節點 > 5| Halt1["漸進回退:<br/>① 回 D3 重建功能模型<br/>② 仍 >5 → 回 D2<br/>③ 仍無法收斂 → 回 D1"]
-    Heat -->|循環矛盾| Halt2["依循環類型回退:<br/>結構性 → 回 D3<br/>框架性 → 回 D2/D1"]
-    Heat -->|healthy| X5["X5 Pre-CAD 資格審查"]
+    Adopt --> X5["X5 Pre-CAD 資格審查"]
 
     subgraph X5sub ["X5 Pre-CAD 資格審查"]
-        MUST["P1: MUST 快篩 (Go/No-Go)"] --> RouteCheck{"≥3 條路線<br/>(含 ≥1 seed_source=anti_anchor)?"}
-    RouteCheck -->|不通過,矛盾≥2| Back["回 X2 重新發散"]
-    RouteCheck -->|不通過,矛盾<2| Back2["回 D3 檢視功能模型粒度"]
-    RouteCheck -->|通過| EvCheck{"Evidence Coverage<br/>≥ 40%?"}
+        MUST["P1: MUST 快篩 (Go/No-Go)"] --> ExploreCheck{"探索完整度?<br/>TRIZ 三路徑 + AA Sprint 皆執行<br/>+ ≥1 存活路線"}
+    ExploreCheck -->|不通過| Back["回 X2 補足未執行路徑"]
+    ExploreCheck -->|通過| EvCheck{"Evidence Coverage<br/>≥ 40%?"}
     EvCheck -->|不通過| BackEv["提示補充證據"]
-    EvCheck -->|通過| GateP["P2: 主管 Pre-CAD 審查"]
+    EvCheck -->|通過| GateP["P2: 主管 Pre-CAD 審查<br/>(含探索完整度報告)"]
     end
 
     GateP --> Notify["系統推送審查請求<br/>至主管 Dashboard"]
 
-    style Halt1 fill:#FEE2E2
-    style Halt2 fill:#FEE2E2
     style Notify fill:#DBEAFE
     style X5sub fill:#F0FFF0,stroke:#4CAF50
 ```
 
 **Decision Hub 品質評估互動對照**
 
+> **頁面軌跡**：P08 Create (Step 4 Decision Hub → Step 5 MUST) → P09 PreCadReview → P12 DecisionRecord
+
 | 使用者動作 | 角色 | 觸發子系統 | 觸發狀態轉換 |
 |-----------|------|-----------|-------------|
 | 採納方案 + 檢視 CCI 標籤 | RD 張三 | Decision Hub (CCI overlay) | SolutionCandidate: — → adopted；CCI 標籤為資訊性（Evolution / Weak Evolution / Patch） |
-| 架構健康度監控 | 系統自動 | Analyst Agent | 節點>5（SIM 去重後）→ 漸進回退 D3→D2→D1；循環矛盾 → 依類型回退（結構性→D3 / 框架性→D2 或 D1） |
 | P1: MUST 快篩 | 系統自動 | Evaluator | Concept Route 逐條 Go/No-Go |
-| 路線多樣性檢查 | 系統自動 | Evaluator | ≥3 條路線 + ≥1 Anti-Anchor |
+| 探索完整度檢查 | 系統自動 | Evaluator | TRIZ 三路徑 + AA Sprint 皆執行 + ≥1 存活路線；不通過 → 回 X2 補足未執行路徑 |
 | Evidence Coverage 檢查 | 系統自動 | EvidenceRegistryService | **Evidence Coverage ≥ 40%**（VERIFIED + APPROXIMATE 佔比，ADR-008 D3）；未達標則提示補充證據 |
 | 檢視 CCI 標籤 | RD 張三 | Decision Hub (CCI overlay) | — （資訊性，不觸發狀態轉換；顯示 Evolution / Weak Evolution / Patch 分類） |
-| 推送審查請求 | 系統自動 | Notification Service | Gate X5: — → Pending Review（路線多樣性 + Evidence Coverage 均通過後觸發） |
+| 推送審查請求 | 系統自動 | Notification Service | Gate X5: — → Pending Review（探索完整度 + Evidence Coverage 均通過後觸發） |
 
 ### 4.2 Gate X5 審查（RD 主管 李四 主導）
 
 > **角色**: Persona 2 RD 主管 李四
-> **觸發**: 系統在路線多樣性 + Evidence Coverage 通過後，自動推送 Gate X5 審查請求至主管 Dashboard
+> **觸發**: 系統在探索完整度 + Evidence Coverage 通過後，自動推送 Gate X5 審查請求至主管 Dashboard
 > **使用介面**: Review 頁面（非 Create 頁面）
 > **對齊痛點**: PP-4 決策不可追溯、PP-6 證據缺口不可見
 > **對應**: E3 Appendix D State Machine (Gate X5) + `Pre_CAD_Review_Template`
@@ -385,24 +384,24 @@ flowchart TD
 
 彙整本文件三個 scenario 中使用者動作與子系統/State Machine 的完整對應。
 
-| Step | 使用者動作 | Primary Subsystem | 觸發 Agent | Artifact 狀態轉換 | 參照 (`E3--architecture-and-design.md`) |
+| Step | 使用者動作 | 頁面 | Primary Subsystem | 觸發 Agent | Artifact 狀態轉換 | 參照 (`E3--architecture-and-design.md`) |
 |------|-----------|-------------------|-----------|------------------|---------------------------------------|
-| D1 | 上傳 Brief 與素材 | — | Knowledge + Analyst | Constraint: — → Draft → Reviewed | §11.5.2 Agent-Tool 綁定 |
-| D2 | 參與蘇格拉底問答 | — | Analyst | Contradiction: Draft → Reviewed | §11.4.1 主流程序列圖 |
-| D3 | 根因分析 (5Why/KT) + 功能建模 (FA) | — | Analyst | FunctionModel: — → Generated | §11.2 逐步自動化分級 |
-| D4 | 校準 TRIZ 矛盾句 | Forward TRIZ Solver | TRIZ Solver + Analyst | Contradiction: Reviewed → Verified | Appendix B |
-| X1 | 填寫假設台帳 | — | Analyst + Knowledge | Assumption: Reviewed → Verified | §11.2 逐步自動化分級 |
-| X2 並行 | 啟動 Anti-Anchor 啟發 | Reverse Anti-Anchor | Analyst + Knowledge | Route: — → generated (Inspiration) | Appendix C |
-| X2 (AA seed) | 以 AA 概念為 seed 啟動 TRIZ | Forward TRIZ (seeded) | Analyst + TRIZ Solver | Route: generated → seeded_to_triz; LayeredTrizSolution: — → generated | Appendix B + C |
-| X2 | 啟動 TRIZ 三路徑 | Forward TRIZ | TRIZ Solver | LayeredTrizSolution: — → generated | Appendix B |
-| X3 | 定義子系統 | Forward Subsystem Discovery | Analyst | Subsystem: — → Draft (3-level) | Appendix A |
-| ~~5c~~ | ~~SCAMPER 變形~~ | — | — | *(v9 移除)* | — |
-| X4 | Decision Hub 採納 | 決策中心 | Evaluator | SolutionCandidate: — → adopted | Appendix E |
-| X5 | P1 MUST 快篩 + P2 Pre-CAD 審查 | — | Evaluator + Human | Concept Route: Draft → Reviewed → Verified；**Phase II → III** | §11.2 + Appendix D |
-| V1 | CAD 審查 + DR EM | — | Evaluator + Knowledge | Evidence Matrix: Draft → Verified | Appendix D |
-| V2 | 證據補齊迴圈 | — | Knowledge | Evidence: Draft → Verified | Appendix D |
-| V3 | KT 決策簽核 | — | Evaluator + Human | Decision Record: Draft → Reviewed；Concept Route: Verified → Baselined | Appendix D |
-| V4 | 費曼內化 | — | Knowledge | Asset: — → Released；**Phase III → COMPLETED** | Appendix D |
+| D1 | 上傳 Brief 與素材 | P05 | — | Knowledge + Analyst | Constraint: — → Draft → Reviewed | §11.5.2 Agent-Tool 綁定 |
+| D2 | 參與蘇格拉底問答 | P06 | — | Analyst | Contradiction: Draft → Reviewed | §11.4.1 主流程序列圖 |
+| D3 | 根因分析 (5Why/KT) + 功能建模 (FA) | P06 | — | Analyst | FunctionModel: — → Generated | §11.2 逐步自動化分級 |
+| D4 | 校準 TRIZ 矛盾句 | P06 | Forward TRIZ Solver | TRIZ Solver + Analyst | Contradiction: Reviewed → Verified | Appendix B |
+| X1 | 填寫假設台帳 | P07 | — | Analyst + Knowledge | Assumption: Reviewed → Verified | §11.2 逐步自動化分級 |
+| X2 並行 | 啟動 Anti-Anchor 啟發 | P08 | Reverse Anti-Anchor | Analyst + Knowledge | Route: — → generated (Inspiration) | Appendix C |
+| X2 (AA seed) | 以 AA 概念為 seed 啟動 TRIZ | P08 | Forward TRIZ (seeded) | Analyst + TRIZ Solver | Route: generated → seeded_to_triz; LayeredTrizSolution: — → generated | Appendix B + C |
+| X2 | 啟動 TRIZ 三路徑 | P08 | Forward TRIZ | TRIZ Solver | LayeredTrizSolution: — → generated | Appendix B |
+| X3 | 定義子系統 | P08 | Forward Subsystem Discovery | Analyst | Subsystem: — → Draft (3-level) | Appendix A |
+| ~~5c~~ | ~~SCAMPER 變形~~ | — | — | — | *(v9 移除)* | — |
+| X4 | Decision Hub 採納 | P08 | 決策中心 | Evaluator | SolutionCandidate: — → adopted | Appendix E |
+| X5 | P1 MUST 快篩 + P2 Pre-CAD 審查 | P09 | — | Evaluator + Human | Concept Route: Draft → Reviewed → Verified；**Phase II → III** | §11.2 + Appendix D |
+| V1 | CAD 審查 + DR EM | P11 | — | Evaluator + Knowledge | Evidence Matrix: Draft → Verified | Appendix D |
+| V2 | 證據補齊迴圈 | P11 | — | Knowledge | Evidence: Draft → Verified | Appendix D |
+| V3 | KT 決策簽核 | P12 | — | Evaluator + Human | Decision Record: Draft → Reviewed；Concept Route: Verified → Baselined | Appendix D |
+| V4 | 費曼內化 | P13 | — | Knowledge | Asset: — → Released；**Phase III → COMPLETED** | Appendix D |
 
 ---
 
@@ -412,7 +411,7 @@ flowchart TD
 |--------------|---------|-----------------|---------|
 | PP-1 經驗鎖定 | 直覺搜尋過去方案 | Scenario 2 Anti-Anchor 啟發 → TRIZ 轉化 | Forced Divergence（啟發）+ TRIZ 收斂（工程化） |
 | PP-2 假設隱藏 | 預設答案未明說 | Scenario 1 蘇格拉底七類提問 | Assumption Challenge (E3--architecture-and-design.md §11.3.2 機制 1) |
-| PP-3 風險後置 | Proto 才爆問題 | Scenario 3 Decision Hub 品質評估 (X4) + X5 (P1 MUST + P2 Gate P) + 架構健康度監控 | SIM 矩陣前置跨矛盾衝突檢查 + CCI 複雜度判定 + 架構健康度（SIM 去重後淨節點）+ 漸進回退（D3→D2→D1）；Anti-Anchor 經 TRIZ 工程化確保 OZ-OT + CCI 完備 |
+| PP-3 風險後置 | Proto 才爆問題 | Scenario 3 Decision Hub 品質評估 (X4) + X5 (P1 MUST + P2 Gate P) | SIM 矩陣前置跨矛盾衝突檢查 + CCI 複雜度判定 + 架構健康度（X2 SIM 出口，淨節點 >5 → 漸進回退 D3→D2→D1）；Anti-Anchor 經 TRIZ 工程化確保 OZ-OT + CCI 完備 |
 | PP-4 決策不可追溯 | 半年後無法回溯 | Scenario 3 Validation Passport + KT Decision Record | 自動留痕（Artifact 狀態流轉） |
 | PP-5 溝通斷層 | PM/RD/主管語言不同 | D1 約束改寫 + V4 費曼摘要 | 統一 Artifact schema |
 | PP-6 證據缺口不可見 | 不知哪些需補數據 | Scenario 3 DR Evidence Matrix + Gate C | Evidence Level E0-E4 自動標記 |

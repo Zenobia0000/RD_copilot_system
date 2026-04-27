@@ -158,13 +158,13 @@ graph TB
 | Gate | 位置 | Gate 類型 | Phase 轉換 | 可否自動 | 判定邏輯 | Fallback |
 |------|------|-----------|-----------|---------|---------|---------|
 | **Gate D1** | D1 → D2 | 內部 Gate | **DRAFT → PHASE_I** | AI-Driven | 三個最不能失敗指標已明確且可量測 | 人類覆審 |
-| **Gate D3** | D3 → D4 | 內部 Gate | Phase I 內部 | AI-Driven | FunctionModel 完成 + ≥10 條假設 + Top 3 致命假設 + ≥3 條核心矛盾 | 人類覆審 |
+| **Gate D3** | D3 → D4 | 內部 Gate | Phase I 內部 | AI-Driven | ≥10 條假設 + Top 3 致命假設 + ≥3 條核心矛盾（建議完成 FunctionModel，目前未程式化強制） | 人類覆審 |
 | **Gate D4** | D4 → X1 | 內部 Gate | **PHASE_I → PHASE_II** | AI-Driven | ≥1 因果迴路 + ≥3 斷路點 + 每條矛盾有 TRIZ 正式句 | 人類覆審 |
 | **Gate X1** | X1 → X2 | 內部 Gate | Phase II 內部 | AI-Driven | Top 3 假設每個有 1-2 週內可完成的驗證設計 | 人類覆審 |
-| **Gate X5** | X4 → X5 | **Pre-CAD Gate** | Phase II 內部 | AI-Driven | **P1 自動篩**：MUST Go/No-Go + ≥3 路線 + ≥1 Anti-Anchor；**P2 人工審**：≥3 條架構級路線 + 每條有完整方案規格 + **Evidence Coverage ≥ 40%**（ADR-008 D3） | 人類覆審 |
-| — | X5 → V1 | Phase 轉換 | **PHASE_II → PHASE_III** | Human-Led | 候選收斂至 3-5 條 + Interface Contract 已更新 + 最小 CAD 範圍明確 | N/A |
+| **Gate X5** | X4 → X5 | **Pre-CAD Gate** | Phase II 內部 | AI-Driven | **P1 自動篩**：MUST Go/No-Go + 探索完整度（TRIZ 三路徑 + AA Sprint 皆執行）+ ≥1 存活路線；**P2 人工審**：每條存活路線有完整方案規格 + 探索完整度報告 + **Evidence Coverage ≥ 40%**（ADR-008 D3） | 人類覆審 |
+| — | X5 → V1 | Phase 轉換 | **PHASE_II → PHASE_III** | Human-Led | ≥1 條存活路線 + Interface Contract 已更新 + 最小 CAD 範圍明確 | N/A |
 | **Gate V1** | V1 → V2 | 內部 Gate | Phase III 內部 | AI-Driven | 發現證據缺口，觸發 V2 迴圈 | 人類覆審 |
-| **Gate C** | V1 → V3 | **CAD Gate** | Phase III 內部 | Human-Led | 北極星 ≥ E2 + Evidence Matrix 所有 row 達標 + Top 10 風險有緩解 | N/A |
+| **Gate C** | V1 → V3 | **CAD Gate** | Phase III 內部 | Human-Led | 北極星 ≥ E2 + Evidence Matrix 所有 row 達標 + Top 10 風險有緩解（⚠️ 未程式化 — 依賴人工 Review 頁面流程） | N/A |
 | **Gate V3** | V3 → V4 | 內部 Gate | Phase III 內部 | Human-Led | KT 決策記錄完整已簽核 + 所有 H 風險有緩解 | N/A |
 | **Gate V4** | V4 → Done | 內部 Gate | **PHASE_III → COMPLETED** | AI-Driven | 所有核心工件 Baselined → Released | 人類覆審 |
 
@@ -335,13 +335,10 @@ sequenceDiagram
         ORC->>TA: X2 - 矩陣查表 + 原理具體化
         ORC->>KA: X2 - 佐證搜尋 (專利/文獻)
         TA-->>ORC: 每條矛盾 ≥3 條工程對映 + 受影響模組清單
-        ORC->>AA: X2 架構健康度監控 (nodes > 5 halt, 循環偵測) + 矛盾分級
+        ORC->>AA: X2 架構健康度監控 (nodes > 5 halt) + 矛盾分級
         alt 收斂圖節點 > 5
             AA-->>ORC: 🛑 強制暫停: 架構根本性問題
             ORC->>RD: 漸進回退 (D3→D1)
-        else 循環矛盾
-            AA-->>ORC: 🛑 強制暫停: 架構內在矛盾
-            ORC->>RD: 回退至功能建模或問題定向
         else Fatal/Major 矛盾
             AA-->>ORC: 新矛盾加入收斂圖 (必須求解到收斂)
             ORC->>TA: 繼續求解 (不設次數上限)
@@ -362,10 +359,10 @@ sequenceDiagram
     ORC->>RD: X4 Decision Hub - RD 選定方案 + CCI 標籤 + 橫向比較
     RD-->>ORC: 選定方案清單
 
-    ORC->>EA: Gate X5 檢查 (P1 自動: MUST Go/No-Go + ≥3 路線 + ≥1 AA; P2 人工: Pre-CAD 審查)
+    ORC->>EA: Gate X5 檢查 (P1 自動: MUST Go/No-Go + 探索完整度 + ≥1 存活; P2 人工: Pre-CAD 審查)
     EA-->>ORC: Gate X5 結果
     ORC->>RD: X5 Pre-CAD 資格審查 (Evidence Coverage ≥ 40%)
-    RD-->>ORC: 保留 3-5 條路線
+    RD-->>ORC: 確認存活路線
     Note over ORC: Phase 轉換 (PHASE_II→PHASE_III)
 
     RD->>ORC: V1 設計審查 - MVP CAD + DR EM
@@ -596,7 +593,7 @@ orchestrator_state:
   - D4：因果迴路圖含熱-機-振耦合，TRIZ 矛盾句正式化（改善散熱 vs 惡化空間）
   - X2：Anti-Anchor 並行產出 3 種非典型架構（≥1 非對標，如磁力傳動）；OZ-OT 鎖定 Px = 殼體熱傳導係數（OZ: 馬達-殼體介面 3mm 範圍，OT: 爬坡持續 8min 內）；每條矛盾 ≥3 條 TRIZ 工程對映，含 ≥1 條非風冷方案（相變材料、液冷、熱管）；多 TC 時 SIM 矩陣顯示解法間交互（PCM + 液冷 = +1 互相強化）
   - X4：CCI 判定 — PCM 方案 CCI=0.25 (Evolution)；液冷方案 CCI=0.55 (Weak Evolution)；風冷強化方案 CCI=0.72 (Patch)
-  - X5：MUST 快篩 + Pre-CAD 審查收斂至 3-5 條（≥1 Anti-Anchor）；Evidence Coverage ≥ 40%
+  - X5：MUST 快篩 + 探索完整度驗證 + Pre-CAD 審查；Evidence Coverage ≥ 40%
   - V4：散熱方案知識回寫至企業知識庫（6 類資產）
 
 ### 11.6.2 檢查清單

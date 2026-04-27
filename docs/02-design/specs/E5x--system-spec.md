@@ -522,7 +522,7 @@ flowchart LR
                   Pass        Fail(淘汰)
                     ↓
               Set-Based 方案集合
-              (3-5 條進入 V1)
+              (≥1 條進入 V1)
 ```
 
 > ~~X2c SCAMPER 模組變形已於 v9 移除~~（其 7 動作為 TRIZ 40 原理子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋）。
@@ -745,7 +745,7 @@ ALT-001:
 
 1. 任一 MUST 不通過 = 直接淘汰 (status → must_fail)
 2. 全部通過 → status → must_pass
-3. 通過者進入 Set-Based 集合（建議 3-5 條）
+3. 通過者進入 Set-Based 集合（≥1 條）
 4. 完整 KT Decision Analysis（MUST+WANT+AC）在 V3 執行
 
 ##### API 端點
@@ -1017,10 +1017,10 @@ ALT-001:
 | Gate | 位置 | Phase 轉換 | 條件 |
 |------|------|-----------|------|
 | **Gate D1** | D1 → D2 | **DRAFT → DEFINE** | critical_metrics ≥ 3 且各有 target+method |
-| Gate D3 | D2 → D4 | — | contradictions ≥ 3, answered questions ≥ 10 |
+| Gate D3 | D2 → D4 | — | contradictions ≥ 3, answered questions ≥ 10（建議完成 FunctionModel，目前未程式化強制） |
 | **Gate D4** | D4 → X1 | **DEFINE → EXPLORE** | causal_loops ≥ 1, breakpoints ≥ 3, 每條矛盾有 TRIZ 正式句 |
 | Gate X1 | X1 → X2 | — | assumptions ≥ 10, Top 3 High 有驗證設計, unknown_factors ≥ 3 |
-| **Gate X5** | X2 → V1 | **EXPLORE → VERIFY** | alternatives ≥ 3, MUST pass ≥ 3, 每個方案有完整規格 |
+| **Gate X5** | X2 → V1 | **EXPLORE → VERIFY** | 探索完整度 pass (TRIZ 三路徑 + AA Sprint 皆執行) + ≥1 MUST pass + 每條存活路線有完整規格 |
 | Gate V1 | V1 → V3 | — | 每個風險有 Owner + mitigation + monitor_metric |
 | Gate V3 | V3 → V4 | — | DecisionRecord 已簽核, H 風險有緩解, WANT 有證據 |
 | **Gate V4** | V4 → Done | **VERIFY → COMPLETED** | 報告已產出 |

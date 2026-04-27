@@ -1,6 +1,6 @@
 # Page-Level Prompt: PreCadReview Pre-CAD 審查
 
-> Phase 2 收尾 — 評估候選方案的五維品質，確認 Gate P 門檻後選擇 3-5 條方案進入 CAD 階段。
+> Phase 2 收尾 — 評估候選方案的五維品質，確認 Gate P 門檻後選擇 存活方案進入 CAD 階段。
 
 ---
 
@@ -8,7 +8,7 @@
 - **page_name**: PreCadReview
 - **route_path**: `/projects/:id/pre-cad`
 - **page_type**: evaluation + approval
-- **primary_goal**: 讓審查者針對每個候選方案完成五維審查（空間約束/解耦程度/可驗證性/主要風險/最小 CAD 工作量），並選擇 3-5 條方案進入 CAD
+- **primary_goal**: 讓審查者針對每個候選方案完成五維審查（空間約束/解耦程度/可驗證性/主要風險/最小 CAD 工作量），並選擇 存活方案進入 CAD
 - **secondary_goal**: 確認 Gate P 門檻（Fatal+Major 矛盾 100% 收斂），提供 AI 空間追蹤分析輔助決策
 - **target_users**: RD 工程師、專案主管、審查委員
 - **entry_point**: Create 頁面完成後導航，或 Dashboard 直接進入
@@ -44,7 +44,7 @@
   |:--------|:-----|:---------|:------------|
   | BackButton | `<Button variant="ghost" size="icon">` | required | ArrowLeft icon，onClick 導航至 `/projects/:id` |
   | Title | `<h1>` | required | "Pre-CAD 審查"，text-2xl font-bold tracking-tight，Noto Sans TC 字型 |
-  | Subtitle | `<p>` | required | "評估候選方案，確認 Gate P 門檻後選擇 3-5 條進入 CAD 階段"，text-sm text-muted-foreground |
+  | Subtitle | `<p>` | required | "評估候選方案，確認 Gate P 門檻後選擇存活方案進入 CAD 階段"，text-sm text-muted-foreground |
 - **states**: 無
 - **copy_constraints**: 標題使用繁體中文
 
@@ -133,13 +133,13 @@
 ### 主要互動流程
 1. 使用者進入頁面，載入候選方案、收斂統計、約束條件
 2. 查看四張概覽卡片了解整體狀態（Confidence Score、Gate P、收斂摘要、約束可行性）
-3. 瀏覽候選方案卡片列表，勾選 Checkbox 選擇方案（3-5 條）
+3. 瀏覽候選方案卡片列表，勾選 Checkbox 選擇方案（≥1 條）
 4. 點擊「審查」按鈕 → 開啟 ReviewDialog → 同時觸發 `preCadAnalyze` AI 分析
 5. 在 Dialog 中逐一評估五個維度（空間約束/解耦/可驗證性/風險/最小 CAD），選擇 rating + 填寫摘要
 6. 空間約束維度自動顯示 SpatialTraceHover，提供 AI 空間追蹤得分
 7. 完成所有維度評分後點擊「完成審查」→ 方案標記為已審查
 8. 重複步驟 4-7 直到所有方案已審查
-9. 在結論區域填寫備註（選填），確認選擇 3-5 條方案
+9. 在結論區域填寫備註（選填），確認選擇 ≥1 條方案
 10. Gate P 達標 + 全部已審查 + 數量正確 → 點擊「批准審查」→ 導航至 Dashboard
 
 ### RWD 行為差異
@@ -181,7 +181,7 @@
 - [ ] 空間約束維度正確觸發 `preCadAnalyze` 並顯示 SpatialTraceHover
 - [ ] AI 分析狀態正確顯示：loading → done/error
 - [ ] 完成審查需所有維度已評分，否則 toast.error 提示
-- [ ] 批准條件：3-5 條方案 + 全部已審查 + Gate P 達標
+- [ ] 批准條件：≥1 條方案 + 全部已審查 + Gate P 達標
 - [ ] 不滿足條件時 ApproveButton disabled 並顯示對應提示
 - [ ] 批准成功後 toast.success 並導航至 `/projects/:id`
 - [ ] 審查結論備註支援 maxLength=500

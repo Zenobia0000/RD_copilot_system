@@ -321,7 +321,7 @@ validation_passport:
 
 **篩選規則**：
 1. 任一 MUST 不通過 = 直接淘汰
-2. 通過者進入 Set-Based 集合（3-5 條，含至少 1 條 Anti-Anchor）
+2. 通過者進入 Set-Based 集合（≥1 條；探索完整度需 TRIZ 三路徑 + AA Sprint 皆執行）
 3. 完整 KT Decision Analysis 在 V3 執行
 
 ---

@@ -342,7 +342,7 @@ graph TD
 
 ## X5: Pre-CAD 資格審查
 
-**目的**：在投入 CAD 前，用「可驗證的最小資訊」收斂到 3-5 條最優架構。含 P1 auto-screen (MUST 快篩 Go/No-Go 淘汰)。
+**目的**：在投入 CAD 前，用「可驗證的最小資訊」確認探索完整度並收斂至存活路線。含 P1 auto-screen（MUST 快篩 Go/No-Go + 探索完整度）。
 **核心工件**：Concept Route (Verified), Pre-CAD Review Report (Draft → Reviewed)
 
 > 舊 Step 5e (MUST 快篩) 合併入 X5 作為 P1 auto-screen。
@@ -363,7 +363,7 @@ Confidence = 已收斂的 (Fatal + Major) / 總 (Fatal + Major) × 100%
 Gate X5 門檻：100%（所有 Fatal + Major 矛盾完全收斂）。
 
 ### Gate X5 檢查點
-> ✅ 候選收斂至 3-5 條。
+> ✅ 探索完整度通過（TRIZ 三路徑 + AA Sprint 皆執行）+ ≥1 條存活。
 > ✅ 每條 Interface Contract 已更新。
 > ✅ 每條明確了 MVP CAD 的最小幾何範圍。
 > ✅ 核心工件 Concept Route: Reviewed → Verified。

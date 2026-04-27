@@ -144,8 +144,9 @@ graph TB
 | **4** | **假設與驗證規劃** (HDA + 未知集合) | II | AI-Assisted | Analyst + Knowledge | 填寫假設台帳、定義未知集合 | 中 | Assumption |
 | **5-0** | **Anti-Anchor Sprint** (反路徑依賴，第一性原理 prompt，概念可晉升為 Step 5 候選) | II | **Fully Auto** | Analyst + Knowledge | 審核非典型架構 | **最高** — Anti-Anchor 核心 | — |
 | **5a-0** | **(v2.2) OZ-OT 分析** (鎖定 Px + TC→PC 橋樑) | II | **AI-Driven** | Analyst | 確認 OZ/OT/Px 鎖定結果 | 中 | OzOtResult |
-| **5a** | **TRIZ 解矛盾** (矩陣查表 + 原理具體化 + **架構健康度監控（nodes > 5 halt）**，Fatal/Major 完全收斂；**(v2.2) 多 TC 時觸發 SIM 矩陣**) | II | **Fully Auto** | TRIZ Solver + Analyst + Knowledge | 確認矛盾分級、審核深度告警、**(v2.2) 審核 SIM 交互結果** | **高** — 解法錨定 | Concept Route (部分), SimMatrix |
+| **5a** | **TRIZ 解矛盾** (矩陣查表 + 原理具體化 + **架構健康度監控（nodes > 5 halt）**，Fatal/Major 完全收斂；**(v2.2) 多 TC 時觸發 SIM 矩陣**) | II | **Fully Auto** | TRIZ Solver + Knowledge | 確認矛盾分級、審核深度告警、**(v2.2) 審核 SIM 交互結果** | **高** — 解法錨定 | Concept Route (部分), SimMatrix |
 | **5b** | **子系統定義** (三層階層拆解 System→Module→Component) | II | AI-Driven | Analyst | 確認子系統清單 | 中 | Concept Route (部分) |
+| **5b.5** | **Spatial Discovery Validator** (Reference library 覆寫 + 算術 → Package Map SVG；overlay 為 optional) | II | AI-Driven | Analyst | 確認 spatial score、覆寫 reference data | 低 | SpatialEstimate |
 | **5c** | **SCAMPER 模組變形** (純創意工具，每子系統 × 7 動作，產出直接進入候選池) | II | **Fully Auto** | TRIZ Solver + Knowledge | 僅選擇 | 高 — 變形慣性 | Concept Route (部分) |
 | **5d** | **AI 方案生成 + Decision Hub** (整合 TRIZ + SCAMPER + Anti-Anchor 晉升，每方案附 Validation Passport + **(v2.2) CCI 複雜度指標**；RD 選定方案後手動觸發 **Phase B 收斂掃描**：方案×矛盾交叉檢查) | II | **AI-Driven** | Analyst + TRIZ Solver + Evaluator | 審核方案規格、**(v2.2) 檢視 CCI 判定（Evolution/Patch）**、觸發 Phase B | 中 | Concept Route, Interface, ComplexityCheckResult |
 | **5e** | **MUST 快篩** (Go/No-Go 淘汰) | II | **AI-Driven** | Evaluator | 確認 MUST 判定結果 | 低 | Concept Route |
@@ -154,6 +155,33 @@ graph TB
 | **6e** | **證據補齊** (Evidence Closure) | III | AI-Assisted | Knowledge + Evaluator | 設計/執行最小實驗、收集證據 | 低 | Evidence |
 | **7** | **決策與行動** (KT Decision Analysis + 最小實驗) | III | Human-Led | Evaluator | 執行 KT 決策 (MUST→WANT→AC)、簽核 | 低 | Decision Record |
 | **8** | **內化與傳達** (費曼) | III | **Fully Auto** | Knowledge | 無需介入（知識回寫自動化） | 無 | Asset |
+
+### 2.2a Gate 編號與步驟間遷移對照
+
+| Gate | 從 | 到 | 判定條件 |
+|------|----|----|---------|
+| Gate 1 | Step 1 | Step 2 | Constraint: Draft → Reviewed |
+| Gate 2 | Step 2c | Step 3 | FunctionModel 完成、假設與矛盾已揭露 |
+| Gate 3 | Step 3 | Step 4 | Contradiction: Reviewed → Verified (TC-only) |
+| Gate 4 | Step 4 | Step 5 | Assumption 台帳完成、未知集合定義 |
+| Gate P | Step 5e | Step 6 | Pre-CAD 五維審查通過、Evidence Coverage ≥ 40% |
+| Gate C | Step 6 | Step 7 | 證據充足，北極星 ≥ E2 |
+| Gate 7 | Step 7 | Step 8 | KT Decision 簽核完成 |
+| Gate 8 | Step 8 | COMPLETED | 知識回寫完成 |
+
+> **權威定義**：Gate 判定邏輯與自動化等級見 [§11.4.3](E3--ai-agent-detailed-design.md#1143-gate-自動化判定)；State Machine 視覺化見 [Appendix D](E3--appendices-sa-perspectives.md#appendix-d-state-machine)。
+
+### 2.2b 架構健康度回退路徑
+
+Phase A（架構健康度監控）觸發強制停止時，採**漸進回退**而非一律回 Step 1：
+
+| 觸發條件 | 回退策略 |
+|---------|---------|
+| **矛盾節點 > 5**（扣除 SIM 已收斂 TC 對後的淨節點數） | ① 回 Step 2c 重建功能模型 → ② 仍 >5 則回 Step 2b 重新根因分析 → ③ 仍無法收斂則回 Step 1 |
+| **結構性循環矛盾**（組件 A↔B 互為因果） | 回 Step 2c 重建功能模型 |
+| **框架性循環矛盾**（問題定義自相矛盾） | 回 Step 2b 或 Step 1 |
+
+> **設計理由**：Step 2b（5Why/KT）和 2c（FA/SF）提供了比 Step 1 更精準的修正入口。上游功能模型或根因假設的缺陷是架構健康度異常的最常見原因，直接回 Step 1 浪費已完成的有效分析。
 
 ### 2.3 與 State Machine R&R 對照
 

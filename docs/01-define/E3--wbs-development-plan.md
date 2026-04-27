@@ -288,7 +288,7 @@ v1.0 (workstream 組織法 WS-A/B/C) 為**事後回溯型** WBS，追蹤三份 s
 | 3.3.2 | TRIZ Su-Field 76 standard solutions | BE | 16 | ✅ | 2026-03-15 | 3.3.1 | ADR-005 | WS-A A-3.4, B-6.1.1 |
 | 3.3.3 | TRIZ critic (TC→PC drill-down trigger) | BE | 12 | ✅ | 2026-03-18 | 3.3.1 | - | - |
 | 3.3.4 | TRIZ layered drill-down (migration 010) | BE / Data | 16 | ✅ | 2026-04-03 | 3.3.3 | - | - |
-| 3.3.5 | `/alternatives/anti-anchor` + `/alternatives/validation-passport` | BE | 16 | ✅ | 2026-03-20 | 3.2.1 | - | WS-A A-3.1..2, B-6.5 |
+| 3.3.5 | ~~`/alternatives/anti-anchor`~~ *(已退役，AA 併入 TRIZ L1 跨域去錨定)* + `/alternatives/validation-passport` | BE | 16 | ✅ | 2026-03-20 | 3.2.1 | - | WS-A A-3.1..2, B-6.5 |
 | 3.3.6 | ~~SCAMPER router + scamper_feedback agent~~ *(v9 移除)* | BE | 20 | ✅ | 2026-03-22 | 3.3.1 | - | WS-A A-3.5..7, B-6.7.1 |
 | 3.3.7 | `/convergence/scan` 二次矛盾偵測 | BE | 8 | ✅ | 2026-03-24 | 3.2.7 | - | WS-A A-3.9 |
 | 3.3.8 | Evaluator agent (risk/convergence/MUST/pre-CAD) | BE | 20 | ✅ | 2026-03-26 | 3.1.5 | - | - |

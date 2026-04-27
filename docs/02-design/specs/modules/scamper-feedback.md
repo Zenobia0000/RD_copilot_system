@@ -1,6 +1,6 @@
 # ~~Module Spec: ScamperFeedbackAgent~~ (v9 移除)
 
-> **v9 移除說明 (2026-04-27)**：SCAMPER 已於 v9 移除 — 其 7 動作為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋。本模組及對應的 `scamper_feedback.py` agent 已退役。
+> **v9 移除說明 (2026-04-27)**：SCAMPER 已於 v9 移除 — 其 7 動作為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 完全覆蓋。本模組及對應的 `scamper_feedback.py` agent 已退役。~~Anti-Anchor 已於 v10 退役，合併為 TRIZ L1 跨域去錨定步驟。~~
 
 ---
 

@@ -32,7 +32,7 @@
 
 截至 2026-04-15，backend (`/backend/app/`) 採「FastAPI + 直接函式呼叫」的 agent 架構：
 
-- 18 個 router 直接呼叫 `app/agents/*.py`（analyst / triz_solver / evaluator / knowledge / anti_anchor / subsystem_decomposer） *(v9: scamper 已移除)*
+- 18 個 router 直接呼叫 `app/agents/*.py`（analyst / triz_solver / evaluator / knowledge / ~~anti_anchor~~ / subsystem_decomposer） *(v9: scamper 已移除；Anti-Anchor 已退役，併入 TRIZ L1 跨域去錨定)*
 - LLM 呼叫集中於 `app/agents/base.py`（`call_llm_json` / `call_llm_structured` / `_call_provider`），已支援 Anthropic / OpenAI / Azure / Gemini / Qwen 多 provider + 指數退避重試
 - 已有兩個小型 registry pattern：`core/gate_registry.py` 與 `core/evaluator_registry.py`（decorator 註冊）
 - `tools/triz_kb.py` 以靜態檔案 + `@lru_cache` 注入 prompt 上下文（不是 function-calling）

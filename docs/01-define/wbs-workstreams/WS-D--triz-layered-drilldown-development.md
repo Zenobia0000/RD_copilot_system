@@ -331,7 +331,7 @@ F2 subsystem-suggestions 以 adopted_route 為 related_contradictions 主綁定
 | 涵蓋 | 不涵蓋（另開 WBS 或文件） |
 |------|---------------------------|
 | Tab ① TRIZ 分層 drill-down（L1/L2/L3 + deepen_link + differential_analysis） | Tab ② 子系統介面契約與 Spatial Discovery（見 `Subsystem_Interface_Development_WBS.md`） |
-| `LayeredTrizSolution` schema + orchestrator + endpoint | 反向 Anti-Anchor 實作（另有 WBS）；~~SCAMPER~~ (v9 移除) |
+| `LayeredTrizSolution` schema + orchestrator + endpoint | ~~反向 Anti-Anchor 實作（另有 WBS）~~ *(已退役，併入 TRIZ L1 跨域去錨定)*；~~SCAMPER~~ (v9 移除) |
 | 決策中心 `layered` 卡片類型 + Phase B SKIP 修訂 | MUST / Pre-CAD 評估引擎細節（僅介面層對齊） |
 | F1→F2 hand-off 升級為 `layered_triz_solutions`（前端請求 + F2 消費） | F2 內部子系統生成邏輯 |
 | Feature flag 灰度、§6 三份文件同步 | TRIZ Knowledge Base 重新訓練或擴充 |

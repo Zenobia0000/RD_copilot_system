@@ -88,6 +88,7 @@ export type {
 export type {
   AccordionStepStatus,
   CreateStepProgress,
+  /** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
   AntiAnchorRoute,
   TrizPath,
   TrizActionStatus,
@@ -95,6 +96,7 @@ export type {
   SubsystemSource,
   Subsystem,
   InterfaceContract,
+  /** @deprecated v3.0: 'anti_anchor' source retired, de-anchoring merged into TRIZ L1 */
   AlternativeSource,
   Alternative,
   MustCriterion,

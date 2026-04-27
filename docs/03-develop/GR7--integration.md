@@ -27,12 +27,12 @@
 ### 2.1 Manual E2E
 - [ ] **E2E-01** `explore_pc_decomposition.md` 完整腳本通過
 - [ ] **E2E-02** Forward TRIZ 流程（Brief → Contradictions → Layered drill-down → Solutions）（[E3x system-interaction-flow](../01-define/E3--system-interaction-flow.md) Scenario 1）
-- [ ] **E2E-03** Reverse Anti-Anchor 流程（Scenario 2）
+- [ ] **E2E-03** Reverse 跨域去錨定流程（Scenario 2）
 - [ ] **E2E-04** Pre-CAD 審查流程（Scenario 3，含 six-dim scoring + citations + signatures）
 
 ### 2.2 BDD Features（對應 US-01..12）
 - [ ] **BDD-Feature-1** TRIZ drill-down 所有 scenario 通過
-- [ ] **BDD-Feature-2** Anti-Anchor 所有 scenario 通過
+- [ ] **BDD-Feature-2** 跨域去錨定所有 scenario 通過
 - [ ] **BDD-Feature-3** Pre-CAD Gate 所有 scenario 通過
 - [ ] **BDD Background** Brief → 硬約束/矛盾/假設自動拆解通過
 - [ ] 其餘未實作的 BDD scenario（US-07/08/10/12）有 Waiver 記錄
@@ -53,7 +53,7 @@
 
 參考 [E3x--system-interaction-flow.md](../01-define/E3--system-interaction-flow.md)。
 
-- [ ] **Agent 協作**：Subsystem Discovery → TRIZ Solver → Anti-Anchor → Pre-CAD 評分 四個 agent 串接驗證
+- [ ] **Agent 協作**：Subsystem Discovery → TRIZ Solver（含跨域去錨定）→ Pre-CAD 評分 agent 串接驗證
 - [ ] **State Machine**：[E3 Appendix D](../01-define/E3--architecture-and-design.md#appendix-d-state-machine) 所有 transition 可觀察 + 可逆
 - [ ] **Convergence Loop**：`convergence_snapshots.state` JSONB 正確讀寫、斷線續跑
 - [ ] **Spatial Resolver 三層**：`project_component_overrides` → `learned_components` → web 查詢 層級順序正確（[006/007 migration](../../supabase/migrations/007_learned_components.sql)）

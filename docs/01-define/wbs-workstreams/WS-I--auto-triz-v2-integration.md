@@ -12,7 +12,7 @@
 
 ## 1. 範圍
 
-將 Auto-TRIZ v2 方法論（FA / OZ-OT / SIM / CCI / Evidence Registry / 入口分級 / 5 Why / KT）注入現有自動化架構，同時保留 Socratic + Anti-Anchor + CLD 等現有工具。
+將 Auto-TRIZ v2 方法論（FA / OZ-OT / SIM / CCI / Evidence Registry / 入口分級 / 5 Why / KT）注入現有自動化架構，同時保留 Socratic + CLD 等現有工具。（~~Anti-Anchor~~ 已退役，其跨域去錨定功能併入 TRIZ L1 instantiation 內建步驟。）
 
 ## 2. 前置依賴
 

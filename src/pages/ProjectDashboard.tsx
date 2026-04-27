@@ -185,7 +185,7 @@ export default function ProjectDashboard() {
       items.push({
         id: 'h-antianchor',
         date: latestDate,
-        title: `Anti-Anchor：${aaRoutes.length} 條非典型架構`,
+        title: `跨域去錨定 (TRIZ L1)：${aaRoutes.length} 條非典型架構`,
         summary: aaRoutes.map(r => r.name).join('、'),
         author,
         type: 'task',

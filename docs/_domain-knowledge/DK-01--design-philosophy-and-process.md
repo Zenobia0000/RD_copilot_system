@@ -24,7 +24,7 @@
 1. **先把未知寫下來**（假設台帳）
 2. **先留多條路**（Set-Based + TRIZ 變體）
 3. **先切斷連鎖死法**（失效路徑 + 最小實驗）
-4. **產出與選擇分離**（TRIZ/Anti-Anchor 負責產出，選擇統一在決策中心由 RD 執行）
+4. **產出與選擇分離**（TRIZ 負責產出，選擇統一在決策中心由 RD 執行）
 
 ---
 
@@ -154,7 +154,7 @@ graph TD
     end
     subgraph Explore ["eXplore: 假設與發散"]
         S4["X1: 假設驗證 (HDA)"]
-        S5["X2: TRIZ 解矛盾 (含 Anti-Anchor + OZ-OT)"]
+        S5["X2: TRIZ 解矛盾 (含跨域去錨定 + OZ-OT)"]
         S5b["X3: 子系統定義"]
         S5d["X4: Decision Hub"]
         SP["X5: Pre-CAD 資格審查 (含 MUST 快篩)"]
@@ -297,23 +297,23 @@ graph TD
 
 ---
 
-## X2: TRIZ 解矛盾 (含 Anti-Anchor 並行 + OZ-OT)
+## X2: TRIZ 解矛盾 (含跨域去錨定 + OZ-OT)
 
 **目的**：用 TRIZ 解矛盾找方向，產出結構化可審查的方案集合。（~~SCAMPER 已於 v9 移除 — 其 7 動作為 TRIZ 40 原理子集~~）
 **核心工件**：Concept Route (Draft → Reviewed), Interface (Draft)
 
-> 舊 Step 5-0 (Anti-Anchor) 與 Step 5a-0 (OZ-OT) 合併入 X2。
+> 舊 Step 5-0 (Anti-Anchor) 與 Step 5a-0 (OZ-OT) 合併入 X2。v3.0 起 Anti-Anchor 退役為獨立子系統，其「跨域去錨定」功能內建於 TRIZ L1 具體化步驟。
 
 ### 流程
-1. (X2.1) **Anti-Anchor Sprint** → 產出 3 種非典型架構
-2. (X2.2) **TRIZ 解矛盾** → 依矛盾類型分派 (TC→矩陣 / PC→分離 / SF→76標準解)
+1. (X2.1) **TRIZ 解矛盾** → 依矛盾類型分派 (TC→矩陣 / PC→分離 / SF→76標準解)
+2. (X2.2) **TRIZ L1 跨域去錨定** → L1 具體化時內建產出非典型架構概念
 3. (X2.3) **OZ-OT 提取** → 從 TRIZ 原理具體化操作區/操作時間
 4. (X2.4) **候選池匯聚** → 所有來源概念統一進入候選池
 
 > TRIZ 執行細節與候選池管理：見 DK-02。
 
 ### Gate X2 檢查點
-> ✅ 至少保留 3 條架構級路線（含至少 1 條 Anti-Anchor）。
+> ✅ 至少保留 3 條架構級路線（含至少 1 條跨域去錨定概念）。
 > ✅ 每條有完整方案規格（機制、假設、風險、最小驗證）。
 > ✅ 每條產出初步 Interface Contract。
 > ✅ 核心工件 Concept Route: Draft → Reviewed。
@@ -363,7 +363,7 @@ Confidence = 已收斂的 (Fatal + Major) / 總 (Fatal + Major) × 100%
 Gate X5 門檻：100%（所有 Fatal + Major 矛盾完全收斂）。
 
 ### Gate X5 檢查點
-> ✅ 探索完整度通過（TRIZ 三路徑 + AA Sprint 皆執行）+ ≥1 條存活。
+> ✅ 探索完整度通過（TRIZ 三路徑 + 跨域去錨定皆執行）+ ≥1 條存活。
 > ✅ 每條 Interface Contract 已更新。
 > ✅ 每條明確了 MVP CAD 的最小幾何範圍。
 > ✅ 核心工件 Concept Route: Reviewed → Verified。
@@ -480,6 +480,6 @@ Gate X5 門檻：100%（所有 Fatal + Major 矛盾完全收斂）。
 
 ---
 
-**版本**: v2.0
+**版本**: v3.0
 **最後更新**: 2026-04-27
-**變更紀錄**: 整合 E3x methodology-overview 與系統性決策流程為 MECE 文件；TRIZ 執行細節移至 DK-02，KT 決策框架移至 DK-03；v9 移除 SCAMPER（7 動作為 TRIZ 40 原理子集）；v2.0 採用 D/X/V 步驟編號體系，合併 Step 2c→D3、Step 5-0/5a-0→X2、Step 5e→X5
+**變更紀錄**: 整合 E3x methodology-overview 與系統性決策流程為 MECE 文件；TRIZ 執行細節移至 DK-02，KT 決策框架移至 DK-03；v9 移除 SCAMPER（7 動作為 TRIZ 40 原理子集）；v2.0 採用 D/X/V 步驟編號體系，合併 Step 2c→D3、Step 5-0/5a-0→X2、Step 5e→X5；v3.0 Anti-Anchor 退役為獨立子系統，跨域去錨定功能併入 TRIZ L1 具體化步驟

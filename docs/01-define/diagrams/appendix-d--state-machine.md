@@ -17,7 +17,7 @@
 | **D3** | **根因分析與功能建模**（5Why + KT + FA + SF） | **I (Define)** | 根因假設, Px 候選, FunctionModel |
 | D4 | 系統建模（因果迴路+TRIZ矛盾+斷路點） | I (Define) | Contradiction, Breakpoint |
 | X1 | 假設與驗證規劃（HDA+未知集合） | II (eXplore) | Assumption |
-| **X2** | **TRIZ 解矛盾**（含 OZ-OT 前置 + 矩陣查表 + 原理具體化 + Architecture Health Monitor + SIM；**Anti-Anchor Sprint 並行**） | **II (eXplore)** | Concept Route (部分), SimMatrix, OzOtResult |
+| **X2** | **TRIZ 解矛盾**（含 OZ-OT 前置 + 矩陣查表 + 原理具體化 + Architecture Health Monitor + SIM；**TRIZ L1 跨域去錨定內建**） | **II (eXplore)** | Concept Route (部分), SimMatrix, OzOtResult |
 | **X3** | **子系統定義**（三層階層 System→Module→Component；含 optional Spatial Discovery） | **II (eXplore)** | Concept Route (部分), SpatialEstimate |
 | **X4** | **AI 方案生成 + Decision Hub**（整合 + CCI 複雜度指標） | **II (eXplore)** | Concept Route, Interface, ComplexityCheckResult |
 | **X5** | **Pre-CAD 資格審查**（MUST Go/No-Go 自動篩 + 人工 Pre-CAD Gate） | **II (eXplore)** | Concept Route, Pre-CAD Review Report |
@@ -73,21 +73,19 @@ stateDiagram-v2
 
 
 
-> **Note**: X2 採雙軌架構：反向創意（Anti-Anchor，並行任務）直入候選池，正向演繹（OZ-OT → TRIZ → 子系統）生成候選。所有路徑匯流至 X4 決策中心 (Decision Hub)，由 RD 做 adopt/skip + CCI 標籤 + 橫向比較。最終通過 Gate X5（含 MUST 自動篩 + 人工 Pre-CAD 審查）進入 Phase III。（~~Phase B 已於 v9 退役~~，由 SIM + CCI 前置覆蓋。~~SCAMPER 已於 v9 移除~~。）
+> **Note**: X2 採單軌架構：TRIZ L1 instantiation 內建跨域去錨定步驟（原 Anti-Anchor 獨立子系統已退役，併入 TRIZ L1），正向演繹（OZ-OT → TRIZ → 子系統）生成候選。所有路徑匯流至 X4 決策中心 (Decision Hub)，由 RD 做 adopt/skip + CCI 標籤 + 橫向比較。最終通過 Gate X5（含 MUST 自動篩 + 人工 Pre-CAD 審查）進入 Phase III。（~~Phase B 已於 v9 退役~~，由 SIM + CCI 前置覆蓋。~~SCAMPER 已於 v9 移除~~。~~Anti-Anchor 獨立子系統已退役~~，併入 TRIZ L1 跨域去錨定。）
 
 ##### X2-X4 內部子流程
 
 ```mermaid
 %%{init: {'theme': 'neutral'}}%%
 stateDiagram-v2
-    state "X2: TRIZ 解矛盾 (含並行)" as StepX2 {
-        state "Anti-Anchor Sprint (並行任務)" as SX2_AA
+    state "X2: TRIZ 解矛盾 (含 L1 跨域去錨定)" as StepX2 {
         state "OZ-OT 分析 (Px 鎖定)" as SX2_OZ
-        state "TRIZ 三路徑候選生成" as SX2_TRIZ
+        state "TRIZ 三路徑候選生成 (L1 含跨域去錨定)" as SX2_TRIZ
         state "Architecture Health Monitor" as SX2_health
-        note right of SX2_AA : 直入候選池\n附 Validation Passport\n≥1 非對標路線
         note right of SX2_OZ : OZ + OT → Px 物理變數\nL2 PC 深挖前置條件
-        note right of SX2_TRIZ : TC/PC/SF 三路徑\n全部 pending 生成
+        note right of SX2_TRIZ : TC/PC/SF 三路徑\nL1 內建跨域去錨定\n(原 Anti-Anchor 已併入)
         note right of SX2_health : nodes > 5 → halt
 
         SX2_OZ --> SX2_TRIZ : Px locked → TRIZ 求解
@@ -100,11 +98,9 @@ stateDiagram-v2
     note right of SX3 : System → Module → Component\n+ 6-dim interface contracts\n+ optional Spatial Discovery
     note right of SX4 : 候選池匯流\nRD adopt/skip\nCCI 標籤 + 橫向比較
 
-    [*] --> SX2_AA
     [*] --> SX2_OZ
-    SX2_AA --> SX4 : Anti-Anchor 候選 (附 VP)
     SX2_health --> SX3 : healthy/minor → 進入子系統
-    SX2_health --> SX4 : TRIZ 候選 (healthy)
+    SX2_health --> SX4 : TRIZ 候選 (healthy, 含去錨定路線)
     SX3 --> SX4 : 子系統定義完成
     SX4 --> [*] : Gate X5 (MUST 自動篩 + 人工 Pre-CAD)
 ```

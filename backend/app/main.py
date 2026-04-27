@@ -14,13 +14,15 @@ from app.middleware.auth import get_current_user
 from app.middleware.error_handler import register_error_handlers
 from app.middleware.request_id import RequestIDMiddleware
 from app.routers import (
-    brief, socratic, cld, anti_anchor, triz, scamper, subsystems,
+    brief, socratic, cld, triz, scamper, subsystems,
     risk, action, convergence, must,
     contradictions, assumptions, pre_cad, want, gates, exports, knowledge_wb,
     validation, unknown_factors, spatial, observability,
     analyst_v2,
     evidence,
 )
+# v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1
+# from app.routers import anti_anchor
 
 
 @asynccontextmanager
@@ -78,13 +80,14 @@ app.include_router(socratic.router, prefix=API_PREFIX, tags=["蘇格拉底問答
 app.include_router(cld.router, prefix=API_PREFIX, tags=["因果迴路 causal-loops"], dependencies=_auth)
 app.include_router(contradictions.router, prefix=API_PREFIX, tags=["矛盾管理 contradictions"], dependencies=_auth)
 app.include_router(assumptions.router, prefix=API_PREFIX, tags=["假設台帳 assumptions"], dependencies=_auth)
-app.include_router(anti_anchor.router, prefix=API_PREFIX, tags=["方案管理 alternatives"], dependencies=_auth)
+# v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1
+# app.include_router(anti_anchor.router, prefix=API_PREFIX, tags=["方案管理 alternatives"], dependencies=_auth)
 app.include_router(triz.router, prefix=API_PREFIX, tags=["TRIZ 求解 triz"], dependencies=_auth)
 app.include_router(scamper.router, prefix=API_PREFIX, tags=["SCAMPER scamper (deprecated)"], dependencies=_auth)
 app.include_router(subsystems.router, prefix=API_PREFIX, tags=["子系統發現 subsystems"], dependencies=_auth)
 app.include_router(risk.router, prefix=API_PREFIX, tags=["風險登錄 risks"], dependencies=_auth)
 app.include_router(action.router, prefix=API_PREFIX, tags=["行動建議 actions"], dependencies=_auth)
-app.include_router(convergence.router, prefix=API_PREFIX, tags=["收斂掃描 convergence"], dependencies=_auth)
+app.include_router(convergence.router, prefix=API_PREFIX, tags=["收斂掃描 convergence (deprecated v9)"], dependencies=_auth)
 app.include_router(must.router, prefix=API_PREFIX, tags=["MUST 篩選 must"], dependencies=_auth)
 app.include_router(pre_cad.router, prefix=API_PREFIX, tags=["Pre-CAD 審查 pre-cad-reviews"], dependencies=_auth)
 app.include_router(want.router, prefix=API_PREFIX, tags=["WANT 評分 want"], dependencies=_auth)

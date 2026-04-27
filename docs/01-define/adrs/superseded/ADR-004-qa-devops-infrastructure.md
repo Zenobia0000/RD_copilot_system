@@ -51,7 +51,7 @@ backend/tests/
 │   ├── test_brief.py        # 5 endpoints
 │   ├── test_socratic.py     # 1 endpoint
 │   ├── test_cld.py          # 1 endpoint
-│   ├── test_anti_anchor.py  # 1 endpoint
+│   ├── # test_anti_anchor.py  # Anti-Anchor 已退役，併入 TRIZ L1 跨域去錨定
 │   ├── test_triz.py         # 1 endpoint
 │   ├── # test_scamper.py    # v9: removed (SCAMPER deprecated)
 │   ├── test_risk.py         # 1 endpoint

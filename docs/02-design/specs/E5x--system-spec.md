@@ -525,7 +525,7 @@ flowchart LR
               (≥1 條進入 V1)
 ```
 
-> ~~X2c SCAMPER 模組變形已於 v9 移除~~（其 7 動作為 TRIZ 40 原理子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋）。
+> ~~X2c SCAMPER 模組變形已於 v9 移除~~（其 7 動作為 TRIZ 40 原理子集，由 TRIZ L1/L2/L3 完全覆蓋）。~~Anti-Anchor 已於 v10 退役，合併為 TRIZ L1 跨域去錨定步驟。~~
 
 ---
 
@@ -614,7 +614,7 @@ TRIZ_解法_C001:
 
 #### ~~X2c — SCAMPER 模組變形~~ (v9 移除)
 
-> **v9 移除說明**：SCAMPER 已於 v9 移除 — 其 7 動作（S/C/A/M/P/E/R）為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋。相關 API 端點 `/scamper/perform`、`/scamper/generate`、`/scamper/feedback-contradictions` 已移除。
+> **v9 移除說明**：SCAMPER 已於 v9 移除 — 其 7 動作（S/C/A/M/P/E/R）為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 完全覆蓋。相關 API 端點 `/scamper/perform`、`/scamper/generate`、`/scamper/feedback-contradictions` 已移除。~~Anti-Anchor 已於 v10 退役，合併為 TRIZ L1 跨域去錨定步驟。~~
 
 ---
 
@@ -622,7 +622,7 @@ TRIZ_解法_C001:
 
 ##### 目的
 
-整合 X2a (TRIZ 解法) + X3 (子系統定義) + Anti-Anchor 晉升，生成完整的候選方案。
+整合 X2a (TRIZ 解法) + X3 (子系統定義) + TRIZ L1 跨域去錨定候選，生成完整的候選方案。
 
 ##### 輸入
 
@@ -660,7 +660,7 @@ TRIZ_解法_C001:
 ```yaml
 ALT-001:
   名稱: 分區隔振+熱管散熱
-  來源: TRIZ #1分割 + Anti-Anchor(隔振路線)
+  來源: TRIZ #1分割 + 跨域去錨定(隔振路線)
 
   機制說明:
     物理原理: 隔振墊切斷振動傳遞路徑，熱管相變傳熱繞過隔振界面
@@ -1020,7 +1020,7 @@ ALT-001:
 | Gate D3 | D2 → D4 | — | contradictions ≥ 3, answered questions ≥ 10（建議完成 FunctionModel，目前未程式化強制） |
 | **Gate D4** | D4 → X1 | **DEFINE → EXPLORE** | causal_loops ≥ 1, breakpoints ≥ 3, 每條矛盾有 TRIZ 正式句 |
 | Gate X1 | X1 → X2 | — | assumptions ≥ 10, Top 3 High 有驗證設計, unknown_factors ≥ 3 |
-| **Gate X5** | X2 → V1 | **EXPLORE → VERIFY** | 探索完整度 pass (TRIZ 三路徑 + AA Sprint 皆執行) + ≥1 MUST pass + 每條存活路線有完整規格 |
+| **Gate X5** | X2 → V1 | **EXPLORE → VERIFY** | 探索完整度 pass (TRIZ 三路徑含 L1 跨域去錨定皆執行) + ≥1 MUST pass + 每條存活路線有完整規格 |
 | Gate V1 | V1 → V3 | — | 每個風險有 Owner + mitigation + monitor_metric |
 | Gate V3 | V3 → V4 | — | DecisionRecord 已簽核, H 風險有緩解, WANT 有證據 |
 | **Gate V4** | V4 → Done | **VERIFY → COMPLETED** | 報告已產出 |

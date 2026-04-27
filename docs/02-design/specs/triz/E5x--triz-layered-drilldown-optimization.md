@@ -145,7 +145,7 @@ TC 快速掃描（看有沒有現成原理可套）
 
 **詰問**：
 
-- 反向（Anti-Anchor 創意）與正向（TRIZ 演繹）的二分本身是對的。但是**正向路徑內部**的「演繹分層」（現象 → 本質 → 結構）在哪裡？
+- 反向（跨域去錨定創意，原 Anti-Anchor，v10 已合併為 TRIZ L1 內建步驟）與正向（TRIZ 演繹）的二分本身是對的。但是**正向路徑內部**的「演繹分層」（現象 → 本質 → 結構）在哪裡？
 - 主流程圖畫的是 F1（TRIZ）→ F2（子系統）→ 決策中心 **水平步驟** *(v9: F3 SCAMPER 已移除)*。F1 內部的垂直深度（TC 淺層 → PC 深層 → SF 旁路結構診斷）**沒有任何機制**。
 - RD 拿到一堆並列的 pending 候選，只能**在自己的腦袋裡做 drill-down** — 這違反了 Copilot「把專家思路工程化」的核心承諾。
 
@@ -739,7 +739,7 @@ def phase_b_check_conflict(sol_a, sol_b):
   - 防退化硬約束：每個 PC 必須是同屬性 A/¬A 互斥，不得退化為 N 個小 TC
   - 子 PC 以 `parent_contradiction_id` FK 掛回父 TC（migration 009）
 - **新增**：`_solve_pc` hint-path（§9.1）— Explore 產出的 `separation_principle_id` 作為下游 TRIZ solver 的 pre-filter
-- **新增**：CLD / Anti-Anchor 增加 derived_parameter 提示（§9.3.3 / §9.4.1）— 指引 LLM 用子 PC 的物理變數作為 CLD 節點名
+- **新增**：CLD 增加 derived_parameter 提示（§9.3.3）— 指引 LLM 用子 PC 的物理變數作為 CLD 節點名 *(§9.4.1 Anti-Anchor 部分已於 v10 退役，合併為 TRIZ L1 跨域去錨定)*
 - **差異**：與 §6.7 `deepen_link` 契約的差異 — 本實作擴充為 `list[DeepenLink]`（一 TC 可推導多個 derived_parameter），原 spec 為單一
 - **未實作**：L3 (SF) 平行旁路、`solve_triz_layered` orchestrator、`differential_analysis` — 延後至 L3 WBS（`Explore_L3_SF_Parallel_Check_WBS.md`）
 - **WBS 參照**：`docs/e2e/module/Explore_TC_to_MultiPC_Decomposition_WBS.md`

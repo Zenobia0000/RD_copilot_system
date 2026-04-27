@@ -17,7 +17,7 @@
 - [Ⅱ. Gherkin 語法速查](#-gherkin-語法速查)
 - [Ⅲ. BDD 範本 (`.feature` file)](#-bdd-範本-feature-file)
   - [Feature 1: Forward TRIZ 解矛盾](#feature-1-forward-triz-解矛盾對應-e3x-2)
-  - [Feature 2: Reverse Anti-Anchor](#feature-2-reverse-anti-anchor對應-e3x-3)
+  - [Feature 2: ~~Reverse Anti-Anchor~~ TRIZ L1 跨域去錨定](#feature-2-reverse-anti-anchor對應-e3x-3)
   - [Feature 3: Pre-CAD Gate 審查](#feature-3-pre-cad-gate-審查對應-e3x-4)
   - [Feature 4: Entry Grading + Conditional Stepper](#feature-4-entry-grading--conditional-stepper入口等級評估--條件式步進器)
   - [Feature 5: Five-Why + KT Analysis](#feature-5-five-why--kt-analysis問題定向)
@@ -28,7 +28,7 @@
 
 ---
 
-**目的**: 以 Gherkin 結構化描述 RD Design Copilot 的八大使用情境（Forward TRIZ / Reverse Anti-Anchor / Pre-CAD Gate / Entry Grading / Problem Scoping / Function Analysis / SIM Matrix / Evidence Registry），作為前後端 E2E 測試、`E7x--e2e-manual-scripts/` 手測腳本與 Playwright 自動化的共同事實來源。
+**目的**: 以 Gherkin 結構化描述 RD Design Copilot 的八大使用情境（Forward TRIZ / TRIZ L1 跨域去錨定（原 Anti-Anchor，v10 退役合併） / Pre-CAD Gate / Entry Grading / Problem Scoping / Function Analysis / SIM Matrix / Evidence Registry），作為前後端 E2E 測試、`E7x--e2e-manual-scripts/` 手測腳本與 Playwright 自動化的共同事實來源。
 
 ---
 
@@ -39,7 +39,7 @@
 3. **通用語言 (Ubiquitous Language)**：
    - `分層 drill-down`（TRIZ L1/L2/L3）
    - `子系統 (subsystem)`、`介面契約 (interface contract)`
-   - `反向路線 (anti-anchor route)`、`Validation Passport`
+   - `跨域去錨定路線`（原 anti-anchor route，v10 已合併為 TRIZ L1 步驟）、`Validation Passport`
    - `MUST / WANT / AC`（Pre-CAD Gate 評分）
 
 ---
@@ -124,34 +124,37 @@ Feature: Forward TRIZ layered drill-down
       | 3 | pick-one-drilldown | run-phase-b-cross-validation  |
 ```
 
-### Feature 2: Reverse Anti-Anchor（對應 E3x §3）
+### Feature 2: ~~Reverse Anti-Anchor~~ TRIZ L1 跨域去錨定（對應 E3x §3）
 
-**檔案名稱**: `reverse_anti_anchor.feature`
+> **v10 退役說明**：Anti-Anchor 已於 v10 退役，合併為 TRIZ L1 實例化中的「跨域去錨定」UX 步驟。以下 BDD scenario 保留作為歷史參考，新流程由 TRIZ L1 instantiation 覆蓋。
+
+**檔案名稱**: ~~`reverse_anti_anchor.feature`~~ (deprecated)
 
 ```gherkin
-# Feature: Reverse Anti-Anchor 反向路線探索
+# Feature: [DEPRECATED v10] Reverse Anti-Anchor → 已合併為 TRIZ L1 跨域去錨定
 # 對應 E3x: §3 Scenario 2
-# 對應 API: POST /alternatives/anti-anchor, POST /alternatives/validation-passport
+# 對應 API: POST /alternatives/anti-anchor (DEPRECATED v10)
+#           POST /alternatives/validation-passport (仍 Active)
 
-Feature: Reverse Anti-Anchor exploration
+Feature: [DEPRECATED] Reverse Anti-Anchor exploration
+  # v10: Anti-Anchor 已退役，跨域去錨定邏輯合併為 TRIZ L1 instantiation 步驟。
+  # 以下 scenario 保留供回歸參考。
 
   Background:
     Given I am a logged-in RD user on the "/explore" page
     And the project has an anchor solution "A-01 (陀螺儀平衡)"
 
-  @happy-path
-  Scenario: 產生 3 條反向路線並發放 Validation Passport
-    When I click "Anti-Anchor Routes"
-    Then I should receive exactly 3 "AntiAnchorRoute" cards
-    And each card should display a "差異性 (diff)" score and an "AC 風險" level
-    When I click "Validation Passport" on the top route
-    Then a ValidationPassport with at least 2 assumptions should be attached
-    And each assumption's status should be "pending"
+  @happy-path @deprecated
+  Scenario: [DEPRECATED] 產生跨域去錨定路線（原 Anti-Anchor）
+    # v10: 此流程已合併至 TRIZ L1 跨域去錨定步驟
+    When I trigger TRIZ L1 solve with de-anchoring enabled
+    Then I should receive cross-domain de-anchoring suggestions within L1 results
+    And each suggestion should display a "差異性 (diff)" score and an "AC 風險" level
 
-  @sad-path
+  @sad-path @deprecated
   Scenario: anchor 不存在時的保護
     Given the project has no confirmed anchor
-    When I click "Anti-Anchor Routes"
+    When I attempt to trigger cross-domain de-anchoring
     Then I should see an error banner "Please confirm an anchor solution first"
 ```
 

@@ -1,7 +1,10 @@
 """Contradiction tree utilities — parent/child (TC->PC) relationships.
 
 Uses the `parent_contradiction_id` FK from migration 009 to provide
-leaves-only filtering for downstream consumers (CLD, Anti-Anchor).
+leaves-only filtering for downstream consumers (CLD).
+
+Note (v3.0): Anti-Anchor has been retired — de-anchoring merged into TRIZ L1.
+References to Anti-Anchor in this module are historical.
 
 Ref: docs/e2e/module/Explore_TC_to_MultiPC_Decomposition_WBS.md §9.3.1
 """
@@ -15,14 +18,14 @@ logger = logging.getLogger(__name__)
 def get_contradiction_leaves(
     contradictions: list[dict],
 ) -> list[dict]:
-    """Return leaf-node contradictions for downstream consumption (CLD, Anti-Anchor).
+    """Return leaf-node contradictions for downstream consumption (CLD).
 
     A "leaf" is:
     - A child PC (has parent_contradiction_id set) — always included
     - A root TC/PC/SF (parent_contradiction_id is None) that has NO children in the input list
 
     This ensures that when a TC has been decomposed into multiple PCs,
-    only the PCs appear in CLD/Anti-Anchor input — not both parent AND children.
+    only the PCs appear in CLD input — not both parent AND children.
 
     Args:
         contradictions: List of contradiction dicts. Each dict must have at minimum:

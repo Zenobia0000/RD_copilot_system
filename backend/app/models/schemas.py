@@ -364,6 +364,9 @@ class ValidationPassport(BaseModel):
 
 # ---------------------------------------------------------------------------
 # X2: Anti-Anchor Routes
+# v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1.
+# These schemas are kept for backward compatibility and import safety.
+# They will be removed in the next major version.
 # ---------------------------------------------------------------------------
 
 class AntiAnchorRequest(BaseModel):
@@ -402,7 +405,7 @@ class ValidationPassportRequest(BaseModel):
     project_id: str
     solution_name: str
     mechanism: str
-    source: str = ""  # triz_tc / triz_pc / scamper / anti_anchor / manual
+    source: str = ""  # triz_tc / triz_pc / scamper / manual (anti_anchor retired v3.0)
     constraints: list[str] = Field(default_factory=list)
     kpis: list[str] = Field(default_factory=list)
 

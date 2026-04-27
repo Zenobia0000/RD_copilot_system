@@ -10,7 +10,7 @@
 - 決策黑箱：設計取捨缺乏可追溯的記錄
 - 知識斷層：經驗散落在個人筆記與口頭傳承中
 
-**Design Copilot Blueprint** 將設計方法論（TRIZ、SCAMPER、Anti-Anchor、KT Decision Analysis）內建為互動式工具，讓團隊在結構化流程中完成從需求定義到 CAD 移交的完整設計週期。
+**Design Copilot Blueprint** 將設計方法論（TRIZ（含跨域去錨定）、KT Decision Analysis）內建為互動式工具，讓團隊在結構化流程中完成從需求定義到 CAD 移交的完整設計週期。
 
 ## 系統架構
 
@@ -264,7 +264,7 @@ design-copilot-blueprint/
 | **Brief (任務定義)** | Mission 定義 + AI 改寫 + 約束/KPI 建議 + 5W1H |
 | **Explore (探索)** | 蘇格拉底七類提問 + 因果迴路圖 (CLD) + 斷路點 |
 | **Track (假設台帳)** | Kanban 四欄拖拉 + PDCA 狀態機 + 證據登錄 |
-| **Create (發散)** | Anti-Anchor + TRIZ 三路徑 + SCAMPER + MUST + Pre-CAD |
+| **Create (發散)** | TRIZ 三路徑（含跨域去錨定）+ MUST + Pre-CAD |
 | **Review (審查)** | 證據矩陣 (E0-E4) + 風險 P×S 矩陣 + 最小實驗 |
 | **Decide (決策)** | WANT 排行榜 + KT 決策記錄 + 匯出 |
 | **Evidence Entry** | 結構化量測證據登錄 → 自動傳播 KPI/假設/MUST |

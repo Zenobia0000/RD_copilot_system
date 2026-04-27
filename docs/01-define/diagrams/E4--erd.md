@@ -55,7 +55,7 @@
 - `unknown_factors` — 未知集合（持久化自 localStorage）
 
 ### 2.4 Solution Exploration（Layer 3）
-- `anti_anchor_routes` — 反錨定路線（含 validation_passport 欄位，見 001 migration）
+- ~~`anti_anchor_routes`~~ — ~~反錨定路線~~ **(v3.0 退役 — Anti-Anchor 已併入 TRIZ L1 跨域去錨定；表保留供歷史資料參照，新流程不再寫入)**
 - `triz_solutions` — TRIZ 經典解矛盾輸出
 - `layered_triz_solutions` — v7 分層 drill-down（L1/L2/L3 JSONB，見 010 migration）
 - `subsystems` — 子系統樹（`parent_id` 自參照、interfaces）
@@ -195,7 +195,7 @@ erDiagram
 
 ```mermaid
 erDiagram
-    projects ||--o{ anti_anchor_routes : has
+    projects ||--o{ anti_anchor_routes : "has (v3.0 retired)"
     projects ||--o{ triz_solutions : has
     projects ||--o{ layered_triz_solutions : has
     projects ||--o{ subsystems : has
@@ -211,6 +211,7 @@ erDiagram
         UUID project_id FK
         BOOLEAN is_non_typical
     }
+    %% anti_anchor_routes — v3.0 退役（Anti-Anchor 併入 TRIZ L1 跨域去錨定）；表保留供歷史資料參照
     triz_solutions {
         UUID id PK
         UUID contradiction_id FK
@@ -393,7 +394,7 @@ erDiagram
 | 13 | `contradiction_assumption_links.assumption_id`     | `assumptions.id`                   | CASCADE       | migration 002                       |
 | 14 | `unknown_factors.project_id`                       | `projects.id`                      | CASCADE       |                                     |
 | 15 | `unknown_factors.linked_assumption_id`             | `assumptions.id`                   | (default)     |                                     |
-| 16 | `anti_anchor_routes.project_id`                    | `projects.id`                      | CASCADE       |                                     |
+| 16 | `anti_anchor_routes.project_id`                    | `projects.id`                      | CASCADE       | **(v3.0 退役 — 表保留供歷史參照)** |
 | 17 | `triz_solutions.project_id` / `contradiction_id`   | `projects.id` / `contradictions.id`| CASCADE / (default) |                               |
 | 18 | `layered_triz_solutions.project_id`                | `projects.id`                      | CASCADE       | migration 010；`contradiction_id` 是 TEXT FK-by-name |
 | 19 | `subsystems.project_id` / `parent_id`              | `projects.id` / `subsystems.id`    | CASCADE / (default) | 樹狀層級                      |
@@ -433,7 +434,7 @@ erDiagram
 
 ### 5.1 統一 project-child 模式（24 張表）
 
-套用於：`briefs, constraints, kpis, socratic_questions, contradictions, assumptions, cld_nodes, cld_edges, anti_anchor_routes, triz_solutions, subsystems, alternatives, concept_routes, compatibility_pairs, evidence_matrix, risks, decisions, want_criteria, want_scores, adverse_consequences, signatures, action_items, knowledge_entries` *(v9: `scamper_variants` 已移除)*
+套用於：`briefs, constraints, kpis, socratic_questions, contradictions, assumptions, cld_nodes, cld_edges, anti_anchor_routes` *(v3.0 退役但 RLS 保留)*`, triz_solutions, subsystems, alternatives, concept_routes, compatibility_pairs, evidence_matrix, risks, decisions, want_criteria, want_scores, adverse_consequences, signatures, action_items, knowledge_entries` *(v9: `scamper_variants` 已移除)*
 
 | Action | Policy                                                                                 |
 |--------|----------------------------------------------------------------------------------------|
@@ -494,3 +495,4 @@ erDiagram
 | Version | Date       | Author     | Changes                                     |
 |---------|------------|------------|---------------------------------------------|
 | v1.0    | 2026-04-15 | Backend TBD | 初稿：依 migration 000–010 抽出 36 張表、41 條 FK、5 張子 ERD、RLS 矩陣 |
+| v1.1    | 2026-04-27 | — | `anti_anchor_routes` 標記為 v3.0 退役（Anti-Anchor 併入 TRIZ L1 跨域去錨定）；表定義保留供歷史參照 |

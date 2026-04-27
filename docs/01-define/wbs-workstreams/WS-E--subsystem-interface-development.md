@@ -249,7 +249,7 @@ Brief + 矛盾 → POST subsystem-suggestions → LLM 樹 + 契約
 | 涵蓋 | 不涵蓋（另開 WBS 或文件） |
 |------|---------------------------|
 | Tab ② 子系統介面之前後端與 F2.5 spatial | Tab ① TRIZ 分層 drill-down 細節（見 `Forward_TRIZ_Solver_Architecture.md`） |
-| Package Map、Overlay、override、learned | Anti-Anchor 卡片與候選池全域 UX（create-ux-spec 其他區塊僅介面邊界） |
+| Package Map、Overlay、override、learned | ~~Anti-Anchor 卡片與候選池全域 UX~~ *(Anti-Anchor 已退役，併入 TRIZ L1 跨域去錨定)*（create-ux-spec 其他區塊僅介面邊界） |
 | Pre-CAD spatial 與 trace 的**介面層**需求 | CAD 工具鏈、實體 MLOps |
 
 ---

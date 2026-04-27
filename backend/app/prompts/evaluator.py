@@ -376,7 +376,7 @@ SOLUTION_VALIDATION_PASSPORT = """\
 Generate a validation passport for the given solution hypothesis. \
 A validation passport declares the assumptions the solution depends on, \
 its known weak points, and the experiments needed to falsify those assumptions. \
-Every solution — whether from TRIZ, SCAMPER, Anti-Anchor, or manual input — \
+Every solution — whether from TRIZ or manual input — \
 must carry this self-declared record.
 </task>
 

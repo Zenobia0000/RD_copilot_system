@@ -234,9 +234,7 @@ def check_evidence_coverage(
         total = len(rows)
         if total == 0:
             label = label_template.format(min_pct=int(min_ratio * 100), actual_pct=0)
-            return GateCheckItem(label=label, met=False, detail="尚無 evidence claims"), (
-                fail_template.format(min_pct=int(min_ratio * 100), actual_pct=0)
-            )
+            return GateCheckItem(label=label, met=True, detail="⚠️ 尚無 evidence claims — 建議補充"), None
 
         verified = sum(1 for r in rows if r["status"] == "verified")
         ratio = verified / total

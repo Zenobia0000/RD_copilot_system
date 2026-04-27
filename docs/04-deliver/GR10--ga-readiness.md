@@ -65,7 +65,7 @@
 
 - [ ] **監控儀表板**：APM（latency / error rate / throughput）儀表板 live（連結 TBD）
 - [ ] **日誌聚合**：所有 service 統一送入 log stack；query 可用
-- [ ] **Trace**：關鍵 request（Solver / Anti-Anchor / Pre-CAD）端到端 trace 可觀察
+- [ ] **Trace**：關鍵 request（Solver / 跨域去錨定 / Pre-CAD）端到端 trace 可觀察
 - [ ] **告警規則**：
   - [ ] API 5xx error rate > threshold → PagerDuty（threshold TBD）
   - [ ] LLM service timeout rate > threshold → 告警
@@ -89,7 +89,7 @@
 
 - [ ] [E9x--user-manual-v0.1](E9x--user-manual-v0.1.md) 升級為 v1.0
 - [ ] Quick start（getting started）章節完整
-- [ ] 主要功能（TRIZ drill-down / Anti-Anchor / Pre-CAD）使用手冊含截圖
+- [ ] 主要功能（TRIZ drill-down / 跨域去錨定 / Pre-CAD）使用手冊含截圖
 - [ ] 常見錯誤 / FAQ 章節就緒
 - [ ] 使用者可存取位置公布（docs site URL TBD）
 - [ ] Release note / CHANGELOG v1.0 發佈

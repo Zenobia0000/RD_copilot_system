@@ -224,7 +224,7 @@ s = new_slide("5 大產品目標 × 對應 KPI", "PRD §2", 5)
 
 headers = ["#", "目標", "對應痛點", "KPI 指標"]
 rows = [
-    ("O1", "擴大可能性空間、破除路徑依賴", "經驗鎖定", "方案探索 ≥3 條（含 Anti-Anchor 非對標）"),
+    ("O1", "擴大可能性空間、破除路徑依賴", "經驗鎖定", "方案探索 ≥3 條（含跨域去錨定非對標）"),
     ("O2", "讓未知可見、可追蹤", "假設隱藏", "假設驗證覆蓋率 ≥80%"),
     ("O3", "前置風險驗證、證據驅動決策", "風險後置", "返工 ≤2 次；證據缺口識別 ≥90%"),
     ("O4", "決策可審查、可複用", "決策不可追溯", "100% 追溯率（KT 記錄）"),
@@ -491,7 +491,7 @@ for i, it in enumerate(fwd):
 # Reverse track (right)
 add_rect(s, Inches(8.7), Inches(2.6), Inches(4.2), Inches(0.55), ORANGE)
 add_text(s, Inches(8.7), Inches(2.65), Inches(4.2), Inches(0.45),
-         "Reverse 軌（Anti-Anchor）", size=13, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
+         "Reverse 軌（TRIZ L1 跨域去錨定）", size=13, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
 rev = ["First Principles", "Cross-domain Analogy",
        "Validation Passport", "≥3 非對標路線"]
 for i, it in enumerate(rev):
@@ -684,13 +684,13 @@ add_text(s, Inches(0.4), Inches(6.35), Inches(12.5), Inches(0.4),
 # =====================================================
 # P16. Reverse Anti-Anchor Sprint
 # =====================================================
-s = new_slide("eXplore｜反向分析 · Anti-Anchor Sprint",
-              "Reverse_Anti_Anchor_Architecture.md §1.2", 16)
+s = new_slide("eXplore｜反向分析 · TRIZ L1 跨域去錨定",
+              "TRIZ L1 內建步驟（原 Anti-Anchor Sprint，已併入）", 16)
 
 # definition big
 add_rect(s, Inches(0.4), Inches(1.5), Inches(12.5), Inches(1.4), NAVY)
 add_text(s, Inches(0.6), Inches(1.65), Inches(12.1), Inches(1.2),
-         "What is Anti-Anchor?\n「從第一性原理出發、強制跨領域類比、自我標記假設強度」的非典型架構產生器",
+         "What is 跨域去錨定?\n「從第一性原理出發、強制跨領域類比、自我標記假設強度」的非典型架構產生器（TRIZ L1 內建步驟）",
          size=15, bold=True, color=WHITE)
 
 # why needed
@@ -746,7 +746,7 @@ add_rect(s, Inches(8.8), Inches(1.6), Inches(4.0), Inches(2.3), ORANGE)
 add_text(s, Inches(8.8), Inches(1.75), Inches(4.0), Inches(0.5),
          "Reverse 軌", size=16, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
 add_text(s, Inches(9.0), Inches(2.3), Inches(3.8), Inches(1.5),
-         "• Anti-Anchor Sprint\n• 第一性原理\n• 跨域類比",
+         "• TRIZ L1 跨域去錨定\n• 第一性原理\n• 跨域類比",
          size=13, color=WHITE)
 
 # Merge arrows → Decision Hub
@@ -882,7 +882,7 @@ cmp_rows = [
     ("流程結構", "無狀態對話", "D1-V4 × 8 Gate 狀態機"),
     ("假設管理", "隱性", "Validation Passport + Evidence Matrix"),
     ("決策追溯", "無", "KT Decision Record"),
-    ("反偏誤", "無", "Anti-Anchor + 矛盾收斂掃描"),
+    ("反偏誤", "無", "TRIZ L1 跨域去錨定 + 矛盾收斂掃描"),
     ("產出可審查", "段落文字", "結構化工件 + Gate 判定"),
 ]
 col_w = [Inches(2.5), Inches(4.5), Inches(5.7)]
@@ -1028,7 +1028,7 @@ phases = [
     ("Phase A", "Month 1-2",
      "TRIZ KB + Forward 軌 MVP\n跑通 D1-D4\n第一次 Gate Review"),
     ("Phase B", "Month 3-4",
-     "Reverse Anti-Anchor\nDecision Hub (5d)\nPre-CAD Review"),
+     "TRIZ L1 跨域去錨定\nDecision Hub (5d)\nPre-CAD Review"),
     ("Phase C", "Month 5-6",
      "Evidence Matrix + Pre-CAD\n知識回寫\nPilot 專案結案"),
 ]

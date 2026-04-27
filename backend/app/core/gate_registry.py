@@ -184,6 +184,10 @@ _register(GateDefinition(
 # Phase 3
 # ---------------------------------------------------------------------------
 
+# TODO: Gate C (V1 → V3, CAD Gate) 未程式化 — 目前依賴人工 Review 頁面流程。
+#       文件定義：北極星 ≥ E2 + Evidence Matrix 所有 row 達標 + Top 10 風險有緩解。
+#       見 E3--ai-agent-detailed-design.md §11.4.3 Gate C 行。
+
 _register(GateDefinition(
     gate_id="3.2",
     name="決策簽核",

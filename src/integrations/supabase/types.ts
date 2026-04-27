@@ -89,6 +89,7 @@ export type Database = {
         }
         Relationships: []
       }
+      /** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
       anti_anchor_routes: {
         Row: {
           id: string

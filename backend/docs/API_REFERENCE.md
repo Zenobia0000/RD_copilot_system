@@ -367,14 +367,19 @@ curl -X POST http://localhost:8000/api/v1/assumptions/extract \
 
 ---
 
-## 6. Alternatives (Anti-Anchor)
+## 6. Alternatives (Anti-Anchor) — RETIRED (v3.0)
 
-### 6.1 Anti-Anchor Sprint
+> **v3.0 RETIRED**: Anti-Anchor has been retired. Its de-anchoring functionality
+> has been merged into the TRIZ solver as a built-in "cross-domain de-anchoring"
+> UX step within TRIZ L1 instantiation. The endpoint below is no longer served.
+> Use the TRIZ solver (Section 7) instead.
 
-Generate 3+ non-typical architecture concepts to break path dependency.
+### ~~6.1 Anti-Anchor Sprint~~
+
+~~Generate 3+ non-typical architecture concepts to break path dependency.~~
 
 ```
-POST /api/v1/alternatives/anti-anchor
+POST /api/v1/alternatives/anti-anchor   ← RETIRED (v3.0)
 ```
 
 **Request Body**
@@ -393,10 +398,11 @@ POST /api/v1/alternatives/anti-anchor
 | `routes` | `AntiAnchorRoute[]` (name, description, is_non_typical, rationale) |
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/alternatives/anti-anchor \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"project_id":"uuid","mission":"Design motor controller","current_constraints":["Weight <= 2kg"]}'
+# RETIRED (v3.0) — this endpoint is no longer active
+# curl -X POST http://localhost:8000/api/v1/alternatives/anti-anchor \
+#   -H "Authorization: Bearer $TOKEN" \
+#   -H "Content-Type: application/json" \
+#   -d '{"project_id":"uuid","mission":"Design motor controller","current_constraints":["Weight <= 2kg"]}'
 ```
 
 ---

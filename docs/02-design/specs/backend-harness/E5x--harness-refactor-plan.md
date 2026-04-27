@@ -39,7 +39,7 @@ backend/app/
 │   ├── mcp_client.py              ← 消費外部 MCP
 │   └── orchestrator.py            ← 線性 L1→L2→L3 orchestrator
 ├── agents/                        ← 大部分已改寫為 harness_call（見下方遷移狀態）
-│   ├── analyst.py                 ✅ 全函式 harness_call（含原 anti_anchor / subsystem 邏輯）
+│   ├── analyst.py                 ✅ 全函式 harness_call（含 subsystem 邏輯；~~anti_anchor v10 退役~~，跨域去錨定合併至 TRIZ L1）
 │   ├── triz_solver.py             ✅ L1/L2/L3 層透過 HarnessAgent + prompt_assembler
 │   ├── triz_critic.py             ✅ harness_call
 │   ├── evaluator.py               ✅ harness_call + HarnessAgent
@@ -84,7 +84,7 @@ backend/app/
 
 ### Phase 2 — HarnessAgent Base + Multi-Provider Model Adapter ✅ 完成 2026-04-24
 
-> **實際遷移狀態**：原計畫「全 agent 一次轉」，實際為漸進式遷移。6/7 agent 檔案已使用 `harness_call` / `HarnessAgent`；`scamper_feedback.py` 已於 v9 隨 SCAMPER 移除（不需遷移）。`anti_anchor.py` 與 `subsystem_decomposer.py` 不作為獨立檔案存在，邏輯整合至 `analyst.py`。
+> **實際遷移狀態**：原計畫「全 agent 一次轉」，實際為漸進式遷移。6/7 agent 檔案已使用 `harness_call` / `HarnessAgent`；`scamper_feedback.py` 已於 v9 隨 SCAMPER 移除（不需遷移）。`subsystem_decomposer.py` 不作為獨立檔案存在，邏輯整合至 `analyst.py`。~~`anti_anchor.py` 已於 v10 退役，跨域去錨定合併為 TRIZ L1 步驟。~~
 
 **Phase 2a：基礎建設**
 
@@ -119,7 +119,7 @@ backend/app/
 
 - `analyst.py` → HarnessAgents：`extract_brief`、`rewrite_mission`、`socratic_q_and_a`、`generate_cld`、`formalize_contradiction`、`decompose_tc_to_pcs`
 - `evaluator.py` → `assess_risks`、`scan_convergence`、`evaluate_must`、`pre_cad_review`、`generate_want_seeds`、`validation_passport`
-- ~~`scamper_feedback.py`~~（v9 移除）、`knowledge.py`、`anti_anchor`、`subsystem_decomposer`
+- ~~`scamper_feedback.py`~~（v9 移除）、`knowledge.py`、~~`anti_anchor`~~（v10 退役）、`subsystem_decomposer`
 
 **驗收**：
 - 既有 30+ pytest 全綠

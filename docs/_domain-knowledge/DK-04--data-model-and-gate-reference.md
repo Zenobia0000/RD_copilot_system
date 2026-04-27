@@ -98,7 +98,7 @@ DRAFT ──Gate D1 (1.1)──▶ PHASE_I ──Gate D4 (PG1)──▶ PHASE_II
 | id | UUID | PK |
 | project_id | FK | |
 | name | String | 方案名稱 |
-| source | Enum | `triz` / `anti_anchor` / `manual` (~~`scamper` v9 移除~~) |
+| source | Enum | `triz` / `manual` (~~`scamper` v9 移除~~; ~~`anti_anchor` v3.0 退役，併入 `triz`~~) |
 | mechanism | Text | 物理機制說明 |
 | interface_contract | JSON (6 維) | Envelope/Load/Signal/Thermal/Datum/Service |
 | bom_estimate | JSON | 預估 BOM |
@@ -195,7 +195,7 @@ DRAFT ──Gate D1 (1.1)──▶ PHASE_I ──Gate D4 (PG1)──▶ PHASE_II
 | *(Decision 簽核)* | `3.2` | V3 完成 | — | `gate_registry.py` |
 | **Gate V4** | `PG3` | V4 完成 | VERIFY → COMPLETED | `gate_registry.py` |
 
-> **Note**: Gate C（V1 證據審查）和 Anti-Anchor Gate 在文件中有描述，但目前 **未註冊** 在 `gate_registry.py` 中。
+> **Note**: Gate C（V1 證據審查）在文件中有描述，但目前 **未註冊** 在 `gate_registry.py` 中。（~~Anti-Anchor Gate~~ v3.0 退役，由 L1 critic badge 取代。）
 
 ### 4.2 Gate 通過條件
 
@@ -206,7 +206,7 @@ DRAFT ──Gate D1 (1.1)──▶ PHASE_I ──Gate D4 (PG1)──▶ PHASE_II
 | **Gate D4** | `PG1` | 斷路點 ≥ 3，每條矛盾有 TRIZ 正式句 + 類型標註；FM 已建構 |
 | **Gate X1** | `2.1` | Top 3 假設各有 1-2 週可完成的驗證設計 |
 | *(MUST)* | `2.2` | ≥ 1 alternative 的 `overall_pass: True` |
-| **Gate X5** | `PG2` | 探索完整度 pass（TRIZ 三路徑 + AA Sprint 皆執行）+ ≥1 存活路線；Pre-CAD Confidence = 100% |
+| **Gate X5** | `PG2` | 探索完整度 pass（TRIZ 三路徑 + 跨域去錨定皆執行）+ ≥1 存活路線；Pre-CAD Confidence = 100% |
 | *(Decision)* | `3.2` | WANT 評分有 Artifact ID (≠E0)；H 風險有緩解(≥E1)；KT 記錄已簽核 |
 | **Gate V4** | `PG3` | 新人/老闆/工程師都看得懂；所有工件 Baselined → Released |
 
@@ -251,9 +251,10 @@ DRAFT ──Gate D1 (1.1)──▶ PHASE_I ──Gate D4 (PG1)──▶ PHASE_II
 
 ---
 
-**版本**: v2.2
+**版本**: v3.0
 **最後更新**: 2026-04-27
 **變更紀錄**:
+- v3.0 (2026-04-27): Anti-Anchor 退役為獨立子系統——`anti_anchor` source 併入 `triz`、Anti-Anchor Gate 由 L1 critic badge 取代、Gate X5 探索完整度條件更新
 - v2.2 (2026-04-27): 全文件步驟編號遷移至 D/X/V 三段式編號系統 (D1-D4 / X1-X5 / V1-V4)；舊 Step 5c (SCAMPER) 確認 REMOVED；§4.1 加入舊→新對照表；§4.2 Gate 名稱對齊新編號；§5-6 Prompt 與 API 路由對應 Step 更新
 - v2.1 (2026-04-22): 新增 Gate 文件名稱↔程式碼 gate_id 對照表（§4.1）；更新狀態機圖加入 gate_id
 - v2.0 (2026-04-21): 從系統規格定義書提取核心 data model 與 gate 條件；API 端點細節保留在 02-design/specs

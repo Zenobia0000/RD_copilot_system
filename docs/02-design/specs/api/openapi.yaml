@@ -41,7 +41,7 @@ tags:
   - name: 假設台帳 assumptions
     description: Assumption extraction from Socratic Q&A
   - name: 方案管理 alternatives
-    description: Anti-anchor route generation, validation passport
+    description: "Validation passport generation. (Anti-anchor route generation DEPRECATED v10 — merged into TRIZ L1 cross-domain de-anchoring)"
   - name: TRIZ 求解 triz
     description: "TRIZ solving: primitive, Su-Field, layered (v7 legacy), directed (v8), consolidation"
   # v9: SCAMPER tag deprecated — /scamper/perform and /scamper/feedback-contradictions REMOVED;
@@ -446,7 +446,11 @@ paths:
     post:
       operationId: alternativesAntiAnchor
       tags: [方案管理 alternatives]
-      summary: Generate anti-anchor (unconventional) routes
+      summary: "[DEPRECATED v10] Generate anti-anchor routes — retired, merged into TRIZ L1 cross-domain de-anchoring step"
+      deprecated: true
+      description: |
+        v10 退役：Anti-Anchor 已合併為 TRIZ L1 實例化中的「跨域去錨定」步驟。
+        此端點保留供向後相容，但新流程應使用 POST /triz/solve-layered。
       requestBody:
         required: true
         content:
@@ -455,7 +459,7 @@ paths:
               $ref: "#/components/schemas/AntiAnchorRequest"
       responses:
         "200":
-          description: Anti-anchor routes
+          description: Anti-anchor routes (deprecated)
           content:
             application/json:
               schema:
@@ -2157,9 +2161,11 @@ components:
       required: [assumptions]
 
     # -----------------------------------------------------------------------
-    # Alternatives / Anti-Anchor
+    # Alternatives / Anti-Anchor — DEPRECATED v10: merged into TRIZ L1 cross-domain de-anchoring
     # -----------------------------------------------------------------------
     AntiAnchorRequest:
+      deprecated: true
+      description: "[DEPRECATED v10] Anti-Anchor 已退役，合併為 TRIZ L1 跨域去錨定步驟"
       type: object
       properties:
         project_id:
@@ -2235,6 +2241,8 @@ components:
           default: 0.5
 
     AntiAnchorRoute:
+      deprecated: true
+      description: "[DEPRECATED v10] Anti-Anchor route — 已退役，合併為 TRIZ L1 跨域去錨定步驟"
       type: object
       properties:
         name:
@@ -2265,6 +2273,8 @@ components:
       required: [name]
 
     AntiAnchorResponse:
+      deprecated: true
+      description: "[DEPRECATED v10] Anti-Anchor response — 已退役，合併為 TRIZ L1 跨域去錨定步驟"
       type: object
       properties:
         routes:

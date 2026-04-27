@@ -9,7 +9,7 @@
 
 ## 1. Value Proposition
 
-RD Design Copilot 是專為 e-Bike 產品線打造的**工程設計副駕**，將 RD 團隊的隱性知識、隱性假設與隱性決策，轉化為可追溯（Traceable）、可審查（Auditable）、可重用（Reusable）的數位工程資產。系統以 TRIZ 三層求解、Anti-Anchor 反偏誤探索、純算術驗證（不依賴 LLM 產數字）為三大技術支柱，在概念設計階段即完成方案發散、假設驗證與證據閉環——將方案探索從 2 天壓縮至 0.5 天，架構級返工從 3-5 次降至 2 次以下，並實現 100% 決策可追溯。
+RD Design Copilot 是專為 e-Bike 產品線打造的**工程設計副駕**，將 RD 團隊的隱性知識、隱性假設與隱性決策，轉化為可追溯（Traceable）、可審查（Auditable）、可重用（Reusable）的數位工程資產。系統以 TRIZ 三層求解（含 L1 跨域去錨定反偏誤探索）、純算術驗證（不依賴 LLM 產數字）為兩大技術支柱，在概念設計階段即完成方案發散、假設驗證與證據閉環——將方案探索從 2 天壓縮至 0.5 天，架構級返工從 3-5 次降至 2 次以下，並實現 100% 決策可追溯。
 
 > **一句話**：別的 AI 幫你「生想法」，這套系統幫你**生證據、生追溯、生反偏誤**。
 
@@ -37,7 +37,7 @@ RD Design Copilot 是專為 e-Bike 產品線打造的**工程設計副駕**，�
 | **流程結構** | 無狀態對話 | 8 Step x 8 Gate 狀態機 |
 | **假設管理** | 隱性 | Validation Passport + Evidence Matrix |
 | **決策追溯** | 無 | KT Decision Record（100% 可追溯） |
-| **反偏誤** | 無 | Anti-Anchor + 矛盾收斂掃描 |
+| **反偏誤** | 無 | TRIZ L1 跨域去錨定 + 矛盾收斂掃描 |
 | **產出可審查** | 段落文字 | 結構化工件 + Gate 判定 |
 
 **核心差異總結**：ChatGPT 是通用對話工具；RD Design Copilot 是嵌入工程流程的決策基礎設施——LLM 負責創造、純算術負責驗證、資料庫負責累積。
@@ -96,7 +96,7 @@ M1 ──── M2 ──── M3 ──── M4 ──── M5 ──── 
 | 階段 | 期程 | 主要交付 | Gate 驗收 |
 |---|---|---|---|
 | **Phase A** | M1-M2 | TRIZ KB + Forward 軌 MVP + Analyst Agent | Pilot Brief → 核心矛盾自動化識別 |
-| **Phase B** | M3-M4 | Anti-Anchor + Decision Hub + Pre-CAD Review | >=3 條非對標路線 + MUST 快篩通過 |
+| **Phase B** | M3-M4 | TRIZ L1 跨域去錨定 + Decision Hub + Pre-CAD Review | >=3 條非對標路線 + MUST 快篩通過 |
 | **Phase C** | M5-M6 | Evidence Matrix + Risk Register + 知識回寫 | Pilot 結案 + 知識沉澱進企業 RAG |
 
 ### Go / No-Go 決策點

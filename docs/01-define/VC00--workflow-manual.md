@@ -82,7 +82,7 @@
 ### A2 高層次架構（SA + ADR）— 對應 DEFINE TR2/TR3
 - 產出：
   - [`01-define/E2--statement-of-work.md`](../01-define/E2--statement-of-work.md)（Approved, TR2 passed）
-  - [`01-define/E3--architecture-and-design.md`](../01-define/E3--architecture-and-design.md)（Approved, TR3 passed；含 Appendix A–E：Forward Subsystem Discovery / Forward TRIZ Solver / Reverse Anti-Anchor / State Machine / TRIZ Flow（~~SCAMPER v9 移除~~））
+  - [`01-define/E3--architecture-and-design.md`](../01-define/E3--architecture-and-design.md)（Approved, TR3 passed；含 Appendix A–E：Forward Subsystem Discovery / Forward TRIZ Solver / ~~Reverse Anti-Anchor~~ *(已退役，AA 併入 TRIZ L1 跨域去錨定)* / State Machine / TRIZ Flow（~~SCAMPER v9 移除~~））
   - ADR-001..008 見 [`01-define/adrs/`](../01-define/adrs/)（含 ADR-006 Harness Architecture、ADR-007 TC-Only、ADR-008 Auto-TRIZ v2）
 - 相關互動流：[`E3x--system-interaction-flow`](../01-define/E3--system-interaction-flow.md)
 - Gate：**已通過 TR2、TR3**

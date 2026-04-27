@@ -40,7 +40,7 @@
 - [ ] **F-08 (WS-F)** TC → 多 PC decomposition（`contradictions.parent_id`）可視化 + 編輯
 - [ ] **F-09 (WS-G)** L3 Su-Field 平行旁路 scanner 上線
 - [ ] **F-10 (WS-H)** Playwright E2E 補測覆蓋關鍵 3 scenarios
-- [ ] **F-11** Anti-Anchor validation_passport 欄位完整寫入（003 migration 欄位）
+- [ ] **F-11** 跨域去錨定 validation_passport 欄位完整寫入（003 migration 欄位）
 - [ ] **F-12** Pre-CAD 六維評分 + citations UI 完整
 - [ ] **F-13** Dashboard aggregates（gates_passed / quick_stats）正確
 - [ ] **F-14** MUST criteria 自動產生（Brief → must_criteria_config）
@@ -81,7 +81,7 @@
 
 - [ ] **US-01** Brief 上傳 → 自動拆解硬約束/矛盾/假設（UAT-01 主要路徑）
 - [ ] **US-02** Create 頁分層 drill-down（L1→L2→L3）（UAT-02）
-- [ ] **US-03** Anti-Anchor Sprint 產生 ≥3 條路線（UAT-03）
+- [ ] **US-03** TRIZ L1 跨域去錨定產生 ≥3 條路線（UAT-03）
 - [ ] **US-04** Validation Passport 追蹤假設狀態
 - [ ] **US-05** Pre-CAD Gate 六維評分 + citations（UAT-05）
 - [ ] **US-06** MUST 硬限制 Pass/Conditional/Fail 分類

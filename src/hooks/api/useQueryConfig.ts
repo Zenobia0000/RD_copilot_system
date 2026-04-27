@@ -74,6 +74,7 @@ export const queryKeys = {
   },
 
   // Layer 3: X1–X2 — Solution Exploration
+  /** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
   anti_anchor_routes: {
     all: ['anti_anchor_routes'] as const,
     byProject: (projectId: string | undefined) => ['anti_anchor_routes', k(projectId)] as const,

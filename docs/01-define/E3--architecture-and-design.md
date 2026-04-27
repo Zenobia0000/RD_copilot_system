@@ -25,8 +25,8 @@ supersedes: E3 v1.4 (2026-03-26)
 | 部分                | 範圍                                                                                                         | 對應章節           |
 | ----------------- | ---------------------------------------------------------------------------------------------------------- | -------------- |
 | **Part 1 · 架構總覽** | 需求摘要、C4 高層架構、技術選型、數據、部署、NFR、風險、路線圖                                                                         | §1 – §10       |
-| **Part 2 · 詳細設計** | AI Agent 協作架構（本產品核心，多代理 + 狀態機 + Anti-Anchor 機制）                                                            | §11            |
-| **Part 3 · 附錄**   | 5 份 SA 視角架構說明書（Forward Subsystem / Forward TRIZ / Reverse Anti-Anchor / State Machine / TRIZ Flow（~~SCAMPER v9 移除~~）） | Appendix A – E |
+| **Part 2 · 詳細設計** | AI Agent 協作架構（本產品核心，多代理 + 狀態機 + TRIZ L1 跨域去錨定）                                                            | §11            |
+| **Part 3 · 附錄**   | 4 份 SA 視角架構說明書（Forward Subsystem / Forward TRIZ / State Machine / TRIZ Flow（~~SCAMPER v9 移除~~）；~~Appendix C v3.0 退役至 `_superseded/`~~） | Appendix A – E |
 
 
 ---
@@ -54,7 +54,7 @@ supersedes: E3 v1.4 (2026-03-26)
 **In Scope**
 
 - RD Design Copilot 產品的軟體架構（前端 + 後端 + BaaS + LLM 服務）
-- Multi-Agent 編排、狀態機、TRIZ / Anti-Anchor 兩條分析路徑（~~SCAMPER v9 移除~~）
+- Multi-Agent 編排、狀態機、TRIZ 路徑（含 L1 跨域去錨定；~~SCAMPER v9 移除~~）
 - 部署拓撲（Docker Compose + Supabase SaaS + Anthropic API）
 - 關鍵非功能需求與對應緩解設計
 
@@ -104,7 +104,7 @@ supersedes: E3 v1.4 (2026-03-26)
 
 | PRD Goal     | 對應架構能力                                            | 主要 Agent / 元件                     |
 | ------------ | ------------------------------------------------- | --------------------------------- |
-| G1 擴大設計可能性空間 | Anti-Anchor Sprint + TRIZ 雙路發散（~~SCAMPER v9 移除~~） | Analyst + TRIZ Solver + Knowledge |
+| G1 擴大設計可能性空間 | TRIZ 三路徑（含 L1 跨域去錨定；~~SCAMPER v9 移除~~） | Analyst + TRIZ Solver + Knowledge |
 | G2 未知可見可追蹤   | 假設台帳 + Validation Passport + Evidence Matrix      | Analyst + Evaluator               |
 | G3 前置風險驗證    | SIM 矩陣前置跨矛盾衝突檢查 + CCI 複雜度判定 + 架構健康度監控 + 最小實驗設計    | Analyst + TRIZ Solver + Evaluator |
 | G4 決策可審查可複用  | KT Decision Analysis + 6 類資產知識回寫                  | Evaluator + Knowledge             |
@@ -115,7 +115,7 @@ supersedes: E3 v1.4 (2026-03-26)
 
 ### 2.4 產品原則（架構守欄）
 
-源自 PRD §5：**AI 建議，人決策；證據先行；結構化但不僵化；打破錨定；透明可解釋；漸進式負擔；知識可沉澱**。這七條原則直接約束後續所有 ADR 與設計決策（見 §8 風險與 §11.3 Anti-Anchor 機制）。
+源自 PRD §5：**AI 建議，人決策；證據先行；結構化但不僵化；打破錨定；透明可解釋；漸進式負擔；知識可沉澱**。這七條原則直接約束後續所有 ADR 與設計決策（見 §8 風險與 §11.3 去錨定機制）。
 
 ### 2.5 Scope Boundaries
 
@@ -133,7 +133,9 @@ supersedes: E3 v1.4 (2026-03-26)
 
 ## §3 高層次架構設計 (High-Level Architectural Design)
 
-採用 C4 Model 三層視圖（Context / Container / Component）。更細節的 Component 視圖見 Appendix A（子系統）、Appendix B（TRIZ）、Appendix C（Anti-Anchor）。
+採用 C4 Model 三層視圖（Context / Container / Component）。更細節的 Component 視圖見 Appendix A（子系統）、Appendix B（TRIZ）；~~Appendix C（Anti-Anchor）v3.0 退役至 `_superseded/`~~。
+
+**Design Point**：50 concurrent RD engineers · AI response P95 < 3 s · single-tenant MVP
 
 ### 3.1 Context Diagram (C4 Level 1)
 
@@ -228,7 +230,7 @@ graph LR
     subgraph Agents ["🤖 Agent Pool"]
         direction TB
         subgraph Main ["Main Agents (sonnet)"]
-            analyst[Analyst<br/>需求解構 · 蘇格拉底<br/>矛盾收斂 · Anti-Anchor]
+            analyst[Analyst<br/>需求解構 · 蘇格拉底<br/>矛盾收斂 · 跨域去錨定]
             triz_solver[TRIZ Solver<br/>矩陣查表 · 原理實體化<br/>L1/L2/L3 分層鑽探]
             evaluator[Evaluator<br/>MUST 快篩 · KT 評分<br/>Pre-CAD · Gate 判定]
         end
@@ -273,7 +275,7 @@ graph LR
 
 
 
-> **深入閱讀**：分析路徑（正向子系統 / 正向 TRIZ / 反向 Anti-Anchor）的 Component 細節見 Appendix A / B / C；狀態機見 Appendix D；TRIZ 流程見 Appendix E（~~SCAMPER v9 移除~~）。
+> **深入閱讀**：分析路徑（正向子系統 / TRIZ）的 Component 細節見 Appendix A / B；~~反向 Anti-Anchor（Appendix C）v3.0 退役，去錨定已併入 TRIZ L1~~；狀態機見 Appendix D；TRIZ 流程見 Appendix E（~~SCAMPER v9 移除~~）。
 
 ### 3.4 關鍵架構風格與決策
 
@@ -286,6 +288,7 @@ graph LR
 | **Evidence-first outputs**                   | 所有 AI 輸出附 `EvidenceReference`（KB-/WEB-/DOC-/REASONING-）                                                            | ADR-005 + schemas.py §EvidenceReference |
 | **Prompt-as-code（Phase 2 轉 prompt-as-data）** | 目前 Prompt 模板在 Python 模組，Phase 2 遷至 `prompts/templates/*.md`                                                        | ADR-003                                 |
 
+> **Trust Boundary**：前端 ↔ Supabase 走 JWT + RLS（§5.3）；前端 ↔ Backend 走 Supabase JWT 驗證。所有 PII（email/name）僅存在 Supabase auth schema，不經過 Backend。
 
 ---
 
@@ -373,7 +376,7 @@ graph LR
 | **Causal Loop & Contradictions**               | `cld_nodes`, `cld_edges`, `contradictions`                                                                    | `CldGenerationResponse`, `ContradictionFormalize`*                                                                           | D4 (§11.2)                     |
 | **Subsystem Hierarchy（3-level）**               | `subsystems`（migration 003 / 007 / 008）                                                                       | `SubsystemSuggestResponse`, `SuggestedSubsystem`, `InterfaceContract`, `PackageMap`, `SpatialEstimate`                       | X3 (§11.2) + Appendix A        |
 | **TRIZ Layered**（TC/PC/SF 分層）                  | migration 010 (`triz_layered_drilldown`), `contradictions.kind`（migration 009 `pc_decomposition`）             | `LayeredTrizSolution`, `L1Surface`, `L2RootCause`, `L3StructuralCheck`, `SuFieldModel`, `DeepenLink`, `DifferentialAnalysis` | X2 (§11.2) + Appendix B        |
-| **Anti-Anchor & Passport**（migration 001）      | `anti_anchor_routes`, `validation_passports`                                                                  | `AntiAnchorRoute`, `ValidationPassport`                                                                                      | X2 並行（§11.2）+ Appendix C      |
+| ~~**Anti-Anchor**~~（v3.0 退役） & **Passport**（migration 001） | ~~`anti_anchor_routes`~~（退役）, `validation_passports`                                                          | ~~`AntiAnchorRoute`~~（退役）, `ValidationPassport`                                                                              | ~~Appendix C~~→去錨定併入 TRIZ L1 |
 | ~~**SCAMPER**~~                                | ~~`scamper_variants`~~                                                                                        | ~~`ScamperVariant`, `ScamperResponse`~~                                                                                      | *(v9 移除)*                      |
 | **Concept Routes & Compatibility（ADR-005 新增）** | `concept_routes`, `compatibility_pairs`                                                                       | `ConvergenceAlternativeInput`, `ConvergenceContradictionInput`, `SecondaryContradiction`                                     | X4 (§11.2)                     |
 | **MUST Evaluation**                            | `must_evaluations`                                                                                            | `MustEvaluationRequest`, `MustCriterionConfig`, `MustCriterionResult`                                                        | X5 (§11.2)                     |
@@ -458,6 +461,12 @@ graph LR
 ### 6.4 CI/CD 狀態
 
 手動部署於 v1.0 可接受（ADR-004 §不納入 v1.0）；v1.1 建立 pipeline — **TBD — DevOps Owner TBD by v1.1 TBD**。
+
+### 6.5 Known SPOF（MVP 階段）
+
+- **Anthropic API**：掛了 → 全部 AI 流程停擺（TRIZ/Evaluation）。Mitigation: 前端顯示 graceful fallback，不阻塞非 AI 操作
+- **Supabase Cloud**：掛了 → 全站不可用。Mitigation: Supabase 99.9% SLA，MVP 接受此風險
+- **Single-instance Backend**：無 HA。Mitigation: docker restart policy + v1.1 評估 multi-replica
 
 ---
 
@@ -572,7 +581,7 @@ Radix UI 提供 WAI-ARIA 基礎；a11y 審計 — **TBD — UX Owner TBD by v1.1
 | ------ | -------------- | --------------------------------------------------- | ------------------------- |
 | 慣用架構偏見 | D2 理解全貌        | Socratic 七類提問 + Problem Reframing                   | §11.3 機制 1                |
 | 矛盾盲視   | D4 系統建模        | Forced Divergence + Contradiction Convergence Graph | §11.3 機制 2 + 6            |
-| 錨定效應   | X2              | Anti-Anchor Sprint（第一性原理 prompt） + Anti-Anchor Gate | §11.3 機制 2/4 + Appendix C |
+| 錨定效應   | X2              | TRIZ L1 跨域去錨定步驟（第一性原理 prompt） + Gate X2             | §11.3 機制 2/4               |
 | 隱含假設   | D2-X1           | Assumption Challenge（質疑回寫）                          | §11.3 機制 1                |
 | 經驗慣性   | X2              | Cross-Domain Analogical Search                      | §11.3 機制 3                |
 
@@ -669,7 +678,7 @@ Radix UI 提供 WAI-ARIA 基礎；a11y 審計 — **TBD — UX Owner TBD by v1.1
 | **RLS**                 | Row-Level Security（Supabase/PostgreSQL）                                                                  |
 | **Agent**               | Multi-Agent 架構中的角色：Analyst / TRIZ Solver / Evaluator / Knowledge（§11.1）                                  |
 | **Artifact**            | 流程產出的核心工件：Constraint / Contradiction / Assumption / Concept Route 等（§11.4.3）                             |
-| **Gate**                | Phase/Step 之間的品質關卡（Gate D1-V4 + Anti-Anchor / Gate X5 / Gate C；§2.2a）                                    |
+| **Gate**                | Phase/Step 之間的品質關卡（Gate D1-V4 / Gate X5 / Gate C；§2.2a）                                                   |
 | **Phase / Step**        | Phase I-III + D1-V4 的雙層狀態機（Appendix D）                                                                   |
 | **Validation Passport** | 每個候選方案自帶的驗證護照（assumptions[], weak_points[], required_verifications[], confidence_level）；§11.3 機制 7       |
 | ~~**Phase B 收斂**~~      | ~~方案×矛盾交叉檢查~~——**v9 退役**：由 SIM 矩陣（ADR-008 D5）和 CCI（ADR-008 D4）前置覆蓋。Phase A 已於 v8 退役，由 L1 critic badge 取代 |
@@ -715,6 +724,6 @@ Radix UI 提供 WAI-ARIA 基礎；a11y 審計 — **TBD — UX Owner TBD by v1.1
 | ---------------------------------------------------------------------- | ------------------------------------------------------- | -------- |
 | **E3--architecture-and-design.md** (本文)                                | Part 1: 架構總覽 (C4, Tech Stack, Data, NFR, Risk, Roadmap) | ~634     |
 | [E3--ai-agent-detailed-design.md](E3--ai-agent-detailed-design.md)     | Part 2: AI Agent 協作架構詳細設計 (§11)                         | ~625     |
-| `diagrams/appendix-a~e`                                                | SA 視角附錄 ([A](diagrams/appendix-a--forward-subsystem-discovery.md) / [B](diagrams/appendix-b--forward-triz-solver.md) / [C](diagrams/appendix-c--reverse-anti-anchor.md) / [D](diagrams/appendix-d--state-machine.md) / [E](diagrams/appendix-e--triz-scamper-flow.md)) | ~4157    |
+| `diagrams/appendix-a~e`                                                | SA 視角附錄 ([A](diagrams/appendix-a--forward-subsystem-discovery.md) / [B](diagrams/appendix-b--forward-triz-solver.md) / ~~[C](diagrams/appendix-c--reverse-anti-anchor.md)~~（v3.0 退役至 `_superseded/`） / [D](diagrams/appendix-d--state-machine.md) / [E](diagrams/appendix-e--triz-scamper-flow.md)) | ~4157    |
 
 

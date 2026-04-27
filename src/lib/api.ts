@@ -487,7 +487,9 @@ export function cldGenerate(body: CldGenerateRequest) {
 }
 
 // ─── Anti-Anchor ────────────────────────────────────────────────────────────
+// v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1 flow
 
+/** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
 export interface AntiAnchorGenerateRequest {
   project_id: string;
   mission: string;
@@ -496,6 +498,7 @@ export interface AntiAnchorGenerateRequest {
   socraticAnswers?: string[];
 }
 
+/** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
 export interface AntiAnchorRouteResult {
   name: string;
   mechanism: string;
@@ -508,10 +511,12 @@ export interface AntiAnchorRouteResult {
   validation_passport: Record<string, unknown> | null;
 }
 
+/** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
 export interface AntiAnchorGenerateResponse {
   routes: AntiAnchorRouteResult[];
 }
 
+/** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
 export function antiAnchorGenerate(body: AntiAnchorGenerateRequest) {
   return request<AntiAnchorGenerateResponse>("/alternatives/anti-anchor", body, { timeoutMs: 300_000 });
 }

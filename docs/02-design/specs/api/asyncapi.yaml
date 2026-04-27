@@ -80,7 +80,7 @@ channels:
     description: |
       方案管理即時同步。新增/修改/刪除方案時觸發。
       觸發場景：
-        - POST /alternatives/anti-anchor → INSERT
+        # - POST /alternatives/anti-anchor → INSERT  # v10: Anti-Anchor deprecated, merged into TRIZ L1 de-anchoring
         - TRIZ solve results persisted → INSERT/UPDATE
         - RD 手動新增方案 → INSERT
     messages:

@@ -97,6 +97,19 @@
 
 ---
 
+## Sprint 準備：拿到第一張 ticket
+
+三天 onboarding 後，拿到 Sprint ticket 時：
+
+1. 打開 [`SPRINT-INDEX.md`](SPRINT-INDEX.md)
+2. 在 §1 By Page 找到你要改的頁面 → 跟連結讀 Page Spec（元件 + 互動 + AC）
+3. 需要了解跨頁流程 → 查 §2 By Scenario，讀 E3x 對應章節
+4. 需要 API/Module 細節 → 查 §3 By Module，讀對應 spec
+
+這樣你只需讀 1-2 份文件就能開工，不必橫跨 5+ 檔案拼湊。
+
+---
+
 ## 按角色加讀
 
 三天讀完上面 10 份後，根據你的角色再深入：

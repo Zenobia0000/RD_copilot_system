@@ -87,7 +87,7 @@ backend/app/
 ├── routers/                  # API endpoints（依資源切分）
 │   ├── brief.py, socratic.py, cld.py
 │   ├── contradictions.py, triz.py, subsystems.py  # v9: scamper.py → subsystems.py
-│   ├── anti_anchor.py, validation.py
+│   ├── anti_anchor.py (v10 deprecated), validation.py
 │   ├── convergence.py, unknown_factors.py
 │   ├── assumptions.py, risk.py, action.py
 │   ├── want.py, must.py, pre_cad.py, gates.py
@@ -116,7 +116,7 @@ src/
 │   ├── ui/                  # shadcn/ui 原子組件
 │   ├── layouts/
 │   ├── create/              # Create 頁 Tab ①–④
-│   ├── explore/             # Explore 頁 L2/L3 + Anti-Anchor
+│   ├── explore/             # Explore 頁 L2/L3 + TRIZ L1 跨域去錨定
 │   ├── review/, precad/, solution/, assumption/, contradiction/, evidence/, track/
 │   ├── dashboard/, projects/, auth/, brief/, task-definition/
 │   ├── NavLink.tsx, ErrorBoundary.tsx, ThemeProvider.tsx

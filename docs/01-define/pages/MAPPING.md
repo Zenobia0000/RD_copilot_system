@@ -3,7 +3,7 @@
 > **用途：** 作為 `docs/02-design/E5x--frontend-information-architecture.md`（IA 18 頁定義）與本目錄 `pages/*.md`（18 份 page spec）之間的**雙向對照索引**。
 > **維護原則：** IA 新增/刪除頁面時同步更新本檔；新增 spec 檔時新增對應列。
 >
-> **最後更新：** 2026-04-24 · **版本：** v2.0 · **對應 IA 版本：** v1.1 · **對應前端架構版本：** v1.1 · **對應 API 規格版本：** v1.2
+> **最後更新：** 2026-04-27 · **版本：** v3.0 · **對應 IA 版本：** v1.1 · **對應前端架構版本：** v1.1 · **對應 API 規格版本：** v1.2
 
 ---
 
@@ -159,311 +159,48 @@
 
 ---
 
-## 5. 關鍵互動路徑與檔案對照（核心使用者旅程）
+## 5. 關鍵互動路徑
 
-### 5.1 Journey 1: Forward TRIZ 解矛盾（E3x §2）
+> **完整 scenario 敘事（序列圖 + 互動對照表）**：見 [`E3--system-interaction-flow.md`](../E3--system-interaction-flow.md) §2-4。
+> **Sprint 開發者速查**：見 [`SPRINT-INDEX.md`](../../SPRINT-INDEX.md) §2 By Scenario。
 
-```
-01 登入 → 03 專案列表 → 04 專案儀表板 → 08 Create Step 1 (TRIZ)
-                                         ↓
-                                    L1 → L2 → L3 分層 drill-down
-                                         ↓
-                                    08 Create Step 4 (決策中心) → 比較採納
-```
-
-**涉及 Spec**：`01` → `03` → `04` → `08`
-
-### 5.2 Journey 2: Reverse Anti-Anchor（E3x §3）
-
-```
-04 專案儀表板 → 08 Create Step 0 (Anti-Anchor)
-                    ↓
-               AI 產出 3 條非典型路線
-                    ↓
-               07 Track → Validation Passport 假設追蹤
-```
-
-**涉及 Spec**：`04` → `08` → `07`
-
-### 5.3 Journey 3: Pre-CAD Gate（E3x §4）
-
-```
-04 專案儀表板 → 09 Pre-CAD 審查 → AI 六維評分
-                                    ↓
-                              12 DecisionRecord → KT 決策 + 簽名
-```
-
-**涉及 Spec**：`04` → `09` → `12`
-
-### 5.4 Journey 4: 完整 8-Gate 流程（Happy Path）
-
-```
-01 登入 → 03 列表 → 04 儀表板
-  → 05 Brief (Gate 1.1)
-  → 06 Explore (Gate 1.2 → Phase Gate 1)
-  → 07 Track (Gate 2.1)
-  → 08 Create (Gate 2.2 → Phase Gate 2)
-  → 09 Pre-CAD (Gate P)
-  → 10 CAD 進行中
-  → 11 DesignReview (Gate 3.1)
-  → 12 DecisionRecord (Gate 3.2 → Phase Gate 3)
-  → 13 Feynman (Gate 8 知識內化)
-```
-
-**涉及 Spec**：`01` → `03` → `04` → `05` → `06` → `07` → `08` → `09` → `10` → `11` → `12` → `13`
-
-### 5.5 Journey 5: 知識庫查詢
-
-```
-任一頁面 sidebar → 14 知識庫列表 → 14 知識庫文章詳情
-```
-
-**涉及 Spec**：`14`
+| Journey | E3x 章節 | 涉及 Spec |
+|:--------|:---------|:----------|
+| Forward TRIZ 解矛盾 | §2 | `01` → `03` → `04` → `08` |
+| ~~Reverse Anti-Anchor~~ *(已退役，併入 TRIZ L1 跨域去錨定)* | ~~§3~~ | ~~`04` → `08` → `07`~~ |
+| Pre-CAD Gate | §4 | `04` → `09` → `12` |
+| 完整 8-Gate Happy Path | §1 | `01` → `03` → … → `13`（全 13 頁） |
+| 知識庫查詢 | — | `14` |
 
 ---
 
-## 6. 業務元件與 Spec 對應
+## 6. 前端細節索引
 
-> 對齊 `E5x--frontend-architecture.md §2`（Feature-first organization）。基礎 UI 元件（`src/components/ui/*`，shadcn/ui 50+）不在本表追蹤。
+> 以下索引的 SSOT 位於各自的上游文件。本節僅提供快速指標。
+> **Sprint 開發者速查**：見 [`SPRINT-INDEX.md`](../../SPRINT-INDEX.md) §1 By Page。
 
-### 6.1 業務元件清單
-
-| 元件 | 所屬 Feature | 用途 | 被引用 Spec |
-|:-----|:------------|:-----|:------------|
-| `ProjectCard` | projects | 專案卡片（名稱、狀態、Phase） | 03 |
-| `ProjectFilters` | projects | 搜尋 + Phase 篩選 + Creator 篩選 | 03 |
-| `CreateProjectModal` | projects | 新建專案 Modal | 03 |
-| `GateDonut` | dashboard | Gate 通過率甜甜圈圖 | 04 |
-| `PhaseProgressBar` | dashboard | 階段進度條 | 04 |
-| `MissionSummaryCard` | dashboard | 任務摘要卡（使命 + 約束 + KPI） | 04 |
-| `KpiCards` | dashboard | KPI 指標卡片組 | 04 |
-| `PreCadScoreGauge` | dashboard | Pre-CAD 信心分數儀表 | 04 |
-| `ContradictionConvergenceCard` | dashboard | 矛盾收斂狀態卡 | 04 |
-| `QuickStatsGrid` | dashboard | 快速統計網格 | 04 |
-| `NavCards` | dashboard | 6+1 導航卡片（各階段入口） | 04 |
-| `ProjectTimeline` | dashboard | 專案時間軸（里程碑 + 事件） | 04 |
-| `StageNavigation` | dashboard | 階段導航 | 04 |
-| `EvidenceEntryDialog` | evidence | 證據輸入對話框 | 04, 11 |
-| `ConstraintsTable` | brief | 硬約束表格（含 AI 建議） | 05 |
-| `KpiList` | brief | 關鍵績效指標列表 | 05 |
-| `AITaskDefinitionCard` | task-definition | AI 5W1H 定義卡 | 05 |
-| `AISuggestionCard` | brief | AI 建議卡片 | 05 |
-| `EvidenceRefsInline` | brief | 行內證據引用 | 05 |
-| `GateChecklist` | brief | Gate 檢查清單 | 05, 06 |
-| `FileUploadZone` | task-definition | 檔案上傳區 | 05 |
-| `AIExtractionResults` | task-definition | AI 提取結果 | 05 |
-| `FeasibilityValidation` | task-definition | 可行性驗證 | 05 |
-| `MultiItemInput` | task-definition | 多項目輸入（軟目標 / 非目標） | 05 |
-| `EntryGradingModal` | explore | （ADR-008）入口分級 Modal，判定 Level A/B/C | 06 |
-| `ProblemScopingStep` | explore | （ADR-008）Level A Step 0：5Why + KT Is/Is Not | 06 |
-| `FunctionAnalysisStep` | explore | （ADR-008）Level A Step 1：FA 組件交互圖 + SF 診斷 | 06 |
-| `SocraticTab` | explore | Socratic 問答 Tab | 06 |
-| `ContradictionDisplayCard` | explore | 矛盾展示卡片 | 06 |
-| `DecomposedPCCard` | explore | 分解 PC 卡片 | 06 |
-| `CldTab` | explore | 因果迴圈圖 Tab | 06 |
-| `ExploreGates` | explore | Explore Gate 檢查 | 06 |
-| `SocraticPanel` | contradiction | Socratic 面板 | 06 |
-| `KanbanBoard` | track | 4 欄假設看板 | 07 |
-| `UnknownFactors` | track | 未知因素管理 | 07 |
-| `TrackGate` | track | Track Gate 檢查 | 07 |
-| `CreateStepper` | create | 7-step 步進器 | 08 |
-| `MissionContext` | create | 任務脈絡面板 | 08 |
-| `OzOtPanel` | create | （ADR-008）OZ-OT 前置分析面板，鎖定 Px | 08 |
-| `SimMatrixView` | create | （ADR-008）多 TC SIM 交互矩陣（+1/0/-1） | 08 |
-| `CciBadge` | create | （ADR-008）CCI 複雜度判定 Badge（Evolution/Patch） | 08 |
-| `EvidenceCoverageGauge` | create | （ADR-008）Evidence Registry 覆蓋率儀表 | 08, 11 |
-| `LayeredSolutionCard` | create | 分層 TRIZ 解法卡片 | 08 |
-| `SubsystemHierarchyView` | create | 子系統層次圖 | 08 |
-| `PackageMapPanel` | create | 封裝映射面板 | 08 |
-| `InterfaceContractsPanel` | create | 介面契約面板 | 08 |
-| `SpatialOverlayDialog` | create | 空間疊加對話框 | 08 |
-| `SpatialOverrideDialog` | create | 空間覆寫對話框 | 08 |
-| `PromoteToLearnedDialog` | create | 晉升為學習元件 | 08 |
-| `ConvergenceDashboard` | create | 收斂儀表板 | 08 |
-| `ConvergenceGraph` | solution | 收斂圖（React Flow） | 08 |
-| `HumanReviewPanel` | create | 人工審查面板 | 08 |
-| `MultiSolutionAdoptionPanel` | create | 多方案採納面板 | 08 |
-| `BranchExplorationPanel` | create | 分支探索面板 | 08 |
-| `ArchitectureHaltOverlay` | create | 架構暫停覆蓋層 | 08 |
-| `DifferentialAnalysisPanel` | create | 差異分析面板 | 08 |
-| `CompatibilityMatrix` | create | 相容性矩陣 | 08 |
-| `ConceptRouteCard` | create | 概念路線卡片 | 08 |
-| `KnowledgeRefsPanel` | create | 知識引用面板 | 06, 07, 08, 13 |
-| `SpatialTraceHover` | precad | 空間追蹤懸浮卡 | 09 |
-| `SpatialConfidenceBadge` | create | 空間信心徽章 | 08 |
-| `AttachmentsPanel` | review | 附件上傳面板 | 11 |
-| `HealthMonitor` | solution | 健康監控 | 08 |
-| `AssumptionEditor` | assumption | 假設編輯器 | 07 |
-| `VerificationKanban` | assumption | 驗證看板 | 07 |
-| `CausalLoopDiagram` | assumption | 因果迴圈圖 | 06 |
-| `ContradictionTraceability` | assumption | 矛盾可追溯性 | 06 |
-
-### 6.2 跨頁共用元件
-
-| 元件 | 用途 | 被引用 Spec |
-|:-----|:-----|:------------|
-| `AppLayout` | 受保護路由 Layout（Sidebar + Outlet） | 所有受保護頁面 |
-| `AppSidebar` | 側邊欄導航（Phase 步驟） | 所有 `/projects/:id/*` |
-| `MobileNav` | 響應式抽屜導航 | 所有受保護頁面 |
-| `ProtectedRoute` | 認證守衛 | 所有受保護頁面 |
-| `NavLink` | 導航連結 | 所有頁面 |
-| `ErrorBoundary` | 全域錯誤邊界 | App 層 |
-| `ThemeProvider` | 主題切換（Light/Dark/System） | App 層, 16 |
-
-### 6.3 治理規則
-
-- **新增業務元件：** PR 必須同步更新本表一列（Feature / 用途 / 被引用 Spec）
-- **刪除業務元件：** PR 必須先確認本表「被引用 Spec」皆已改用替代方案
-- **重新命名：** 新舊名並列一個 release 後刪除舊名列
+| 索引類型 | SSOT | 說明 |
+|:---------|:-----|:-----|
+| 業務元件清單 | [`E5x--frontend-architecture.md`](../../02-design/E5x--frontend-architecture.md) §2 | Feature-first 元件對應 |
+| API Router → 頁面 | [`E5--api-design-specification.md`](../../02-design/E5--api-design-specification.md) §7 | 端點 → 消費頁面 |
+| React Context / Hook | [`E5x--frontend-architecture.md`](../../02-design/E5x--frontend-architecture.md) §3 | Context + Hook 索引 |
+| 8-Gate 系統 | [`E3--system-interaction-flow.md`](../E3--system-interaction-flow.md) §5 + [`E3--ai-agent-detailed-design.md`](../E3--ai-agent-detailed-design.md) §11.2a | Gate 判定邏輯 |
+| Code Splitting | [`E5x--frontend-architecture.md`](../../02-design/E5x--frontend-architecture.md) §5 | Eager/Lazy 配置 |
 
 ---
 
-## 7. API 端點與 Spec 對應
-
-> 對齊 `E5--api-design-specification.md` v1.2 的端點清單。
-
-### 7.1 後端 Router → 頁面消費對應
-
-| Router / API 分群 | API Base | 消費 Spec |
-|:-------------------|:---------|:----------|
-| `brief.py` | `/api/v1/definitions/*` | **05** (TaskDefinition) |
-| `socratic.py` | `/api/v1/questions/*` | **06** (Explore), **11** (DesignReview — AI blackhat) |
-| `cld.py` | `/api/v1/causal-loops/*` | **06** (Explore) |
-| `contradictions.py` | `/api/v1/contradictions/*` | **06** (Explore), **08** (Create) |
-| `triz.py` | `/api/v1/triz/*` | **08** (Create) |
-| ~~`scamper.py`~~ → `subsystems.py` | `/api/v1/subsystems/*` *(v9: `/scamper/*` 移除，子系統端點遷移)* | **08** (Create) |
-| `anti_anchor.py` | `/api/v1/alternatives/anti-anchor` | **08** (Create) |
-| `validation.py` | `/api/v1/alternatives/validation-passport` | **08** (Create) |
-| `convergence.py` | `/api/v1/convergence/*` | **08** (Create) |
-| `unknown_factors.py` | `/api/v1/unknown-factors/*` | **07** (Track) |
-| `spatial.py` | `/api/v1/spatial/*` | **08** (Create) |
-| `gates.py` | `/api/v1/gates/*` | **05, 06, 07, 08, 09, 11, 12, 13** |
-| `pre_cad.py` | `/api/v1/pre-cad-reviews/*` | **09** (PreCadReview) |
-| `must.py` | `/api/v1/must/*` | **08** (Create), **09** (PreCadReview) |
-| `want.py` | `/api/v1/want/*` | **12** (DecisionRecord) |
-| `risks.py` | `/api/v1/risks/*` | **08** (Create), **11** (DesignReview) |
-| `actions.py` | `/api/v1/actions/*` | **12** (DecisionRecord) |
-| `assumptions.py` | `/api/v1/assumptions/*` | **06** (Explore), **07** (Track) |
-| `knowledge.py` | `/api/v1/knowledge/*` | **13** (Feynman), **14** (KnowledgeBase) |
-| `export.py` | `/api/v1/export` | **12** (DecisionRecord) |
-| `health.py` | `/api/v1/health` | 系統 |
-| `analyst.py` (v1.2) | `/api/v1/analyst/*` | **06** (Explore — future 8.5) |
-| `evidence.py` (v1.2) | `/api/v1/evidence/*` | **11** (DesignReview), **08** (Create — future 8.6) |
-| Supabase Auth | `supabase.auth.*` | **01** (Auth), **02** (ResetPassword), **16** (Settings) |
-| Supabase Direct | `supabase.from(table).*` | **03-13, 15, 16** (各頁面 CRUD) |
-
-### 7.2 ADR-008 新增端點（Module 8.0 Auto-TRIZ v2）
-
-| 端點 | 說明 | 消費 Spec | 觸發元件 |
-|:-----|:-----|:----------|:---------|
-| `POST /analyst/entry-grading` | 入口成熟度分級（Level A/B/C） | **06** (Explore EntryGradingModal) | `EntryGradingModal` |
-| `POST /analyst/five-why` | 5 Why 根因分析 | **06** (Explore Level A Step 0) | `ProblemScopingStep` |
-| `POST /analyst/kt-analysis` | KT Is/Is Not | **06** (Explore Level A Step 0) | `ProblemScopingStep` |
-| `POST /analyst/function-analysis` | FA 功能建模 | **06** (Explore Level A Step 1 + Level B 側面板) | `FunctionAnalysisStep` |
-| `POST /analyst/oz-ot-analysis` | OZ-OT 分析，鎖定 Px | **08** (Create Step 1 OZ-OT accordion) | `OzOtPanel` |
-| `POST /triz/sim-matrix` | 多 TC SIM 交互矩陣 | **08** (Create Step 1 SIM view) | `SimMatrixView` |
-| `POST /triz/complexity-check` | CCI 複雜度判定 | **08** (Create Step 4 方案卡) | `CciBadge` |
-| `POST /evidence/register-claim` | 數值聲明註冊 | **08, 11** (cross-cutting) | Agent 內部呼叫 |
-| `POST /evidence/verify` | Claim 驗證 | **08, 11** | Agent 內部呼叫 |
-| `GET /evidence/coverage` | 覆蓋率統計 | **08** (Create Step 4), **11** (DesignReview) | `EvidenceCoverageGauge` |
-
----
-
-## 8. Context / Hook 與 Spec 對應
-
-### 8.1 React Context
-
-| Context | 檔案 | 消費 Spec |
-|:--------|:-----|:----------|
-| `AuthContext` | `src/contexts/AuthContext.tsx` | **01, 02, 16**（Auth 系列）+ 全域（user/session） |
-| `ArtifactContext` | `src/contexts/ArtifactContext.tsx` | **04-13**（Artifact 狀態機：Draft → Released） |
-| `ProjectDataContext` | `src/contexts/ProjectDataContext.tsx` | **05-13**（跨步驟資料共享） |
-
-### 8.2 主要 API Hook 索引
-
-| Hook | 消費 Spec | 對應 Router |
-|:-----|:----------|:------------|
-| `useProjects`, `useDeleteProject` | 03 | Supabase `projects` |
-| `useProject`, `useProjectStats` | 04 | Supabase `projects` |
-| `useBrief`, `useConstraints`, `useKpis` | 04, 05, 06, 08 | `brief.py` + Supabase |
-| `useTaskDefinitionForm` | 05 | `brief.py` |
-| `useSocraticQuestions` | 06 | `socratic.py` + Supabase |
-| `useExploreContradictions` | 06 | Supabase `contradictions` |
-| `useCldNodes`, `useCldEdges` | 06 | `cld.py` + Supabase |
-| `useTrackAssumptions`, `useUpdateTrackAssumptionStatus` | 07 | Supabase `assumptions` |
-| `useUnknownFactors`, `useCreateUnknownFactor`, `useConvertUnknownToAssumption` | 07 | Supabase `unknown_factors` |
-| `useContradictions` | 06, 08 | Supabase `contradictions` |
-| `useAntiAnchorRoutes` | 04, 08 | `anti_anchor.py` + Supabase |
-| `useTrizSolutions`, `useLayeredTrizSolutions`, `useDirectedTrizSolutions` | 04, 08 | `triz.py` + Supabase |
-| `useSubsystems` | 04, 08 | Supabase `subsystems` |
-| ~~`useScamperVariants`~~ | ~~04, 08~~ | ~~`scamper.py` + Supabase~~ **(v9 移除)** |
-| `useAlternatives`, `useUpdateAlternative` | 04, 08, 09, 10, 11 | Supabase `alternatives` |
-| `useConceptRoutes` | 04, 08 | Supabase `concept_routes` |
-| `useConvergenceLoop` | 08 | `convergence.py` |
-| `usePreCadSolutions`, `usePreCadConvergenceStats` | 09 | Supabase + `pre_cad.py` |
-| `useEvidenceMatrix`, `useCreateEvidenceRow`, `useUpdateEvidenceRow` | 11 | Supabase `evidence_matrix` |
-| `useRisks`, `useCreateRisk`, `useUpdateRisk`, `useDeleteRisk` | 11 | Supabase `risks` |
-| `useExperiments`, `useCreateExperiment`, `useUpdateExperiment` | 11 | Supabase `experiments` |
-| `useSolutions` | 11 | Supabase `alternatives` |
-| `useDecision` | 12 | Supabase `decisions` |
-| `useWantCriteria`, `useWantScores` | 12 | `want.py` + Supabase |
-| `useSignatures` | 12 | Supabase `signatures` |
-| `useActionItems` | 12 | Supabase `action_items` |
-| `useKnowledgeEntries`, `useUpdateKnowledgeEntry` | 13 | `knowledge.py` + Supabase |
-| `useKnowledgeArticles`, `useKnowledgeArticle` | 14 | Supabase `knowledge_articles` |
-| `useConstraintLabelMap`, `useConstraintLabelHistory` | 15 | Supabase `constraint_label_*` |
-| `useAuth` | 01, 02, 16 | Supabase Auth |
-| `useTheme` | 16 | localStorage |
-
----
-
-## 9. 8-Gate 系統與頁面對應
-
-> 對齊 E3 架構 — 8 Gate + 3 Phase Gate 的狀態機。
-
-| Gate | 名稱 | 檢查頁面 | 前置條件摘要 |
-|:-----|:-----|:---------|:-------------|
-| Gate 1.1 | Brief 完備 | **P05** TaskDefinition | Mission + ≥1 Constraint + ≥1 KPI |
-| Gate 1.2 | Explore 完備 | **P06** Explore | ≥1 Contradiction formalized |
-| Phase Gate 1 | Define 完成 | **P06** Explore | Gate 1.1 + 1.2 passed |
-| Gate 2.1 | Track 完備 | **P07** Track | ≥1 Assumption verified |
-| Gate 2.2 | Create 完備 | **P08** Create | ≥1 TRIZ solution adopted |
-| Phase Gate 2 | Diverge 完成 | **P08** Create | Gate 2.1 + 2.2 passed |
-| Gate P | Pre-CAD 通過 | **P09** PreCadReview | Confidence ≥ threshold + solutions selected |
-| Gate 3.1 | Design Review | **P11** DesignReview | Evidence matrix + risks reviewed |
-| Gate 3.2 | Decision 凍結 | **P12** DecisionRecord | KT decision confirmed + signed |
-| Phase Gate 3 | Converge 完成 | **P12** DecisionRecord | Gate 3.1 + 3.2 passed |
-| Gate 8 | Knowledge 內化 | **P13** Feynman | ≥1 knowledge entry reviewed |
-
----
-
-## 10. Code Splitting 策略與 Spec 對應
-
-> 對齊 `E5x--frontend-architecture.md §5`（效能策略）與 `src/App.tsx` 的 lazy/eager 配置。
-
-| 載入策略 | 頁面 | Spec | 理由 |
-|:---------|:-----|:-----|:-----|
-| **Eager** (critical path) | Auth, ResetPassword, ProjectList, ProjectDashboard, NotFound | 01, 02, 03, 04, 18 | 首屏 / 認證 / 404 |
-| **Lazy** (route-level) | TaskDefinition, Explore, Track, Create, PreCadReview, CadInProgress, DesignReview, DecisionRecord, Feynman, KnowledgeBase, ConstraintLabelDictionary, Settings, DevSeed | 05-17 | 非首屏，按需載入 |
-
----
-
-## 11. 驗證檢查清單
+## 7. 驗證檢查清單
 
 - [x] 所有 18 個 IA 頁面都有對應 spec 檔
 - [x] 所有 spec 檔都能對應回 IA 頁面
 - [x] Phase 分組（Define / Diverge / Converge）對齊 IA 與 sidebar navigation
-- [x] Gate 覆蓋完整（8 Gate + 3 Phase Gate）
-- [x] API Router → Spec 反向索引建立
-- [x] Context / Hook → Spec 反向索引建立
-- [x] Code splitting 策略對齊 App.tsx 實際配置
-- [x] 業務元件清單對齊 `src/components/` 實際結構
-- [x] Module 8.0 Auto-TRIZ v2 前端頁面擴充：已更新 Spec 06 (Conditional Stepper) + Spec 08 (OZ-OT/SIM/CCI/Evidence) + 本表 §6.1 業���元件 + §7.2 端點對照
+- [x] 舊 §6-10 內容已指向 SSOT（E5x-frontend-architecture / E5-api-spec / E3x）
 
 ---
 
-## 12. 變更記錄
+## 8. 變更記錄
 
 | 日期 | 版本 | 變更摘要 |
 |:-----|:-----|:---------|
-| 2026-04-24 | v2.0 | 完全重寫：從舊專案（鎖匠工單管理系統 52 頁 IA）遷移至 RD Design Copilot（18 頁 IA）。建立 Forward/Reverse/主題分群/使用者旅程/業務元件/API 對應/Context-Hook 索引/8-Gate 對應/Code Splitting 策略 全維度對照。對齊 E5 API v1.2、E5x 前端架構 v1.1、E5x IA v1.1 |
+| 2026-04-27 | v3.0 | 去重瘦身：§5 journey 改為 E3x pointer 摘要表；舊 §6-10 改為 §6 SSOT pointer 表。新增 SPRINT-INDEX.md 指標。 |
+| 2026-04-24 | v2.0 | 完全重寫：從舊專案遷移至 RD Design Copilot（18 頁 IA）。建立全維度對照。 |

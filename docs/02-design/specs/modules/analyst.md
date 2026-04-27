@@ -15,14 +15,14 @@
 
 **原始檔**: `backend/app/agents/analyst.py`
 **對應架構文件**: [`01-define/E3--architecture-and-design.md` Appendix A (Forward Subsystem Discovery) + §11 Analyst Agent](../../../01-define/E3--architecture-and-design.md#appendix-a-forward-subsystem-discovery-architecture)
-**對應 BDD Feature**: [`docs/02-design/E5x--bdd-scenarios.md` §Feature Brief / Socratic / Anti-Anchor](../../E5x--bdd-scenarios.md)
+**對應 BDD Feature**: [`docs/02-design/E5x--bdd-scenarios.md` §Feature Brief / Socratic](../../E5x--bdd-scenarios.md)
 **對應 Prompt**: `backend/app/prompts/analyst.py`
 **對應 API**:
 - `POST /analyst/extract-brief`, `POST /analyst/rewrite-mission`
 - `POST /analyst/suggest-constraints`, `POST /analyst/suggest-kpis`
 - `POST /analyst/constraint-feasibility`, `POST /analyst/5w1h`
 - `POST /analyst/socratic`, `POST /analyst/socratic/follow-up`, `POST /analyst/socratic/brief-impact`, `POST /analyst/socratic/auto-tag`
-- `POST /analyst/cld`, `POST /analyst/anti-anchor`
+- `POST /analyst/cld` *(~~`POST /analyst/anti-anchor`~~ v10 退役，合併為 TRIZ L1 跨域去錨定)*
 - `POST /analyst/formalize-contradiction`, `POST /analyst/decompose-tc`
 - `POST /analyst/extract-assumptions`, `POST /analyst/discover-unknowns`
 - **v1.1 (ADR-008) Analyst v2 endpoints** (`backend/app/routers/analyst_v2.py`):
@@ -36,7 +36,7 @@
 
 ## 職責
 
-Analyst Agent 是 Discover/Define 階段的主要 LLM actor，負責把自然語言 Brief 轉成結構化的約束 / KPI / 假設 / 矛盾，並驅動蘇格拉底問答、矛盾形式化（TC-only，依 [ADR-007](../../../01-define/adrs/ADR-007-tc-only-explore-pc-sf-derivation-in-create.md)）、TC → multi-PC drill-down、TC → SF 派生（Create 階段入口用）、CLD 因果圖、Anti-Anchor 反向路徑、未知因子探索。所有方法共用 `ANALYST_SYSTEM` prompt 與 `call_llm_json` JSON-mode LLM call；產生結構化資料均經 Pydantic schema（`app.models.schemas`）驗證。
+Analyst Agent 是 Discover/Define 階段的主要 LLM actor，負責把自然語言 Brief 轉成結構化的約束 / KPI / 假設 / 矛盾，並驅動蘇格拉底問答、矛盾形式化（TC-only，依 [ADR-007](../../../01-define/adrs/ADR-007-tc-only-explore-pc-sf-derivation-in-create.md)）、TC → multi-PC drill-down、TC → SF 派生（Create 階段入口用）、CLD 因果圖、未知因子探索。~~Anti-Anchor 反向路徑已於 v10 退役，合併為 TRIZ L1 跨域去錨定步驟。~~ 所有方法共用 `ANALYST_SYSTEM` prompt 與 `call_llm_json` JSON-mode LLM call；產生結構化資料均經 Pydantic schema（`app.models.schemas`）驗證。
 
 ---
 
@@ -113,20 +113,22 @@ Analyst Agent 是 Discover/Define 階段的主要 LLM actor，負責把自然語
 
 ---
 
-### 規格 4: `generate_anti_anchor(req: AntiAnchorRequest) -> AntiAnchorResponse`
+### ~~規格 4: `generate_anti_anchor(req: AntiAnchorRequest) -> AntiAnchorResponse`~~ (v10 退役)
 
-**描述**: 從 mission + current_constraints + existing_alternatives 產生 ≥3 條非典型架構候選（Anti-Anchor routes），每條附 mechanism / why_unconventional / potential_advantage / cross_domain_source。對應 E3 Appendix C。
+> **v10 退役說明**：Anti-Anchor 已於 v10 退役，合併為 TRIZ L1 實例化中的「跨域去錨定」UX 步驟。原 `generate_anti_anchor` 的跨域搜索邏輯整合至 TRIZ L1 instantiation 階段。~~對應 E3 Appendix C 已退役。~~
+
+**描述**: ~~從 mission + current_constraints + existing_alternatives 產生 ≥3 條非典型架構候選（Anti-Anchor routes），每條附 mechanism / why_unconventional / potential_advantage / cross_domain_source。~~
 
 **契約式設計 (DbC)**:
-* **前置條件**:
-  1. `req.mission` 非空；`req.current_constraints` 至少 1 條。
-  2. 呼叫端應預先用 `get_contradiction_leaves()` 把 contradictions 過濾到葉節點，避免 parent + child 重複（見 §9.4 及 analyst.py L390–393）。
-* **後置條件**:
-  1. `result.alternatives` 長度 ≥ 1（理想 ≥ 3，實際以 LLM 為準）。
-  2. 每 alternative 的 4 個文字欄位（`mechanism` / `why_unconventional` / `potential_advantage` / `cross_domain_source`）必為 `str` — 若 LLM 返回 dict，agent 以 `_flatten_to_str` 壓平。
-  3. 每條 alternative 的 `is_non_typical` 預設為 `True`。
-* **不變性**:
-  1. Anti-Anchor 產出直接進候選池（Appendix E §R1），不回跑 TRIZ 收斂迴圈。
+* ~~**前置條件**~~:
+  1. ~~`req.mission` 非空；`req.current_constraints` 至少 1 條。~~
+  2. ~~呼叫端應預先用 `get_contradiction_leaves()` 把 contradictions 過濾到葉節點，避免 parent + child 重複（見 §9.4 及 analyst.py L390–393）。~~
+* ~~**後置條件**~~:
+  1. ~~`result.alternatives` 長度 ≥ 1（理想 ≥ 3，實際以 LLM 為準）。~~
+  2. ~~每 alternative 的 4 個文字欄位（`mechanism` / `why_unconventional` / `potential_advantage` / `cross_domain_source`）必為 `str` — 若 LLM 返回 dict，agent 以 `_flatten_to_str` 壓平。~~
+  3. ~~每條 alternative 的 `is_non_typical` 預設為 `True`。~~
+* ~~**不變性**~~:
+  1. ~~Anti-Anchor 產出直接進候選池（Appendix E §R1），不回跑 TRIZ 收斂迴圈。~~
 
 ---
 
@@ -329,12 +331,10 @@ Analyst Agent 是 Discover/Define 階段的主要 LLM actor，負責把自然語
   - **不** re-raise；回傳 `triggered=True, decomposed_pcs=[], reasoning="Decomposition failed: ..."`
   - logger.exception 被呼叫（WBS §3.3 error isolation）
 
-#### 情境 5: Anti-Anchor — LLM 返回 dict 欄位被壓平
-* **測試案例 ID**: `TC-Analyst-005`
-* **描述**: LLM 在 `alternatives[0].mechanism` 回傳 `{"core":"...","detail":"..."}` dict。
-* **Assert**:
-  - `result.alternatives[0].mechanism` 為 `str`（被 `_flatten_to_str` 壓平為 `"Core: ... | Detail: ..."`）
-  - Pydantic 驗證通過不拋 `ValidationError`
+#### ~~情境 5: Anti-Anchor — LLM 返回 dict 欄位被壓平~~ (v10 退役)
+* **測試案例 ID**: ~~`TC-Analyst-005`~~ (deprecated)
+* **描述**: ~~LLM 在 `alternatives[0].mechanism` 回傳 `{"core":"...","detail":"..."}` dict。~~
+* **Assert**: ~~Anti-Anchor 已於 v10 退役，合併為 TRIZ L1 跨域去錨定。本測試案例已棄用。~~
 
 #### 情境 6: Socratic — 非法類別被丟棄
 * **測試案例 ID**: `TC-Analyst-006`
@@ -395,7 +395,7 @@ Analyst Agent 是 Discover/Define 階段的主要 LLM actor，負責把自然語
 | **共享工具** | `app.services.evidence_retrieval` | `rewrite_mission` / `suggest_constraints` / `suggest_kpis` / `generate_5w1h` 取 citation |
 | **共享工具** | `app.tools.triz_kb`, `app.tools.separation_principles` | `decompose_tc_to_pcs` prompt context |
 | **下游消費者** | `TrizSolverAgent` | 吃 `formalize_contradiction` 產出之 TC/PC → 解矛盾 |
-| **下游消費者** | `AntiAnchorAgent` (router-embedded) | 吃 `generate_anti_anchor` 產出候選進池 |
+| ~~**下游消費者**~~ | ~~`AntiAnchorAgent` (router-embedded)~~ | ~~吃 `generate_anti_anchor` 產出候選進池~~ *(v10 退役，合併為 TRIZ L1 跨域去錨定)* |
 | **下游消費者** | `ScamperFeedbackAgent` | 吃本 agent 形式化的矛盾作為 dedup baseline |
 
 ---

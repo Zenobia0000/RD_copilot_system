@@ -9,7 +9,7 @@
 | 文件 | 專屬領域 | 讀完你會知道 |
 |------|---------|------------|
 | [DK-01 設計哲學與流程](DK-01--design-philosophy-and-process.md) | 核心哲學、D1-V4 流程、Phase/Gate、知識增強 | 整個系統怎麼運作（what + when） |
-| [DK-02 TRIZ 發散引擎](DK-02--triz-scamper-divergence-engine.md) | AutoTRIZ 架構、TC/PC/SF、Anti-Anchor、收斂圖（~~SCAMPER v9 移除~~） | 如何結構化產生候選方案（how to diverge） |
+| [DK-02 TRIZ 發散引擎](DK-02--triz-scamper-divergence-engine.md) | AutoTRIZ 架構、TC/PC/SF、跨域去錨定（L1 內建）、收斂圖（~~SCAMPER v9 移除~~） | 如何結構化產生候選方案（how to diverge） |
 | [DK-03 KT 決策框架](DK-03--kt-decision-framework.md) | MUST/WANT/Adverse Consequences、7 大 WANT 條件、AI 邊界 | 如何結構化篩選與決策（how to converge） |
 | [DK-04 資料模型與 Gate 參考](DK-04--data-model-and-gate-reference.md) | 7 核心工件 schema、Gate 條件、Prompt 對照 | 欄位叫什麼、Gate 要什麼（data reference） |
 

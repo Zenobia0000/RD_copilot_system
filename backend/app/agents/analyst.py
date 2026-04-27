@@ -1,6 +1,11 @@
-"""Analyst Agent — brief extraction, Socratic Q&A, CLD, anti-anchor.
+"""Analyst Agent — brief extraction, Socratic Q&A, CLD.
 
 Ref: AI_Agent_Architecture.md §1.1 Analyst Agent
+
+Note (v3.0): Anti-Anchor functionality has been retired and merged into
+TRIZ L1 instantiation as a built-in "cross-domain de-anchoring" UX step.
+The generate_anti_anchor() function below is deprecated but kept for
+backward compatibility.
 """
 
 import json
@@ -565,7 +570,7 @@ def _flatten_to_str(value) -> str:
     return str(value)
 
 
-def generate_anti_anchor(req: AntiAnchorRequest) -> AntiAnchorResponse:
+def generate_anti_anchor(req: AntiAnchorRequest) -> AntiAnchorResponse:  # v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1
     # NOTE (§9.4): callers should pre-filter contradictions to leaf nodes
     # using get_contradiction_leaves() before building `current_constraints`
     # / `existing_alternatives`.  This avoids duplicate parent+child entries

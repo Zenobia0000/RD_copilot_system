@@ -7,8 +7,13 @@
 >
 > **v2.0 變更 (2026-04-27)**：
 > - 採用 D/X/V 三段式步驟編號（D = Define、X = eXplore、V = Verify），取代舊 Step 1–8 編號
-> - 對齊 `E3--ai-agent-detailed-design.md` v2.2/v10 簡化：2c 併入 D3、Anti-Anchor/OZ-OT 併入 X2、MUST 併入 X5
-> - Scenario 2 重新定位：Anti-Anchor 為 X2 的並行 seed 來源（非獨立步驟）
+> - 對齊 `E3--ai-agent-detailed-design.md` v2.2/v10 簡化：2c 併入 D3、OZ-OT 併入 X2、MUST 併入 X5
+>
+> **v3.0 變更 (2026-04-27)**：
+> - Anti-Anchor 獨立子系統退役 — 合併為 TRIZ L1 內建「跨域去錨定」UX 步驟
+> - Scenario 2 改寫：從「AA-seeded TRIZ」改為「TRIZ 跨域去錨定具體化」
+> - 移除所有 `seed_source=anti_anchor` 追溯標記（統一為 TRIZ 路徑）
+> - Appendix C 退役至 `_superseded/`
 
 ---
 
@@ -37,7 +42,7 @@
 | **D3** | 根因分析與功能建模 | Step 2b *(含舊 2c FA)* | Define |
 | **D4** | 系統建模 | Step 3 | Define |
 | **X1** | 假設與驗證規劃 | Step 4 | eXplore |
-| **X2** | TRIZ 解矛盾 (含 Anti-Anchor 並行 + OZ-OT) | Step 5a *(含舊 5-0, 5a-0)* | eXplore |
+| **X2** | TRIZ 解矛盾 (含跨域去錨定 + OZ-OT) | Step 5a *(含舊 5-0, 5a-0)* | eXplore |
 | **X3** | 子系統定義 | Step 5b | eXplore |
 | **X4** | Decision Hub | Step 5d | eXplore |
 | **X5** | Pre-CAD 資格審查 | Step P *(含舊 5e MUST)* | eXplore |
@@ -65,7 +70,7 @@ graph TD
 
     %% ── eXplore 階段 ──
     X1["X1 — 假設驗證規劃 Assumption"]
-    X2["X2 — TRIZ 解矛盾 (含 AA 並行 + OZ-OT)"]
+    X2["X2 — TRIZ 解矛盾 (含跨域去錨定 + OZ-OT)"]
     X3["X3 — 子系統定義 (含 optional Spatial)"]
     X4["X4 — Decision Hub 候選池匯流"]
     X5["X5 — Pre-CAD 資格審查 (P1 MUST + P2 審查)"]
@@ -160,19 +165,12 @@ sequenceDiagram
     AA-->>UI: type="TC" + improving/worsening_param + rationale
     Note over UI: Contradiction: Reviewed → Verified (僅 TC)
 
-    Note over UI: X2 — TRIZ 解矛盾 (含 OZ-OT + Anti-Anchor 並行)
+    Note over UI: X2 — TRIZ 解矛盾 (含 OZ-OT + 跨域去錨定)
     UI->>AA: oz_ot_analysis(contradiction_id, fa_result)
     AA-->>UI: OZ + OT + Px + PC 造句
 
-    par Anti-Anchor 並行啟發
-        UI->>AA: 啟動 Anti-Anchor Sprint
-        AA->>KB: 跨域類比搜尋 (醫療/航太/消費電子)
-        KB-->>AA: ≥2 條跨域解法 + citations
-        AA-->>UI: concept seeds (mechanism + cross_domain_source)
-    end
-
     RD->>UI: 點擊「正向分析」卡片 (X2)
-    UI->>TS: solve_triz_layered(C-001, TC + OZ-OT context + AA seeds)
+    UI->>TS: solve_triz_layered(C-001, TC + OZ-OT context)
     TS->>AA: derive PC (decompose_tc_to_pcs) + SF (derive_su_field_from_tc)
     AA-->>TS: PC[] + SuFieldModel (ADR-007 入口派生, 以 OZ-OT Px 輔助)
     TS->>TS: L1 TC 查矛盾矩陣
@@ -201,7 +199,7 @@ sequenceDiagram
 | 執行 FA 功能建模 (D3) | Analyst Agent | FunctionModel: — → Generated |
 | 校準矛盾 (D4) | Analyst + TRIZ Solver | Contradiction: Reviewed → Verified (Gate D4) |
 | 執行 OZ-OT 分析 (X2) | Analyst Agent | OzOtResult: — → Px Locked / Px Not Found |
-| Anti-Anchor 並行啟發 (X2) | Analyst + Knowledge | Route: — → generated (Inspiration) |
+| TRIZ L1 跨域去錨定具體化 (X2) | TRIZ Solver (L1 內建) | 跨域類比注入 L1 具體化步驟 |
 | 啟動 TRIZ (X2) | Forward TRIZ Solver (Appendix B) | TrizSuggestion: pending → generated |
 | 採納 L2 路線 | Evaluator (VP 生成) | Concept Route: — → Draft |
 | CCI 複雜度檢查 | TRIZ Solver | ComplexityCheck: — → Evolution / Weak Evolution / Patch |
@@ -209,13 +207,13 @@ sequenceDiagram
 
 ---
 
-## §3 Scenario 2 — RD 用 Anti-Anchor 啟發非典型概念，經 TRIZ 轉化為工程方案
+## §3 Scenario 2 — RD 透過 TRIZ 跨域去錨定突破經驗鎖定
 
 > **角色**: Persona 1 資深 RD 張三（或新人）
 > **觸發**: 想避免「太快收斂到安全牌」
 > **對齊痛點**: PP-1 經驗鎖定（最高優先級）
-> **對應**: E3 Appendix C (Reverse Anti-Anchor) → Appendix B (Forward TRIZ Solver)
-> **v2.0 說明**: Anti-Anchor 為 X2 的並行 seed 來源（非獨立步驟）。本 Scenario 描述 AA-seeded TRIZ 的完整子流程。
+> **對應**: E3 Appendix B (Forward TRIZ Solver) — L1 具體化步驟內建跨域去錨定
+> **v3.0 說明**: Anti-Anchor 獨立子系統退役。去錨定（打破路徑依賴）作為 UX 步驟內建於 TRIZ L1 具體化階段，不再是獨立流程。
 
 ### 3.1 Sequence Diagram
 
@@ -228,71 +226,67 @@ sequenceDiagram
     participant EV as Evaluator
     participant TS as TRIZ Solver
 
-    Note over UI: === Phase I: Anti-Anchor 啟發 ===
-    RD->>UI: 點擊「反向探索」卡片 (X2 並行)
-    UI->>AA: 啟動 Anti-Anchor Sprint
-    Note over AA: 第一性原理 prompt:<br/>物理原則 + 因果鏈量化<br/>+ 邊界條件 + 邏輯謬誤守衛
+    Note over UI: X2 — TRIZ 解矛盾（L1 內建跨域去錨定）
 
-    AA->>KB: 跨域類比搜尋 (醫療/航太/消費電子)
-    KB-->>AA: ≥2 條跨域解法 + citations
-    AA->>AA: 產出 3 條非典型 Route
-    AA->>EV: 每條附 Validation Passport (VP)
-    EV-->>AA: VP (assumptions, weak_points, confidence_level)
-
-    AA-->>UI: 3 條 Route (mechanism + cross_domain_source + VP)
-    UI-->>RD: 呈現非典型架構 + 最小驗證實驗
-    Note over UI: Route: — → generated (Inspiration 標籤)
-
-    Note over UI: === Phase II: 概念篩選 + TRIZ 轉化 ===
-    RD->>UI: 展開 VP，選擇有潛力的概念
-    RD->>UI: 點擊「以此為 seed 啟動 TRIZ」
-    Note over UI: Route: generated → seeded_to_triz
-
-    UI->>AA: formalize_contradiction(seed=anti_anchor_route)
-    AA-->>UI: TC 矛盾句 (improving/worsening_param) + seed_source 標記
-
+    RD->>UI: 點擊「TRIZ 求解」卡片 (X2)
     UI->>AA: oz_ot_analysis(contradiction_id, fa_result)
     AA-->>UI: OZ + OT + Px + PC 造句
 
-    UI->>TS: solve_triz_layered(TC + OZ-OT context, seed_source=anti_anchor)
-    TS-->>UI: LayeredTrizSolution (L1/L2/L3) + anti_anchor_lineage
-    UI-->>RD: 分層 drill-down 卡片 + 「源自 Anti-Anchor」標記
+    UI->>TS: solve_triz_layered(C-001, TC + OZ-OT context)
+    Note over TS: L1 具體化：查矛盾矩陣 → 40 原理
+    TS->>KB: 跨域類比搜尋 (醫療/航太/消費電子)
+    KB-->>TS: ≥2 條跨域解法 + citations
+    Note over TS: 強制去錨定 UX：<br/>系統提示「以下為跨域實例，<br/>請確認是否與現有方案同源」
+    TS->>TS: L1 具體化（含跨域去錨定 prompt）
+    TS->>TS: L2 PC 深挖物理根因 (ARIZ, 以 Px 為錨)
+    TS->>TS: L3 SF 結構旁路
+
+    TS-->>UI: LayeredTrizSolution (L1/L2/L3)
+    UI-->>RD: 分層 drill-down 卡片 + critic badge
+    Note over UI: L1 卡片標記「跨域去錨定」來源
+
+    RD->>UI: 採納 L2 推薦路線
+    UI->>EV: 生成 Validation Passport
+    EV-->>UI: assumptions[] + weak_points[] + required_verifications[]
 
     RD->>UI: 採納方案進 Decision Hub (X4)
-    Note over UI: SolutionCandidate (source=triz, seed_source=anti_anchor)
+    Note over UI: SolutionCandidate (source=triz)
 ```
 
 ### 3.2 跨子系統互動對照
 
-> **頁面軌跡**：P04 Dashboard → P08 Create (Step 0 Anti-Anchor → Step 1 TRIZ) → P07 Track
+> **頁面軌跡**：P04 Dashboard → P08 Create (X2 TRIZ 含去錨定) → P07 Track
 
 | 使用者動作 | 觸發子系統 | 觸發狀態轉換 |
 |-----------|-----------|-------------|
-| 點擊反向探索 | Reverse Anti-Anchor (Appendix C) | Route: — → pending |
-| AI 產出 Route | Analyst + Knowledge | Route: pending → generated (Inspiration) |
-| VP 生成 | Evaluator | VP 附加至 Route |
-| 展開 VP 篩選概念 | UI (Create 頁面) | 檢視 assumptions/confidence |
-| **以概念為 seed 啟動 TRIZ** | **Analyst (formalize_contradiction)** | **Route: generated → seeded_to_triz; Contradiction: — → Verified** |
-| **OZ-OT 分析** | **Analyst Agent** | **OzOtResult: — → Px Locked** |
-| **TRIZ 三層求解** | **Forward TRIZ Solver (Appendix B)** | **LayeredTrizSolution: — → generated** |
-| 進入 Decision Hub | Decision Hub | SolutionCandidate (source=triz, seed_source=anti_anchor) |
+| 啟動 TRIZ 求解 | Forward TRIZ Solver (Appendix B) | LayeredTrizSolution: — → pending |
+| L1 跨域去錨定具體化 | TRIZ Solver + Knowledge Agent | 跨域類比注入 L1；系統 prompt 強制去錨定確認 |
+| L2/L3 深挖 | TRIZ Solver | LayeredTrizSolution: pending → generated |
+| VP 生成 | Evaluator | VP 附加至路線 |
+| 進入 Decision Hub | Decision Hub | SolutionCandidate (source=triz) |
 
-**Anti-Anchor 啟發閾值**：三條概念路線中至少一條「非對標」（物理機制與現有方案不同源）；若全部為同源變形，回退重新發散。篩選後的 seed 進入 TRIZ 流程，不再需要獨立通過 M1/M4 — 品質檢查由 TRIZ 流程的 Critic + CCI 負責。
+**去錨定品質守衛**：L1 具體化時，系統檢查跨域類比結果是否與現有方案同源（物理機制相同）；若全部同源，提示 RD「可能存在錨定效應，建議檢視更遠領域」。品質檢查由 TRIZ 流程的 Critic + CCI 負責。
 
-### 3.3 設計決策：為什麼 Anti-Anchor 不直接進 Decision Hub
+### 3.3 設計決策：為什麼去錨定是 TRIZ UX 步驟而非獨立子系統
 
-> **v1.2 變更** (2026-04-27)：Anti-Anchor 路線從「直入 Decision Hub」改為「seed → TRIZ 轉化 → Decision Hub」。
+> **v3.0 決策** (2026-04-27)：Anti-Anchor 從獨立子系統退役，去錨定功能內建於 TRIZ L1 具體化。
 
-**根因分析（第一性原理）**：
+**蘇格拉底批判（AA 獨立價值分析）**：
 
-Anti-Anchor 的定位是啟發工具（打破路徑依賴），但 v1.0/v1.1 的流程將其產出直接放入 Decision Hub 與 TRIZ 方案並列比較。Decision Hub 下游的 Gate X5 要求 Interface Contract + 最小 CAD 範圍 + Evidence Coverage ≥ 40%，Anti-Anchor 路線天生缺乏這些交付物（因為它跳過了 OZ-OT、子系統分解、Evidence Registry 等步驟），導致下游審查迴圈浪費預估 10-18 天，且 PP-3（風險後置）、PP-4（決策不可追溯）迴歸。
+| AA 宣稱價值 | TRIZ 已有覆蓋 | 判定 |
+|:-----------|:-------------|:-----|
+| 物理原理啟發 | PC + SF 路徑本質就是物理原理推導 | 重複 |
+| 跨域類比 | 40 原理 + AutoTRIZ LLM 語義搜尋天然跨域 | 重複 |
+| 矛盾消除 | IFR（理想最終結果）為 TRIZ 核心方法 | 重複 |
+| **心理去錨定** | TRIZ 方法論不含此 UX 關注 | **唯一獨立價值** |
 
-**修正原則**：讓啟發歸啟發、工程歸工程。Anti-Anchor 負責「看到不一樣的」，TRIZ 負責「做得出來的」。
+**結論**：AA 的唯一不可替代價值是「強制打破 PP-1 經驗鎖定」的心理效果，屬於 UX 層面而非方法論層面。將其作為 TRIZ L1 的內建 UX 步驟（跨域類比提示 + 同源檢查 prompt）即可實現，無需獨立子系統、獨立 API、獨立資料表。
 
-**保留的 Anti-Anchor 價值**：
-- `seed_source` 標記全程可追溯（`SolutionCandidate.seed_source = "anti_anchor"`）
-- VP 的 `cross_domain_source` 欄位保留，在 TRIZ L1 查矩陣時作為額外 context
-- `seed_source=anti_anchor` 的 TRIZ 方案在候選池中可追溯，確保不全部收斂為同源方案
+**簡化收益**：
+- 移除 1 個 API endpoint（`POST /api/v1/alternatives/anti-anchor`）
+- 移除 1 張資料表（`anti_anchor_routes`）
+- 移除 Appendix C 整份文件（~950 行）
+- 使用者旅程少一個步驟（無需先跑 AA Sprint 再轉 TRIZ，直接在 TRIZ 中完成去錨定）
 
 ---
 
@@ -301,24 +295,24 @@ Anti-Anchor 的定位是啟發工具（打破路徑依賴），但 v1.0/v1.1 的
 > **v1.3 變更**：Phase B 收斂掃描已退役（v9）。其 5 項檢查全部由 SIM 矩陣（ADR-008 D5）和 CCI（ADR-008 D4）前置覆蓋。Decision Hub 流程簡化為：RD 採納 → CCI 標籤 → 橫向比較（≥2 路線時） → MUST 快篩 → 探索完整度 → Evidence Coverage → Gate X5。
 > **v2.0 變更**：MUST 快篩從獨立步驟（舊 Step 5e）併入 X5 作為 P1 自動篩階段。
 > **v2.1 變更**：Architecture Health Monitor 回歸 X2（對齊 Appendix D state machine `SX2_health`）；X4 移除循環矛盾分支（SIM §5.3 + Section 7 已前置攔截）；X5 RouteCheck 從「≥3 路線」改為「探索完整度」（衡量 process 而非 output count）+ 移除矛盾數分流（Pre-CAD Confidence = 100% 使「矛盾≥2」不可達）。
-> `seed_source=anti_anchor` 的 TRIZ 方案在候選池中保留追溯標記。
+> 跨域去錨定作為 TRIZ L1 內建步驟，不再需要獨立追溯標記。
 
 ### 4.1 Decision Hub 品質評估（RD 張三 主導）
 
 > **角色**: Persona 1 RD 張三
-> **觸發**: Decision Hub 已匯流候選路線（TRIZ-only + AA-seeded TRIZ）
+> **觸發**: Decision Hub 已匯流候選路線（TRIZ 三路徑產出，含跨域去錨定具體化）
 > **對齊痛點**: PP-3 風險後置
 > **對應**: E3 Appendix D State Machine + Appendix E Decision Hub
 
 ```mermaid
 flowchart TD
-    Start(["X4 候選池匯流"]) --> Hub["Decision Hub<br/>TRIZ ∥ AA-seeded TRIZ"]
+    Start(["X4 候選池匯流"]) --> Hub["Decision Hub<br/>TRIZ 三路徑產出（含跨域去錨定）"]
     Hub --> Adopt["RD 採納方案<br/>+ CCI 標籤 (Evolution/Weak/Patch)<br/>+ 橫向比較 (≥2 路線時)"]
 
     Adopt --> X5["X5 Pre-CAD 資格審查"]
 
     subgraph X5sub ["X5 Pre-CAD 資格審查"]
-        MUST["P1: MUST 快篩 (Go/No-Go)"] --> ExploreCheck{"探索完整度?<br/>TRIZ 三路徑 + AA Sprint 皆執行<br/>+ ≥1 存活路線"}
+        MUST["P1: MUST 快篩 (Go/No-Go)"] --> ExploreCheck{"探索完整度?<br/>TRIZ 三路徑（含跨域去錨定具體化）<br/>+ ≥1 存活路線"}
     ExploreCheck -->|不通過| Back["回 X2 補足未執行路徑"]
     ExploreCheck -->|通過| EvCheck{"Evidence Coverage<br/>≥ 40%?"}
     EvCheck -->|不通過| BackEv["提示補充證據"]
@@ -339,7 +333,7 @@ flowchart TD
 |-----------|------|-----------|-------------|
 | 採納方案 + 檢視 CCI 標籤 | RD 張三 | Decision Hub (CCI overlay) | SolutionCandidate: — → adopted；CCI 標籤為資訊性（Evolution / Weak Evolution / Patch） |
 | P1: MUST 快篩 | 系統自動 | Evaluator | Concept Route 逐條 Go/No-Go |
-| 探索完整度檢查 | 系統自動 | Evaluator | TRIZ 三路徑 + AA Sprint 皆執行 + ≥1 存活路線；不通過 → 回 X2 補足未執行路徑 |
+| 探索完整度檢查 | 系統自動 | Evaluator | TRIZ 三路徑（含跨域去錨定具體化）皆執行 + ≥1 存活路線；不通過 → 回 X2 補足未執行路徑 |
 | Evidence Coverage 檢查 | 系統自動 | EvidenceRegistryService | **Evidence Coverage ≥ 40%**（VERIFIED + APPROXIMATE 佔比，ADR-008 D3）；未達標則提示補充證據 |
 | 檢視 CCI 標籤 | RD 張三 | Decision Hub (CCI overlay) | — （資訊性，不觸發狀態轉換；顯示 Evolution / Weak Evolution / Patch 分類） |
 | 推送審查請求 | 系統自動 | Notification Service | Gate X5: — → Pending Review（探索完整度 + Evidence Coverage 均通過後觸發） |
@@ -355,14 +349,14 @@ flowchart TD
 ```mermaid
 flowchart TD
     Notify(["系統推送 Gate X5 審查請求"]) --> Open["主管開啟 Review 頁面"]
-    Open --> Review["逐條審查路線:<br/>1. Interface Contract 完整度<br/>2. 最小 CAD 範圍<br/>3. Evidence Coverage ≥ 40%<br/>4. seed_source 追溯鏈"]
+    Open --> Review["逐條審查路線:<br/>1. Interface Contract 完整度<br/>2. 最小 CAD 範圍<br/>3. Evidence Coverage ≥ 40%<br/>4. TRIZ 路徑追溯鏈"]
 
     Review --> TL{"每條路線<br/>滿足退出條件?"}
     TL -->|通過| Sign["主管簽核"]
     TL -->|不通過| Fix["退回 RD 補強<br/>（明確指出缺失項目）"]
 
     Sign --> PhaseIII["Phase II → Phase III<br/>Concept Route: Reviewed → Verified"]
-    Fix --> Back["RD 回 X2 / X3 補強"]
+    Fix --> BackX["RD 回 X2 / X3 補強"]
 
     style PhaseIII fill:#DCFCE7
     style Fix fill:#FEF3C7
@@ -391,9 +385,7 @@ flowchart TD
 | D3 | 根因分析 (5Why/KT) + 功能建模 (FA) | P06 | — | Analyst | FunctionModel: — → Generated | §11.2 逐步自動化分級 |
 | D4 | 校準 TRIZ 矛盾句 | P06 | Forward TRIZ Solver | TRIZ Solver + Analyst | Contradiction: Reviewed → Verified | Appendix B |
 | X1 | 填寫假設台帳 | P07 | — | Analyst + Knowledge | Assumption: Reviewed → Verified | §11.2 逐步自動化分級 |
-| X2 並行 | 啟動 Anti-Anchor 啟發 | P08 | Reverse Anti-Anchor | Analyst + Knowledge | Route: — → generated (Inspiration) | Appendix C |
-| X2 (AA seed) | 以 AA 概念為 seed 啟動 TRIZ | P08 | Forward TRIZ (seeded) | Analyst + TRIZ Solver | Route: generated → seeded_to_triz; LayeredTrizSolution: — → generated | Appendix B + C |
-| X2 | 啟動 TRIZ 三路徑 | P08 | Forward TRIZ | TRIZ Solver | LayeredTrizSolution: — → generated | Appendix B |
+| X2 | 啟動 TRIZ 三路徑（含跨域去錨定） | P08 | Forward TRIZ Solver | TRIZ Solver + Knowledge | LayeredTrizSolution: — → generated（L1 含跨域去錨定具體化） | Appendix B |
 | X3 | 定義子系統 | P08 | Forward Subsystem Discovery | Analyst | Subsystem: — → Draft (3-level) | Appendix A |
 | ~~5c~~ | ~~SCAMPER 變形~~ | — | — | — | *(v9 移除)* | — |
 | X4 | Decision Hub 採納 | P08 | 決策中心 | Evaluator | SolutionCandidate: — → adopted | Appendix E |
@@ -409,9 +401,9 @@ flowchart TD
 
 | 現狀痛點 (PP) | 現狀表現 | 目標體驗流對應點 | 緩解機制 |
 |--------------|---------|-----------------|---------|
-| PP-1 經驗鎖定 | 直覺搜尋過去方案 | Scenario 2 Anti-Anchor 啟發 → TRIZ 轉化 | Forced Divergence（啟發）+ TRIZ 收斂（工程化） |
+| PP-1 經驗鎖定 | 直覺搜尋過去方案 | Scenario 2 TRIZ L1 跨域去錨定具體化 | TRIZ L1 內建跨域類比 + 同源檢查 prompt，強制打破路徑依賴 |
 | PP-2 假設隱藏 | 預設答案未明說 | Scenario 1 蘇格拉底七類提問 | Assumption Challenge (E3--architecture-and-design.md §11.3.2 機制 1) |
-| PP-3 風險後置 | Proto 才爆問題 | Scenario 3 Decision Hub 品質評估 (X4) + X5 (P1 MUST + P2 Gate P) | SIM 矩陣前置跨矛盾衝突檢查 + CCI 複雜度判定 + 架構健康度（X2 SIM 出口，淨節點 >5 → 漸進回退 D3→D2→D1）；Anti-Anchor 經 TRIZ 工程化確保 OZ-OT + CCI 完備 |
+| PP-3 風險後置 | Proto 才爆問題 | Scenario 3 Decision Hub 品質評估 (X4) + X5 (P1 MUST + P2 Gate P) | SIM 矩陣前置跨矛盾衝突檢查 + CCI 複雜度判定 + 架構健康度（X2 SIM 出口，淨節點 >5 → 漸進回退 D3→D2→D1） |
 | PP-4 決策不可追溯 | 半年後無法回溯 | Scenario 3 Validation Passport + KT Decision Record | 自動留痕（Artifact 狀態流轉） |
 | PP-5 溝通斷層 | PM/RD/主管語言不同 | D1 約束改寫 + V4 費曼摘要 | 統一 Artifact schema |
 | PP-6 證據缺口不可見 | 不知哪些需補數據 | Scenario 3 DR Evidence Matrix + Gate C | Evidence Level E0-E4 自動標記 |

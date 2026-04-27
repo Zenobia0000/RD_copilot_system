@@ -250,11 +250,11 @@ AI 識別矛盾 → formalize_contradiction 回傳 TC
 | 9.3.2 | CLD prompt +1 instruction 指引 LLM 用 `derived_parameter` 作 CLD 變數名 | 輕量 prompt 注入；filtering 在 caller 層（非 generate_cld 內部） | 9.3.1 | ✅ Wave4-O |
 | 9.3.3 | (合併入 9.3.2) | — | — | ✅ |
 
-### 9.4 Anti-Anchor leaves-only 濾鏡
+### ~~9.4 Anti-Anchor leaves-only 濾鏡~~ *(已退役，Anti-Anchor 併入 TRIZ L1 跨域去錨定)*
 
 | 任務 ID | 工作項 | 交付物 / 完成準則 | 依賴 | 狀態 |
 |---------|--------|-------------------|------|------|
-| 9.4.1 | `generate_anti_anchor` 加 4 行 comment 指引 caller 用 leaves-only；anti_anchor prompt 不直接吃 contradictions | comment-only guidance | 9.3.1 | ✅ Wave4-O |
+| ~~9.4.1~~ | ~~`generate_anti_anchor` 加 4 行 comment 指引 caller 用 leaves-only；anti_anchor prompt 不直接吃 contradictions~~ | ~~comment-only guidance~~ | ~~9.3.1~~ | ~~✅ Wave4-O~~ **(已退役)** |
 
 ### 9.5 F2 Subsystem Discovery input adapter
 
@@ -306,7 +306,7 @@ AI 識別矛盾 → formalize_contradiction 回傳 TC
                                               │                                                │
 9.3.1 tree helper ──► 9.3.2 generate_cld leaves ──► 9.3.3 CLD prompt                            │
       │                                                                                        │
-      └─► 9.4.1 anti_anchor leaves                                                              │
+      └─► 9.4.1 anti_anchor leaves (已退役)                                                         │
                                                                                                 │
 9.5.1 F2 adapter ──► 9.5.2 F2 test ──► 9.5.3 F2 TODO                                            │
                                                                                                 │
@@ -335,7 +335,7 @@ AI 識別矛盾 → formalize_contradiction 回傳 TC
 | `contradictions` 表 `parent_contradiction_id` FK 與巢狀卡片 UI | 76 standard solutions 知識庫重建 → L3 WBS |
 | 父 TC stale 提示與唯一手動重新深挖入口（7.2） | MUST 評估納入「PC 分解完整度」維度（`memory/project_must_evaluation_design.md`） |
 | e-Bike 驗證腳本與 cascade 刪除行為 | 手動深挖按鈕（除 7.2 stale 情境外；使用者決策為全自動觸發） |
-| **9.x 下游銜接（`_solve_pc` hint / Create 樹狀 solve / CLD leaves / anti-anchor / F2 subsystem_hint / Phase B intra-layer skip）** | F2 完整切換為吃 `LayeredTrizSolution[]` 輸入 → L3 WBS；本版只做 input adapter 預留 |
+| **9.x 下游銜接（`_solve_pc` hint / Create 樹狀 solve / CLD leaves / ~~anti-anchor~~ *(已退役)* / F2 subsystem_hint / Phase B intra-layer skip）** | F2 完整切換為吃 `LayeredTrizSolution[]` 輸入 → L3 WBS；本版只做 input adapter 預留 |
 
 ---
 
@@ -366,7 +366,7 @@ AI 識別矛盾 → formalize_contradiction 回傳 TC
 - [ ] **`LayeredTrizSolution` Pydantic schema 通過 mypy / pytest，`l3_status="deferred"` 於 `docs/e2e/module/Explore_L3_SF_Parallel_Check_WBS.md` 有明確承接**
 - [ ] **`_solve_pc` 新增 hint 路徑單測覆蓋兩條分支 (有/無 hint)，反向相容舊呼叫**
 - [ ] **Create 頁對同一父 TC 的多 PC solve 後，UI 以分層卡片呈現且各卡片獨立 loading state**
-- [ ] **CLD 與 Anti-Anchor 切換到 `get_contradiction_leaves` 後，現有無子 PC 情境行為不變 (回歸測試)**
+- [ ] **CLD ~~與 Anti-Anchor~~ *(AA 已退役)* 切換到 `get_contradiction_leaves` 後，現有無子 PC 情境行為不變 (回歸測試)**
 - [ ] `docs/e2e/TRIZ_Layered_DrillDown_Optimization.md` Changelog 已更新
 - [ ] `docs/e2e/TRIZ_Multi_Solution_Adoption_Strategy.md` 已註記「同 parent 跨層不互斥」(9.6.3)
 - [ ] PR #9 review 提出的「_extract_socratic_insights 錯誤隔離」建議已一併修復（analyst.py 整段包 try/except）
@@ -388,7 +388,7 @@ AI 識別矛盾 → formalize_contradiction 回傳 TC
 | **9.1 `_solve_pc` hint** | §6.7 separation_type_candidates | §4.3 deepen_link 產出 | — |
 | **9.2 Create 樹狀 solve** | §7.0 solve_triz_layered 時序（UI 層簡化版） | §8.1 F1 輸出形狀 | §2.1 同 LTS 跨層非互斥 |
 | **9.3 CLD leaves** | — | — | §M4 衝突檢查（父子去重語意） |
-| **9.4 Anti-Anchor leaves** | — | — | 同上 |
+| ~~**9.4 Anti-Anchor leaves**~~ *(已退役)* | — | — | ~~同上~~ |
 | **9.5 F2 adapter** | — | — | §4.2 Concept Route |
 | **9.6 Phase B 相容** | — | — | §2.1 `same_contradiction_intra_layer_conflict: skip` |
 | **9.7 下游 e2e** | §11 驗證 | §11 驗證 | — |

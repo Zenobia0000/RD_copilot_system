@@ -38,10 +38,10 @@ TR0 階段比較分析（`docs_harness` vs `docs/02-design`）揭露舊架構在
 | Step 4: 複雜度檢查 | Create 頁決策中心 | `triz_solver.complexity_check()` — CCI 0-1 連續指標 |
 | Evidence Registry | 全流程 cross-cutting | `EvidenceRegistryService` — claim 註冊 + WebSearch 驗證 |
 
-### D2: Socratic Q&A 與 Anti-Anchor 保留不變
+### D2: Socratic Q&A 與 CLD 保留不變；Anti-Anchor 退役併入 TRIZ L1
 
 - **Socratic Q&A** 作為認知層面的發散工具保留，與 5 Why/KT 互補（而非替代）
-- **Anti-Anchor** 作為反向思維工具保留，Auto-TRIZ v2 無對應機制
+- ~~**Anti-Anchor** 作為反向思維工具保留，Auto-TRIZ v2 無對應機制~~ → **Anti-Anchor 獨立子系統已退役**，其跨域去錨定功能併入 TRIZ L1 instantiation 內建步驟（跨域去錨定 UX）
 - **CLD (因果圖)** 保留，與 FA 互補（CLD 看因果關係，FA 看功能交互）
 
 ### D3: Evidence Registry 作為 cross-cutting service
@@ -100,7 +100,7 @@ TR0 階段比較分析（`docs_harness` vs `docs/02-design`）揭露舊架構在
 
 - 現有 `formalize_contradiction()` 不變（TC-only per ADR-007），FA/OZ-OT 作為前置步驟
 - 現有 `solve_triz_layered()` L1/L2/L3 架構不變，增加接收 FA + OZ-OT 結果作為 context
-- Socratic / Anti-Anchor / CLD / Subsystem 等現有流程不受影響 *(v9: SCAMPER 已移除)*
+- Socratic / ~~Anti-Anchor~~ *(已退役，併入 TRIZ L1 跨域去錨定)* / CLD / Subsystem 等現有流程不受影響 *(v9: SCAMPER 已移除)*
 
 ## Implementation Plan
 

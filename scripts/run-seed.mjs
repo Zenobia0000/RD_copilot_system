@@ -140,11 +140,12 @@ async function seedProject1(uid) {
     { project_id: pid, from_node: nids[3], to_node: nids[6], polarity: '+' },
   ], 'cld-edges-1');
 
-  await ins('anti_anchor_routes', [
-    { project_id: pid, name: '整合式馬達控制模組', description: '將電力電子直接嵌入馬達定子座，使用 flex-rigid PCB 消除外殼尺寸限制。', is_non_typical: true, source: '腦力激盪' },
-    { project_id: pid, name: '數位孿生熱管理', description: '使用即時數位孿生預測熱負載，允許短暫超溫操作並保證冷卻排程。', is_non_typical: true, source: 'AI 建議' },
-    { project_id: pid, name: '液冷微通道散熱', description: '借鑑伺服器液冷技術，在 PCB 內建微通道液冷管路。', is_non_typical: true, source: 'AI 建議' },
-  ], 'anti-anchor-1');
+  // v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1
+  // await ins('anti_anchor_routes', [
+  //   { project_id: pid, name: '整合式馬達控制模組', description: '將電力電子直接嵌入馬達定子座，使用 flex-rigid PCB 消除外殼尺寸限制。', is_non_typical: true, source: '腦力激盪' },
+  //   { project_id: pid, name: '數位孿生熱管理', description: '使用即時數位孿生預測熱負載，允許短暫超溫操作並保證冷卻排程。', is_non_typical: true, source: 'AI 建議' },
+  //   { project_id: pid, name: '液冷微通道散熱', description: '借鑑伺服器液冷技術，在 PCB 內建微通道液冷管路。', is_non_typical: true, source: 'AI 建議' },
+  // ], 'anti-anchor-1');
 
   await ins('triz_solutions', [
     { project_id: pid, contradiction_id: cids[0], path: 'TC', principle_number: 28, principle_name: '機械替代', suggestion: '以諧振軟切換拓撲替代固定頻率 PWM，高頻且不增加 EMI。將開關損耗降低 60%，同時 EMI 頻譜分散不超過 CISPR 25 限制。', status: 'adopted' },
@@ -366,10 +367,11 @@ async function seedProject2(uid) {
     { project_id: pid, from_node: nids2[1], to_node: nids2[4], polarity: '+' },
   ], 'cld-edges-2');
 
-  await ins('anti_anchor_routes', [
-    { project_id: pid, name: '無線 BMS', description: '使用無線通訊取代均衡線束，消除佈線面積限制。', is_non_typical: true, source: 'AI 建議' },
-    { project_id: pid, name: '超級電容輔助均衡', description: '使用超級電容作為能量中繼，取代變壓器。', is_non_typical: true, source: 'AI 建議' },
-  ], 'anti-anchor-2');
+  // v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1
+  // await ins('anti_anchor_routes', [
+  //   { project_id: pid, name: '無線 BMS', description: '使用無線通訊取代均衡線束，消除佈線面積限制。', is_non_typical: true, source: 'AI 建議' },
+  //   { project_id: pid, name: '超級電容輔助均衡', description: '使用超級電容作為能量中繼，取代變壓器。', is_non_typical: true, source: 'AI 建議' },
+  // ], 'anti-anchor-2');
 
   await ins('triz_solutions', [
     { project_id: pid, contradiction_id: cids2[0], path: 'TC', principle_number: 17, principle_name: '另一維度', suggestion: '將變壓器從 PCB 平面移至垂直堆疊（3D 封裝），面積不變但容量提升。使用 PoP 封裝技術。', status: 'pending' },
@@ -531,12 +533,12 @@ async function seedProject3(uid) {
     { project_id: pid, code: 'A-03', content: '管壁減薄至 0.8mm 後局部挫曲風險可透過加肋控制', source: '結構分析推測', source_type: 'manual', worst_consequence: '局部挫曲導致結構失效', worst_severity: 'critical', status: 'pending', verification_stage: 'not_started' },
   ], 'assumptions-3');
 
-  // Anti-Anchor Routes (Gate 1.2 Explore)
-  await ins('anti_anchor_routes', [
-    { project_id: pid, name: '拓撲最佳化車架', description: '使用 FEA 拓撲最佳化算出非傳統管型截面，以最少材料達到剛性目標。類似 F1 單體殼概念。', is_non_typical: true, source: 'AI 建議' },
-    { project_id: pid, name: '碳鋁複合接頭', description: '關鍵應力集中區使用鋁合金接頭，管材使用碳纖維，結合兩者優勢。類似自行車業 lugged carbon 工藝。', is_non_typical: true, source: 'AI 建議' },
-    { project_id: pid, name: '3D 列印鈦合金接頭', description: '使用 SLM 3D 列印鈦合金節點，搭配碳纖維管材膠合。實現自由曲面應力最佳化幾何。', is_non_typical: true, source: 'AI 建議' },
-  ], 'anti-anchor-3');
+  // v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1
+  // await ins('anti_anchor_routes', [
+  //   { project_id: pid, name: '拓撲最佳化車架', description: '使用 FEA 拓撲最佳化算出非傳統管型截面，以最少材料達到剛性目標。類似 F1 單體殼概念。', is_non_typical: true, source: 'AI 建議' },
+  //   { project_id: pid, name: '碳鋁複合接頭', description: '關鍵應力集中區使用鋁合金接頭，管材使用碳纖維，結合兩者優勢。類似自行車業 lugged carbon 工藝。', is_non_typical: true, source: 'AI 建議' },
+  //   { project_id: pid, name: '3D 列印鈦合金接頭', description: '使用 SLM 3D 列印鈦合金節點，搭配碳纖維管材膠合。實現自由曲面應力最佳化幾何。', is_non_typical: true, source: 'AI 建議' },
+  // ], 'anti-anchor-3');
 
   console.log(`[seed] Project 3 (Frame) created: ${pid}`);
   return pid;

@@ -33,6 +33,7 @@ export interface ValidationPassport {
 }
 
 // Anti-Anchor
+/** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
 export interface AntiAnchorRoute {
   id: string;
   name: string;
@@ -130,6 +131,7 @@ export {
 } from '@/types/generated/subsystem';
 
 // Alternative (concept route)
+/** @deprecated v3.0: 'anti_anchor' source retired, de-anchoring merged into TRIZ L1 */
 export type AlternativeSource = 'triz_tc' | 'triz_pc' | 'triz_sf' | 'manual' | 'ai_integrated' | 'anti_anchor';
 
 export interface Alternative {

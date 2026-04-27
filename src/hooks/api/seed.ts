@@ -152,6 +152,8 @@ async function seedProject1(uid: string): Promise<string> {
   ], 'cld-edges-1');
 
   // ── Anti-Anchor Routes ──
+  // v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1 flow
+  // Seed data kept for backward compatibility with existing projects
   await ins('anti_anchor_routes', [
     { project_id: pid, name: '整合式馬達控制模組', description: '將電力電子直接嵌入馬達定子座，使用 flex-rigid PCB 消除外殼尺寸限制。', is_non_typical: true, source: '腦力激盪' },
     { project_id: pid, name: '數位孿生熱管理', description: '使用即時數位孿生預測熱負載，允許短暫超溫操作並保證冷卻排程。', is_non_typical: true, source: 'AI 建議' },
@@ -496,6 +498,7 @@ async function seedProject2(uid: string): Promise<string> {
     { project_id: pid, from_node: nids[1], to_node: nids[4], polarity: '+' },
   ], 'cld-edges-2');
 
+  // v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1 flow
   await ins('anti_anchor_routes', [
     { project_id: pid, name: '無線 BMS', description: '使用無線通訊取代均衡線束，消除佈線面積限制。', is_non_typical: true, source: 'AI 建議' },
     { project_id: pid, name: '超級電容輔助均衡', description: '使用超級電容作為能量中繼，取代變壓器。', is_non_typical: true, source: 'AI 建議' },
@@ -745,6 +748,7 @@ async function seedProject3(uid: string): Promise<string> {
   ], 'assumptions-3');
 
   // ── Anti-Anchor Routes (Gate 1.2 Explore — 非典型路線) ──
+  // v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1 flow
   await ins('anti_anchor_routes', [
     { project_id: pid, name: '拓撲最佳化車架', description: '使用 FEA 拓撲最佳化算出非傳統管型截面，以最少材料達到剛性目標。類似 F1 單體殼概念。', is_non_typical: true, source: 'AI 建議' },
     { project_id: pid, name: '碳鋁複合接頭', description: '關鍵應力集中區使用鋁合金接頭，管材使用碳纖維，結合兩者優勢。類似自行車業 lugged carbon 工藝。', is_non_typical: true, source: 'AI 建議' },

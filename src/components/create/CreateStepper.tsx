@@ -56,7 +56,7 @@ export function CreateStepper({ steps, statuses, currentStep, activeTrack, onSte
       <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">雙軌分析</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
-        {/* Reverse: Anti-Anchor (single node, creative) */}
+        {/* v3.0 DEPRECATED: Anti-Anchor Sprint card retired — de-anchoring merged into TRIZ L1 flow */}
         <button
           onClick={() => onStepClick(0, "reverse")}
           className={cn(
@@ -68,11 +68,11 @@ export function CreateStepper({ steps, statuses, currentStep, activeTrack, onSte
         >
           <div className="flex items-center gap-2 mb-1.5">
             <Zap className={cn("h-4 w-4", isReverseActive ? "text-amber-500" : "text-muted-foreground")} />
-            <span className="text-xs font-semibold">反向探索</span>
+            <span className="text-xs font-semibold">跨域去錨定 (TRIZ L1)</span>
             {reverseComplete && <Check className="h-3.5 w-3.5 text-green-500 ml-auto" />}
           </div>
           <p className="text-[10px] text-muted-foreground leading-relaxed">
-            Anti-Anchor Sprint — 從約束出發，AI 產出非典型架構概念，每條自帶 Validation Passport
+            跨域去錨定 — 已整合至 TRIZ L1 實例化流程，從約束出發產出非典型架構概念
           </p>
         </button>
 

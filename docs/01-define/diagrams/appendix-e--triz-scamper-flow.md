@@ -1,7 +1,7 @@
 ## Appendix E: TRIZ Flow + 雙軌決策中心
 
 > 錨點：`#appendix-e-triz-to-scamper-flow`（保留向後相容）
-> **v9 移除說明**：SCAMPER 已於 v9 移除 — 其 7 動作為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋。原標題「TRIZ → SCAMPER Flow」更名。F3 SCAMPER 節點已移除。
+> **v9 移除說明**：SCAMPER 已於 v9 移除 — 其 7 動作為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 完全覆蓋（v3.0: Anti-Anchor 亦退役，去錨定併入 TRIZ L1）。原標題「TRIZ → SCAMPER Flow」更名。F3 SCAMPER 節點已移除。
 > **相關文件**：`../../02-design/specs/triz/E5x--triz-layered-drilldown-optimization.md`
 
 ## 雙軌分析 → 候選方案決策中心：設計概念與流程圖
@@ -52,8 +52,8 @@ flowchart TB
 
         subgraph REVERSE["反向路徑 — 打破框架（創意發散）"]
             direction TB
-            R1["Anti-Anchor Sprint<br/>AI 非典型架構探索<br/>Output: AntiAnchorRoute[] ≥3<br/>每條自帶 Validation Passport<br/>(assumptions + weak_points +<br/>required_verifications + confidence)"]
-            RP["反向候選池<br/>Anti-Anchor routes<br/>直接進入，不經 TRIZ 收斂"]
+            R1["TRIZ L1 跨域去錨定 UX 步驟<br/>AI 非典型架構探索（內建於 L1 實例化）<br/>Output: DeAnchorRoute[] ≥3<br/>每條自帶 Validation Passport<br/>(assumptions + weak_points +<br/>required_verifications + confidence)"]
+            RP["反向候選池<br/>去錨定 routes<br/>直接進入，不經後續收斂"]
             R1 --> RP
         end
 
@@ -100,7 +100,7 @@ flowchart TB
 | ------------------------- | --------------------------------------------------------------------------------- |
 | **方法獨立**                  | 反向（創意）和正向（演繹）是兩種本質不同的方法，不應讓創意工具再跑演繹收斂                                             |
 | **正向路徑分層** (v11)          | F1 內部 TC/PC/SF 是同一矛盾的三層 drill-down，不是互斥三選一。由 `solve_triz_layered` orchestrator 調度 |
-| **反向路徑簡化**                | Anti-Anchor 自帶 Validation Passport，直接進候選池。不需要 R2-R3（TRIZ/子系統）                     |
+| **反向路徑簡化**                | TRIZ L1 跨域去錨定步驟自帶 Validation Passport，直接進候選池。不需要 R2-R3（TRIZ/子系統）                 |
 | **產出與選擇分離**               | 正向路徑：TRIZ 步驟產出 `LayeredTrizSolution`（含 Architecture Health Monitor），採納在決策中心       |
 | **SIM 前置衝突檢查** (v9)       | 跨矛盾衝突在 TRIZ 求解階段由 SIM 矩陣 -1 評分前置捕捉（ADR-008 D5），不再需要後置交叉檢查                       |
 | **CCI 品質判定** (v9)          | 每條解法附 CCI [0,1] 指標（ADR-008 D4），Decision Hub 顯示 Evolution/Weak Evolution/Patch       |
@@ -184,9 +184,9 @@ flowchart TB
         direction TB
 
         subgraph REV_DATA["反向路徑資料（創意發散）"]
-            AA["AntiAnchorRoute[]<br/>mechanism / cross_domain_source<br/>validation_passport<br/>(assumptions + weak_points +<br/>required_verifications + confidence)"]
-            R_POOL["反向候選池<br/>直接進入，不經 TRIZ 收斂"]
-            AA --> R_POOL
+            DA["DeAnchorRoute[]<br/>mechanism / cross_domain_source<br/>validation_passport<br/>(assumptions + weak_points +<br/>required_verifications + confidence)<br/>(TRIZ L1 內建跨域去錨定)"]
+            R_POOL["反向候選池<br/>直接進入，不經後續收斂"]
+            DA --> R_POOL
         end
 
         subgraph FWD_DATA["正向路徑資料"]
@@ -224,7 +224,7 @@ flowchart TB
 
 ### ~~5. SCAMPER 定位~~ (v9 移除)
 
-> **v9 移除說明**：SCAMPER 已於 v9 移除 — 其 7 動作為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋。原 F3 SCAMPER 節點從正向路徑流程中移除。候選池現僅匯聚 TRIZ + Anti-Anchor 兩個來源。
+> **v9 移除說明**：SCAMPER 已於 v9 移除 — 其 7 動作為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 完全覆蓋。原 F3 SCAMPER 節點從正向路徑流程中移除。v3.0: Anti-Anchor 亦退役，去錨定心理功能併入 TRIZ L1 實例化為 UX 步驟。候選池現僅匯聚 TRIZ 正向路徑 + TRIZ L1 去錨定兩個來源。
 
 
 ---
@@ -237,7 +237,7 @@ flowchart TB
 | #   | 要素    | 欄位                                                            | 說明                                                                           |
 | --- | ----- | ------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | 1   | 來源路徑  | `track: 'reverse' | 'forward'`                                | 從哪條分析鏈來                                                                      |
-| 2   | 來源步驟  | `source: triz_tc | triz_pc | triz_sf | anti_anchor` | 具體產出步驟 ~~(v9: 移除 `scamper`)~~                                                |
+| 2   | 來源步驟  | `source: triz_tc | triz_pc | triz_sf | triz_l1_deanchor` | 具體產出步驟 ~~(v9: 移除 `scamper`)~~ (v3.0: `anti_anchor` → `triz_l1_deanchor`) |
 | 3   | 解的矛盾  | `contradiction_ids: string[]`                                 | 追溯至原始矛盾                                                                      |
 | 4   | 涉及子系統 | `subsystem_ids: string[]`                                     | 影響範圍                                                                         |
 | 5   | 基於假設  | `validation_passport.assumptions[]`                           | 方案成立的前提。每項含 `evidence_level` (E0-E4)、`is_falsifiable`、`falsification_method` |
@@ -265,7 +265,7 @@ flowchart TB
 
 | 階段                   | 輸入                          | 處理                                                                                      | 輸出                                                       | 連鎖效果                             |
 | -------------------- | --------------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------- | -------------------------------- |
-| Anti-Anchor 生成       | mission + constraints       | AI 產出非典型架構（創意工具，自帶 Validation Passport）                                                 | `AntiAnchorRoute[].length ≥ 3`                           | **直接進反向候選池**，不經 TRIZ/子系統 |
+| TRIZ L1 跨域去錨定       | mission + constraints       | TRIZ L1 實例化時內建跨域去錨定 UX 步驟，AI 產出非典型架構（自帶 Validation Passport）                          | `DeAnchorRoute[].length ≥ 3`                             | **直接進反向候選池**，不經後續收斂步驟 |
 | **TRIZ 分層求解** (v11)  | 矛盾集 + severity              | `solve_triz_layered`：L1 必跑 + L3 必跑 + L2 critic 觸發 + deepen_link + differential_analyzer | `LayeredTrizSolution[]`（含 L1/L2?/L3 + recommended_route） | SIM 矩陣（≥2 TC 時）                  |
 | 子系統定義                | TRIZ 矛盾親和性                  | RD/AI 定義 System→Module→Component 3 層 + 6 維介面契約                                          | `Subsystem[confirmed]`                                   | 進入決策中心                       |
 | ~~SCAMPER 展開~~       | ~~已確認子系統~~                  | ~~7 行動 × N 子系統~~ **(v9 移除 — TRIZ 40 原理完全覆蓋)**                                            |                                                          |                              |
@@ -296,7 +296,7 @@ flowchart TB
 
 | Gate           | 條件                                           |
 | -------------- | -------------------------------------------- |
-| **反向路徑**       | Anti-Anchor routes.length ≥ 3（完成即可，無後續步驟）    |
+| **反向路徑**       | TRIZ L1 去錨定 routes.length ≥ 3（完成即可，無後續步驟）    |
 | 正向: F1 TRIZ    | health != critical/circular 且 trizSolutions.length > 0 |
 | 正向: F2 子系統     | confirmed subsystems > 0                     |
 | ~~正向: F3 SCAMPER~~ | ~~SCAMPER adopted > 0~~ **(v9 移除)**          |

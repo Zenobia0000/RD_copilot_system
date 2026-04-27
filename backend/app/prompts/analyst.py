@@ -344,6 +344,10 @@ Build a causal loop diagram of system contradictions. Focus on:
 - Hidden intermediate variables that mediate trade-offs
 - Quantified sensitivity: how much change in X causes how much change in Y"""
 
+# v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1.
+# This prompt constant is kept for backward compatibility but is no longer
+# used by the active code path. The replacement lives in the TRIZ L1
+# de-anchoring prompt within the TRIZ solver.
 PURPOSE_ANTI_ANCHOR = """\
 Generate unconventional architecture concepts. Focus on:
 - Constraint rigidity: which are physics-imposed, customer-mandated, or merely preference
@@ -791,6 +795,9 @@ and quantified success/failure criterion. If not falsifiable, write "N/A — [re
 
 # ---------------------------------------------------------------------------
 # Anti-Anchor Generation
+# v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1.
+# This prompt is kept for backward compatibility but is no longer used by
+# the active code path.
 # ---------------------------------------------------------------------------
 
 ANTI_ANCHOR_GENERATION = """\

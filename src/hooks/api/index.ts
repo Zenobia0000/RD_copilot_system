@@ -82,10 +82,15 @@ export {
 } from './useTrack';
 
 // --- Sprint 2: X2 Solution Exploration ---
+// v3.0 DEPRECATED: Anti-Anchor hooks retired — de-anchoring merged into TRIZ L1 flow
 export {
+  /** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
   useAntiAnchorRoutes,
+  /** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
   useCreateAntiAnchorRoute,
+  /** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
   useUpdateAntiAnchorRoute,
+  /** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
   useDeleteAntiAnchorRoute,
   useTrizSolutions,
   useCreateTrizSolution,

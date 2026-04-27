@@ -34,7 +34,7 @@
 為 RD Design Copilot 的前端（React 19 SPA）與後端（FastAPI）提供統一、可機器驗證的 API 契約，並透過 `pydantic2ts` 將 Pydantic schema 單向同步至 TypeScript，確保 BE/FE 型別零漂移。
 
 ### 1.2 目標讀者 (Target Audience)
-前端工程師、後端工程師、QA、Agent 開發者（TRIZ Solver / Anti-Anchor / Subsystem Decomposer）。
+前端工程師、後端工程師、QA、Agent 開發者（TRIZ Solver / Subsystem Decomposer）。
 
 ### 1.3 快速入門 (Quick Start)
 - **第 1 步**：啟動本地 backend `cd backend && uvicorn app.main:app --reload --port 8000`
@@ -70,7 +70,7 @@
 - `Content-Type: application/json`、`Accept: application/json`
 
 ### 2.5 命名約定
-- 路徑：kebab-case 複數名詞（`/pre-cad-reviews/`, `/anti-anchor/`, `/unknown-factors/`）
+- 路徑：kebab-case 複數名詞（`/pre-cad-reviews/`, `/unknown-factors/`）
 - JSON 欄位（後端真相）：`snake_case`
 - 前端 adapter 層轉 `camelCase`
 
@@ -221,11 +221,14 @@ ISO 8601 + UTC（e.g. `2026-04-15T10:00:00Z`）。
 | POST | `/subsystems/suggest` | `SubsystemSuggestResponse` | 遷移自 `/scamper/subsystem-suggestions` |
 | POST | `/subsystems/spatial-overlay` | `SpatialOverlayResponse` | 遷移自 `/scamper/spatial-overlay` |
 
-### 7.7 資源：Anti-Anchor / Validation (`anti_anchor.py`, `validation.py`)
-| Method | Path | Response |
-|---|---|---|
-| POST | `/alternatives/anti-anchor` | `AntiAnchorResponse` |
-| POST | `/alternatives/validation-passport` | `ValidationPassportResponse` |
+### 7.7 資源：~~Anti-Anchor~~ (v10 退役) / Validation (`anti_anchor.py` deprecated, `validation.py`)
+
+> **v10 退役說明**：Anti-Anchor 已合併為 TRIZ L1 跨域去錨定步驟。`/alternatives/anti-anchor` 端點已棄用。
+
+| Method | Path | Response | 狀態 |
+|---|---|---|---|
+| ~~POST~~ | ~~`/alternatives/anti-anchor`~~ | ~~`AntiAnchorResponse`~~ | **DEPRECATED** (v10) |
+| POST | `/alternatives/validation-passport` | `ValidationPassportResponse` | Active |
 
 ### 7.8 資源：Convergence / Unknown Factors (`convergence.py`, `unknown_factors.py`)
 | Method | Path | Response |
@@ -310,7 +313,7 @@ ISO 8601 + UTC（e.g. `2026-04-15T10:00:00Z`）。
 | `EvidenceReference` | 所有 AI 答案的 citation 標準結構 | `schemas.py` L15 |
 | `LayeredTrizSolution` | L1/L2/L3 分層輸出 | `schemas.py` L639 |
 | `SolveTrizLayeredRequest/Response` | 主 TRIZ 端點 I/O | `schemas.py` L659/679 |
-| `AntiAnchorRoute` / `AntiAnchorResponse` | 反向路線 | `schemas.py` L376/392 |
+| ~~`AntiAnchorRoute` / `AntiAnchorResponse`~~ | ~~反向路線~~ *(v10 退役，合併為 TRIZ L1 跨域去錨定)* | `schemas.py` L376/392 |
 | `ValidationPassport` | 假設清單 | `schemas.py` L356 |
 | ~~`ScamperVariant` / `ScamperResponse`~~ | ~~SCAMPER 變體~~ | *(v9 移除)* |
 | `CldNode/Edge/Loop/Breakpoint` | 因果迴圈圖 | `schemas.py` L280–299 |
@@ -356,7 +359,7 @@ class LayeredTrizSolution(BaseModel):
 | Brief / TaskDef / Socratic / CLD | GA |
 | TRIZ (solve, solve-layered, sufield) | GA |
 | ~~SCAMPER~~ (v9 移除) / Subsystem Suggestions | Beta → 遷移至 `/subsystems/` |
-| Anti-Anchor / Validation Passport | Beta |
+| ~~Anti-Anchor~~ (v10 退役) / Validation Passport | ~~Beta~~ Deprecated / Beta |
 | Spatial Overlay / Learn | Alpha |
 | Analyst v2 (5Why / KT / FA / OZ-OT / Entry Grading) | Beta (Auto-TRIZ v2) |
 | TRIZ v2 (SIM Matrix / Complexity Check) | Beta (Auto-TRIZ v2) |

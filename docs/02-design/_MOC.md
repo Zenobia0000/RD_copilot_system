@@ -33,7 +33,7 @@
 
 - [specs/modules/E5x--module-spec-index](specs/modules/E5x--module-spec-index.md) — 模組清單（Agent/Service/Router/Hook）
   - Pilot 1: [`triz-solver`](specs/modules/triz-solver.md) — Forward TRIZ 分層解矛盾
-  - Pilot 2: [`anti-anchor`](specs/modules/anti-anchor.md) — 反向路線生成
+  - ~~Pilot 2: [`anti-anchor`](specs/modules/anti-anchor.md) — 反向路線生成~~ **(v10 退役，合併為 TRIZ L1 跨域去錨定)**
   - Pilot 3: [`subsystem-decomposer`](specs/modules/subsystem-decomposer.md) — 子系統分解 + 介面契約
   - Pilot 4: [`evaluator`](specs/modules/evaluator.md) — Pre-CAD 六維評分 + Gate 決策
   - Pilot 5: [`knowledge`](specs/modules/knowledge.md) — RAG citation + 多模態 ingest

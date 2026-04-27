@@ -2,7 +2,8 @@
 
 **一句話定位**：TRIZ 不是「替你變出創意」的魔法，而是把 AI 變成「跨域知識 + 大量組合生成 + 嚴格約束篩選」的引擎——讓創意不靠腦內庫存，靠流程把可能性擴大、把不可行快速淘汰。
 
-> **v9 移除說明**：SCAMPER 已於 v9 移除 — 其 7 動作為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋。本文件標題由「TRIZ / SCAMPER 結構化發散引擎」更名。
+> **v9 移除說明**：SCAMPER 已於 v9 移除 — 其 7 動作為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 完全覆蓋。本文件標題由「TRIZ / SCAMPER 結構化發散引擎」更名。
+> **v3.0 變更**：Anti-Anchor 退役為獨立子系統，其「跨域去錨定」功能併入 TRIZ L1 具體化步驟（Instantiation）。
 
 **核心哲學**：**Bounded Divergence（有邊界的發散）**——先把設計語法/約束/風險寫清楚，AI 再在這些欄位裡生方案；生完立刻做黑帽式淘汰。
 
@@ -238,41 +239,33 @@ Gate X5 門檻：Confidence = 100%（所有 Fatal + Major 完全收斂）。
 
 ## ~~6. SCAMPER 模組級變形~~ (v9 移除)
 
-> **v9 移除說明**：SCAMPER 已於 v9 移除 — 其 7 動作（Substitute / Combine / Adapt / Modify / Put to other uses / Eliminate / Rearrange）為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 + Anti-Anchor 完全覆蓋。原 SCAMPER 在候選池中的創意發散角色由 Anti-Anchor Sprint 承接。
+> **v9 移除說明**：SCAMPER 已於 v9 移除 — 其 7 動作（Substitute / Combine / Adapt / Modify / Put to other uses / Eliminate / Rearrange）為 TRIZ 40 原理的子集，由 TRIZ L1/L2/L3 完全覆蓋。原 SCAMPER 在候選池中的創意發散角色由 TRIZ L1 跨域去錨定步驟承接。
 
 ---
 
-## 7. Anti-Anchor Sprint (反路徑依賴)
+## ~~7. Anti-Anchor Sprint~~ (v3.0 退役 — 併入 TRIZ L1)
 
-**目的**：刻意打破資深 RD 的路徑依賴和對標思維，主動探索非典型架構。
-
-**Prompt 設計（第一性原理）**：
-- 每個概念必須聲明其依賴的物理定律/原理
-- 因果鏈量化預期（數量級即可）
-- 明確在什麼條件下此概念會失效
-- AI 自我檢查邏輯謬誤（循環論證、訴諸權威、類比過度）
-
-**產出 3 種「非典型架構」概念**：
-1. 不同能量傳遞/減速概念 (e.g., 磁力傳動)
-2. 不同感測/控制閉環概念 (e.g., 無感測器控制)
-3. 不同模組拆分/維修策略概念 (e.g., 模組化快拆)
-
-**規則**：至少 1 條必須是「跟競品在物理介面或核心機制上不相容」的路線。
-
-**保留欄位**：`mechanism`、`cross_domain_source`、`validation_passport`（含 assumptions[]、weak_points[]、required_verifications[]、confidence_level）。
-
-**晉升機制**：通過 Anti-Anchor Gate 的概念可被標記為「晉升」，進入候選池 (source: `anti_anchor`)。
+> **v3.0 退役說明**：Anti-Anchor 不再作為獨立子系統運行。其「跨域去錨定」功能已內建於 TRIZ L1 具體化步驟（§3 子步驟 5a-4 原理具體化）。
+>
+> **變更摘要**：
+> - ~~Anti-Anchor Sprint~~ → TRIZ L1 跨域去錨定（L1 Instantiation 內建步驟）
+> - ~~`seed_source=anti_anchor`~~ → 統一為 `triz`
+> - ~~Anti-Anchor Gate~~ → 由 L1 critic badge 品質閘門取代
+> - ~~正向/反向路徑二分法~~ → 統一 TRIZ 路徑
+>
+> 原 Anti-Anchor 的核心設計原則（第一性原理 Prompt、非典型架構產出、跨域類比）保留於 L1 具體化提示中，確保發散品質不退化。
 
 ---
 
 ## 8. 決策中心 (Decision Hub)
 
-候選池自動匯聚兩類來源：
+候選池統一來源：
 
-| 來源 | 徽章 | Source 值 |
-|------|------|-----------|
-| Anti-Anchor 晉升路線 | 🟠 amber (reverse) | `anti_anchor` |
-| TRIZ 三路徑候選 | 🔵 blue (forward) | `triz` (sub: TC/PC/SF) |
+| 來源 | Source 值 |
+|------|-----------|
+| TRIZ 三路徑候選（TC/PC/SF，含 L1 跨域去錨定概念） | `triz` (sub: TC/PC/SF) |
+
+> **v3.0 變更**：~~`anti_anchor`~~ source 已退役，所有候選統一為 `triz`。原 amber/blue 正向/反向徽章區分已移除。
 
 **三層資訊展開**：
 - 第 1 層：名稱 / 來源徽章 / confidence level
@@ -321,7 +314,7 @@ validation_passport:
 
 **篩選規則**：
 1. 任一 MUST 不通過 = 直接淘汰
-2. 通過者進入 Set-Based 集合（≥1 條；探索完整度需 TRIZ 三路徑 + AA Sprint 皆執行）
+2. 通過者進入 Set-Based 集合（≥1 條；探索完整度需 TRIZ 三路徑 + 跨域去錨定皆執行）
 3. 完整 KT Decision Analysis 在 V3 執行
 
 ---
@@ -344,6 +337,6 @@ validation_passport:
 
 ---
 
-**版本**: v2.0
-**最後更新**: 2026-04-21
-**變更紀錄**: 整合 E3x AutoTRIZ 架構、矛盾收斂圖、Anti-Anchor、決策中心為單一 MECE 文件；v9 移除 SCAMPER（7 動作為 TRIZ 40 原理子集）
+**版本**: v3.0
+**最後更新**: 2026-04-27
+**變更紀錄**: 整合 E3x AutoTRIZ 架構、矛盾收斂圖、決策中心為單一 MECE 文件；v9 移除 SCAMPER（7 動作為 TRIZ 40 原理子集）；v3.0 Anti-Anchor 退役為獨立子系統，跨域去錨定併入 TRIZ L1 具體化步驟，`anti_anchor` source 統一為 `triz`

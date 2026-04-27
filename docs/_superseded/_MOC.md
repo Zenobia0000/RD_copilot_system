@@ -9,6 +9,8 @@
 |------|---------------|---------|
 | [E2x--wbs-mock-to-live-migration](E2x--wbs-mock-to-live-migration.md) | [01-define/E3--wbs-development-plan](../01-define/E3--wbs-development-plan.md) WS-C | Sprint 4 仍在進行中 (🟡)，完成後可刪除 |
 | [E3x--wbs-development-plan-v1](E3x--wbs-development-plan-v1.md) | [01-define/E3--wbs-development-plan](../01-define/E3--wbs-development-plan.md) v2.1 | 舊版 workstream-axis WBS，已被 module-axis v2.1 取代 |
+| [appendix-c--reverse-anti-anchor](appendix-c--reverse-anti-anchor.md) | TRIZ L1 跨域去錨定（內建於 TRIZ 流程） | v3.0 AA 退役：AA 獨立子系統合併為 TRIZ 流程中的去錨定 UX 步驟 |
+| [anti-anchor-module-spec](anti-anchor-module-spec.md) | TRIZ Solver 內建跨域去錨定 | v3.0 AA 退役：AntiAnchorAgent 邏輯整合至 TRIZ Solver |
 
 ## 已刪除的歷史文件 (git history 可查)
 

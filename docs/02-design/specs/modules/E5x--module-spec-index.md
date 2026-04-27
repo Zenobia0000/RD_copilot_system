@@ -30,7 +30,7 @@
 | 4   | `TrizCriticAgent`                            | `agents/triz_critic.py`                         | L1 層信心度評估、觸發 drill-down           | Appendix B     | (subsumed by TrizSolver pilot)                                    |
 | 5   | `KnowledgeAgent` / `KnowledgeWritebackAgent` | `agents/knowledge.py`, `agents/knowledge_wb.py` | RAG + 知識回寫                        | Appendix A §3  | ✓ `[knowledge.md](knowledge.md)` (search + ingest; writeback TBD) |
 | ~~6~~ | ~~`ScamperFeedbackAgent`~~                 | ~~`agents/scamper_feedback.py`~~                | ~~SCAMPER → 新矛盾反饋~~ **(v9 移除)** | Appendix E     | ~~`[scamper-feedback.md](scamper-feedback.md)`~~ (deprecated)     |
-| 7   | `AntiAnchorAgent`                            | (embedded in router `anti_anchor.py`)           | 反向路線生成                            | Appendix C     | ✓ `[anti-anchor.md](anti-anchor.md)`                              |
+| ~~7~~ | ~~`AntiAnchorAgent`~~                      | ~~(embedded in router `anti_anchor.py`)~~       | ~~反向路線生成~~ **(v10 退役，合併為 TRIZ L1 跨域去錨定)** | ~~Appendix C~~ (retired) | ~~`[anti-anchor.md](anti-anchor.md)`~~ (deprecated)               |
 | 8   | `SubsystemDecomposerAgent`                   | (service in `subsystems.py` + `spatial_`*) *(v9: 原 `scamper.py`)* | 子系統發現與介面契約                        | Appendix A + E | ✓ `[subsystem-decomposer.md](subsystem-decomposer.md)`            |
 
 
@@ -89,11 +89,11 @@
 七個 pilot 覆蓋 Discover → Deliver 全鏈路的核心 agent：
 
 - **Forward TRIZ** → `triz-solver.md`（最複雜 AI 編排）
-- **Reverse Anti-Anchor** → `anti-anchor.md`（路徑依賴打破邏輯）
+- ~~**Reverse Anti-Anchor** → `anti-anchor.md`（路徑依賴打破邏輯）~~ **(v10 退役，合併為 TRIZ L1 跨域去錨定)**
 - **Subsystem Decomposer** → `subsystem-decomposer.md`（跨 agent/service 協作）
 - **Pre-CAD Evaluator** → `evaluator.md`（Gate 決策 + MUST/WANT 六維評分）
 - **Knowledge RAG** → `knowledge.md`（citation / 多模態 ingest，所有 agent 共用）
-- **Analyst** → `analyst.md`（Discover/Define 主 LLM actor；Brief / Socratic / Formalize / Decompose / Anti-Anchor prompt 入口）— 2026-04-15 補齊
+- **Analyst** → `analyst.md`（Discover/Define 主 LLM actor；Brief / Socratic / Formalize / Decompose prompt 入口；~~Anti-Anchor v10 退役~~）— 2026-04-15 補齊
 - **ScamperFeedback** → `scamper-feedback.md`（Appendix E 非收斂迴圈閉環，相似度去重 + Supabase 寫回）— 2026-04-15 補齊
 - **EvidenceRegistry** → `[evidence-registry.md](evidence-registry.md)`（ADR-008 證據主張註冊/驗證/覆蓋率）— 2026-04-23 新增（v1.1）
 

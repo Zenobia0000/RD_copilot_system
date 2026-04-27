@@ -498,6 +498,8 @@ class TestEbikeE2EScenario:
     # Phase 2: Diverge
     # -----------------------------------------------------------------------
 
+    # v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1
+    @pytest.mark.skip(reason="v3.0: Anti-Anchor retired — de-anchoring merged into TRIZ L1")
     @patch("app.agents.analyst.call_llm_json")
     def test_step_x1_anti_anchor(self, mock_llm, client):
         """Phase 2, X1: Generate anti-anchor alternatives to break path dependency."""

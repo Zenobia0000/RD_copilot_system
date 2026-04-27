@@ -1,6 +1,83 @@
 # Page-Level Prompt: Create 創建 / 方案生成
 
-> Phase 2 最複雜頁面 — 多軌道方案創造精靈，整合反向探索（Anti-Anchor）、正向分析（TRIZ/子系統）、決策中心與統一評估，完成概念方案收斂。
+> Phase 2 最複雜頁面 — 方案創造精靈，整合正向分析（TRIZ 含 L1 跨域去錨定/子系統）、決策中心與統一評估，完成概念方案收斂。~~Anti-Anchor 獨立子系統已退役，併入 TRIZ L1 跨域去錨定~~。
+> **整合來源**：本檔合併了原 `02-design/specs/ux/E5x--create-ux-spec.md` 的 wireframe + 互動定義 + 設計原則（v3.0）。
+
+---
+
+## [CHANGELOG]
+
+> 設計演化記錄（原 UX spec 版本歷程）。
+
+| 版本 | 日期 | 變更摘要 |
+|:-----|:-----|:---------|
+| v9.0 | 2026-04-27 | ADR-008：Entry Grading Modal、Conditional Stepper、OZ-OT Panel、CCI Badge、Evidence Coverage Gauge |
+| v8.1 | 2026-04-13 | Tab ① ConvergenceDashboard 移除（Phase A 退役，per-card critic badge 取代） |
+| v8 | 2026-04-09 | Phase A 退役：Tab ① 簡化為一鍵直出分層 drill-down |
+| v7 | 2026-04-09 | Tab ① 重寫：LayeredTrizSolution 分層診斷（L1/L2/L3 垂直堆疊 + differential_analysis + critic badge） |
+| v6 | 2026-04-08 | Tab ② Spatial Discovery Validator（Package Map + inline override + What-if Overlay） |
+| v5 | 2026-03-26 | ~~雙軌對稱（反向 Anti-Anchor / 正向 TRIZ+子系統）~~ **(Anti-Anchor 已併入 TRIZ L1 跨域去錨定)**，候選池匯流決策中心 |
+
+---
+
+## [WIREFRAME]
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  ① 核心設計使命                                                    │
+│  Mission · Constraints · KPIs · 已驗證假設 · 高風險數               │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                    │
+│  ② TRIZ 分析（含 L1 跨域去錨定）                                    │
+│                                                                    │
+│  ┌──────────────────────────────────────────────────────────────┐ │
+│  │  🎯 TRIZ 解矛盾（L1 含跨域去錨定）→ 子系統                      │ │
+│  │  從矛盾出發，系統化產出候選方案                                    │ │
+│  │  L1 instantiation 內建去錨定步驟（原 Anti-Anchor 已併入）          │ │
+│  │  內部 tab：① TRIZ ② 子系統                                      │ │
+│  │  [點擊展開操作]                                                  │ │
+│  └──────────────────────────────────────────────────────────────┘ │
+│                                                                    │
+│                    ▼ 候選池匯流 ▼                                   │
+│                                                                    │
+│  ┌──────────────────────────────────────────────────────────────┐ │
+│  │  ③ 候選方案決策中心                                            │ │
+│  │  所有候選攤平 · RD adopt/skip · CCI 標籤 · 橫向比較            │ │
+│  │  ┌─────────┐ ┌──────────────┐ ┌─────────┐ ┌─────────┐      │ │
+│  │  │ 去錨定  │ │ TRIZ-Layered │ │ TRIZ-L1 │ │ 正向    │      │ │
+│  │  │ 路線1  │ │ ▢ L1 ▢ L2 ▢ L3│ │ single  │ │ single  │      │ │
+│  │  │ [adopt] │ │ [採納推薦]    │ │ [adopt] │ │ [skip]  │      │ │
+│  │  └─────────┘ └──────────────┘ └─────────┘ └─────────┘      │ │
+│  └──────────────────────────────────────────────────────────────┘ │
+│                                                                    │
+│  ④ 統一評估                                                        │
+│  [ MUST 快篩 (M1-M6) ]  →  [ Pre-CAD 審查 (5D) ]                 │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## [DESIGN PRINCIPLES]
+
+| 原則 | 說明 |
+|:-----|:-----|
+| ~~對稱卡片~~ | ~~兩張卡片等高等寬~~ **(Anti-Anchor 獨立卡片已退役，去錨定功能併入 TRIZ L1)** |
+| 分層而非選題 (v7) | Tab ① TRIZ 輸出是 L1/L2/L3 分層診斷報告，不是並列候選池 |
+| 垂直堆疊呈現 drill-down | 同矛盾三層以垂直堆疊呈現，ARIZ 深挖路徑視覺化為上下關係 |
+| L3 永遠呈現 | 即使 L1/L2 已採納，L3 結構旁路永遠顯示 |
+| 路徑色彩 | 反向 = amber（⚡暖色），正向 = blue（🎯冷色） |
+| Discovery 不限制創意 | Spatial validator 為 descriptive，never blocking |
+| Confidence 必須可見 | 每個 spatial 數字帶 confidence badge（深綠→紅，信任度遞減） |
+| Trace 每一個數字 | reference_source hover 顯示完整 trace |
+
+### Spatial Confidence 配色
+
+| confidence | reference_source | Badge 配色 | 語意 |
+|:-----------|:-----------------|:-----------|:-----|
+| rd_confirmed | `rd_override:<key>` | 深綠白字 `#14532d` | RD 手動 override |
+| library | `learned:<key>` | 淺綠黑字 `#bbf7d0` | 跨專案 learned |
+| estimate | `web:<query>` | 橘黃黑字 `#fde68a` | web lookup |
+| llm_estimate | `llm_estimate` | 紅黑字 `#fecaca` | LLM fallback，**RD 應 override** |
 
 ---
 
@@ -25,11 +102,11 @@
    - section_purpose: 顯示問題陳述、矛盾摘要、假設驗證進度，提供任務背景
 3. **CreateStepper**
    - section_type: step-navigation
-   - section_purpose: 7 步驟導航，分為四個區域（反向路徑/正向路徑/決策中心/統一評估）
-4. **Step 0: Anti-Anchor 反向探索**
-   - section_type: generation
-   - section_purpose: 從約束出發，AI 產出非典型架構概念
-5. **Step 1: TRIZ 解矛盾**
+   - section_purpose: 6 步驟導航，分為三個區域（正向路徑（含 L1 跨域去錨定）/決策中心/統一評估）。~~原 Step 0 Anti-Anchor 已退役，併入 TRIZ L1 跨域去錨定~~。
+4. ~~**Step 0: Anti-Anchor 反向探索**~~ **(已退役 — 併入 TRIZ L1 跨域去錨定)**
+   - ~~section_type: generation~~
+   - ~~section_purpose: 從約束出發，AI 產出非典型架構概念~~
+5. **Step 1: TRIZ 解矛盾（含 L1 跨域去錨定）**
    - section_type: analysis + generation
    - section_purpose: 分層 drill-down 診斷（L1 現象/L2 根因/L3 結構），方向求解與跨矛盾整併
 6. **Step 2: 子系統定義**
@@ -82,35 +159,22 @@
 - **elements**:
   | Element | Type | Required | Description |
   |:--------|:-----|:---------|:------------|
-  | Step_0 | step | required | "反向探索 Anti-Anchor"，zone=reverse（amber） |
-  | Step_1 | step | required | "正向分析：TRIZ 解矛盾"，zone=forward（blue） |
+  | ~~Step_0~~ | ~~step~~ | | ~~"反向探索 Anti-Anchor"~~ **(已退役，併入 Step 1 TRIZ L1 跨域去錨定)** |
+  | Step_1 | step | required | "TRIZ 解矛盾（含 L1 跨域去錨定）"，zone=forward（blue） |
   | Step_2 | step | required | "正向分析：子系統定義"，zone=forward（blue） |
   | ~~Step_3~~ | ~~step~~ | | ~~"正向分析：SCAMPER 變形"~~ **(v9 移除)** |
   | Step_3 | step | required | "候選方案決策中心"，zone=hub（violet） *(v9: 原 Step_4)* |
   | Step_4 | step | required | "MUST 快篩"，zone=eval（green） *(v9: 原 Step_5)* |
   | Step_5 | step | required | "Pre-CAD 審查"，zone=eval（green） *(v9: 原 Step_6)* |
 - **states**: 各步驟顯示完成狀態（pending/in-progress/done），當前步驟高亮
-- **copy_constraints**: Zone badge 使用繁體中文（反向路徑/正向路徑/決策中心/統一評估）
+- **copy_constraints**: Zone badge 使用繁體中文（正向路徑/決策中心/統一評估）。~~反向路徑 zone 已退役~~。
 
-### Section: Step 0 — Anti-Anchor 反向探索
-- **layout**: 路線清單 + AI 生成按鈕
-- **elements**:
-  | Element | Type | Required | Description |
-  |:--------|:-----|:---------|:------------|
-  | RouteList | card-list | required | 顯示已生成的 Anti-Anchor 路線（名稱+描述） |
-  | GenerateButton | AiButton | required | 觸發 `antiAnchorGenerate` API，AI 產出非典型架構概念 |
-  | AddRouteButton | Button | optional | 手動新增路線 |
-  | EditRouteForm | inline-form | optional | 編輯路線名稱與描述 |
-  | DeleteButton | Button | optional | 刪除路線 |
-  | AntiAnchorWarning | alert | optional | AI 生成的風險警告 |
-- **states**:
-  - empty: 顯示空狀態提示
-  - generating: AiButton 顯示 loading spinner
-  - generated: 路線卡片列表
-- **copy_constraints**: 使用繁體中文
+### ~~Section: Step 0 — Anti-Anchor 反向探索~~ (已退役 — 併入 TRIZ L1 跨域去錨定)
 
-### Section: Step 1 — TRIZ 解矛盾
-- **layout**: OZ-OT 前置 accordion → 矛盾清單 + 分層診斷卡片 + 方向分析結果 + SIM 矩陣 + 整併面板
+> **退役說明**：Anti-Anchor 作為獨立子系統已退役。其核心功能（跨域非典型架構探索）已併入 TRIZ L1 instantiation 的內建「跨域去錨定」UX 步驟。原 `antiAnchorGenerate` API、`useAntiAnchorRoutes` hook 及 `anti_anchor_routes` 表均不再由新流程使用。
+
+### Section: Step 1 — TRIZ 解矛盾（含 L1 跨域去錨定）
+- **layout**: OZ-OT 前置 accordion → 矛盾清單 + 分層診斷卡片（L1 含跨域去錨定）+ 方向分析結果 + SIM 矩陣 + 整併面板
 - **sub-sections**:
 
   #### 1a. OZ-OT 前置分析（ADR-008 新增）
@@ -218,7 +282,7 @@
   - halted: 架構衝突偵測到，顯示阻擋覆蓋層
   - cci_loading: CCI 計算中（每張卡片獨立 loading）
   - evidence_low: Evidence 覆蓋率 < 40%，Gauge 顯示橘色
-- **copy_constraints**: 方案來源標籤使用英文（Anti-Anchor/TRIZ）；CCI 判定標籤使用英文（Evolution/Weak Evolution/Patch） *(v9: SCAMPER 來源移除)*
+- **copy_constraints**: 方案來源標籤使用英文（TRIZ / TRIZ-L1-去錨定）；CCI 判定標籤使用英文（Evolution/Weak Evolution/Patch） *(v9: SCAMPER 來源移除；Anti-Anchor 獨立來源已退役，改為 TRIZ L1 去錨定)*
 
 ### Section: Step 5 — MUST 快篩
 - **layout**: 方案列表 + MUST 條件矩陣
@@ -251,8 +315,8 @@
 ## [INTERACTION & STATE FLOW]
 
 ### 主要互動流程
-1. 使用者進入頁面，預設在 Step 0（Anti-Anchor），MissionContext 顯示任務背景
-2. Step 0: 點擊 AI 生成 → `antiAnchorGenerate` → 路線卡片出現 → 可手動編輯/刪除/新增
+1. 使用者進入頁面，預設在 Step 1（TRIZ 解矛盾，含 L1 跨域去錨定），MissionContext 顯示任務背景
+2. ~~Step 0: Anti-Anchor~~ **(已退役 — 併入 Step 1 TRIZ L1 跨域去錨定)**
 3. Step 1:
    - 1a. OZ-OT 前置分析：有 TC 時自動展開 → 點擊 RunOzOtButton → AI 產出 OZ/OT/Px → 結果注入後續求解 context
    - 1b. 查看矛盾清單（含 Px Badge）→ 點擊「全部求解」或單獨求解 → 分層診斷/方向分析結果 → 自動整併
@@ -276,10 +340,10 @@
 - **endpoints**:
   | Hook / Function | Method | Purpose |
   |:-----------------|:-------|:--------|
-  | `useAntiAnchorRoutes(projectId)` | GET | 取得 Anti-Anchor 路線 |
-  | `useCreateAntiAnchorRoute()` | POST | 建立路線 |
-  | `useUpdateAntiAnchorRoute()` | PATCH | 更新路線 |
-  | `useDeleteAntiAnchorRoute()` | DELETE | 刪除路線 |
+  | ~~`useAntiAnchorRoutes(projectId)`~~ | ~~GET~~ | ~~取得 Anti-Anchor 路線~~ **(已退役 — 併入 TRIZ L1 跨域去錨定)** |
+  | ~~`useCreateAntiAnchorRoute()`~~ | ~~POST~~ | ~~建立路線~~ **(已退役)** |
+  | ~~`useUpdateAntiAnchorRoute()`~~ | ~~PATCH~~ | ~~更新路線~~ **(已退役)** |
+  | ~~`useDeleteAntiAnchorRoute()`~~ | ~~DELETE~~ | ~~刪除路線~~ **(已退役)** |
   | `useContradictions(projectId)` | GET | 取得矛盾清單 |
   | `useTrizSolutions(projectId)` | GET | 取得 TRIZ 解法 |
   | `useCreateTrizSolution()` | POST | 建立 TRIZ 解法 |
@@ -308,7 +372,7 @@
   | `useProject(projectId)` | GET | 取得專案設定（must_criteria_config） |
   | `useSocraticQuestions(projectId)` | GET | 取得蘇格拉底問答 |
   | `useConvergenceLoop(config)` | hook | 收斂迴圈運算 |
-  | `antiAnchorGenerate(payload)` | POST | AI 產出 Anti-Anchor 路線 |
+  | ~~`antiAnchorGenerate(payload)`~~ | ~~POST~~ | ~~AI 產出 Anti-Anchor 路線~~ **(已退役 — 併入 TRIZ L1 跨域去錨定)** |
   | `trizSolveLayered(payload)` | POST | 分層 TRIZ 求解 |
   | `trizSolveDirected(payload)` | POST | 方向 TRIZ 求解 |
   | `trizConsolidate(payload)` | POST | 跨矛盾整併 |
@@ -338,9 +402,9 @@
 
 ## [ACCEPTANCE CRITERIA]
 - [ ] 頁面載入時顯示 Skeleton loading 狀態
-- [ ] CreateStepper 正確顯示 7 個步驟，分四個區域色碼標示
+- [ ] CreateStepper 正確顯示 6 個步驟，分三個區域色碼標示（~~原 Step 0 Anti-Anchor 已退役~~）
 - [ ] MissionContext 正確顯示專案任務、矛盾、假設、約束、KPI
-- [ ] Step 0: AI 可生成 Anti-Anchor 路線，支援手動 CRUD
+- [ ] ~~Step 0: AI 可生成 Anti-Anchor 路線，支援手動 CRUD~~ **(已退役 — 併入 TRIZ L1 跨域去錨定)**
 - [ ] Step 1: 矛盾清單正確載入並按 TC > PC > SF 排序
 - [ ] Step 1: 可全部求解或單獨求解，顯示 per-contradiction loading 狀態
 - [ ] Step 1: LayeredSolutionCard 正確顯示 L1/L2/L3 分層結果

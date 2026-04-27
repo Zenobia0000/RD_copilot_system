@@ -134,7 +134,7 @@ const RADAR_COLORS = [
 ];
 
 const STEPS = [
-  { label: "反向探索 Anti-Anchor", shortLabel: "Anti-Anchor", description: "從約束出發，AI 產出非典型架構概念，每條自帶 Validation Passport", zone: "reverse" as const },
+  { label: "跨域去錨定 (TRIZ L1)", shortLabel: "去錨定", description: "已整合至 TRIZ L1 — 從約束出發產出非典型架構概念", zone: "reverse" as const }, // v3.0: renamed from Anti-Anchor
   { label: "正向分析：TRIZ 解矛盾", shortLabel: "TRIZ", description: "從矛盾出發 → 分層 drill-down 診斷（L1 現象 / L2 根因 / L3 結構）→ 子系統分解", zone: "forward" as const },
   { label: "正向分析：子系統定義", shortLabel: "子系統", description: "識別受矛盾影響的子系統 (System→Module→Component)，聚焦變形範圍", zone: "forward" as const },
   { label: "候選方案決策中心", shortLabel: "決策中心", description: "攤平兩條路徑的所有方案，橫向比較來源、機制、假設、驗證需求與信心等級", zone: "hub" as const },
@@ -160,7 +160,8 @@ const MOCK_MISSION = {
   highRiskCount: 3,
 };
 
-// Mock AI-generated Anti-Anchor routes
+// v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1 flow
+// Mock data kept for backward compatibility
 const MOCK_AI_ANTIANCHOR: AntiAnchorRoute[] = [
   { id: "aar-ai-001", name: "直驅輪轂方案", description: "完全捨棄傳統中驅+傳動系統，改用輪轂馬達直接驅動後輪，消除傳動效率損失與噪音來源。與競品在物理介面上完全不相容。" },
   { id: "aar-ai-002", name: "磁力耦合無接觸傳動方案", description: "以磁力耦合器取代機械齒輪嚙合，實現非接觸傳動。消除齒輪磨耗噪音，簡化密封設計，但需克服扭矩傳遞效率問題。" },
@@ -759,6 +760,7 @@ export default function Create() {
   );
 
   // Handlers
+  // v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1 flow
   const handleAiGenAntiAnchor = async () => {
     if (!id) return;
     setAiLoading((p) => ({ ...p, antiAnchor: true }));
@@ -1168,6 +1170,7 @@ export default function Create() {
     resetSsForm();
     setEditingSubsystemId(null);
   };
+  // v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1 flow
   const deleteAntiAnchorRoute = (routeId: string) => {
     const idx = localRoutes.findIndex(r => r.id === routeId);
     if (idx === -1) return;
@@ -1200,6 +1203,7 @@ export default function Create() {
     });
   };
 
+  // v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1 flow
   const promoteAntiAnchorToCandidate = (routeId: string) => {
     if (!id) return;
     const route = routes.find(r => r.id === routeId);
@@ -1675,9 +1679,20 @@ export default function Create() {
   };
 
   // ── X1: Anti-Anchor (AI Generated) ──
+  // v3.0 DEPRECATED: Anti-Anchor section retired — de-anchoring merged into TRIZ L1 flow
   function renderAntiAnchor() {
     return (
       <div className="space-y-6">
+        {/* v3.0 DEPRECATED: Anti-Anchor UI retired — de-anchoring merged into TRIZ L1 flow */}
+        <Card className="border-amber-300/50 bg-amber-50/30">
+          <CardContent className="p-4 text-center text-sm text-muted-foreground">
+            Anti-Anchor 功能已整合至 TRIZ L1 跨域去錨定流程。歷史資料仍可檢視，新專案請使用正向分析中的 TRIZ 流程。
+          </CardContent>
+        </Card>
+        {/* v3.0 DEPRECATED: Original AA UI hidden — kept for rollback safety */}
+        {false && (
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        <div>
         {/* TODO: Replace with AI-generated anti-anchor warning via API (Sprint 3+) */}
 
         {/* 🧭 新手閱讀指引 — 第一次看到這頁的人必讀 */}
@@ -2006,6 +2021,8 @@ export default function Create() {
         </Card>
 
         <KnowledgeRefsPanel refs={[] /* TODO: useKnowledgeRefs (Sprint 5+) */} />
+        </div>
+        )}
       </div>
     );
   }
@@ -2406,7 +2423,7 @@ export default function Create() {
   function renderAlternatives() {
     // ── Candidate pool: aggregate from all sources ──
     const SOURCE_BADGE: Record<string, { label: string; cls: string }> = {
-      anti_anchor: { label: '反向/Anti-Anchor', cls: 'bg-amber-100 text-amber-700' },
+      anti_anchor: { label: '跨域去錨定 (TRIZ L1)', cls: 'bg-amber-100 text-amber-700' }, // v3.0: renamed from Anti-Anchor
       triz_tc: { label: '正向/TRIZ-TC', cls: 'bg-blue-100 text-blue-700' },
       triz_pc: { label: '正向/TRIZ-PC', cls: 'bg-blue-100 text-blue-700' },
       triz_sf: { label: '正向/TRIZ-SF', cls: 'bg-blue-100 text-blue-700' },
@@ -2424,7 +2441,7 @@ export default function Create() {
           <div>
             <h3 className="text-sm font-semibold">候選方案池</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              匯集反向（Anti-Anchor）與正向（TRIZ）所有候選。RD 確認後執行 Phase B 交叉檢查。
+              匯集跨域去錨定（TRIZ L1）與正向（TRIZ）所有候選。RD 確認後執行 Phase B 交叉檢查。
             </p>
           </div>
           <div className="flex gap-2">
@@ -2466,7 +2483,7 @@ export default function Create() {
             <p className="text-muted-foreground font-medium">候選池為空</p>
             <p className="text-xs text-muted-foreground">
               點擊「自動匯入候選」從已採用的 TRIZ 解法中自動匯入，<br />
-              或從 Anti-Anchor 步驟晉升方案，或手動新增。
+              或從去錨定步驟晉升方案，或手動新增。
             </p>
           </div>
         ) : (
@@ -2975,7 +2992,7 @@ export default function Create() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
           方案創造
-          <HelpTooltip text="雙軌分析 → 候選方案決策中心 → 統一評估。反向路徑（Anti-Anchor 創意發散，直接帶 Validation Passport 進候選池）與正向路徑（TRIZ 解矛盾 → 子系統定義），所有方案在決策中心攤平比較、Phase B 交叉檢查後進入 MUST 快篩。" className="ml-2 align-middle" />
+          <HelpTooltip text="雙軌分析 → 候選方案決策中心 → 統一評估。跨域去錨定（TRIZ L1，原 Anti-Anchor）與正向路徑（TRIZ 解矛盾 → 子系統定義），所有方案在決策中心攤平比較、Phase B 交叉檢查後進入 MUST 快篩。" className="ml-2 align-middle" />
         </h1>
         <p className="text-sm text-muted-foreground mt-1">雙軌分析 · 方案匯流 · 統一評估</p>
       </div>
@@ -3003,13 +3020,13 @@ export default function Create() {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-semibold flex items-center gap-1">
-                {activeTrack === "reverse" ? "反向探索 Anti-Anchor" :
+                {activeTrack === "reverse" ? "跨域去錨定 (TRIZ L1)" :
                  activeTrack === "forward" ? "正向分析" :
                  STEPS[currentStep].label}
                 {activeTrack === "reverse" && (
                   <HelpTooltip
                     maxWidth="max-w-sm"
-                    text="反向探索：刻意跳過『解矛盾』的正向路徑，直接從物理第一原理逼 AI 產出與主流競品物理機制不相容的非典型架構。目的是破路徑依賴，讓你在被現有產品綁架之前先看到其他可能。每條路線自帶 Validation Passport，可直接晉升為候選方案與 TRIZ 結果並列比較。完整架構見 docs/e2e/Reverse_Anti_Anchor_Architecture.md。"
+                    text="跨域去錨定（原 Anti-Anchor）：已整合至 TRIZ L1 實例化流程。從約束出發產出非典型架構概念，破路徑依賴。歷史資料仍可檢視，新專案請使用正向分析中的 TRIZ 流程。"
                   />
                 )}
               </h2>

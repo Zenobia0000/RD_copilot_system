@@ -44,7 +44,7 @@ SOW v1.0 規劃的後端架構為：
 2. **消除 SQLite → PostgreSQL 遷移路徑**：Supabase 從第一天即提供 PostgreSQL。
 3. **RLS 取代自訂權限中介層**：27 張表的 Row-Level Security 策略定義於 `supabase/migrations/002_rls_policies.sql`。
 4. **Supabase Auth 取代自訂認證**：無需實作 `POST /auth/login`、JWT 簽發、密碼雜湊等。
-5. **FastAPI 後端專注於 AI 編排**：16 個端點分布於 brief / socratic / cld / anti_anchor / triz / subsystems / risk / action / convergence / must 共 10 個 routers。*(v9: `scamper` router 移除，子系統端點遷移至 `subsystems`)*
+5. **FastAPI 後端專注於 AI 編排**：16 個端點分布於 brief / socratic / cld / ~~anti_anchor~~ / triz / subsystems / risk / action / convergence / must 共 10 個 routers。*(v9: `scamper` router 移除，子系統端點遷移至 `subsystems`；Anti-Anchor 已退役，併入 TRIZ L1 跨域去錨定)*
 
 ## Consequences
 

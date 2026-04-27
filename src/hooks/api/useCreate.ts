@@ -34,6 +34,7 @@ import type { Json } from '@/integrations/supabase/types';
 // Row types (DB snake_case)
 // ---------------------------------------------------------------------------
 
+/** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
 interface AntiAnchorRouteRow {
   id: string;
   project_id: string;
@@ -126,6 +127,7 @@ function mapValidationPassport(raw: Record<string, unknown> | null): ValidationP
   };
 }
 
+/** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
 function mapAntiAnchorRoute(row: AntiAnchorRouteRow): AntiAnchorRoute {
   return {
     id: row.id,
@@ -236,8 +238,10 @@ function mapAlternative(row: AlternativeRow): Alternative {
 
 // ---------------------------------------------------------------------------
 // Anti-Anchor Routes
+// v3.0 DEPRECATED: Anti-Anchor retired — de-anchoring merged into TRIZ L1 flow
 // ---------------------------------------------------------------------------
 
+/** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
 export function useAntiAnchorRoutes(projectId: string | undefined) {
   const result = useSupabaseQuery<AntiAnchorRouteRow[]>({
     table: 'anti_anchor_routes',
@@ -256,6 +260,7 @@ export function useAntiAnchorRoutes(projectId: string | undefined) {
   return { ...result, data };
 }
 
+/** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
 export function useCreateAntiAnchorRoute() {
   return useSupabaseMutation<AntiAnchorRouteRow, {
     project_id: string;
@@ -276,6 +281,7 @@ export function useCreateAntiAnchorRoute() {
   });
 }
 
+/** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
 export function useUpdateAntiAnchorRoute() {
   return useSupabaseMutation<AntiAnchorRouteRow, {
     id: string;
@@ -291,6 +297,7 @@ export function useUpdateAntiAnchorRoute() {
   });
 }
 
+/** @deprecated v3.0: Anti-Anchor retired, de-anchoring merged into TRIZ L1 */
 export function useDeleteAntiAnchorRoute() {
   return useSupabaseMutation<unknown, { id: string }>({
     table: 'anti_anchor_routes',

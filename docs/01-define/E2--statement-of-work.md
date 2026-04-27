@@ -20,7 +20,7 @@ RD Design Copilot v1.0 — AI 驅動的早期概念設計決策平台
 | 架構級返工次數 | 3-5 次/專案 | ≤2 次 |
 | 設計審查效率 | 3-4 小時/會議 | ≤2 小時 |
 | 假設驗證覆蓋率 | <30% | ≥80% |
-| 探索完整度 | 僅跑 1-2 條直覺路線 | TRIZ 三路徑 + AA Sprint 皆執行，≥1 條存活 |
+| 探索完整度 | 僅跑 1-2 條直覺路線 | TRIZ 三路徑（含 L1 跨域去錨定）皆執行，≥1 條存活 |
 | 決策可追溯性 | 低 | 100% |
 | 工具採用率 | N/A | ≥70% |
 
@@ -59,7 +59,7 @@ RD Design Copilot v1.0 — AI 驅動的早期概念設計決策平台
 | Agent | 職責 | LLM 呼叫 | 規則引擎 |
 |-------|------|----------|---------|
 | **Analyst Agent** | 問題定義、蘇格拉底提問、假設萃取、5Why/KT 根因分析、FA 功能建模、OZ-OT 時空分析、入口分級 (Auto-TRIZ v2) | ✓ | — |
-| **TRIZ Solver Agent** | TRIZ 三路徑求解、Anti-Anchor、SIM 交互矩陣、CCI 複雜度判定 (Auto-TRIZ v2) | ✓ | ✓ (矩陣查表) |
+| **TRIZ Solver Agent** | TRIZ 三路徑求解（含 L1 跨域去錨定）、SIM 交互矩陣、CCI 複雜度判定 (Auto-TRIZ v2) | ✓ | ✓ (矩陣查表) |
 | **Evaluator Agent** | MUST 篩選、Pre-CAD 評分、KT 計算 | ✓ (深度分析) | ✓ (規則判定) |
 | **Knowledge Agent** | RAG 知識檢索、Web 搜尋、知識沉澱 | ✓ | — |
 
@@ -100,7 +100,7 @@ RD Design Copilot v1.0                              狀態     完成日
 │
 ├── WP-3: Phase 2 — Diverge (發散與探索)
 │   ├── WP-3.1: 假設台帳 + Unknown Factors          ✅ Done   2026-03-11
-│   ├── WP-3.2: Anti-Anchor Sprint                  ✅ Done   2026-03-11
+│   ├── WP-3.2: ~~Anti-Anchor Sprint~~               ✅ Done   2026-03-11  *(已併入 TRIZ L1 跨域去錨定)*
 │   ├── WP-3.3: TRIZ 統一求解引擎 ★               ✅ Done   2026-03-11
 │   ├── WP-3.4: 子系統建議                           ✅ Done   2026-03-11  *(v9: SCAMPER 變形移除)*
 │   ├── WP-3.5: ~~矛盾回饋迴路 (SCAMPER→TRIZ)~~     ✅ Done   2026-03-13  *(v9: SCAMPER 移除，功能由 TRIZ L1/L2/L3 覆蓋)*
@@ -200,7 +200,7 @@ WP-9: Harness Architecture (ADR-006)                  ⚡ 152/176h (86%)
 | WBS | 工作包 | 產出物 | 人力 | 工時 | 前置 | 可並行 |
 |-----|--------|--------|------|------|------|--------|
 | 3.1 | 假設台帳 + Unknown Factors | Assumption CRUD + PDCA 狀態機 + disprove 影響分析 + U 因子 CRUD | BE | 4d | 2.5 | ✓ 可與 3.2 並行 |
-| 3.2 | Anti-Anchor Sprint | `POST /alternatives/anti-anchor` + 3 非典型架構生成 prompt | BE | 3d | 2.5 | ✓ 可與 3.1 並行 |
+| ~~3.2~~ | ~~Anti-Anchor Sprint~~ | ~~`POST /alternatives/anti-anchor` + 3 非典型架構生成 prompt~~ **(已併入 TRIZ L1 跨域去錨定)** | BE | 3d | 2.5 | ✓ 可與 3.1 並行 |
 | 3.3 | TRIZ 統一求解引擎 | `POST /triz/solve` → 分類(TC/PC/SF) + 參數映射 + 矩陣查表 + 三路徑實例化 | BE | 8d | 1.3, 2.4 | |
 | 3.4 | 子系統建議 | `POST /subsystems/suggest` *(v9: `/scamper/perform` 移除，`/scamper/subsystem-suggestions` 遷移至 `/subsystems/suggest`)* | BE | 4d | 3.3 | |
 | ~~3.5~~ | ~~矛盾回饋迴路~~ | ~~`POST /scamper/feedback-contradictions`~~ **(v9 移除 — TRIZ L1/L2/L3 完全覆蓋)** | BE | 3d | 3.4 | |
@@ -231,7 +231,7 @@ WP-9: Harness Architecture (ADR-006)                  ⚡ 152/176h (86%)
 | 5.1 | Brief 頁 | Mission 輸入、約束表、KPI 列表、AI 任務定義生成 | FE | 4d | 5.0, 2.1 | ✓ |
 | 5.2 | Explore 頁 | 蘇格拉底 Q&A tabs、矛盾列表、互動式 CLD 圖、斷路點標記 | FE | 6d | 5.0, 2.4 | ✓ 可與 5.1 並行 |
 | 5.3 | Track 頁 | 假設 Kanban (4 欄拖拉)、Unknown Factors 列表、PDCA 面板 | FE | 5d | 5.0, 3.1 | ✓ 可與 5.2 並行 |
-| 5.4 | Create 頁 ★ | 6 個 Accordion (Anti-Anchor / TRIZ 3-path Tabs / 子系統 / 方案卡片 / MUST 矩陣 / Pre-CAD 5D 雷達圖) *(v9: SCAMPER Accordion 移除)* | FE | 10d | 5.0, 3.8 | |
+| 5.4 | Create 頁 ★ | 5 個 Accordion (TRIZ 3-path Tabs（含 L1 跨域去錨定）/ 子系統 / 方案卡片 / MUST 矩陣 / Pre-CAD 5D 雷達圖) *(v9: SCAMPER 移除；Anti-Anchor 併入 TRIZ L1)* | FE | 10d | 5.0, 3.8 | |
 | 5.5 | Review 頁 | Tabs: 證據矩陣熱力圖 (E0→E4)、風險 P×S 矩陣、最小實驗列表 | FE | 6d | 5.0, 4.2 | ✓ 可與 5.4 並行 |
 | 5.6 | Decide 頁 | WANT 排行榜、KT 決策記錄 (MUST→WANT→Risk 三層漏斗)、匯出 checklist | FE | 5d | 5.0, 4.5 | ✓ 可與 5.5 並行 |
 | | **小計** | | | **39d** | | |
@@ -298,7 +298,7 @@ Week 3  ─┬─ [BE-S] WP-2.3 假設萃取 + 矛盾 (3d) ───→ WP-2.4 C
              [FE-M] WP-5.3 Track 頁 (5d 跨週)     ← 並行
 
 Week 4  ─┬─ [BE-S] WP-3.3 TRIZ 引擎 ★ (8d 跨 Week 4-5)
-          │  [BE-M] WP-3.2 Anti-Anchor (3d) → WP-3.4 子系統建議 (4d)
+          │  [BE-M] WP-3.2 ~~Anti-Anchor~~ (已併入 TRIZ L1) → WP-3.4 子系統建議 (4d)
           └─ [FE-S] WP-5.2 完成 → WP-5.4 Create 頁 ★ (10d 跨 Week 4-6)
              [FE-M] WP-5.3 完成 → WP-5.5 Review 頁 (6d)
 
@@ -332,7 +332,7 @@ WP-1.1 → WP-1.2 → WP-2.2 → WP-2.3 → WP-2.4 → WP-3.3 (TRIZ) → WP-3.4 
 
 | 策略 | 節省天數 | 說明 |
 |------|---------|------|
-| BE-S / BE-M 並行 | -15d | Phase 1 的 2 個模組可並行；Phase 2 假設台帳 / Anti-Anchor 可並行；Phase 3 證據 / 風險可並行 |
+| BE-S / BE-M 並行 | -15d | Phase 1 的 2 個模組可並行；Phase 2 假設台帳 / TRIZ L1 跨域去錨定可並行；Phase 3 證據 / 風險可並行 |
 | FE / BE 並行 | -20d | 前端開發在 API contract 確定後即可開始，不需等 API 完成 |
 | 前端頁面間並行 | -10d | Dashboard / Brief / Explore / Track / Review / Decide 前 5 頁可 2 人分工 |
 | Prompt 調優並行 | -5d | Prompt 調優與開發同步進行 |
@@ -352,7 +352,7 @@ WP-1.1 → WP-1.2 → WP-2.2 → WP-2.3 → WP-2.4 → WP-3.3 (TRIZ) → WP-3.4 
 | PM-6 | `alternative_generate.md` | TRIZ Solver | Step 2.2.5 |
 | PM-7 | `decision_record.md` | Evaluator | Step 3.2 |
 | PM-8 | `black_hat_review.md` | Evaluator | Step 3.1 |
-| PM-9 | `anti_anchor.md` | TRIZ Solver | Step 2.2.1 |
+| ~~PM-9~~ | ~~`anti_anchor.md`~~ | ~~TRIZ Solver~~ | ~~Step 2.2.1~~ **(已併入 TRIZ L1 跨域去錨定 prompt)** |
 | PM-10 | `assumption_extract.md` | Analyst | Step 2.1 |
 
 ---
@@ -372,7 +372,7 @@ WP-1.1 → WP-1.2 → WP-2.2 → WP-2.3 → WP-2.4 → WP-3.3 (TRIZ) → WP-3.4 
 | Unknown Factors | 3 | `POST/GET /unknown-factors` |
 | TRIZ 求解 | 3 | `POST /triz/solve`, `GET /triz/results/:rid` |
 | ~~SCAMPER~~ | ~~3~~ → 0 | ~~`POST /scamper/perform`, `GET /subsystem-suggestions`, `POST /feedback-contradictions`~~ **(v9: perform + feedback 移除；subsystem-suggestions 遷移至 `/subsystems/suggest`)** |
-| 方案管理 | 4 | `POST/GET/PUT /alternatives`, `POST /anti-anchor` |
+| 方案管理 | 3 | `POST/GET/PUT /alternatives` *(Anti-Anchor 端點已退役，功能併入 TRIZ L1 跨域去錨定)* |
 | MUST 篩選 | 2 | `POST /must/evaluate`, `GET /must/results` |
 | Pre-CAD 審查 | 3 | `POST /pre-cad-reviews`, `POST /:rid/ai-analyze`, `GET /pre-cad-reviews` |
 | 實驗 + 證據 | 4 | `POST/GET /experiments`, `GET /evidence-matrix`, `PUT /:eid/update-evidence` |
@@ -610,7 +610,7 @@ Day 3 (03-13) ████████████████████  M6: 
 | DR EM | Design Review Evidence Matrix，設計審查證據矩陣 |
 | E0-E4 | 證據等級：E0 無數據 → E4 量產驗證 |
 | Interface Contract | 介面契約，6 維度 (包封/載荷/訊號/熱/基準/維修) |
-| Anti-Anchor | 反錨定衝刺，生成 ≥1 個與既有方案不相容的非典型架構 |
+| ~~Anti-Anchor~~ | ~~反錨定衝刺~~ **(已併入 TRIZ L1 跨域去錨定 — 作為 L1 instantiation 的內建去錨定 UX 步驟)** |
 | Contradiction Convergence | 矛盾收斂圖，DAG 結構追蹤所有矛盾直到完全收斂 |
 | FA (Function Analysis) | 功能分析，組件交互圖（有效/有害/不足/過度��+ SF 模型 + ��系統邊���定義（ADR-008） |
 | OZ-OT | ���作空間 (Operational Zone) + ��作時間 (Operational Time)，鎖定 Px 物理變數（ADR-008） |

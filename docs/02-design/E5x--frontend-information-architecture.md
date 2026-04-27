@@ -41,7 +41,7 @@
 - **任務導向**：以 RD 核心任務（解矛盾、探索反向、審查 gate）為分區。
 - **Progressive disclosure**：複雜流程以 Tab + drill-down 分層揭露。
 - **可追溯**：URL 可還原精確狀態（project_id / tab / contradiction_id 等）。
-- **最短路徑**：核心三流程（TRIZ / Anti-Anchor / Pre-CAD）從 dashboard 最多 2 次點擊抵達。
+- **最短路徑**：核心兩流程（TRIZ 含跨域去錨定 / Pre-CAD）從 dashboard 最多 2 次點擊抵達。
 - **一致性**：所有頁面共用 `layouts/` 與 sidebar/topbar。
 
 ## 3. 資訊架構總覽
@@ -56,7 +56,7 @@ RD Design Copilot
 │   └── /projects/:id        (ProjectDashboard)
 ├── 5D 階段流程
 │   ├── /projects/:id/task-definition   (Define: Brief + 5W1H)
-│   ├── /projects/:id/explore           (Explore: Anti-Anchor + L2/L3)
+│   ├── /projects/:id/explore           (Explore: TRIZ L1 跨域去錨定 + L2/L3)
 │   ├── /projects/:id/create            (Design: TRIZ + Subsystem + 3 tier tree)
 │   │   ├── ?tab=triz        Tab ①
 │   │   ├── ?tab=subsystem   Tab ②
@@ -79,23 +79,14 @@ RD Design Copilot
 
 ## 4. 核心用戶旅程
 
-### Journey 1: Forward TRIZ 解矛盾（對應 E3x §2）
-1. `/projects` → 選 project → `/projects/:id`
-2. Dashboard → 點 "Create" → `/projects/:id/create?tab=triz`
-3. 選 contradiction → "Solve Layered" → L1 卡顯示
-4. 若需 → 手動或自動 drill-down → L2/L3
-5. 多解時 → Tab ③ Decision Center 決定採納策略
+> 完整 scenario 敘事（序列圖 + 互動對照 + 頁面軌跡）：見 [`E3--system-interaction-flow.md`](../01-define/E3--system-interaction-flow.md) §2-4。
+> Sprint 速查：見 [`SPRINT-INDEX.md`](../SPRINT-INDEX.md) §2 By Scenario。
 
-### Journey 2: Reverse Anti-Anchor（對應 E3x §3）
-1. `/projects/:id` → "Explore" → `/projects/:id/explore`
-2. 選 anchor solution → "Anti-Anchor Routes" → 3 條路線
-3. 點 "Validation Passport" → Track 頁追蹤假設
-4. `/projects/:id/track`
-
-### Journey 3: Pre-CAD Gate（對應 E3x §4）
-1. Dashboard → "Pre-CAD Review" → `/projects/:id/pre-cad-review/:rid`
-2. "AI Analyze" → 六維評分 + citations
-3. "Sign & Pass Gate" → `/projects/:id/decision-record`
+| Journey | E3x | 路由軌跡 |
+|:--------|:----|:---------|
+| Forward TRIZ | §2 | `/projects` → `/:id` → `/:id/create?tab=triz` |
+| ~~Reverse Anti-Anchor~~ TRIZ L1 跨域去錨定 | §3 | `/:id` → `/:id/create` (Step 0) → `/:id/track` |
+| Pre-CAD Gate | §4 | `/:id` → `/:id/pre-cad-review/:rid` → `/:id/decision-record` |
 
 ## 5. 網站地圖與導航結構
 
@@ -165,7 +156,7 @@ RD Design Copilot
 | **Purpose** | Conditional Stepper：依入口分級（Level A/B/C）切換模式 — Level A 5-step 引導（Problem Scoping → FA → Socratic → Contradictions → CLD）；Level B 原有 3-tab 快速通道；Level C 導向 Create SF-only |
 | **Key Components** | `EntryGradingModal` (v2.0 新增), `ConditionalStepper` (v2.0 新增), `ProblemScopingStep` (v2.0 新增), `FunctionAnalysisStep` (v2.0 新增), `SocraticTab`, `ContradictionTab`, `CldTab`, `ExploreGates`, `KnowledgeRefsPanel` |
 | **State** | `entryLevel: A\|B\|C\|null`（from DB）；Level A: `currentStep: 0-4`；Level B: Tab 狀態（URL `?tab=`）；`useExplore` server state |
-| **Related API** | `/analyst/entry-grading` (v2.0 新增), `/analyst/five-why` (v2.0 新增), `/analyst/kt-analysis` (v2.0 新增), `/analyst/function-analysis` (v2.0 新增), `/alternatives/anti-anchor`, `/unknown-factors/*`, `/causal-loops/*` |
+| **Related API** | `/analyst/entry-grading` (v2.0 新增), `/analyst/five-why` (v2.0 新增), `/analyst/kt-analysis` (v2.0 新增), `/analyst/function-analysis` (v2.0 新增), ~~`/alternatives/anti-anchor`~~ *(v10 退役)*, `/unknown-factors/*`, `/causal-loops/*` |
 | **Source** | `src/pages/Explore.tsx` |
 
 ### 6.6 Create
@@ -296,7 +287,7 @@ RD Design Copilot
 - **Breadcrumb**：衍生自 route meta — `TBD` 是否集中 meta 或每頁宣告。
 - **Cross-link 規則**：
   - Contradiction 卡 → 可跳 Create Tab ① 對應 contradiction。
-  - Anti-Anchor 路線 → 可跳 Track 頁對應 Validation Passport。
+  - TRIZ L1 跨域去錨定路線 → 可跳 Track 頁對應 Validation Passport。
   - Pre-CAD 評分 → 可跳 Decision Record 當前 gate。
 - **Command Menu**：`TBD — <fe-lead TBD> by 2026-Q3 TBD`（cmd+k 全局搜尋）。
 

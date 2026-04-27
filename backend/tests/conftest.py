@@ -37,13 +37,7 @@ def client_no_auth():
     app.dependency_overrides.pop(get_current_user, None)
 
 
-@pytest.fixture(autouse=True)
-def _reset_llm_client():
-    """Reset the cached LLM client between tests so mocks take effect."""
-    import app.agents.base as base_mod
-
-    base_mod._anthropic_client = None
-    base_mod._openai_compat_clients.clear()
-    yield
-    base_mod._anthropic_client = None
-    base_mod._openai_compat_clients.clear()
+# Note: The previous _reset_llm_client autouse fixture was removed when
+# app.agents.* was deleted in the v2 cleanup. The harness builds its
+# Anthropic client per HarnessClient instance — there's no module-level
+# cache to reset between tests.

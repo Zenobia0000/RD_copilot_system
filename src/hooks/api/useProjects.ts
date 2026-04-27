@@ -24,9 +24,9 @@ type ProjectInsert = Database['public']['Tables']['projects']['Insert'];
 // ---------------------------------------------------------------------------
 
 const DEFAULT_PHASE_PROGRESS: PhaseProgress = {
-  '1.1': 'not_started', '1.2': 'not_started', '1.3': 'not_started',
-  '2.1': 'not_started', '2.2': 'not_started', '2.3': 'not_started',
-  '3.1': 'not_started', '3.2': 'not_started', '3.3': 'not_started',
+  'D1': 'not_started', 'D2': 'not_started', 'PG-D': 'not_started',
+  'X1': 'not_started', 'X2': 'not_started', 'PG-X': 'not_started',
+  'V1': 'not_started', 'V2': 'not_started', 'PG-V': 'not_started',
 };
 
 const DEFAULT_QUICK_STATS: QuickStats = {

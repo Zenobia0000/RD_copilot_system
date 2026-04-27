@@ -168,25 +168,6 @@ async function request<T>(path: string, body: unknown, opts?: RequestOptions<T>)
   return validateWithSchema(data, opts?.schema, path);
 }
 
-async function requestGet<T>(path: string, opts?: RequestOptions<T>): Promise<T> {
-  const headers: Record<string, string> = {};
-  const token = await getAuthToken();
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-  const res = await fetchWithTimeout(`${BASE_URL}${path}`, {
-    method: "GET",
-    headers,
-  }, opts?.timeoutMs);
-  if (!res.ok) {
-    const errorBody = await safeParseJsonError(res);
-    throw new ApiError(res.status, errorBody);
-  }
-  const data = await safeParseJson(res, path);
-  devAssertObject(data, path);
-  return validateWithSchema(data, opts?.schema, path);
-}
-
 /**
  * Extract error payload from a non-ok response.
  * FastAPI returns `{ "detail": "..." }` for most errors — surface that string
@@ -1177,6 +1158,49 @@ export function gateCheck(gateId: string, projectId: string) {
   return requestGet<GateCheckResponse>(`/gates/${gateId}/check?project_id=${encodeURIComponent(projectId)}`);
 }
 
+// ─── OZ/OT Analysis ──────────────────────────────────────────────────────────
+
+export interface OzOtAnalysisRequest {
+  project_id: string;
+  contradiction_id: string;
+  tc_description: string;
+  improving_param?: number | null;
+  worsening_param?: number | null;
+}
+
+export interface OzOtAnalysisResponse {
+  oz_zone: string;
+  ot_time: string;
+  px_variable: string;
+  separation_hints: string[];
+}
+
+export function ozOtAnalysis(body: OzOtAnalysisRequest) {
+  return request<OzOtAnalysisResponse>("/analyst/oz-ot-analysis", body);
+}
+
+// ─── Evidence Coverage ───────────────────────────────────────────────────────
+
+export interface ClaimTypeCoverage {
+  total: number;
+  verified: number;
+  coverage_ratio: number;
+}
+
+export interface EvidenceCoverageResponse {
+  total_claims: number;
+  verified_count: number;
+  refuted_count: number;
+  partial_count: number;
+  unverified_count: number;
+  coverage_ratio: number;
+  by_type: Record<string, ClaimTypeCoverage>;
+}
+
+export function evidenceCoverage(projectId: string) {
+  return requestGet<EvidenceCoverageResponse>(`/evidence/coverage/${encodeURIComponent(projectId)}`);
+}
+
 export interface BackendHealthCheckResult {
   ok: boolean;
   message: string;
@@ -1243,25 +1267,6 @@ export interface UnknownFactorDiscoverResponse {
 
 export function unknownFactorDiscover(body: UnknownFactorDiscoverRequest) {
   return request<UnknownFactorDiscoverResponse>("/unknown-factors/discover", body, { timeoutMs: 300_000 });
-}
-
-// ─── Gate Check ─────────────────────────────────────────────────────────────
-
-export interface GateCheckItem {
-  label: string;
-  met: boolean;
-  detail: string;
-}
-
-export interface GateCheckResponse {
-  gate_id: string;
-  passed: boolean;
-  failed_reasons: string[];
-  checklist_items: GateCheckItem[];
-}
-
-export function gateCheck(gateId: string, projectId: string) {
-  return requestGet<GateCheckResponse>(`/gates/${gateId}/check?project_id=${projectId}`);
 }
 
 export { ApiError, ApiNetworkError, type RequestOptions };

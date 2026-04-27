@@ -14,6 +14,7 @@ export { seedDemoProject, clearDemoData, seedShowcaseProjects, clearAllShowcaseD
 
 // --- Sprint 1: Projects + Step 1 ---
 export { useProjects, useProject, useCreateProject, useUpdateProject, useDeleteProject, useProjectStats } from './useProjects';
+export { useGateSync } from './useGateSync';
 export {
   useBrief,
   useUpsertBrief,

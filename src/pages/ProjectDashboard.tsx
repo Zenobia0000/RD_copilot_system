@@ -7,8 +7,8 @@ import { useContradictions } from "@/hooks/api/useContradictions";
 import {
   useTrizSolutions,
   useSubsystems,
-  useScamperVariants,
   useAlternatives,
+  useGateSync,
 } from "@/hooks/api";
 import { useConceptRoutes } from "@/hooks/api/useConceptRoutes";
 import { useTrackAssumptions } from "@/hooks/api/useTrack";
@@ -59,10 +59,12 @@ export default function ProjectDashboard() {
   // Phase 2 data sources for timeline
   const trizSolutions = useTrizSolutions(id);
   const subsystemsQuery = useSubsystems(id);
-  const scamperVariants = useScamperVariants(id);
   const alternativesQuery = useAlternatives(id);
   const conceptRoutesQuery = useConceptRoutes(id);
   const trackAssumptionsQuery = useTrackAssumptions(id);
+
+  // Gate sync: batch-check all gates → update phase_progress + gates_passed
+  const { data: gateSync } = useGateSync(id);
 
   // Evidence entry dialog state
   const [evidenceDialogOpen, setEvidenceDialogOpen] = useState(false);
@@ -209,21 +211,6 @@ export default function ProjectDashboard() {
       });
     }
 
-    const scamper = scamperVariants.data ?? [];
-    if (scamper.length > 0) {
-      const adoptedCount = scamper.filter(v => v.adopted).length;
-      const latestDate = scamper.reduce((d, v) => v.createdAt && v.createdAt > d ? v.createdAt : d, scamper[0].createdAt ?? project.createdAt);
-      items.push({
-        id: 'h-scamper',
-        date: latestDate,
-        title: `SCAMPER 變形：${scamper.length} 個變異`,
-        summary: `已採用 ${adoptedCount} 個。${scamper.flatMap(v => v.newContradictions ?? []).filter(nc => nc.severity === 'fatal' || nc.severity === 'major').length > 0 ? '含 Fatal/Major 新矛盾待處理。' : ''}`,
-        author,
-        type: 'task',
-        relatedPage: 'create',
-      });
-    }
-
     const alts = alternativesQuery.data ?? [];
     if (alts.length > 0) {
       const passed = alts.filter(a => a.overallPass === true).length;
@@ -300,7 +287,7 @@ export default function ProjectDashboard() {
     // Sort newest first
     items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     return items;
-  }, [project, brief, contradictions, kpis, constraints, trizSolutions.data, subsystemsQuery.data, scamperVariants.data, alternativesQuery.data, conceptRoutesQuery.data, trackAssumptionsQuery.data]);
+  }, [project, brief, contradictions, kpis, constraints, trizSolutions.data, subsystemsQuery.data, alternativesQuery.data, conceptRoutesQuery.data, trackAssumptionsQuery.data]);
 
   // Loading state
   if (isLoading) {
@@ -356,7 +343,11 @@ export default function ProjectDashboard() {
   // Use live stats from DB if available, otherwise fall back to project.quick_stats
   const quickStats = liveStats ?? project.quick_stats;
 
-  const navCards = getMockNavCards(project.phase_progress);
+  // Use gate-synced progress (live from API) with fallback to DB snapshot
+  const activeProgress = gateSync?.progress ?? project.phase_progress;
+  const activeGatesPassed = gateSync?.gatesPassed ?? project.gates_passed;
+
+  const navCards = getMockNavCards(activeProgress);
   const createdDate = new Date(project.createdAt).toLocaleDateString("zh-TW");
   const isZeroData = Object.values(quickStats).every((v) => v === 0);
 
@@ -381,14 +372,14 @@ export default function ProjectDashboard() {
               <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{createdDate}</span>
             </div>
           </div>
-          <GateDonut passed={project.gates_passed} total={project.gates_total} />
+          <GateDonut passed={activeGatesPassed} total={project.gates_total} />
         </div>
       </div>
 
       {/* Phase Progress Bar */}
       <Card>
         <CardContent className="pt-5 pb-4">
-          <PhaseProgressBar progress={project.phase_progress} />
+          <PhaseProgressBar progress={activeProgress} />
         </CardContent>
       </Card>
 

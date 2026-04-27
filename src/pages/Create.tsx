@@ -118,7 +118,7 @@ import { OzOtPanel } from "@/components/create/OzOtPanel";
 import { CciBadge } from "@/components/create/CciBadge";
 import { EvidenceCoverageGauge } from "@/components/create/EvidenceCoverageGauge";
 import { ConsolidationPanel } from "@/components/create/ConsolidationPanel";
-import { CompatibilityMatrix } from "@/components/create/CompatibilityMatrix";
+import { CompatibilityMatrixView as CompatibilityMatrix } from "@/components/create/CompatibilityMatrix";
 import { useConceptRoutes, useCompatibilityPairs } from "@/hooks/api/useConceptRoutes";
 // TODO: Replace with API when available — AI-generated adoption state, no dedicated DB table yet
 import { mockAdoptionState } from "@/data/mockConceptRoutes";

@@ -30,7 +30,8 @@
 | 15 | `15_documentation_and_maintenance_guide.md` | [`15_documentation_guide.md`](./15_documentation_guide.md) | skeleton | 文件治理規範 |
 | 16 | `16_wbs_development_plan_template.md` | [`16_wbs.md`](./16_wbs.md) | **FULL** | 雙軸 WBS：TRIZ Step 0-5 + TR0-TR10 |
 | 17 | `17_frontend_information_architecture_template.md` | [`17_frontend_ia.md`](./17_frontend_ia.md) | pointer | 指向 `docs/01-define/pages/INDEX.md`（既有 18 頁規格） |
-| 18 | — (自訂) | [`18_flow_contract.md`](./18_flow_contract.md) | **FULL** | 產品生命週期 ↔ TRIZ/TR 映射 + Gate 層級分析 + 擴展路線圖 |
+| 18 | — (自訂) | [`18_flow_contract.md`](./18_flow_contract.md) | **FULL v2.0** | RDP-8 統一框架：8 Phase + 8 Gate + 不確定性消除公理 |
+| 19 | — (自訂) | [`19_internal_pitch_strategy.md`](./19_internal_pitch_strategy.md) | **FULL** | 面向非專案參與者的簡報策略：主敘事、10 頁頁綱、STRIKE prompts |
 
 ---
 
@@ -116,9 +117,10 @@
 
 ### 4.1 PM / 產品角色
 1. [`02_prd.md`](./02_prd.md) — 產品定義
-2. [`16_wbs.md`](./16_wbs.md) — 進度與里程碑
-3. [`03_bdd_guide.md`](./03_bdd_guide.md) — 用戶故事 ↔ BDD 對應
-4. [`17_frontend_ia.md`](./17_frontend_ia.md) → 跳到 `docs/01-define/pages/INDEX.md`
+2. [`19_internal_pitch_strategy.md`](./19_internal_pitch_strategy.md) — 對內簡報 / 合作敘事模板
+3. [`16_wbs.md`](./16_wbs.md) — 進度與里程碑
+4. [`03_bdd_guide.md`](./03_bdd_guide.md) — 用戶故事 ↔ BDD 對應
+5. [`17_frontend_ia.md`](./17_frontend_ia.md) → 跳到 `docs/01-define/pages/INDEX.md`
 
 ### 4.2 技術負責人 / 架構師
 1. [`02_prd.md`](./02_prd.md) §3 — 用戶故事
@@ -158,6 +160,7 @@
 
 | 日期 | 版本 | 變更 |
 |:-----|:-----|:-----|
+| 2026-04-28 | v1.5 | 新增 19_internal_pitch_strategy：面向非專案參與者的簡報方向規劃，含主敘事、10 頁頁綱與 STRIKE prompt 模板。 |
 | 2026-04-28 | v1.0 | 初版建立：6 份 FULL（02/03/05/06/16）+ 2 份 pointer（12/17）+ 10 份 skeleton（00/01/04/07-11/13-15） |
 | 2026-04-28 | v1.1 | 08_project_structure 升 v2.0：發現先前 Clean Arch 提案與實際 backend（claude-code 風 harness）方向相反，完全覆寫對齊 M1-M4 現況。05/07/09/10 仍含 Clean Arch 用詞，待 follow-up 對齊。 |
 | 2026-04-28 | v1.2 | F1+F3+F4 follow-up 完成：05_architecture v1.1（surgical：加現況/演化警告 + §1.1.2/1.2/1.3 改寫）、07/09/10 全面覆寫到 v2.0、新增 ADR-006 Production Persistence + ADR-007 Multi-tenancy。F2（前端目錄）與 F5（HARNESS_INTERNALS.md）留待後續。 |

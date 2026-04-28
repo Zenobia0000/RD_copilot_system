@@ -2,10 +2,12 @@
 
 ---
 
-**文件版本**：`v1.0`
+**文件版本**：`v1.1`
 **最後更新**：`2026-04-28`
-**狀態**：`Skeleton`
+**狀態**：`Skeleton — Kubernetes / Celery / PostgreSQL 為 v3 roadmap 目標，非當前 MVP 架構`
 **模板來源**：`VibeCoding_Workflow_Templates/14_deployment_and_operations_guide.md`
+
+> **注意**：當前 MVP 為單進程 Docker Compose（`uvicorn app.main:app`）+ in-memory session store。下文 Kubernetes / Celery / RDS 等描述為未來 production 目標架構（v3 roadmap），非現行部署方式。
 
 ---
 

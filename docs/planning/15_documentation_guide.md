@@ -43,7 +43,7 @@
 1. Skill 產出、Skill 消費 → `.claude/context/`
 2. Skill 產出、人消費 → `docs/engineering/`
 3. 人撰寫、Skill 參考 → `docs/_domain-knowledge/` 或 `triz_knowledge_base/`
-4. 狀態 JSON 只能由 Skill 修改
+4. **狀態 JSON 只能由 Skill（透過 TrizState{Read,Write,Advance} Tool）修改，不可手動編輯** — 手動編輯會破壞 schema 驗證與 step advance guard rails
 
 ---
 

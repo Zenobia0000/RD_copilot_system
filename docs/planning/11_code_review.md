@@ -34,10 +34,10 @@
 
 ### 2.2 架構與設計
 
-- Skill（業務邏輯）不依賴特定 Tool 實作（harness-first 原則，見 [`08_project_structure.md`](./08_project_structure.md)）
-- 跨 Skill 共用透過 shared Tool 層（`app/harness/tools/`）
-- 新增 LLM 呼叫透過 `LLMProvider` 介面
-- HTTP 層 DB 操作透過 Repository 介面（見 [ADR-006](./04_adr/ADR-006_production_persistence.md)）
+- Skill（業務邏輯）不依賴特定 Tool 實作（harness-first 原則，見 [`08_project_structure.md`](./08_project_structure.md) v2.1）
+- 基礎設施 Tool 放 `app/harness/tools/`；域特定 Tool 放 `app/<domain>/tools.py`（如 `app/triz/tools.py`）
+- LLM 呼叫由 AgentLoop 統一處理，不另設 LLMProvider 介面
+- HTTP 層目前 in-memory；遷移到 DB 持久化為 [ADR-006](./04_adr/ADR-006_production_persistence.md) 範疇（未實作）
 
 ### 2.3 性能與安全
 

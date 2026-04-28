@@ -1549,17 +1549,28 @@ PrincipleScore = 0.40 × PhysicsRelevance + 0.30 × DomainFit + 0.30 × Feasibil
 
 ## Multi-TC 平行處理策略（Agent tool fan-out）
 
-當判定為 SIM 路徑時（多個 TC 獨立、無明顯主從），把每個 TC 派給 `triz-analyst` worker 平行處理 — DK-03 §6 Step 2 規定的 Map-Reduce Fan-out 模式。
+當判定為 SIM 路徑時（多個 TC 獨立、無明顯主從），**設計上**把每個 TC 派給 `triz-analyst` worker 平行處理（DK-03 §6 Step 2 Map-Reduce Fan-out）。
+
+> ⚠️ **目前現況（2026-04-28 量測）**：本 skill 把全套 TRIZ KB（39 參數 / 矩陣 / 40 原理 / 4 分離 / 76 SF，~26K tokens）內嵌到 main agent 的 system prompt。Worker 用同模型同 KB，相對 main 沒有資訊優勢，所以 Sonnet 4.6 在 ≤3 TC 場景**理性地選擇 inline 而非 dispatch**。
+>
+> 4 次 live 取樣中，1 次 dispatch、3 次 inline。fan-out 現階段是「設計意圖」而非「強制行為」。
+>
+> 若要讓 fan-out 真正觸發，下一步結構性改造是其中之一：
+> 1. **減 main system prompt 體積** — 把 KB 移出 skill body，worker 用 Read tool 載入。Main 沒 KB → 必須 dispatch 才能解
+> 2. **Worker 專業化** — 引入領域 worker（電磁/機構/熱）讓 worker 有 main 沒有的知識
+> 3. **降模型強度** — 用 Haiku 當 main、Opus 當 worker，邏輯上 main 解不了才派
+>
+> 在那之前，下方 fan-out 規格作為「未來行為契約」保留，並適用於 worker 結構出現後。
 
 ### 派發契約
 
 `Agent` tool 接受兩個參數（schema 由 harness 註冊，模型直接看得到）：
-- `agent`：worker 名稱，**必為 `triz-analyst`**（除非有更專精的 worker 可選）
+- `agent`：worker 名稱，目前為 `triz-analyst`（未來會擴增領域專業 worker）
 - `prompt`：給 worker 的單一 user message。**self-contained** — worker 看不到主對話歷史
 
 worker 會在獨立 context window 跑 TC→PC→SF 完整推理，回傳精煉 summary。worker 之間互不通訊。
 
-### 場景 1：多 TC SIM 路徑
+### 場景 1：多 TC SIM 路徑（建議 dispatch）
 
 對每個獨立 TC 派一個 worker。**在同一個回應中發出多個 `Agent` 呼叫**才會真正平行（Anthropic SDK 同 turn 多 tool_use blocks 是平行語意）：
 
@@ -1607,6 +1618,24 @@ Agent(agent="triz-analyst", prompt="""
 ---
 
 ## Step 3: PC 深挖 + 分離 + SF
+
+### Step 3 進場決策
+
+**先回答：**
+
+1. Step 2 產出了幾個 TC？
+2. 它們是否彼此獨立（OZ/OT/Px 不重疊、無主從關係）？
+
+**決策樹：**
+
+| 情況 | 動作 |
+|:-----|:-----|
+| 1 個 TC 或瓶頸路徑 | inline 跑下方 §3a-3d |
+| ≥ 2 個獨立 TC（SIM 路徑） | 設計上應派 `Agent` tool fan-out 到 `triz-analyst`（見 §Multi-TC 平行處理策略）；現況下 main 通常 inline，請依 main 判斷選擇 |
+
+> ⚠️ 現況：fan-out 因 KB 已在 main context、worker 無資訊優勢，常被 main 跳過走 inline。設計意圖見 §Multi-TC 平行處理策略 開頭警告。
+
+---
 
 ### 3a: OZ-OT 鎖定 Px
 

@@ -80,12 +80,22 @@
 
 若 `.tr-state.json` 不存在：
 
-1. 讀取 `.triz-state.json` 取得 `session_id` 和 `problem_description`
-2. 從 `step5` 讀取 WI 清單
-3. 從 `step4.observation_items` 讀取風險項
-4. 從 `docs/engineering/tr_gate_framework.md` 讀取各子系統現況 TR 評估
-5. 建立 `.tr-state.json` 初始結構
-6. 回報初始化完成
+1. **檢查 TRIZ 完成度**：讀取 `.triz-state.json`
+   - 若 `step5.completed !== true` → 警告：「⚠ TRIZ Step 5 尚未完成。建議先完成 `/triz-wi` 產出工程指導書後再進入 TR 流程。是否仍要繼續？」
+2. 讀取 `.triz-state.json` 取得 `session_id` 和 `problem_description`
+3. 從 `step5` 讀取 WI 清單
+4. 從 `step4.observation_items` 讀取風險項
+5. 從 `docs/engineering/tr_gate_framework.md` 讀取各子系統現況 TR 評估
+6. 建立 `.tr-state.json` 初始結構，包含：
+   - `triz_session_ref`: 指向 `.triz-state.json` 的 `session_id`
+   - `triz_state_hash`: `.triz-state.json` 內容的 SHA-256（用於過期偵測）
+7. 回報初始化完成
+
+若 `.tr-state.json` 已存在：
+
+1. **TRIZ 一致性檢查**：比對 `triz_state_hash` 與當前 `.triz-state.json` 的 SHA-256
+   - 若不一致 → 提示：「⚠ TRIZ session 已更新（可能是 Spiral Ascent 或重新分析）。建議檢查 TR state 是否需要同步。」
+2. 正常顯示儀表板
 
 ---
 

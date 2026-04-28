@@ -28,6 +28,22 @@ description: TRIZ Step 2+3 TC/PC/SF 解題管線。參數映射、矩陣查表�
 | SF 診斷結果（SF-only 模式） | Step 1 |
 | 組件交互圖（建議） | Step 1 |
 
+### 輸入驗證（進場護欄）
+
+進入本 skill 時，**先檢查** `.triz-state.json` 中 Step 1 輸出是否存在：
+
+| 必要欄位 | 路徑 | 缺失時動作 |
+|:---------|:-----|:-----------|
+| `step1.fa_components` | `.step1.fa_components` | 路由回 `/triz-model`：「Step 1 功能建模尚未完成，請先執行 `/triz-model`。」 |
+| `step1.sf_diagnosis` | `.step1.sf_diagnosis` | 同上 |
+| `step1.improve_worsen_nl` | `.step1.improve_worsen_nl` | 若使用者直接提供改善/惡化描述，可跳過；否則路由回 `/triz-model` |
+
+**Re-entry 偵測：** 若 `step4.completed === true && step4.verdict` 為 `"patch"` 或 `"strong-patch"`，進入 **Refinement Mode**：
+- 保留現有 TC 定義（`step2.tcs`），不重跑 Step 2
+- 設定 `step3.refinement_round` += 1（首次 re-entry = 1）
+- 直接跳到 Step 3，以不同分離策略重新嘗試
+- 提示使用者：「偵測到 Step 4 判定為 {verdict}，進入 Refinement Mode（第 {N} 輪）。保留原 TC，重新嘗試 Step 3 分離策略。」
+
 ---
 
 ## Step 2: TC 定義 + 候選方向
@@ -1516,6 +1532,20 @@ PrincipleScore = 0.40 × PhysicsRelevance + 0.30 × DomainFit + 0.30 × Feasibil
 
 **跳過條件：** 若候選方向為純定性描述（無具體數值），可跳過此步驟但需註記「本方向為定性方案，無數值聲明需驗證」。
 
+### 2.3.2 Evidence Gate（Step 2 → Step 3 品質門檻）
+
+**在進入 Step 3 PC 深挖之前，必須通過此門檻：**
+
+| 檢查項 | 通過條件 | 未通過動作 |
+|:-------|:---------|:-----------|
+| 候選方向數量 | ≥ 1 個候選方向有控制方程 | 補充控制方程或標記為探索性方案 |
+| 數值聲明覆蓋 | 關鍵性能聲明（與 P_improve/P_worsen 直接相關的數值）有 Claim ID | 對缺失的關鍵聲明執行 Injection Point A 驗證 |
+| 參數映射品質 | P_improve 和 P_worsen 的 39 參數映射有明確理由 | 回到 2.1 重新映射 |
+
+**通過後：** 記錄 Evidence Gate 結果到 session 報告，繼續進入 Step 3 或 Multi-TC 判定。
+
+**未通過：** 不得進入 Step 3。先解決缺口再繼續。
+
 ### 2.4 多 TC 判定
 
 | 情況 | 路由 |
@@ -1614,6 +1644,33 @@ Agent(agent="triz-analyst", prompt="""
 | Step 3 內部子任務 | inline，不平行（context cohesion 重於速度）|
 
 > 反模式（DK-03 §5）：迴圈中 spawn 一個等回應再 spawn 下一個 = sequential fake-parallelism，付 N 倍 context overhead 卻沒省牆鐘。
+
+### Post-Fan-Out Merge Protocol（Supervisor 職責）
+
+收到所有 worker summary 後，supervisor 必須執行以下合併流程：
+
+**Step M1 — 收集黑板檔：**
+1. 用 Glob 找所有 `.claude/context/triz/session-step3-tc*` 檔案
+2. Read 每個檔案，提取 Solution entry（Px、分離策略、F、S、OZ、OT）
+
+**Step M2 — 組裝 SIM：**
+1. 將所有 TC 的 Solution entry 填入 SIM 交互矩陣模板
+2. 對每個配對評分 (+1/0/-1)
+3. 按 §3b-SIM 收斂規則判定
+
+**Step M3 — 寫回 State：**
+1. 將各 TC 的 solution 合併寫入 `.triz-state.json` 的 `step3.solutions`
+2. 將 SIM 結果寫入 `step3.sim`
+3. 更新 `step2.completed = true`、`step3.completed = true`（若 SIM 收斂）
+
+**Step M4 — 處理 BLOCKED worker：**
+
+| Worker 狀態 | 動作 |
+|:-----------|:-----|
+| COMPLETE | 正常合併 |
+| BLOCKED (Px 找不到) | 記錄為 observation item，該 TC 暫擱，其餘 TC 繼續 SIM |
+| BLOCKED (數據驗證失敗) | 降級為 APPROXIMATE/UNVERIFIED，記錄到 Evidence Registry |
+| BLOCKED (領域檢核失敗) | 升格至使用者：「TC{N} 領域檢核未通過，需人工決策。」 |
 
 ---
 
@@ -2053,6 +2110,28 @@ Step 3 產出具體 F/S 後，做完整交互評分：
 ```
 
 **收斂規則：** 最多 2 輪。第 N+1 輪 -1 數 >= 第 N 輪 → 立即停止。
+
+**SIM 收斂狀態追蹤（強制）：**
+
+每輪 SIM 結束後，更新 `.triz-state.json` 中的收斂追蹤欄位：
+
+```json
+{
+  "step3": {
+    "sim_iteration_count": 1,
+    "sim_minus1_history": [2],
+    "sim": { "conflicts": 2, "synergies": 1, "..." }
+  }
+}
+```
+
+| 情境 | 判定 | 動作 |
+|:-----|:-----|:-----|
+| `-1 數 = 0` | 收斂 | 所有方案可並行，進入 Step 4 |
+| `-1 數 > 0 && sim_iteration_count < 2 && -1 數 < 上輪` | 可改善 | 調整衝突配對解法，進入下一輪 SIM |
+| `-1 數 > 0 && (sim_iteration_count >= 2 \|\| -1 數 >= 上輪)` | 停止迭代 | 選 -1 最少方案組合進 Step 4；或升格至策略文件 §7 Stop/Continue 決策 |
+
+> **停止迭代升格條件：** 若最佳方案組合的 -1 數 ≥ 2，建議啟動策略文件 §7 Stop/Continue 決策流程，由使用者判斷是否接受設計約束或重新定義問題。
 
 ---
 

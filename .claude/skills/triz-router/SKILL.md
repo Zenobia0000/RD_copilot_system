@@ -26,7 +26,20 @@ description: TRIZ 工作流入口路由。自動偵測問題類型並路由到�
 │   [1] 恢復此 session 繼續
 │   [2] 開始新 session（舊 session 會歸檔）」
 │
-├─ 存在 + 已完成 → 直接開始新 session
+├─ 存在 + 已完成 + step4.new_tc_detected === true → Spiral Ascent：
+│  「偵測到 Spiral Ascent 請求（第 {spiral_iteration} 輪）。
+│   新 TC：{step4.new_tc_description}
+│   [1] 進入 Spiral — 從 Step 1 開始處理新 TC（保留現有 session context）
+│   [2] 忽略新 TC，直接開始新 session」
+│  若選 [1]：保留 session_id，重置 current_step 為 step1，
+│           將新 TC 加入 preliminary_tcs
+│
+├─ 存在 + 已完成（無 spiral）→ 直接開始新 session
+│
+├─ 存在但損壞（缺少 session_id/current_step/path��→ 
+│  「⚠ State 檔案損壞，缺少必要欄位。
+│   [1] 重置 session（清除損壞 state）
+│   [2] 嘗試人工修復（顯示損壞內容）」
 │
 └─ 不存在 → 開始新 session
 ```

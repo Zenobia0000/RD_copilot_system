@@ -1,0 +1,229 @@
+# 專案簡報與產品需求文件 (PRD) — RD Design Copilot
+
+---
+
+**文件版本**：`v1.0`
+**最後更新**：`2026-04-28`
+**主要作者**：產品經理（草稿由 AI Agent 整合 `rd_assistant_design_system/rd_設計文稿.md` 產出）
+**審核者**：技術負責人、UX 設計負責人
+**狀態**：`Draft`
+**模板來源**：`VibeCoding_Workflow_Templates/02_project_brief_and_prd.md`
+
+---
+
+## 目錄
+
+1. [專案總覽](#第-1-部分專案總覽)
+2. [商業目標 — 「為何做？」](#第-2-部分商業目標--為何做)
+3. [使用者故事與允收標準 — 「做什麼？」](#第-3-部分使用者故事與允收標準--做什麼)
+4. [範圍與限制](#第-4-部分範圍與限制)
+5. [待辦問題與決策](#第-5-部分待辦問題與決策)
+
+---
+
+**目的**：本文件定義 RD Design Copilot 的「為何」與「為誰」，是所有後續設計、開發、測試工作的 SSOT。
+
+---
+
+## 第 1 部分：專案總覽
+
+| 區塊 | 內容 |
+| :--- | :--- |
+| **專案名稱** | RD Design Copilot — AI 輔助 RD 早期概念設計系統 |
+| **狀態** | 規劃中 → 開發中（TRIZ 推理層 PoC 已完成；TR1 gate review NO-GO） |
+| **目標發布日期** | MVP: 2026-Q3；Beta: 2026-Q4；GA: 2027-Q1 |
+| **核心團隊** | PM: TBD<br>Lead Engineer: TBD<br>UX Designer: TBD<br>TRIZ Domain Lead: TBD |
+| **參考材料** | `rd_assistant_design_system/rd_設計文稿.md` (原始草稿)<br>`docs/_harness/auto_triz_strategy.md` (TRIZ 策略 SSOT)<br>`docs/_domain-knowledge/DK-01_*` (流程方法論) |
+
+---
+
+## 第 2 部分：商業目標 — 「為何做？」
+
+### 2.1 背景與痛點
+
+機構 RD 在概念設計階段面臨「三重困境」：
+
+1. **設計試錯成本高**：現有設計常因成本/重量/軸向長度等限制無法量產，需多次打樣迭代（從第一版到可量產版本平均 4-6 週、3-5 次打樣）。
+2. **初期方向不明確**：RD 缺乏系統化工具在設計初期評估多面向影響（成本、重量、NVH、可靠度），憑經驗主義或主觀判斷做決策。
+3. **知識分散難利用**：歷史專案對照表、專利搜尋結果、失效模式知識散落各處，未被整合進設計決策；設計審查會議常流於主觀討論。
+
+引用 `rd_設計文稿.md` 第 149-154 行：「現有設計無法量產（成本高、重量重、軸向長），需多次打樣迭代…缺乏系統化工具在設計初期評估多面向影響…專案對照表、專利搜尋結果等資料未被有效整合進設計決策。」
+
+### 2.2 策略契合度
+
+| 戰略目標 | 本專案如何貢獻 |
+|:---------|:---------------|
+| 縮短產品開發週期 | 將設計審查從事後試錯前移到 Day 1（從數週縮短至數天） |
+| 提升知識資產利用率 | 整合專案對照表 + 專利資料庫 + 失效模式 KB，讓每個建議都可追溯 |
+| 降低高階人才依賴 | 結構化方法論（TRIZ + KT 決策）讓資淺工程師也能進行高品質審查 |
+| 建立可累積的組織記憶 | TR0-TR10 Gate Review + 知識回寫機制，每個專案結束後都更新 KB |
+
+### 2.3 成功指標 (KPIs)
+
+| KPI 編號 | 指標 | 目標值 | 衡量方式 |
+|:---------|:-----|:-------|:---------|
+| **KPI-1** | 架構級返工次數 | ≤ 2 次/專案 | 從專案啟動到 GA 期間，因架構錯誤需要重新設計的次數 |
+| **KPI-2** | 概念評審效率 | ≤ 2 hr/次 | 從上傳設計到完成審查報告的時間（含 AI 分析 + RD 審閱） |
+| **KPI-3** | 假設驗證覆蓋率 | ≥ 80% | 已標記假設中，配有最小驗證實驗或證據連結的比例 |
+| **KPI-4** | 方案探索數量 | ≥ 3 條/專案 | Phase II 結束時候選方案數（含跨域去錨定方案） |
+| **KPI-5** | 任務定義表生成時間 | ≤ 30 s | AI 從上傳素材自動萃取約束/KPI 到產出 Brief 的時間 |
+| **KPI-6** | 用戶採納率 | ≥ 70% | RD 主動使用本系統做設計審查的比例（vs 傳統會議審查） |
+| **KPI-7** | TRIZ 解法生成時間 | ≤ 60 s | 從輸入矛盾到產出 F/S/OZ/OT 解法的時間 |
+| **KPI-8** | 方案集合載入時間 | ≤ 3 s | Decision Hub 載入所有候選方案 + Evidence Coverage 的時間 |
+
+### 2.4 不在範圍內的目標（明確排除）
+
+- **不取代 CAD 工具**：本系統不直接生成可簽核的 CAD/CAE 文件，不替代 SolidWorks/CATIA/ANSYS。
+- **不取代物理測試**：所有 AI 風險判斷需配合最小驗證實驗，不主張「免測試」。
+- **不取代 RD 決策權**：AI 是「主動挑戰者」與「資料整合者」，最終決策權在 RD/RD 主管。
+
+---
+
+## 第 3 部分：使用者故事與允收標準 — 「做什麼？」
+
+### 3.1 目標用戶
+
+| 用戶類型 | 角色 | 主要需求 | 使用頻率 |
+|:---------|:-----|:---------|:---------|
+| 機構 RD（主要） | 設計/設變工程師 | 設計初期審查、矛盾識別、方案探索 | 每日 |
+| 系統 RD（主要） | 整機整合工程師 | 跨子系統相容性檢查、介面合約 | 每週 |
+| RD 主管（共同決策） | 部門主管 | Gate 通過審核、決策記錄 | 每週 |
+| PM/專案（共同決策） | 專案經理 | 進度追蹤、風險可視化 | 每週 |
+| 製造工程（共同決策） | DFM 工程師 | DFM/DFA 審查、製程可行性 | 每月 |
+| 老師傅/維修（知識提供） | 資深工程師、維修人員 | 失效模式回饋、裝配雷點記錄 | 不定期 |
+| 品質工程（共同決策） | NVH/可靠度工程師 | 測試規劃、驗證護照 | 每月 |
+
+### 3.2 核心 Epic 與 User Story
+
+#### Epic 1：早期問題定義（Phase I — Define）
+
+| Story ID | 描述 | 核心允收標準 (UAT) | BDD 連結 |
+|:---------|:-----|:-------------------|:---------|
+| **US-101** | **As** 機構 RD<br>**I want** 上傳 PDF/Excel/STEP 等多模態素材並讓 AI 自動萃取約束<br>**so that** 我可以在 30 秒內得到結構化的 Brief 草稿 | 1. 支援 PDF/DOCX/XLSX/JPG/PNG 上傳<br>2. AI 萃取硬約束、軟目標、KPI 並預填表單<br>3. 萃取結果可追溯至原始檔案位置 | [`03_bdd_guide.md#feature-1`](./03_bdd_guide.md#feature-1) |
+| **US-102** | **As** 機構 RD<br>**I want** 透過七類蘇格拉底提問探索問題邊界<br>**so that** 我能識別出未顯化的假設與矛盾 | 1. 系統提供 7 類問題（boundary/function/resource/time/environment/human/counter）<br>2. 我可標記回答為「假設」或「矛盾」<br>3. 標記後自動寫入假設台帳/矛盾清單 | [`03_bdd_guide.md#feature-1`](./03_bdd_guide.md#feature-1) |
+| **US-103** | **As** RD 主管<br>**I want** 確認 Gate D2 退出條件全部滿足<br>**so that** 我能授權專案進入 Phase II Diverge | 1. 系統顯示 Gate D2 條件清單與達成度<br>2. 至少 10 個假設已辨識、矛盾全部分類為 TC/PC/SF<br>3. 我可手動覆寫 Gate 判定（含理由） | [`03_bdd_guide.md#feature-2`](./03_bdd_guide.md#feature-2) |
+
+#### Epic 2：方案發散（Phase II — Diverge）
+
+| Story ID | 描述 | 核心允收標準 (UAT) | BDD 連結 |
+|:---------|:-----|:-------------------|:---------|
+| **US-201** | **As** 機構 RD<br>**I want** 對識別出的矛盾觸發 TRIZ 三路徑求解（含 L1 跨域去錨定）<br>**so that** 我能在 60 秒內得到分層解法卡片 | 1. 對每個 TC 自動執行 OZ-OT 分析<br>2. 觸發後產出 L1（具體）/L2（去錨定）/L3（架構旁路）三層解法<br>3. 多 TC 時計算 SIM 矩陣（+1/0/-1）顯示衝突 | [`03_bdd_guide.md#feature-3`](./03_bdd_guide.md#feature-3) |
+| **US-202** | **As** 系統 RD<br>**I want** 在決策中心橫向比較所有候選方案（CCI 複雜度標籤 + Evidence 覆蓋率）<br>**so that** 我能 80/20 法則篩選出值得進入 Pre-CAD 的方案 | 1. 所有方案攤平顯示，含來源/機制/CCI/信心等級<br>2. 每張方案卡顯示 CCI Badge（Evolution/Weak/Patch）<br>3. Evidence Coverage Gauge 在頂部顯示 Registry 覆蓋率 | [`03_bdd_guide.md#feature-3`](./03_bdd_guide.md#feature-3) |
+| **US-203** | **As** RD 主管<br>**I want** 透過 Pre-CAD 五維審查確認方案進入 CAD 階段<br>**so that** 我能確保 Fatal+Major 矛盾在 Gate P 前 100% 解決 | 1. 五維評分（空間/解耦/可驗證性/風險/最小 CAD）<br>2. 雷達圖比較最多 4 條方案<br>3. Validation Passport 自動產出 | [`03_bdd_guide.md#feature-4`](./03_bdd_guide.md#feature-4) |
+
+#### Epic 3：收斂與決策（Phase III — Converge）
+
+| Story ID | 描述 | 核心允收標準 (UAT) | BDD 連結 |
+|:---------|:-----|:-------------------|:---------|
+| **US-301** | **As** 機構 RD<br>**I want** 在 CAD 完成後接受 AI 黑帽質疑挑戰<br>**so that** 我能補齊證據缺口、避免事後試錯 | 1. AI 對候選方案產出 ≥ 3 條黑帽質疑<br>2. 我可規劃最小實驗回應每條質疑<br>3. 證據矩陣自動連結假設與實驗結果 | [`03_bdd_guide.md#feature-5`](./03_bdd_guide.md#feature-5) |
+| **US-302** | **As** 專案 PM<br>**I want** 完整記錄 KT 決策過程（MUST/WANT/AC）<br>**so that** 決策可追溯、可解釋、可簽核 | 1. 雙鎖定：決策確認後表單鎖定，僅可回到草稿解鎖<br>2. 簽核追溯：每位簽核人記錄姓名/角色/時間<br>3. 匯出 PDF/JSON 供後續 TR0 概念凍結 | [`03_bdd_guide.md#feature-6`](./03_bdd_guide.md#feature-6) |
+| **US-303** | **As** RD<br>**I want** AI 自動將決策記錄、實驗結果、矛盾解法轉化為 6 類知識資產<br>**so that** 組織知識可累積複用 | 1. Knowledge Agent 全自動產出條目<br>2. 6 類資產：決策記錄/實驗結果/矛盾解法/失效模式/設計規則/最佳實踐<br>3. 我只需審閱確認、不需手動撰寫 | [`03_bdd_guide.md#feature-7`](./03_bdd_guide.md#feature-7) |
+
+#### Epic 4：TR 工程執行（TR0-TR10）
+
+| Story ID | 描述 | 核心允收標準 (UAT) | BDD 連結 |
+|:---------|:-----|:-------------------|:---------|
+| **US-401** | **As** RD 主管<br>**I want** 每個 TR Gate 都有結構化 review 報告<br>**so that** 我能確保技術成熟度逐 TR 提升 | 1. TR1-TR10 每個 gate 都有對應報告（≥ 8 條退出條件）<br>2. 通過/不通過判定附理由<br>3. 不通過項目自動進 risk register | 見 `docs/_harness/engineering/tr_gate_framework.md` |
+| **US-402** | **As** 機構 RD<br>**I want** WI/ICD/MC 等工程文件由 TRIZ 概念自動產出<br>**so that** TRIZ→工程執行的銜接無資訊損失 | 1. /triz-wi 從 step3/step4 state 自動產出 WI/ICD/MC<br>2. 文件數量依 domain 自動偵測（motor/gear/thermal 等）<br>3. 每份文件含 TRIZ 溯源連結 | 見 `docs/_harness/engineering/work_instructions/` |
+
+### 3.3 用戶旅程映射
+
+引用既有 IA 規格（`docs/01-define/pages/INDEX.md`）：
+
+```
+建立專案 → 定義問題 → 矛盾收斂 → 發散方案 → 收斂決策 → 沉澱分享
+   │           │           │           │           │           │
+   ▼           ▼           ▼           ▼           ▼           ▼
+ P03        P05/P06     P07         P08/P09     P11/P12     P13
+ProjectList  Brief/      Track       Create/     Review/     Feynman
+            Explore                  PreCAD      Decide
+```
+
+完整序列圖、互動細節、API 對應見 `docs/01-define/pages/INDEX.md` §6。
+
+---
+
+## 第 4 部分：範圍與限制
+
+### 4.1 功能性需求 (In Scope)
+
+| 模組 | 描述 | 優先級 |
+|:-----|:-----|:-------|
+| **多模態素材上傳 + AI 約束萃取** | PDF/DOCX/XLSX/STEP 上傳，AI 自動填充 Brief | P0 |
+| **七類蘇格拉底提問引擎** | 引導式問答，支援 AI 生成與手動編輯 | P0 |
+| **TRIZ 推理閉環（Step 0-5）** | 透過 6 個 Skill 的閉環推理 | P0 |
+| **DAG-based 矛盾收斂圖** | 視覺化矛盾節點與斷路點 | P0 |
+| **架構健康監控** | nodes>5 強制停止，circular→重構 | P0 |
+| **Pre-CAD Confidence Score** | 五維審查 + Fatal+Major 100% 解決規則 | P0 |
+| **AI 黑帽質疑（主動挑戰者）** | Devil's Advocate 模式 | P0 |
+| **KT 決策記錄（含 AC 評估）** | MUST/WANT/AC 完整追溯 | P0 |
+| **6 類知識資產自動產出** | Knowledge Agent Fully-Auto 模式 | P0 |
+| **TR0-TR10 Gate Review** | TR 工程執行追蹤 | P1 |
+| **WI/ICD/MC 自動生成** | /triz-wi skill | P1 |
+| **約束標籤字典** | 跨專案標籤合併、版本升級 | P1 |
+| **協作審查（評論、簽核）** | 多人即時討論 | P2 |
+| **權限管理** | RBAC + Project-level Owner | P1 |
+
+### 4.2 非功能性需求 (NFRs)
+
+| 類別 | 需求 |
+|:-----|:-----|
+| **性能** | LCP < 2.5 s, INP < 200 ms, CLS < 0.1（Core Web Vitals）<br>TRIZ Skill 響應 < 60 s（KPI-7）<br>並發用戶數 ≥ 50 |
+| **安全性** | NFR-7：所有密碼 bcrypt + cost 12<br>NFR-8：支援 SSO/LDAP（企業整合）<br>NFR-9：敏感資料 HTTPS + 後端加密<br>OWASP Top 10 2021 100% 覆蓋 |
+| **可用性** | 系統可用性 ≥ 99.5%（NFR-10）<br>WCAG 2.1 AA 合規（NFR-15）<br>支援繁體中文 + 英文（NFR-16）<br>新用戶 2 hr 內完成首個專案 |
+| **可維護性** | 模板可配置、KB 可更新<br>API 文件 100% 完整（OpenAPI 3.0） |
+| **可靠性** | 資料每日備份、恢復時間 ≤ 4 hr（NFR-11）<br>狀態 JSON 不可手動編輯（policy） |
+| **法規** | GDPR/個資法（用戶資料 minimization）<br>內部專利資料分級存取 |
+
+### 4.3 不做什麼 (Out of Scope)
+
+- ❌ **不生成 CAD 文件**：不替代 SolidWorks/CATIA。
+- ❌ **不執行 FEA/CFD 模擬**：本系統指引 FEA 設定（透過 /tr-fea），實際模擬由外部工具完成。
+- ❌ **不直接連 ERP/MES**：本系統產出的 BOM/工單為 markdown，需手動匯入企業系統。
+- ❌ **不取代 PLM**：版本管理使用 git，不取代企業級 PLM 系統。
+- ❌ **不支援 SaaS 部署（v1）**：MVP 階段為內網私有部署。
+
+### 4.4 假設與依賴
+
+| 類別 | 內容 |
+|:-----|:-----|
+| **假設** | 用戶具備 STEP 檔案讀取能力<br>用戶熟悉 TRIZ 基本概念（培訓 2 hr 內可上手）<br>內網有穩定的 AI 模型推理服務（Anthropic / 自建 LLM） |
+| **內部依賴** | 企業 SSO（NFR-8）<br>內部專案資料庫（對照表 SSOT）<br>內部專利檢索系統（如有） |
+| **外部依賴** | LLM 供應商（OpenAI / Anthropic / Azure OpenAI）<br>STEP/BOM 解析庫（OpenCascade / pythonOCC）<br>檔案儲存（S3 / MinIO） |
+
+---
+
+## 第 5 部分：待辦問題與決策
+
+### 5.1 待討論問題
+
+| ID | 描述 | 狀態 | 負責人 |
+|:---|:-----|:-----|:-------|
+| **Q-001** | LLM 供應商選擇：Anthropic Claude / OpenAI GPT / Azure OpenAI / 自建？ | 待討論 | TL + Security |
+| **Q-002** | STEP 解析方案：pythonOCC（開源）vs SolidWorks API（商業）？ | 待討論 | TL |
+| **Q-003** | 知識庫向量檢索：pgvector / Weaviate / Pinecone？ | 待討論 | TL + Data |
+| **Q-004** | TR Gate 是否強制要求 RD 主管簽核？或可由系統 auto-approve 部分條件？ | 待討論 | PM + RD 主管 |
+| **Q-005** | 多語言版（英文）的優先級：MVP 含 / Beta 含 / GA 含？ | 待討論 | PM |
+
+### 5.2 已做決策
+
+| ID | 描述 | 狀態 | 連結 |
+|:---|:-----|:-----|:-----|
+| **D-001** | 採用 React 18 + Tailwind CSS + Zustand + React Query 為前端棧 | 已決定 | [ADR-001](./04_adr/ADR-001_frontend_stack.md) |
+| **D-002** | TRIZ 推理層採用 Skill-based 架構（6 個 triz-* + 5 個 tr-* skill） | 已決定 | [ADR-002](./04_adr/ADR-002_triz_skill_architecture.md) |
+| **D-003** | 文件位置邊界政策：Skill 內部狀態 → `.claude/context/`，工程交付物 → `docs/engineering/` | 已決定 | `.claude/CLAUDE.md` §內容位置邊界 |
+| **D-004** | 採用 BDD（Gherkin）作為主要驗收方法 | 已決定 | [`03_bdd_guide.md`](./03_bdd_guide.md) |
+| **D-005** | 雙軸 WBS：TRIZ Step 0-5（推理）+ TR0-TR10（工程執行） | 已決定 | [`16_wbs.md`](./16_wbs.md) |
+
+---
+
+## 6. 文件溯源
+
+本 PRD 由以下材料整合：
+
+- `rd_assistant_design_system/rd_設計文稿.md` — 原始 PRD 草稿（§ 第 144-241 行）
+- `rd_assistant_design_system/RD 設計審查 Copilot (Design Review Copilot)_UI設計.md` — UI/UX 設計（產品視覺定位）
+- `docs/_harness/auto_triz_strategy.md` — TRIZ 策略 SSOT
+- `docs/_domain-knowledge/DK-01_*` — 流程方法論
+- `docs/01-define/pages/INDEX.md` — 18 頁 IA 結構
+- `.claude/CLAUDE.md` — 專案級指令與內容位置邊界政策

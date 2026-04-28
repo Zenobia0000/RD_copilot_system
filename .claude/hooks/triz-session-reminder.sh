@@ -32,7 +32,7 @@ PATH_TYPE=$(python3 -c "import json,sys; d=json.load(open('$STATE_FILE')); print
 ALL_DONE=$(python3 -c "
 import json
 d=json.load(open('$STATE_FILE'))
-done = all(d.get(f'step{i}',{}).get('completed',False) for i in range(5))
+done = all(d.get(f'step{i}',{}).get('completed',False) for i in range(6))
 print('yes' if done else 'no')
 " 2>/dev/null || echo "no")
 
@@ -44,8 +44,8 @@ fi
 PROGRESS=$(python3 -c "
 import json
 d=json.load(open('$STATE_FILE'))
-steps = ['step0','step1','step2','step3','step4']
-labels = ['Step 0: 問題定向','Step 1: 功能建模','Step 2: TC 定義','Step 3: PC/SF 解題','Step 4: 驗證']
+steps = ['step0','step1','step2','step3','step4','step5']
+labels = ['Step 0: 問題定向','Step 1: 功能建模','Step 2: TC 定義','Step 3: PC/SF 解題','Step 4: 驗證','Step 5: WI 產出']
 for s,l in zip(steps,labels):
     done = d.get(s,{}).get('completed',False)
     mark = '✓' if done else '○'
@@ -62,7 +62,8 @@ m = {
   'step1': '/triz-model',
   'step2': '/triz-solve',
   'step3': '/triz-solve',
-  'step4': '/triz-verify'
+  'step4': '/triz-verify',
+  'step5': '/triz-wi'
 }
 print(m.get(step, '/triz-status'))
 " 2>/dev/null || echo "/triz-status")

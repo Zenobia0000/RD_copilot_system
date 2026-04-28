@@ -41,6 +41,7 @@ class Step0Routing(str, Enum):
 
 class Step1Routing(str, Enum):
     tc_main = "tc-main"
+    tc_main_multi = "tc-main-multi"
     sf_only = "sf-only"
 
 
@@ -94,6 +95,10 @@ class FAEntry(BaseModel):
     function: str
     target: str
     type: FAType
+    id: str = ""
+    name: str = ""
+    role: str = ""
+    note: str = ""
 
 
 class SFEntry(BaseModel):
@@ -103,6 +108,7 @@ class SFEntry(BaseModel):
     s2: str
     status: SFStatus
     tc: str = ""
+    routing: str = ""
 
 
 class ImproveWorsen(BaseModel):
@@ -233,7 +239,7 @@ class Step4State(BaseModel):
     px_separation_verified: bool = False
     px_results: dict[str, str] = Field(default_factory=dict)
     verdict: Step4Verdict | None = None
-    complexity_scores: CCIScores | None = None
+    complexity_scores: dict[str, CCIScores] | CCIScores | None = None
     cci_verdict: str = ""
     evidence_registry: EvidenceRegistry | None = None
     new_tc_detected: bool = False

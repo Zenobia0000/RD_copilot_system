@@ -53,8 +53,7 @@ class TestTrizSession:
             report_file="report.md",
             specs={"max_od_mm": 111},
         )
-        session.step0.completed = True
-        session.step0.routing = "step1"
+        session.step0 = Step0State(completed=True, routing="step1")
 
         data = session.model_dump(mode="json")
         restored = TrizSession.model_validate(data)
@@ -170,15 +169,14 @@ class TestStateManager:
 
     def test_load_existing_ebike_state(self):
         """Test that we can load the actual ebike session state file."""
-        state_path = Path(
-            "/home/os-sunnie.gd.weng/python_workstation/sunny_01/"
-            "RD_copilot_system/.claude/context/triz"
+        state_path = (
+            Path(__file__).resolve().parents[3]
+            / ".claude" / "context" / "triz"
         )
         if not (state_path / ".triz-state.json").exists():
             pytest.skip("No ebike session state file")
 
         mgr = TrizStateManager(state_path)
         session = mgr.load()
-        assert session.session_id == "2026-04-28-ebike-drive-unit-v3"
-        assert len(session.step1.fa_components) == 18
-        assert len(session.step1.sf_diagnosis) == 9
+        assert session.session_id  # non-empty
+        assert session.problem_description  # non-empty

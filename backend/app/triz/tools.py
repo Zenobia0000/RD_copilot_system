@@ -481,14 +481,23 @@ class TrizStateWriteTool(Tool):
                 is_error=True,
             )
 
-        # Merge data into the step object
-        for key, value in data.items():
+        # Merge data into the step object via model_validate for proper
+        # Pydantic coercion (enum strings → Enum, dicts → sub-models).
+        for key in data:
             if not hasattr(step_obj, key):
                 return ToolResult(
                     content=f"Error: unknown field '{key}' for {step}.",
                     is_error=True,
                 )
-            setattr(step_obj, key, value)
+        merged = {**step_obj.model_dump(), **data}
+        try:
+            new_step_obj = type(step_obj).model_validate(merged)
+        except Exception as exc:
+            return ToolResult(
+                content=f"Error validating {step} data: {exc}",
+                is_error=True,
+            )
+        setattr(session, step, new_step_obj)
 
         # Re-validate and save
         try:

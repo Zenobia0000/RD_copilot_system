@@ -92,18 +92,17 @@ def build_system_prompt(
 
 
 def _build_parser() -> argparse.ArgumentParser:
+    """Build the CLI argument parser.
+
+    Optional flags (--max-iterations, --max-tokens, -v) are declared BEFORE
+    the positional args so that argparse.REMAINDER doesn't swallow them.
+    With REMAINDER, everything after the first positional is captured
+    verbatim — including ``--flags``.  Declaring optionals first lets
+    argparse see them before REMAINDER kicks in, regardless of ordering.
+    """
     parser = argparse.ArgumentParser(
         prog="python -m app.harness",
         description="Run a Claude Code style slash command via the v2 harness.",
-    )
-    parser.add_argument(
-        "command",
-        help="Slash command to run, e.g. /triz or /triz-scope",
-    )
-    parser.add_argument(
-        "args",
-        nargs=argparse.REMAINDER,
-        help="Arguments to forward to the command as the user message",
     )
     parser.add_argument(
         "--max-iterations",
@@ -122,13 +121,17 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Enable debug logging",
     )
+    parser.add_argument(
+        "command",
+        help="Slash command to run, e.g. /triz or /triz-scope",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point. Returns process exit code."""
     parser = _build_parser()
-    ns = parser.parse_args(argv)
+    ns, extra = parser.parse_known_args(argv)
 
     if ns.verbose:
         logging.basicConfig(level=logging.DEBUG, format="%(levelname)s %(name)s: %(message)s")
@@ -136,7 +139,7 @@ def main(argv: list[str] | None = None) -> int:
         logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
     cmd_name = ns.command.lstrip("/")
-    user_args = " ".join(ns.args).strip()
+    user_args = " ".join(extra).strip()
 
     # 1. Project discovery
     try:

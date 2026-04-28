@@ -391,11 +391,12 @@ class TestTrizRegistry:
             pytest.skip("KB root not found")
         from app.triz.registry import triz_tools
         tools = triz_tools(kb_root=KB_ROOT, state_dir=tmp_path)
-        assert len(tools) == 7
+        assert len(tools) == 8
         names = {t.name for t in tools}
         assert names == {
             "MatrixLookup", "ParamMap", "CCICalculate", "SIMCompute",
             "TrizStateRead", "TrizStateWrite", "TrizStateAdvance",
+            "ArtifactBundle",
         }
 
     def test_all_have_schemas(self, tmp_path):

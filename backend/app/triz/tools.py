@@ -11,6 +11,7 @@ import json
 from typing import Any, ClassVar
 
 from app.harness.tools.base import Tool, ToolResult
+from app.triz.bundle import VALID_CATEGORIES, BundleError, BundleManager
 from app.triz.kb.loader import KBLoader
 from app.triz.kb.matrix import lookup_principles, validate_parameter_id
 from app.triz.solve.param_mapper import (
@@ -566,6 +567,145 @@ class TrizStateAdvanceTool(Tool):
                     "current_step": session.current_step,
                     "session_id": session.session_id,
                 },
+                ensure_ascii=False,
+            )
+        )
+
+
+# ── ArtifactBundle ─────────────────────────────────────────────────
+
+
+class ArtifactBundleTool(Tool):
+    """Manage the engineering artifact bundle (MANIFEST.json)."""
+
+    name: ClassVar[str] = "ArtifactBundle"
+    description: ClassVar[str] = (
+        "Manage docs/engineering/MANIFEST.json — the SSOT for all engineering "
+        "artifacts produced by the TRIZ→TR pipeline.\n\n"
+        "Actions:\n"
+        "  register — Register an artifact after writing it. Computes SHA-256, "
+        "adds to manifest, increments version.\n"
+        "  validate — Check all registered files exist and hashes match.\n"
+        "  status — Return manifest summary (statistics, provenance).\n"
+        "  export — Create a ZIP archive of all registered artifacts.\n\n"
+        "Categories: framework, work_instructions, interface_control, "
+        "material_cards, key_characteristics, gate_reviews, test_reports, "
+        "dfm_reviews, fmea, control_plan, sop, spc, ppap."
+    )
+    input_schema: ClassVar[dict[str, Any]] = {
+        "type": "object",
+        "properties": {
+            "action": {
+                "type": "string",
+                "enum": ["register", "validate", "status", "export"],
+                "description": "Operation to perform.",
+            },
+            "path": {
+                "type": "string",
+                "description": (
+                    "File path relative to docs/engineering/ "
+                    "(e.g. 'WI-01_motor.md'). Required for register."
+                ),
+            },
+            "category": {
+                "type": "string",
+                "enum": sorted(VALID_CATEGORIES),
+                "description": "Artifact category. Required for register.",
+            },
+            "produced_by": {
+                "type": "string",
+                "description": (
+                    "Skill name that produced this artifact "
+                    "(e.g. 'triz-wi', 'tr-gate'). Required for register."
+                ),
+            },
+        },
+        "required": ["action"],
+    }
+
+    def __init__(self, mgr: BundleManager) -> None:
+        self._mgr = mgr
+
+    def run(
+        self,
+        *,
+        action: str,
+        path: str | None = None,
+        category: str | None = None,
+        produced_by: str | None = None,
+    ) -> ToolResult:
+        if action == "register":
+            return self._register(path=path, category=category, produced_by=produced_by)
+        if action == "validate":
+            return self._validate()
+        if action == "status":
+            return self._status()
+        if action == "export":
+            return self._export()
+        return ToolResult(
+            content=f"Error: unknown action '{action}'.",
+            is_error=True,
+        )
+
+    def _register(
+        self,
+        *,
+        path: str | None,
+        category: str | None,
+        produced_by: str | None,
+    ) -> ToolResult:
+        if not path:
+            return ToolResult(content="Error: 'path' is required for register.", is_error=True)
+        if not category:
+            return ToolResult(content="Error: 'category' is required for register.", is_error=True)
+        if not produced_by:
+            return ToolResult(content="Error: 'produced_by' is required for register.", is_error=True)
+
+        try:
+            entry = self._mgr.register(
+                relative_path=path,
+                category=category,
+                produced_by=produced_by,
+            )
+        except BundleError as exc:
+            return ToolResult(content=f"Error: {exc}", is_error=True)
+
+        return ToolResult(
+            content=json.dumps(
+                {
+                    "ok": True,
+                    "action": "register",
+                    "path": entry.path,
+                    "category": entry.category,
+                    "sha256": entry.sha256[:16] + "...",
+                    "version": entry.version,
+                },
+                ensure_ascii=False,
+            )
+        )
+
+    def _validate(self) -> ToolResult:
+        try:
+            result = self._mgr.validate()
+        except BundleError as exc:
+            return ToolResult(content=f"Error: {exc}", is_error=True)
+        return ToolResult(content=json.dumps(result, ensure_ascii=False))
+
+    def _status(self) -> ToolResult:
+        try:
+            result = self._mgr.status()
+        except BundleError as exc:
+            return ToolResult(content=f"Error: {exc}", is_error=True)
+        return ToolResult(content=json.dumps(result, ensure_ascii=False))
+
+    def _export(self) -> ToolResult:
+        try:
+            zip_path = self._mgr.export_zip()
+        except BundleError as exc:
+            return ToolResult(content=f"Error: {exc}", is_error=True)
+        return ToolResult(
+            content=json.dumps(
+                {"ok": True, "action": "export", "zip_path": str(zip_path)},
                 ensure_ascii=False,
             )
         )

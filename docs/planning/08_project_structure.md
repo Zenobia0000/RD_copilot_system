@@ -2,7 +2,7 @@
 
 ---
 
-**文件版本**：`v2.1`（加入 TRIZ domain tools layer + Edit/Bash tools）
+**文件版本**：`v2.2`（加入 ArtifactBundle tool + MANIFEST.json 管理）
 **最後更新**：`2026-04-28`
 **狀態**：`Active — reflects actual harness; new features must follow this structure`
 **模板來源**：`VibeCoding_Workflow_Templates/08_project_structure_guide.md`（本檔結構偏離模板以反映 claude-code 風 harness）
@@ -62,7 +62,8 @@ backend/
 │   │       └── agent.py      # AgentTool（subagent dispatch；不可遞迴）
 │   ├── triz/                 # ★ TRIZ 確定性邏輯（域特定 — Tool 底層模組）
 │   │   ├── __init__.py
-│   │   ├── tools.py          # 7 個 Tool 子類：MatrixLookup / ParamMap / CCICalculate / SIMCompute / TrizState{Read,Write,Advance}
+│   │   ├── tools.py          # 8 個 Tool 子類：MatrixLookup / ParamMap / CCICalculate / SIMCompute / TrizState{Read,Write,Advance} / ArtifactBundle
+│   │   ├── bundle.py         # BundleManager + MANIFEST.json Pydantic models（register/validate/status/export）
 │   │   ├── registry.py       # triz_tools() 工廠 → list[Tool]，供 registry.default_registry_with_triz() 使用
 │   │   ├── state.py          # 20+ Pydantic v2 models（TrizState / TRState schema）
 │   │   ├── state_manager.py  # Atomic R/W + step advance guard rails
@@ -194,7 +195,7 @@ CLI（`cli.py`）和 HTTP（`sessions.py`）共用同一個偵測邏輯：
 ```python
 is_triz_command = cmd_name.startswith(("triz", "tr-"))
 if is_triz_command:
-    registry = default_registry_with_triz(...)   # fs + web + bash + agent + 7 TRIZ domain tools
+    registry = default_registry_with_triz(...)   # fs + web + bash + agent + 8 TRIZ domain tools
 else:
     registry = default_registry_with_agent(...)   # fs + web + bash + agent（無 domain tools）
 ```
@@ -205,7 +206,7 @@ else:
 |:-----|:-----------|:---------|
 | `default_registry()` | Read, Write, Edit, Glob, Grep, Bash, WebFetch, WebSearch | Subagent 預設 |
 | `default_registry_with_agent()` | 上述 + Agent | 非 TRIZ 主 loop |
-| `default_registry_with_triz()` | 上述 + 7 TRIZ domain tools | TRIZ/TR 主 loop |
+| `default_registry_with_triz()` | 上述 + 8 TRIZ domain tools | TRIZ/TR 主 loop |
 
 ---
 
@@ -310,7 +311,7 @@ else:
 | Unit（純邏輯） | `tests/unit/` | 每次 push（CI） | auth, middleware, error_handling |
 | API（HTTP 介面） | `tests/api/` | 每次 push | health, sessions CRUD/run/stream |
 | Harness（核心） | `tests/harness/` | 每次 push | agent loop, skill/command 解析, tools 各別, subagent dispatch |
-| TRIZ（domain） | `tests/triz/` | 每次 push | 7 domain tools, KB loader, state manager, CCI, SIM, param_mapper |
+| TRIZ（domain） | `tests/triz/` | 每次 push | 8 domain tools, bundle manager, KB loader, state manager, CCI, SIM, param_mapper |
 | Live（真打 LLM） | 任何加 `@pytest.mark.live` 的測試 | `pytest -m live` 手動 | E2E：真 Anthropic / Azure 呼叫 |
 | Live artifacts | `tests/_live_artifacts/<timestamp>/` | live 跑時自動寫入 | `.triz-state.json` + `session-*.md` |
 
@@ -378,6 +379,7 @@ frontend/
 
 | 日期 | 版本 | 變更 |
 |:-----|:-----|:-----|
+| 2026-04-28 | v2.2 | 加入 `ArtifactBundle` tool + `bundle.py`（MANIFEST.json 管理：register/validate/status/export），domain tools 7→8。 |
 | 2026-04-28 | v2.1 | 加入 `app/triz/` domain tools layer（7 Tool 子類 + registry）、EditTool、BashTool、TRIZ command 路由（§5.1）、§6.1 domain tool 慣例。 |
 | 2026-04-28 | v2.0 | 完全覆寫：對齊實際 M1-M4 harness。先前 v1.0 提的 Clean Architecture（`src/rd_copilot/` + DB ORM + BDD `.feature`）方向錯誤，全部移除。 |
 | 2026-04-28 | v1.0 | 初版（VibeCoding template skeleton；方向錯誤，被 v2.0 取代） |
@@ -392,7 +394,7 @@ frontend/
   - `backend/app/api/{health,sessions}.py`
   - `backend/app/harness/{agent,agents,cli,command,config,skill}.py`
   - `backend/app/harness/tools/{base,registry,fs,bash,web,agent}.py`
-  - `backend/app/triz/{tools,registry,state,state_manager}.py`
+  - `backend/app/triz/{tools,bundle,registry,state,state_manager}.py`
   - `backend/app/triz/kb/{loader,matrix}.py`
   - `backend/app/triz/solve/{param_mapper,sim}.py`
   - `backend/app/triz/verify/cci.py`

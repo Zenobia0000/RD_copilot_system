@@ -37,7 +37,7 @@ RD Design Copilot 採用 **BDD + DDD + Clean Architecture + TDD** 四方法論�
 Command（使用者入口）→ Skill（業務邏輯 SKILL.md）→ Tool（Python ABC）
 ```
 
-- 詳見 [`08_project_structure.md`](./08_project_structure.md) v2.1 + [`07_module_spec.md`](./07_module_spec.md) v2.0
+- 詳見 [`08_project_structure.md`](./08_project_structure.md) v2.2 + [`07_module_spec.md`](./07_module_spec.md) v2.0
 - 先前 Clean Architecture 提案（Domain/Application/Infrastructure）已被 harness-first 取代
 
 ### 1.4 TDD（Test-Driven Development）

@@ -6,7 +6,7 @@
 **最後更新**：`2026-04-28`
 **主要作者**：技術負責人（草稿由 AI Agent 整合產出）
 **狀態**：`Draft`
-**模板來源**：`VibeCoding_Workflow_Templates/06_api_design_specification.md`
+**模板來源**：`templates/vibecoding/06_api_design_specification.md`
 **SSOT**：本文件為 contract source；OpenAPI YAML 從本文件衍生（`api/openapi.yaml`）。
 
 ---
@@ -581,7 +581,7 @@ POST /api/v1/projects/abc123/decision-record/sign
 
 ## 文件溯源
 
-- 模板：`VibeCoding_Workflow_Templates/06_api_design_specification.md`
+- 模板：`templates/vibecoding/06_api_design_specification.md`
 - Architecture：[`05_architecture.md`](./05_architecture.md) §1.1.2 Container Diagram
 - Skill 規格：`.claude/skills/triz-*` / `tr-*`
 - 既有 API 設計：`docs/01-define/pages/INDEX.md`（每頁 [DATA & API] 區塊）

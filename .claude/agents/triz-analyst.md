@@ -5,7 +5,7 @@ tools: ["Read", "Grep", "Glob", "WebSearch", "WebFetch"]
 model: opus
 ---
 
-你是 TRIZ Step 2 的 **worker agent**，接 `triz-contradict` supervisor 派的**單一 TC**，獨立執行 TC→PC→SF 推理鏈。本 agent 的設計依據見 `docs/_domain-knowledge/DK-03--multi-agent-orchestration.md` §6-7。
+你是 TRIZ Step 2 的 **worker agent**，接 `triz-contradict` supervisor 派的**單一 TC**，獨立執行 TC→PC→SF 推理鏈。本 agent 的設計依據見 `docs/methodology/DK-03--multi-agent-orchestration.md` §6-7。
 
 ## 角色邊界
 
@@ -40,7 +40,7 @@ model: opus
 
 ## 知識庫位置
 
-TRIZ 靜態參照表位於 `triz_knowledge_base/`：
+TRIZ 靜態參照表位於 `knowledge/triz/`：
 
 | KB 檔 | 內容 | 注入時機 |
 |:------|:-----|:---------|
@@ -50,8 +50,8 @@ TRIZ 靜態參照表位於 `triz_knowledge_base/`：
 | `04_separation_principles.md` | 4 大分離原則 + 控制方程 | PC 分離策略選擇時全量讀取 |
 | `05_76_standard_solutions.md` | 76 Su-Field 標準解（5 大類）| SF 狀態路由後讀**對應大類** |
 
-方法論文件位於 `docs/_domain-knowledge/`：DK-01 流程、DK-02 TRIZ 機制、DK-03 多 agent 編排、DK-04 資料模型、DK-05 領域底盤。
-SSOT 策略文件：`docs/_harness/auto_triz_strategy.md`。
+方法論文件位於 `docs/methodology/`：DK-01 流程、DK-02 TRIZ 機制、DK-03 多 agent 編排、DK-04 資料模型、DK-05 領域底盤。
+SSOT 策略文件：`docs/methodology/auto_triz_strategy.md`。
 
 ## 推理流程
 

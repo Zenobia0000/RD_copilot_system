@@ -7,7 +7,7 @@ description: TRIZ Step 2+3 TC/PC/SF 解題管線。參數映射、矩陣查表�
 
 ## Overview
 
-本 skill 實作 Auto-TRIZ 閉環流程的 Step 2 + Step 3（TC/PC/SF 機制見 `docs/_domain-knowledge/DK-02--triz-mechanics.md`；流程定位見 `docs/_domain-knowledge/DK-01--auto-triz-process.md` §5-6；多 TC 時作為 supervisor 並行派發 `triz-analyst` agent，編排模式見 `docs/_domain-knowledge/DK-03--multi-agent-orchestration.md` §6 Step 2）。
+本 skill 實作 Auto-TRIZ 閉環流程的 Step 2 + Step 3（TC/PC/SF 機制見 `docs/methodology/DK-02--triz-mechanics.md`；流程定位見 `docs/methodology/DK-01--auto-triz-process.md` §5-6；多 TC 時作為 supervisor 並行派發 `triz-analyst` agent，編排模式見 `docs/methodology/DK-03--multi-agent-orchestration.md` §6 Step 2）。
 
 **三種模式：**
 1. **TC 主路徑**：單一 TC → 參數映射 → 矩陣查表 → 原理具體化 → OZ-OT-Px → PC → 分離 → SF
@@ -52,7 +52,7 @@ description: TRIZ Step 2+3 TC/PC/SF 解題管線。參數映射、矩陣查表�
 
 將自然語言描述映射為 39 工程參數。使用下方參數表和映射提示。
 
-<KB-INJECT source="triz_knowledge_base/01_39_parameters.md">
+<KB-INJECT source="knowledge/triz/01_39_parameters.md">
 
 #### 39 工程參數完整表
 
@@ -181,7 +181,7 @@ description: TRIZ Step 2+3 TC/PC/SF 解題管線。參數映射、矩陣查表�
 
 > 矩陣格值為空 → 此組合無經典推薦，直接走 Step 3c 分離路徑。
 
-<KB-INJECT source="triz_knowledge_base/02_contradiction_matrix.md">
+<KB-INJECT source="knowledge/triz/02_contradiction_matrix.md">
 
 #### 39x39 矛盾矩陣
 
@@ -1228,7 +1228,7 @@ description: TRIZ Step 2+3 TC/PC/SF 解題管線。參數映射、矩陣查表�
 
 對每個候選原理，用下方原理表回答**具體化三問**：
 
-<KB-INJECT source="triz_knowledge_base/03_40_principles.md">
+<KB-INJECT source="knowledge/triz/03_40_principles.md">
 
 #### 40 發明原理完整表
 
@@ -1771,7 +1771,7 @@ Xi 與 P1/P2 之間的中間變數數量：
 
 ### 3c: 分離策略
 
-<KB-INJECT source="triz_knowledge_base/04_separation_principles.md">
+<KB-INJECT source="knowledge/triz/04_separation_principles.md">
 
 #### 四大分離原則
 
@@ -1886,7 +1886,7 @@ Xi 與 P1/P2 之間的中間變數數量：
 | 需量測/偵測 | Class 4 | 偵測標準解 |
 | 需導入新物質但受限 | Class 5 | 間接引入策略 |
 
-<KB-INJECT source="triz_knowledge_base/05_76_standard_solutions.md">
+<KB-INJECT source="knowledge/triz/05_76_standard_solutions.md">
 
 #### 76 Su-Field 標準解
 

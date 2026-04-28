@@ -33,16 +33,16 @@
 - PM（產品經理）、TL（技術負責人）、ARCH（架構師）、DEV、QA、SRE、SEC（安全/隱私）、OPS、DATA
 
 **模板路徑：**
-- `VibeCoding_Workflow_Templates/01_development_workflow_cookbook.md` - 開發流程指南
-- `VibeCoding_Workflow_Templates/02_project_brief_and_prd.md` - 專案簡報與 PRD
-- `VibeCoding_Workflow_Templates/03_behavior_driven_development_guide.md` - BDD 指南
-- `VibeCoding_Workflow_Templates/04_architecture_decision_record_template.md` - ADR 模板
-- `VibeCoding_Workflow_Templates/05_architecture_and_design_document.md` - 架構與設計文檔
-- `VibeCoding_Workflow_Templates/06_api_design_specification.md` - API 設計規範
-- `VibeCoding_Workflow_Templates/07_module_specification_and_tests.md` - 模組規格與測試
-- `VibeCoding_Workflow_Templates/08_project_structure_guide.md` - 專案結構指南
-- `VibeCoding_Workflow_Templates/13_security_and_readiness_checklists.md` - 安全與上線檢查
-- `VibeCoding_Workflow_Templates/14_deployment_and_operations_guide.md` - 部署與運維指南
+- `templates/vibecoding/01_development_workflow_cookbook.md` - 開發流程指南
+- `templates/vibecoding/02_project_brief_and_prd.md` - 專案簡報與 PRD
+- `templates/vibecoding/03_behavior_driven_development_guide.md` - BDD 指南
+- `templates/vibecoding/04_architecture_decision_record_template.md` - ADR 模板
+- `templates/vibecoding/05_architecture_and_design_document.md` - 架構與設計文檔
+- `templates/vibecoding/06_api_design_specification.md` - API 設計規範
+- `templates/vibecoding/07_module_specification_and_tests.md` - 模組規格與測試
+- `templates/vibecoding/08_project_structure_guide.md` - 專案結構指南
+- `templates/vibecoding/13_security_and_readiness_checklists.md` - 安全與上線檢查
+- `templates/vibecoding/14_deployment_and_operations_guide.md` - 部署與運維指南
 
 ---
 

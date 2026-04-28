@@ -22,9 +22,9 @@
 | `session-step1-*.md` | R | R | Step 1 輸出，所有人唯讀 |
 | `session-step0-*.md` | R | R | Step 0 輸出，所有人唯讀 |
 | `session-template.md` | R | R | 模板，所有人唯讀 |
-| `triz_knowledge_base/*` | R | R | KB 檔，所有人唯讀 |
-| `docs/_domain-knowledge/*` | R | R | DK 檔，所有人唯讀 |
-| `docs/_harness/*` | R | R | 策略/框架，所有人唯讀 |
+| `knowledge/triz/*` | R | R | KB 檔，所有人唯讀 |
+| `docs/methodology/*` | R | R | DK 檔，所有人唯讀 |
+| `docs/methodology/*` | R | R | 策略/框架，所有人唯讀 |
 
 ## 檔案命名規則
 

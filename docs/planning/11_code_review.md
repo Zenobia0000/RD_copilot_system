@@ -5,7 +5,7 @@
 **文件版本**：`v1.0`
 **最後更新**：`2026-04-28`
 **狀態**：`Skeleton`
-**模板來源**：`VibeCoding_Workflow_Templates/11_code_review_and_refactoring_guide.md`
+**模板來源**：`templates/vibecoding/11_code_review_and_refactoring_guide.md`
 
 ---
 
@@ -17,7 +17,7 @@
 - [ ] 無 console.log / print debug 殘留
 - [ ] 無 `any` / `# type: ignore`（有則寫理由註解）
 - [ ] 模組依賴未產生循環（[`09_file_dependencies.md`](./09_file_dependencies.md)）
-- [ ] 新增/修改 token 對齊 [`design-system-specs/00_foundations_spec.md`](../../rd_assistant_design_system/design-system-specs/00_foundations_spec.md)
+- [ ] 新增/修改 token 對齊 [`templates/design-system/specs/00_foundations_spec.md`](../../templates/design-system/specs/00_foundations_spec.md)
 - [ ] PR 大小 < 400 行（超過拆分）
 - [ ] commit message 含 WHY/WHAT/IMPACT 三段
 
@@ -106,5 +106,5 @@
 
 ## 文件溯源
 
-- 模板：`VibeCoding_Workflow_Templates/11_code_review_and_refactoring_guide.md`
+- 模板：`templates/vibecoding/11_code_review_and_refactoring_guide.md`
 - 對應：[`03_bdd_guide.md`](./03_bdd_guide.md), [`05_architecture.md`](./05_architecture.md)

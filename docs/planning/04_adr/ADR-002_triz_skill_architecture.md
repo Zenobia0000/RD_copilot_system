@@ -70,6 +70,6 @@ TRIZ 推理閉環包含 6 個邏輯步驟（Step 0-5）+ TR 工程執行 5 個�
 
 ## References
 
-- TRIZ 策略 SSOT：`docs/_harness/auto_triz_strategy.md`
+- TRIZ 策略 SSOT：`docs/methodology/auto_triz_strategy.md`
 - Skill 規格：`.claude/skills/triz-*/SKILL.md` + `.claude/skills/tr-*/SKILL.md`
 - 案例驗證：`.claude/context/triz/.triz-state.json`（ebike-drive-unit-v2）

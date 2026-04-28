@@ -1,7 +1,7 @@
 # DK-05 — 領域底盤（AICBD 工業電腦視覺）
 
 > 製造現場的硬約束，TRIZ 解法在此 gate 失敗時設計就被擋下。
-> SSOT: `docs/_harness/interview/domain_fundamentals.md` + `interview/domain_research/{battle_manual.md, industrial_cv_paradigms.md}`。
+> SSOT: `docs/research/interview/domain_fundamentals.md` + `interview/domain_research/{battle_manual.md, industrial_cv_paradigms.md}`。
 
 ---
 

@@ -5,7 +5,7 @@
 **文件版本**：`v1.0`
 **最後更新**：`2026-04-28`
 **狀態**：`Skeleton`（pre-launch 必須全綠才可進入 [`14_deployment_ops.md`](./14_deployment_ops.md)）
-**模板來源**：`VibeCoding_Workflow_Templates/13_security_and_readiness_checklists.md`
+**模板來源**：`templates/vibecoding/13_security_and_readiness_checklists.md`
 
 ---
 
@@ -131,5 +131,5 @@
 
 ## 文件溯源
 
-- 模板：`VibeCoding_Workflow_Templates/13_security_and_readiness_checklists.md`
+- 模板：`templates/vibecoding/13_security_and_readiness_checklists.md`
 - 對應：[`05_architecture.md §7`](./05_architecture.md), [`06_api_spec.md §6`](./06_api_spec.md)

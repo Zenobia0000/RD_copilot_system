@@ -1,7 +1,7 @@
 # DK-02 — TRIZ 機制
 
 > AutoTRIZ 引擎的推理機制：39 參數 / 矩陣 / 40 原理 / OZ-OT-Px / 76 SF 標準解 / SIM 評分。
-> SSOT: `docs/_harness/auto_triz_strategy.md` §3-5 + 附錄、`triz_knowledge_base/01-05_*.md`。
+> SSOT: `docs/methodology/auto_triz_strategy.md` §3-5 + 附錄、`knowledge/triz/01-05_*.md`。
 
 ---
 

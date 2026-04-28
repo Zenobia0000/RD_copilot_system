@@ -1,6 +1,6 @@
 # Domain Knowledge — Auto-TRIZ R&D Copilot 方法論基底
 
-> 5 份 MECE 文件 + 對齊 `docs/_harness/` SSOT。每份各有專屬領域，無內容重複。
+> 5 份 MECE 文件 + 對齊 `docs/methodology/` SSOT。每份各有專屬領域，無內容重複。
 
 ---
 
@@ -20,11 +20,11 @@
 
 | DK 檔 | 主要 SSOT 來源 |
 |:------|:--------------|
-| DK-01 | `docs/_harness/auto_triz_strategy.md` §0-9、`uml/02_main_flow.md`、`uml/05_multi_tc_strategy.md` |
-| DK-02 | `docs/_harness/auto_triz_strategy.md` §3-5 + 附錄、`triz_knowledge_base/01-05_*.md` |
+| DK-01 | `docs/methodology/auto_triz_strategy.md` §0-9、`uml/02_main_flow.md`、`uml/05_multi_tc_strategy.md` |
+| DK-02 | `docs/methodology/auto_triz_strategy.md` §3-5 + 附錄、`knowledge/triz/01-05_*.md` |
 | DK-03 | Anthropic Claude Code 官方文件、市場平台研究（LangGraph / CrewAI / AutoGen / OpenAI Agents SDK / Cognition） |
-| DK-04 | `docs/_harness/uml/00_domain_model.md`、`engineering/tr_gate_framework.md`、`uml/10_problem_lifecycle.md` |
-| DK-05 | `docs/_harness/interview/domain_fundamentals.md` + `interview/domain_research/{battle_manual,industrial_cv_paradigms}.md` |
+| DK-04 | `docs/methodology/uml/00_domain_model.md`、`engineering/tr_gate_framework.md`、`uml/10_problem_lifecycle.md` |
+| DK-05 | `docs/research/interview/domain_fundamentals.md` + `interview/domain_research/{battle_manual,industrial_cv_paradigms}.md` |
 
 ---
 
@@ -58,5 +58,5 @@
 ## 維護規則
 
 - DK-01..05 由人撰寫；skill / agent 只讀，不寫
-- 內容變更必須先確認 SSOT (`docs/_harness/`) 是否有同步變動
+- 內容變更必須先確認 SSOT (`docs/methodology/`) 是否有同步變動
 - 跨檔引用用 `§n` 章節編號，不用行號（內容會變動）

@@ -50,11 +50,11 @@
 
 **目標**: 確保開發方向從一開始就與商業價值和使用者需求對齊。
 
-1.  **[專案簡報與產品需求 (PRD)](./VibeCoding_Workflow_Templates/00_project_brief_prd_summary_template.md)**
+1.  **[專案簡報與產品需求 (PRD)](./templates/vibecoding/00_project_brief_prd_summary_template.md)**
     *   **目的**: 定義專案的「為何」與「為誰」，設定最高層次的目標和邊界。
     *   **產出**: 一份清晰的 PRD 文件，包含商業目標、使用者故事、成功指標以及範圍限制。
 
-2.  **[行為驅動情境 (BDD Scenarios)](./VibeCoding_Workflow_Templates/docs/02_bdd_scenarios_guide.md)** `(待建立)`
+2.  **[行為驅動情境 (BDD Scenarios)](./templates/vibecoding/docs/02_bdd_scenarios_guide.md)** `(待建立)`
     *   **目的**: 將 PRD 中的使用者故事轉化為精確、無歧義的自然語言規格，作為連接業務與技術的橋樑。
     *   **產出**: `.feature` 檔案，其中包含使用 Gherkin 語法描述的 `Given-When-Then` 情境。
 
@@ -62,17 +62,17 @@
 
 **目標**: 將業務需求轉化為穩固、可擴展的技術藍圖，避免系統演變成難以維護的「大泥球」。
 
-3.  **[架構與設計文檔 (SAD & SDD)](./VibeCoding_Workflow_Templates/02_system_architecture_document_template.md)**
+3.  **[架構與設計文檔 (SAD & SDD)](./templates/vibecoding/02_system_architecture_document_template.md)**
     *   **目的**: 建立系統的結構（架構）並填充具體的實現細節（設計）。
     *   **產出**: 一份整合性的設計文檔，包含 C4 模型、DDD 戰略設計、Clean Architecture 分層，並連結至：
-        *   **[架構決策記錄 (ADR)](./VibeCoding_Workflow_Templates/01_adr_template.md)**
-        *   **[API 設計規格](./VibeCoding_Workflow_Templates/04_api_design_specification_template.md)**
+        *   **[架構決策記錄 (ADR)](./templates/vibecoding/01_adr_template.md)**
+        *   **[API 設計規格](./templates/vibecoding/04_api_design_specification_template.md)**
 
 ### **第三階段：開發 (Development) - 精確實現**
 
 **目標**: 透過 TDD 和契約式設計，確保每一個程式碼單元都被精確、健壯地實現。
 
-4.  **[模組規格與測試](./VibeCoding_Workflow_Templates/docs/04_module_specification_and_tests.md)** `(待建立)`
+4.  **[模組規格與測試](./templates/vibecoding/docs/04_module_specification_and_tests.md)** `(待建立)`
     *   **目的**: 將高層次的 BDD 情境分解到具體的模組或類別層級，並使用契約式設計 (DbC) 來精確定義其職責邊界。
     *   **產出**: 模組規格文件，包含詳細的測試情境與函式契約（前置/後置條件、不變性）。
 
@@ -80,7 +80,7 @@
 
 **目標**: 確保專案在交付前符合安全、隱私與生產環境的標準。
 
-5.  **[安全與上線檢查清單](./VibeCoding_Workflow_Templates/05_security_privacy_review_checklist_template.md)**
+5.  **[安全與上線檢查清單](./templates/vibecoding/05_security_privacy_review_checklist_template.md)**
     *   **目的**: 在設計階段與部署前進行全面的審查。
     *   **產出**: 已完成的檢查清單，確保所有項目均已達標。
 
@@ -88,4 +88,4 @@
 
 ## Ⅲ. 支援文件
 
-*   **[專案結構指南](./VibeCoding_Workflow_Templates/07_project_structure_template.md)**: 提供標準化的專案目錄結構，確保所有專案的一致性。
+*   **[專案結構指南](./templates/vibecoding/07_project_structure_template.md)**: 提供標準化的專案目錄結構，確保所有專案的一致性。

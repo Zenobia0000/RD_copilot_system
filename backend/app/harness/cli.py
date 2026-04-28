@@ -20,6 +20,7 @@ from pathlib import Path
 
 from app.harness.agent import AgentLoop, AgentLoopError
 from app.harness.command import CommandParseError, resolve_command
+from app.harness.domain_config import load_domain_config
 from app.harness.config import HarnessConfigError, build_client, load_env
 from app.harness.skill import SkillParseError
 from app.harness.tools.registry import (
@@ -179,16 +180,18 @@ def main(argv: list[str] | None = None) -> int:
         f"請依 {resolved.name} 的步驟引導我，先告訴我下一步要做什麼。"
     )
 
-    # 5. Build and run the loop. TRIZ/TR commands get domain tools;
+    # 5. Build and run the loop. Domain commands get domain tools;
     #    other commands get the standard agent tool set.
-    is_triz_command = cmd_name.startswith(("triz", "tr-"))
-    if is_triz_command:
+    domain_cfg = load_domain_config(project_root)
+    if domain_cfg.is_domain_command(cmd_name):
+        paths = domain_cfg.resolve_paths(project_root)
         registry = default_registry_with_triz(
             client=hc.client,
             default_model=hc.default_model,
             agents_root=project_root / ".claude" / "agents",
-            kb_root=project_root / "rd_assistant_design_system" / "triz_knowledge_base",
-            state_dir=project_root / ".claude" / "context" / "triz",
+            kb_root=paths["kb_root"],
+            state_dir=paths["state_dir"],
+            artifact_categories=domain_cfg.artifact_categories or None,
         )
     else:
         registry = default_registry_with_agent(

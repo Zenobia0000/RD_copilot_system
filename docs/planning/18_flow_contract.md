@@ -622,9 +622,9 @@ HTTP: POST /api/v1/sessions/{id}/run (or /run/stream)
 - v1.0 Flow Contract：本文件前身，合約式映射（PRD Epic ↔ TRIZ/TR Step）
 - PRD：[`02_prd.md`](./02_prd.md)
 - BDD：[`03_bdd_guide.md`](./03_bdd_guide.md)
-- TRIZ 方法論：[`DK-01`](../../docs/_domain-knowledge/DK-01--auto-triz-process.md), [`DK-02`](../../docs/_domain-knowledge/DK-02--triz-mechanics.md)
-- TR 框架：[`tr_gate_framework.md`](../../docs/_harness/engineering/tr_gate_framework.md)
-- Gate 定義：[`DK-04`](../../docs/_domain-knowledge/DK-04--data-model-and-gate.md)
+- TRIZ 方法論：[`DK-01`](../../docs/methodology/DK-01--auto-triz-process.md), [`DK-02`](../../docs/methodology/DK-02--triz-mechanics.md)
+- TR 框架：[`tr_gate_framework.md`](../../docs/engineering/tr_gate_framework.md)
+- Gate 定義：[`DK-04`](../../docs/methodology/DK-04--data-model-and-gate.md)
 - Skills 索引：[`.claude/skills/INDEX.md`](../../.claude/skills/INDEX.md)
 - 國際標準對齊：APQP (AIAG), VDA MLA (ML0-ML7), ISO 16290 (TRL)
 

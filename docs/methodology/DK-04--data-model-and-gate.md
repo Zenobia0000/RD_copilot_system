@@ -1,7 +1,7 @@
 # DK-04 — 資料模型 / Gate 參考
 
 > 13 核心 entity schema、TRIZ 內部 gate、TR 外部 gate、state JSON 規格、黑板協議、TRIZ→TR 工件交接。
-> SSOT: `docs/_harness/uml/00_domain_model.md`、`engineering/tr_gate_framework.md`、`uml/10_problem_lifecycle.md`。
+> SSOT: `docs/methodology/uml/00_domain_model.md`、`engineering/tr_gate_framework.md`、`uml/10_problem_lifecycle.md`。
 
 ---
 
@@ -26,13 +26,13 @@ Project 同時運行兩層狀態機：
 
 兩層獨立：TRIZ session 可以重跑（同問題第二次嘗試）而不重置 TR；TR 可以針對不同子系統獨立推進。
 
-問題生命週期 mermaid 圖見 `docs/_harness/uml/10_problem_lifecycle.md`。
+問題生命週期 mermaid 圖見 `docs/methodology/uml/10_problem_lifecycle.md`。
 
 ---
 
 ## §2 13 核心 Entity Schema
 
-完整 class diagram 見 `docs/_harness/uml/00_domain_model.md`。本節列每個 entity 的關鍵欄位 + 哪個 step 產出 + 哪個 step 消費。
+完整 class diagram 見 `docs/methodology/uml/00_domain_model.md`。本節列每個 entity 的關鍵欄位 + 哪個 step 產出 + 哪個 step 消費。
 
 ### §2.1 Problem
 
@@ -181,7 +181,7 @@ ComplexityCheck → TechnicalDebt（Patch 且無時間時）
 
 ### §3.2 TR 外部 gate（TR0-TR10）
 
-完整退出條件見 `docs/_harness/engineering/tr_gate_framework.md`。本節為摘要：
+完整退出條件見 `docs/engineering/tr_gate_framework.md`。本節為摘要：
 
 | TR | 名稱 | 退出條件（摘要） |
 |:---|:-----|:---------------|
@@ -260,10 +260,10 @@ ComplexityCheck → TechnicalDebt（Patch 且無時間時）
     "pcm-thermal": { "current_tr": "TR0", "next_target": "TR1", "wis": ["WI-03"] }
   },
   "gate_reviews": [
-    { "tr": "TR0", "subsystem": "afm-motor", "report": "docs/_harness/engineering/gate_reviews/TR0_afm_review_2026-04-28.md", "verdict": "pass" }
+    { "tr": "TR0", "subsystem": "afm-motor", "report": "docs/engineering/gate_reviews/TR0_afm_review_2026-04-28.md", "verdict": "pass" }
   ],
-  "risks": "docs/_harness/engineering/risk_register.md",
-  "critical_path": "docs/_harness/engineering/critical_path.md"
+  "risks": "docs/engineering/risk_register.md",
+  "critical_path": "docs/engineering/critical_path.md"
 }
 ```
 
@@ -313,10 +313,10 @@ Step 2 / Step 5 派 N 個 worker 平行：每個 worker 寫**獨立**檔（per-T
 
 | TRIZ 產出（Solution 欄位）| TR 工件 | 落地路徑 |
 |:------------------------|:--------|:---------|
-| F + 控制方程 + OZ + OT | Work Instruction（WI）| `docs/_harness/engineering/work_instructions/WI-NN_*.md` |
-| S + 牌號 + 物性 | Material Card（MC）| `docs/_harness/engineering/material_cards/MC-NN_*.md` |
-| 子系統介面（雙系統 OZ 共界面）| Interface Control Document（ICD）| `docs/_harness/engineering/interface_control/ICD-NN_*.md` |
-| TechnicalDebt（補丁）| Risk Register 條目 | `docs/_harness/engineering/risk_register.md` |
+| F + 控制方程 + OZ + OT | Work Instruction（WI）| `docs/engineering/work_instructions/WI-NN_*.md` |
+| S + 牌號 + 物性 | Material Card（MC）| `docs/engineering/material_cards/MC-NN_*.md` |
+| 子系統介面（雙系統 OZ 共界面）| Interface Control Document（ICD）| `docs/engineering/interface_control/ICD-NN_*.md` |
+| TechnicalDebt（補丁）| Risk Register 條目 | `docs/engineering/risk_register.md` |
 | EvidenceRegistry | Evidence 對照表（embedded in WI） | WI 內 §Evidence Registry |
 
 ### §6.2 Step 5 平行產出（DK-03 §6 Step 5 對應）
@@ -352,7 +352,7 @@ TR0 退出條件需要：
 | `triz-contradict`（supervisor）| SF + 自然描述 | TC + SIM → `.triz-state.json` 經 router |
 | `triz-analyst`（per-TC worker）| TC（單一）| PC + Px + Solution → `session-step{2,3}-tc{N}-*.md` |
 | `triz-verify` | Solution | ComplexityCheck + TechnicalDebt → `session-step4-*.md` |
-| `triz-wi` | Solution + ComplexityCheck | WI / MC / ICD → `docs/_harness/engineering/` |
+| `triz-wi` | Solution + ComplexityCheck | WI / MC / ICD → `docs/engineering/` |
 | `tr-gate` | TR 退出條件 + 工件 | `gate_reviews/TR{n}_review_*.md` |
 | `tr-test-report` | WI 測試項 | `test_reports/V{n}_report_*.md` |
 | `tr-fea-assist` | WI + MC | （引導工程師，無檔產出）|

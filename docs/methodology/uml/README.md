@@ -97,7 +97,7 @@ Auto-TRIZ 是一套**系統性矛盾解決框架**，將 TRIZ（發明問題解�
 
 ## 知識庫 (KB) 與流程的對應
 
-流程中的某些步驟需要查閱 TRIZ 知識庫（`triz_knowledge_base/`）。以下是對應關係：
+流程中的某些步驟需要查閱 TRIZ 知識庫（`knowledge/triz/`）。以下是對應關係：
 
 ```
 流程步驟                          需要載入的知識庫檔案
@@ -167,7 +167,7 @@ docs/auto_triz_strategy.md        ← 完整文字描述（元文件）
   │
   ├── docs/uml/00-10              ← 視覺化流程圖（本目錄）
   │
-  └── triz_knowledge_base/        ← 靜態參照表（查表用）
+  └── knowledge/triz/        ← 靜態參照表（查表用）
       ├── 01_39_parameters.md
       ├── 02_contradiction_matrix.md
       ├── 03_40_principles.md

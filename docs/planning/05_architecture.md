@@ -7,7 +7,7 @@
 **主要作者**：架構師（草稿由 AI Agent 整合產出）
 **審核者**：技術負責人、產品經理
 **狀態**：`Active`
-**模板來源**：`VibeCoding_Workflow_Templates/05_architecture_and_design_document.md`
+**模板來源**：`templates/vibecoding/05_architecture_and_design_document.md`
 
 > ## ⚠️ 現況 vs 演化目標
 >
@@ -138,7 +138,7 @@ TRIZ Service
 └── State Machine     (.triz-state.json 持久化)
 ```
 
-完整 11 張 UML 流程圖見 `docs/_harness/uml/`。
+完整 11 張 UML 流程圖見 `docs/methodology/uml/`。
 
 ---
 
@@ -151,7 +151,7 @@ TRIZ Service
 | **Project Management** | 專案生命週期、Phase Gate 進展 | `app/api/sessions.py` 內 SessionRecord（in-memory）+ 未來 Supabase persistence（ADR-006） |
 | **TRIZ Reasoning** | Step 0-5 推理閉環 | `.claude/skills/triz-{router,scoping,model,contradict,verify,wi}/SKILL.md` body + `.claude/context/triz/.triz-state.json` |
 | **TR Engineering** | TR0-TR10 工程執行 | `.claude/skills/tr-{router,gate,fea-assist,test-report,dfm}/SKILL.md` + `docs/engineering/` 寫入產物 |
-| **Knowledge Base** | 6 類資產管理 | `docs/_domain-knowledge/` + `triz_knowledge_base/`（人撰寫，Skill 透過 Read tool 讀） |
+| **Knowledge Base** | 6 類資產管理 | `docs/methodology/` + `knowledge/triz/`（人撰寫，Skill 透過 Read tool 讀） |
 | **User & Permission** | 認證、授權 | `app/middleware/auth.py`（Supabase JWT） |
 | **Analyst** | AI 約束萃取、蘇格拉底提問、多 TC fan-out | `triz-analyst` subagent（TRIZ Step 2 fan-out worker，設計依據 DK-03 §6-7）；黑帽質疑延後至 Beta（[18_flow_contract.md §3](./18_flow_contract.md)） |
 
@@ -197,7 +197,7 @@ graph LR
 ├──────────────────────────────────────────────────────┤
 │  Filesystem SSOT                                     │
 │  .claude/{skills,commands,agents,context}/           │
-│  docs/{engineering,_domain-knowledge,_harness}/      │
+│  docs/{engineering,docs/methodology,_harness}/      │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -436,7 +436,7 @@ erDiagram
 | 流程狀態（TRIZ） | Skill | Skill | `.claude/context/triz/.triz-state.json` |
 | 流程狀態（TR） | Skill | Skill | `.claude/context/triz/.tr-state.json` |
 | 工程交付物 | Skill（triz-wi） | 工程師（人） | `docs/engineering/` |
-| 方法論知識庫 | 人 | Skill（參考） | `docs/_domain-knowledge/` 或 `triz_knowledge_base/` |
+| 方法論知識庫 | 人 | Skill（參考） | `docs/methodology/` 或 `knowledge/triz/` |
 | Gate review 報告 | Skill（tr-gate） | 工程師（人） | `docs/engineering/gate_reviews/` |
 
 **核心原則**：狀態 JSON 只能由 Skill 修改，不可手動編輯。
@@ -565,8 +565,8 @@ v3.0 (GA)：完整微服務化
 ### 2.2 核心模組設計
 
 詳見各 BC 的設計文件：
-- TRIZ Reasoning：`docs/_harness/auto_triz_strategy.md` + `.claude/skills/triz-*/SKILL.md`
-- TR Engineering：`docs/_harness/engineering/tr_gate_framework.md` + `.claude/skills/tr-*/SKILL.md`
+- TRIZ Reasoning：`docs/methodology/auto_triz_strategy.md` + `.claude/skills/triz-*/SKILL.md`
+- TR Engineering：`docs/engineering/tr_gate_framework.md` + `.claude/skills/tr-*/SKILL.md`
 - Project Management：[`07_module_spec.md`](./07_module_spec.md) §Project
 - Analyst：[`07_module_spec.md`](./07_module_spec.md) §Analyst
 - Knowledge Base：[`07_module_spec.md`](./07_module_spec.md) §Knowledge
@@ -596,10 +596,10 @@ v3.0 (GA)：完整微服務化
 
 ## 文件溯源
 
-- 模板：`VibeCoding_Workflow_Templates/05_architecture_and_design_document.md`
-- TRIZ 策略：`docs/_harness/auto_triz_strategy.md`
-- 設計系統：`rd_assistant_design_system/design-system-specs/`
-- UML：`docs/_harness/uml/00_domain_model.md` 至 `11_kb_integration.md`
+- 模板：`templates/vibecoding/05_architecture_and_design_document.md`
+- TRIZ 策略：`docs/methodology/auto_triz_strategy.md`
+- 設計系統：`templates/design-system/specs/`
+- UML：`docs/methodology/uml/00_domain_model.md` 至 `11_kb_integration.md`
 - Skill 規格：`.claude/skills/triz-*/SKILL.md`、`.claude/skills/tr-*/SKILL.md`
 - ADR：[`04_adr/`](./04_adr/)
 - 結構 SSOT：[`08_project_structure.md`](./08_project_structure.md) v2.0

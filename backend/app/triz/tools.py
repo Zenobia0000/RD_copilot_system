@@ -626,6 +626,17 @@ class ArtifactBundleTool(Tool):
     def __init__(self, mgr: BundleManager) -> None:
         self._mgr = mgr
 
+    def to_anthropic_schema(self) -> dict[str, Any]:
+        """Override to inject valid categories from the BundleManager instance."""
+        schema = super().to_anthropic_schema()
+        props = schema["input_schema"]["properties"]
+        if "category" in props:
+            props["category"] = {
+                **props["category"],
+                "enum": sorted(self._mgr.valid_categories),
+            }
+        return schema
+
     def run(
         self,
         *,

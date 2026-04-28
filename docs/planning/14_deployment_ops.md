@@ -5,7 +5,7 @@
 **文件版本**：`v1.1`
 **最後更新**：`2026-04-28`
 **狀態**：`Skeleton — Kubernetes / Celery / PostgreSQL 為 v3 roadmap 目標，非當前 MVP 架構`
-**模板來源**：`VibeCoding_Workflow_Templates/14_deployment_and_operations_guide.md`
+**模板來源**：`templates/vibecoding/14_deployment_and_operations_guide.md`
 
 > **注意**：當前 MVP 為單進程 Docker Compose（`uvicorn app.main:app`）+ in-memory session store。下文 Kubernetes / Celery / RDS 等描述為未來 production 目標架構（v3 roadmap），非現行部署方式。
 
@@ -202,5 +202,5 @@ Detect → Acknowledge → Mitigate → Resolve → Post-Mortem
 
 ## 文件溯源
 
-- 模板：`VibeCoding_Workflow_Templates/14_deployment_and_operations_guide.md`
+- 模板：`templates/vibecoding/14_deployment_and_operations_guide.md`
 - 對應：[`13_security_checklist.md`](./13_security_checklist.md), [`05_architecture.md §6`](./05_architecture.md)

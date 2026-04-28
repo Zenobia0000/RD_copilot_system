@@ -7,7 +7,7 @@
 **主要作者**：專案經理 + AI Agent
 **審核者**：技術負責人、產品經理
 **狀態**：`Draft`
-**模板來源**：`VibeCoding_Workflow_Templates/16_wbs_development_plan_template.md`
+**模板來源**：`templates/vibecoding/16_wbs_development_plan_template.md`
 **雙軸結構**：TRIZ Step 0-5（推理閉環）+ TR0-TR10（工程執行里程碑）
 
 ---
@@ -185,14 +185,14 @@ RD Design Copilot 開發
 | Step 2 | ✅ | 5 TCs（TC1 bottleneck），multi-TC strategy |
 | Step 3 | ✅ | 4 principal solutions + synergy check |
 | Step 4 | ✅ | Evolution（CCI 0.35），Evidence 91% coverage |
-| Step 5 | ✅ | 8 WI + 4 ICD + 6 MC（全部寫到 `docs/_harness/engineering/`） |
+| Step 5 | ✅ | 8 WI + 4 ICD + 6 MC（全部寫到 `docs/engineering/`） |
 
 ---
 
 ## 4. TR0-TR10 工程執行任務分解
 
 > 每個用戶專案在 TRIZ Step 5 完成後進入 TR0，再依序 TR1-TR10。
-> 完整框架見 `docs/_harness/engineering/tr_gate_framework.md`。
+> 完整框架見 `docs/engineering/tr_gate_framework.md`。
 
 ### 4.1 TR Gate 概覽
 
@@ -299,7 +299,7 @@ gantt
 
 | 任務 ID | 頁面 | 負責 | 工時(h) | 依賴 |
 |:--------|:-----|:-----|:--------|:-----|
-| 4.1 | 設計系統建置 | FE | 24 | `design-system-specs/` |
+| 4.1 | 設計系統建置 | FE | 24 | `templates/design-system/specs/` |
 | 4.2 | P01-P02 Auth + Reset | FE | 16 | 3.1.3 |
 | 4.3 | P03 ProjectList | FE | 24 | 3.2.1 |
 | 4.4 | P04 ProjectDashboard | FE | 32 | 3.2.1 |
@@ -366,7 +366,7 @@ gantt
 
 ### 6.2 議題追蹤
 
-引用 `docs/_harness/engineering/risk_register.md` 與 `docs/engineering/gate_reviews/TR1_review_2026-04-28.md`。
+引用 `docs/engineering/risk_register.md` 與 `docs/engineering/gate_reviews/TR1_review_2026-04-28.md`。
 
 ---
 
@@ -408,10 +408,10 @@ gantt
 
 ## 文件溯源
 
-- 模板：`VibeCoding_Workflow_Templates/16_wbs_development_plan_template.md`
+- 模板：`templates/vibecoding/16_wbs_development_plan_template.md`
 - PRD：[`02_prd.md`](./02_prd.md)
-- TRIZ 策略：`docs/_harness/auto_triz_strategy.md`
-- TR 框架：`docs/_harness/engineering/tr_gate_framework.md`
+- TRIZ 策略：`docs/methodology/auto_triz_strategy.md`
+- TR 框架：`docs/engineering/tr_gate_framework.md`
 - 既有 active state：`.claude/context/triz/.triz-state.json` + `.tr-state.json`
 - 既有 TR1 review：`docs/engineering/gate_reviews/TR1_review_2026-04-28.md`
 - 18 頁 IA：`docs/01-define/pages/INDEX.md`

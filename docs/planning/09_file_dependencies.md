@@ -5,7 +5,7 @@
 **文件版本**：`v2.0`（完全覆寫，對齊 08 v2.0 harness-first）
 **最後更新**：`2026-04-28`
 **狀態**：`Active — replaces v1.0 Clean Arch DAG`
-**模板來源**：`VibeCoding_Workflow_Templates/09_file_dependencies_template.md`
+**模板來源**：`templates/vibecoding/09_file_dependencies_template.md`
 
 > **本檔定位**：依賴分析應反映實際 `backend/app/` 與 `.claude/` 的關係，不是虛構的 `api → application → domain → infrastructure` 層次。先前 v1.0 提的 layered DAG 與實際零相關，已棄用。
 
@@ -97,7 +97,7 @@ graph TD
     AgentsFS[.claude/agents/&lt;name&gt;.md]
     ContextFS[.claude/context/triz/<br/>.triz-state.json<br/>.tr-state.json]
     DocsEng[docs/engineering/]
-    DocsKB[docs/_domain-knowledge/<br/>triz_knowledge_base/]
+    DocsKB[docs/methodology/<br/>knowledge/triz/]
 
     Skill -.parses.-> SkillsFS
     Command -.parses.-> CommandsFS
@@ -233,7 +233,7 @@ AgentLoop 主迴圈呼叫 Agent tool
 
 ## 文件溯源
 
-- 模板：`VibeCoding_Workflow_Templates/09_file_dependencies_template.md`
+- 模板：`templates/vibecoding/09_file_dependencies_template.md`
 - 對齊：[`08_project_structure.md`](./08_project_structure.md) v2.0、[`05_architecture.md`](./05_architecture.md) v1.1
 - 實作驗證：`backend/app/` 全樹
 

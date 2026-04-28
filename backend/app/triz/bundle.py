@@ -103,11 +103,13 @@ class BundleManager:
         self,
         engineering_root: Path,
         state_dir: Path | None = None,
+        valid_categories: frozenset[str] | None = None,
     ) -> None:
         self._root = engineering_root
         self._state_dir = state_dir
         self._manifest_path = engineering_root / "MANIFEST.json"
         self._history_dir = engineering_root / ".bundle_history"
+        self.valid_categories = valid_categories or VALID_CATEGORIES
 
     @property
     def manifest_path(self) -> Path:
@@ -174,9 +176,9 @@ class BundleManager:
         Raises:
             BundleError: If the file doesn't exist or category is invalid.
         """
-        if category not in VALID_CATEGORIES:
+        if category not in self.valid_categories:
             raise BundleError(
-                f"invalid category '{category}'. Must be one of: {sorted(VALID_CATEGORIES)}"
+                f"invalid category '{category}'. Must be one of: {sorted(self.valid_categories)}"
             )
 
         abs_path = self._root / relative_path

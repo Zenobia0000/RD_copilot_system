@@ -25,10 +25,7 @@ from app.triz.solve.sim import (
 )
 from app.triz.state import EvidenceRegistry
 
-KB_ROOT = Path(
-    "/home/os-sunnie.gd.weng/python_workstation/sunny_01/"
-    "RD_copilot_system/rd_assistant_design_system/triz_knowledge_base"
-)
+KB_ROOT = Path(__file__).resolve().parents[3] / "knowledge" / "triz"
 
 
 # ── CCI Tests ────────────────────────────────────────────────────────

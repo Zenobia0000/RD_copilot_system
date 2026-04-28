@@ -2,10 +2,10 @@
 
 ---
 
-**文件版本**：`v2.2`（加入 ArtifactBundle tool + MANIFEST.json 管理）
+**文件版本**：`v2.3`（domain.yaml 解耦 + 資料夾重組 + DomainConfig）
 **最後更新**：`2026-04-28`
 **狀態**：`Active — reflects actual harness; new features must follow this structure`
-**模板來源**：`VibeCoding_Workflow_Templates/08_project_structure_guide.md`（本檔結構偏離模板以反映 claude-code 風 harness）
+**模板來源**：`templates/vibecoding/08_project_structure_guide.md`（本檔結構偏離模板以反映 claude-code 風 harness）
 
 > **本文件定位**：現行 backend 架構的 SSOT。新增功能必須對齊本文件，不得回退到 Clean Architecture（Domain / Service / Repository 分層）。Backend 是仿 **claude-code CLI** 的 AI Agent Harness，不是傳統 web 服務。
 
@@ -52,6 +52,7 @@ backend/
 │   │   ├── cli.py            # CLI entry（python -m app.harness <cmd> [user_input]）+ CLAUDE.md 注入
 │   │   ├── command.py        # Command resolver（.claude/commands/<name>.md 含 referenced_skill）
 │   │   ├── config.py         # HarnessClient（Anthropic SDK 直連 / Azure proxy 偵測）
+│   │   ├── domain_config.py  # DomainConfig loader（讀 .claude/domain.yaml，解耦 harness↔domain）
 │   │   ├── skill.py          # Skill loader（.claude/skills/<name>/SKILL.md）
 │   │   └── tools/
 │   │       ├── base.py       # Tool ABC + ToolResult dataclass
@@ -105,6 +106,7 @@ backend/
 .claude/
 ├── settings.json             # 權限、hooks、預設 model
 ├── CLAUDE.md                 # 專案級指令（含內容位置邊界政策）
+├── domain.yaml               # 領域配置（command prefixes, paths, artifact categories）
 ├── skills/
 │   └── <kebab-name>/
 │       └── SKILL.md          # frontmatter: name, description, allowed_tools? + body 為系統提示
@@ -127,7 +129,7 @@ backend/
 | Session 過程記錄 | Skill | Skill（跨步驟傳遞） | `.claude/context/triz/session-*.md` |
 | 流程狀態 JSON | Skill | Skill（狀態機） | `.claude/context/triz/.{triz,tr}-state.json` |
 | 工程交付物（WI/ICD/MC） | Skill（如 triz-wi） | **工程師（人）** | `docs/engineering/` |
-| 方法論知識庫 | 人 | Skill（參考） | `docs/_domain-knowledge/` 或 `triz_knowledge_base/` |
+| 方法論知識庫 | 人 | Skill（參考） | `docs/methodology/` 或 `knowledge/triz/` |
 | Gate review 報告 | Skill（tr-gate） | 工程師 | `docs/engineering/gate_reviews/` |
 
 **鐵律**：狀態 JSON 只能由 Skill 修改，不可手動編輯。
@@ -188,14 +190,19 @@ while iterations < max_iterations:
 - 串流版（`stream()`）yield `HarnessEvent`（frozen dataclass，可 JSON serialize）
 - 不做 message 緩衝，事件即時下發
 
-### 5.1 TRIZ Command 路由
+### 5.1 Domain Command 路由
 
-CLI（`cli.py`）和 HTTP（`sessions.py`）共用同一個偵測邏輯：
+CLI（`cli.py`）和 HTTP（`sessions.py`）共用同一個偵測邏輯，透過 `.claude/domain.yaml` 配置：
 
 ```python
-is_triz_command = cmd_name.startswith(("triz", "tr-"))
-if is_triz_command:
-    registry = default_registry_with_triz(...)   # fs + web + bash + agent + 8 TRIZ domain tools
+domain_cfg = load_domain_config(project_root)    # 讀 .claude/domain.yaml
+if domain_cfg.is_domain_command(cmd_name):        # 比對 command_prefixes
+    paths = domain_cfg.resolve_paths(project_root)
+    registry = default_registry_with_triz(
+        kb_root=paths["kb_root"],
+        state_dir=paths["state_dir"],
+        artifact_categories=domain_cfg.artifact_categories or None,
+    )
 else:
     registry = default_registry_with_agent(...)   # fs + web + bash + agent（無 domain tools）
 ```
@@ -299,6 +306,7 @@ else:
 | `.env`（root） | `ANTHROPIC_API_KEY` / Supabase / `LLM_PROVIDER` / `AZURE_OPENAI_BASE_URL` | ✗ |
 | `.env.example` | 範本（敏感值留白） | ✓ |
 | `.claude/settings.json` | 權限、hooks、預設 model | ✓ |
+| `.claude/domain.yaml` | 領域配置（command prefixes, paths, artifact categories） | ✓ |
 | `.claude/CLAUDE.md` | 專案級指令 + 內容位置邊界政策 | ✓ |
 | `supabase/`（root） | Supabase migration、policy（DB 持久化未來使用） | ✓ |
 
@@ -328,9 +336,9 @@ else:
 | `docs/planning/05_architecture.md` | 系統架構（C4/DDD 視角） | §1.1.3 Component 圖對應 `app/harness/`（注：05 仍提了部分 Clean Arch 用詞，待 follow-up 對齊） |
 | `docs/planning/06_api_spec.md` | API 契約 | §7 endpoints 對應 `app/api/`，多數 TRIZ endpoints 透過 harness 實現 |
 | `docs/planning/04_adr/ADR-002` | TRIZ Skill 架構決策 | 對應 `.claude/skills/triz-*` |
-| `docs/_harness/auto_triz_strategy.md` | TRIZ 方法策略 SSOT | Skill body 引用 |
-| `docs/_harness/engineering/` | 工程交付物範本（WI/ICD/MC） | `triz-wi` skill 寫入此 |
-| `docs/_domain-knowledge/DK-01-05` | 方法論 KB | Skill 參考 |
+| `docs/methodology/auto_triz_strategy.md` | TRIZ 方法策略 SSOT | Skill body 引用 |
+| `docs/engineering/` | 工程交付物範本（WI/ICD/MC） | `triz-wi` skill 寫入此 |
+| `docs/methodology/DK-01-05` | 方法論 KB | Skill 參考 |
 | `docs/01-define/pages/` | 18 頁產品 IA | 前端實作目標（前端尚未存在） |
 
 ---
@@ -346,7 +354,7 @@ frontend/
 ├── package.json / tsconfig.json / vite.config.ts / tailwind.config.ts
 ├── src/
 │   ├── main.tsx / App.tsx / routes.tsx
-│   ├── components/             # Atomic Design（atoms/molecules/organisms）— 對齊 design-system-specs/01_components_spec.md
+│   ├── components/             # Atomic Design（atoms/molecules/organisms）— 對齊 templates/design-system/specs/01_components_spec.md
 │   ├── features/               # 業務功能 feature-first — 對齊 docs/01-define/pages/ 8 個 ia_group 分組
 │   ├── pages/                  # 路由葉節點 × 18 頁，與 docs/01-define/pages/ 1:1 對應（page_name 取 frontmatter）
 │   ├── hooks/ services/ stores/
@@ -357,7 +365,7 @@ frontend/
 ```
 
 **對齊規範**：
-- Component / Token：`rd_assistant_design_system/design-system-specs/`
+- Component / Token：`templates/design-system/specs/`
 - Page IA：`docs/01-define/pages/INDEX.md` + 18 頁 frontmatter
 - BDD scenarios：`docs/planning/03_bdd_guide.md`
 
@@ -379,6 +387,7 @@ frontend/
 
 | 日期 | 版本 | 變更 |
 |:-----|:-----|:-----|
+| 2026-04-28 | v2.3 | 資料夾重組（`knowledge/` + `templates/` + `docs/methodology|engineering|research/`）+ `domain.yaml` + `domain_config.py` 解耦 harness↔domain 硬編碼；`BundleManager` categories 可配置化。 |
 | 2026-04-28 | v2.2 | 加入 `ArtifactBundle` tool + `bundle.py`（MANIFEST.json 管理：register/validate/status/export），domain tools 7→8。 |
 | 2026-04-28 | v2.1 | 加入 `app/triz/` domain tools layer（7 Tool 子類 + registry）、EditTool、BashTool、TRIZ command 路由（§5.1）、§6.1 domain tool 慣例。 |
 | 2026-04-28 | v2.0 | 完全覆寫：對齊實際 M1-M4 harness。先前 v1.0 提的 Clean Architecture（`src/rd_copilot/` + DB ORM + BDD `.feature`）方向錯誤，全部移除。 |
@@ -388,11 +397,11 @@ frontend/
 
 ## 文件溯源
 
-- 模板：`VibeCoding_Workflow_Templates/08_project_structure_guide.md`
+- 模板：`templates/vibecoding/08_project_structure_guide.md`
 - 實作驗證：
   - `backend/app/main.py`、`settings.py`
   - `backend/app/api/{health,sessions}.py`
-  - `backend/app/harness/{agent,agents,cli,command,config,skill}.py`
+  - `backend/app/harness/{agent,agents,cli,command,config,domain_config,skill}.py`
   - `backend/app/harness/tools/{base,registry,fs,bash,web,agent}.py`
   - `backend/app/triz/{tools,bundle,registry,state,state_manager}.py`
   - `backend/app/triz/kb/{loader,matrix}.py`

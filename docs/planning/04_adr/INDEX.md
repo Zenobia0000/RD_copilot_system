@@ -4,7 +4,7 @@
 
 **文件版本**：`v1.0`
 **最後更新**：`2026-04-28`
-**模板來源**：`VibeCoding_Workflow_Templates/04_architecture_decision_record_template.md`
+**模板來源**：`templates/vibecoding/04_architecture_decision_record_template.md`
 
 ---
 
@@ -24,7 +24,7 @@
 
 ## 新增 ADR 流程
 
-1. 複製 `VibeCoding_Workflow_Templates/04_architecture_decision_record_template.md`
+1. 複製 `templates/vibecoding/04_architecture_decision_record_template.md`
 2. 編號：`ADR-NNN_kebab_case_title.md`
 3. 填 metadata（Status, Deciders, Date）
 4. 至少完成 Context / Options / Decision / Consequences 四節

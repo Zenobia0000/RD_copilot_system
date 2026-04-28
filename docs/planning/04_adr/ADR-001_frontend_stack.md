@@ -79,5 +79,5 @@
 
 ## References
 
-- design-system-specs：`rd_assistant_design_system/design-system-specs/`
+- design-system-specs：`templates/design-system/specs/`
 - universal_template `01_GLOBAL_SYSTEM_PROMPT [TECH & CONSTRAINT LAYER]`

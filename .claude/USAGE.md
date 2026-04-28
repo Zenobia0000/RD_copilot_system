@@ -235,10 +235,11 @@ auto_triz_x1c01/
 │   └── context/triz/              # Session 狀態
 │
 ├── docs/
-│   ├── _domain-knowledge/        # 方法論知識庫 (DK-00~05)
-│   └── _harness/                 # SSOT (auto_triz_strategy + UML + engineering 案例 + interview)
+│   ├── methodology/              # 方法論知識庫 (DK-00~05 + auto_triz_strategy + UML)
+│   ├── engineering/              # 工程交付物 (WI/MC/ICD/gate_reviews/test_reports)
+│   └── research/                 # 研究素材 (interview + presentation)
 │
-└── triz_knowledge_base/           # TRIZ 靜態參照表
+└── knowledge/triz/           # TRIZ 靜態參照表
     ├── 01_39_parameters.md        # 39 工程參數
     ├── 02_contradiction_matrix.md # 39x39 矛盾矩陣
     ├── 03_40_principles.md        # 40 發明原理

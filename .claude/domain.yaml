@@ -1,0 +1,35 @@
+# Domain Configuration — read by backend harness to wire domain-specific tools.
+# This file decouples the harness runtime from any specific methodology.
+# To support a new domain, create a new project with its own domain.yaml.
+
+domain_id: "triz-mechanical"
+display_name: "TRIZ + TR Engineering"
+
+# Commands matching these prefixes get domain-specific tools injected.
+command_prefixes:
+  - "triz-"
+  - "triz"
+  - "tr-"
+  - "tr"
+
+# Paths relative to project root.
+paths:
+  kb_root: "knowledge/triz"
+  state_dir: ".claude/context/triz"
+  engineering_root: "docs/engineering"
+
+# Artifact categories accepted by ArtifactBundle tool.
+artifact_categories:
+  - framework
+  - work_instructions
+  - interface_control
+  - material_cards
+  - key_characteristics
+  - gate_reviews
+  - test_reports
+  - dfm_reviews
+  - fmea
+  - control_plan
+  - sop
+  - spc
+  - ppap

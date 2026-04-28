@@ -4,10 +4,10 @@
 
 **文件版本**：`v1.0`
 **最後更新**：`2026-04-28`
-**主要作者**：產品經理（草稿由 AI Agent 整合 `rd_assistant_design_system/rd_設計文稿.md` 產出）
+**主要作者**：產品經理（草稿由 AI Agent 整合 `templates/rd_設計文稿.md` 產出）
 **審核者**：技術負責人、UX 設計負責人
 **狀態**：`Draft`
-**模板來源**：`VibeCoding_Workflow_Templates/02_project_brief_and_prd.md`
+**模板來源**：`templates/vibecoding/02_project_brief_and_prd.md`
 
 ---
 
@@ -34,7 +34,7 @@
 | **狀態**     | 規劃中 → 開發中（TRIZ 推理層 PoC 已完成；TR1 gate review NO-GO）                                                                                            |
 | **目標發布日期** | MVP: 2026-Q3；Beta: 2026-Q4；GA: 2027-Q1                                                                                                       |
 | **核心團隊**   | PM: TBD Lead Engineer: TBD UX Designer: TBD TRIZ Domain Lead: TBD                                                                            |
-| **參考材料**   | `rd_assistant_design_system/rd_設計文稿.md` (原始草稿) `docs/_harness/auto_triz_strategy.md` (TRIZ 策略 SSOT) `docs/_domain-knowledge/DK-01_`* (流程方法論) |
+| **參考材料**   | `templates/rd_設計文稿.md` (原始草稿) `docs/methodology/auto_triz_strategy.md` (TRIZ 策略 SSOT) `docs/methodology/DK-01_`* (流程方法論) |
 
 
 ---
@@ -138,8 +138,8 @@
 
 | Story ID   | 描述                                                                                 | 核心允收標準 (UAT)                                                                                                 | BDD 連結                                             |
 | ---------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
-| **US-401** | **As** RD 主管 **I want** 每個 TR Gate 都有結構化 review 報告 **so that** 我能確保技術成熟度逐 TR 提升    | 1. TR1-TR10 每個 gate 都有對應報告（≥ 8 條退出條件） 2. 通過/不通過判定附理由 3. 不通過項目自動進 risk register                               | 見 `docs/_harness/engineering/tr_gate_framework.md` |
-| **US-402** | **As** 機構 RD **I want** WI/ICD/MC 等工程文件由 TRIZ 概念自動產出 **so that** TRIZ→工程執行的銜接無資訊損失 | 1. /triz-wi 從 step3/step4 state 自動產出 WI/ICD/MC 2. 文件數量依 domain 自動偵測（motor/gear/thermal 等） 3. 每份文件含 TRIZ 溯源連結 | 見 `docs/_harness/engineering/work_instructions/`   |
+| **US-401** | **As** RD 主管 **I want** 每個 TR Gate 都有結構化 review 報告 **so that** 我能確保技術成熟度逐 TR 提升    | 1. TR1-TR10 每個 gate 都有對應報告（≥ 8 條退出條件） 2. 通過/不通過判定附理由 3. 不通過項目自動進 risk register                               | 見 `docs/engineering/tr_gate_framework.md` |
+| **US-402** | **As** 機構 RD **I want** WI/ICD/MC 等工程文件由 TRIZ 概念自動產出 **so that** TRIZ→工程執行的銜接無資訊損失 | 1. /triz-wi 從 step3/step4 state 自動產出 WI/ICD/MC 2. 文件數量依 domain 自動偵測（motor/gear/thermal 等） 3. 每份文件含 TRIZ 溯源連結 | 見 `docs/engineering/work_instructions/`   |
 
 
 ### 3.3 用戶旅程映射
@@ -247,10 +247,10 @@ ProjectList  Brief/      Track       Create/     Review/     Feynman
 
 本 PRD 由以下材料整合：
 
-- `rd_assistant_design_system/rd_設計文稿.md` — 原始 PRD 草稿（§ 第 144-241 行）
-- `rd_assistant_design_system/RD 設計審查 Copilot (Design Review Copilot)_UI設計.md` — UI/UX 設計（產品視覺定位）
-- `docs/_harness/auto_triz_strategy.md` — TRIZ 策略 SSOT
-- `docs/_domain-knowledge/DK-01_`* — 流程方法論
+- `templates/rd_設計文稿.md` — 原始 PRD 草稿（§ 第 144-241 行）
+- `templates/RD 設計審查 Copilot (Design Review Copilot)_UI設計.md` — UI/UX 設計（產品視覺定位）
+- `docs/methodology/auto_triz_strategy.md` — TRIZ 策略 SSOT
+- `docs/methodology/DK-01_`* — 流程方法論
 - `docs/01-define/pages/INDEX.md` — 18 頁 IA 結構
 - `.claude/CLAUDE.md` — 專案級指令與內容位置邊界政策
 

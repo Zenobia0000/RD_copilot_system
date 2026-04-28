@@ -352,7 +352,7 @@ Claude Code 沒有原生 shared state，黑板靠檔案系統。本系統的黑�
 | TR gate 主檔 | `.tr-state.json` | tr-* skill | 全體 |
 | Step 過程記錄 | `session-{step}-{YYYYMMDD-HHMM}.md` | 該 step skill | 下一個 step |
 | Step 2 per-TC 解法 | `session-step2-tc{N}-{YYYYMMDD}.md` | `triz-analyst` worker N | Step 2 supervisor |
-| Step 5 doc 產出 | 落地在 `docs/_harness/engineering/` | `triz-wi` 內的 doc-generator | 工程師 |
+| Step 5 doc 產出 | 落地在 `docs/engineering/` | `triz-wi` 內的 doc-generator | 工程師 |
 
 ### §8.2 寫入順序與鎖
 

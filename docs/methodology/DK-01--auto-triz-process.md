@@ -1,7 +1,7 @@
 # DK-01 — Auto-TRIZ 流程
 
 > Step 0-5 閉環 + 多 TC 路由 + 停止條件 + 工程下游銜接。
-> SSOT: `docs/_harness/auto_triz_strategy.md` §0-9 + `uml/02_main_flow.md` + `uml/05_multi_tc_strategy.md`。
+> SSOT: `docs/methodology/auto_triz_strategy.md` §0-9 + `uml/02_main_flow.md` + `uml/05_multi_tc_strategy.md`。
 
 ---
 
@@ -386,10 +386,10 @@ Step 5 產出 = TR0 概念凍結的輸入：
 
 | TRIZ 產出 | TR0 物件 | 落地位置 |
 |:----------|:---------|:---------|
-| 方案 F + S | Work Instruction (WI) | `docs/_harness/engineering/work_instructions/WI-NN_*.md` |
-| S 物質 + 物性 | Material Card (MC) | `docs/_harness/engineering/material_cards/MC-NN_*.md` |
-| 子系統介面 | Interface Control (ICD) | `docs/_harness/engineering/interface_control/ICD-NN_*.md` |
-| 已知補丁 | 風險登記 | `docs/_harness/engineering/risk_register.md` |
+| 方案 F + S | Work Instruction (WI) | `docs/engineering/work_instructions/WI-NN_*.md` |
+| S 物質 + 物性 | Material Card (MC) | `docs/engineering/material_cards/MC-NN_*.md` |
+| 子系統介面 | Interface Control (ICD) | `docs/engineering/interface_control/ICD-NN_*.md` |
+| 已知補丁 | 風險登記 | `docs/engineering/risk_register.md` |
 
 TR1-TR10 銜接見 DK-04 §3。
 
@@ -433,6 +433,6 @@ TR1-TR10 銜接見 DK-04 §3。
 
 ## §10 流程一覽圖
 
-完整 mermaid 流程圖：見 `docs/_harness/uml/02_main_flow.md`。
-多 TC 路由細節：見 `docs/_harness/uml/05_multi_tc_strategy.md`。
+完整 mermaid 流程圖：見 `docs/methodology/uml/02_main_flow.md`。
+多 TC 路由細節：見 `docs/methodology/uml/05_multi_tc_strategy.md`。
 完整案例：見 SSOT 附錄 C（ebike 動力系統，覆蓋 SIM 兩輪迭代收斂）。

@@ -6,7 +6,7 @@
 **最後更新**：`2026-04-28`
 **主要作者**：技術負責人 + 產品經理（草稿由 AI Agent 整合產出）
 **狀態**：`Active`
-**模板來源**：`VibeCoding_Workflow_Templates/03_behavior_driven_development_guide.md`
+**模板來源**：`templates/vibecoding/03_behavior_driven_development_guide.md`
 
 ---
 
@@ -37,7 +37,7 @@
 2. **由外而內**：從用戶與系統的互動（外部行為）出發，再深入內部實現。
 3. **Ubiquitous Language**：本專案的 BDD 用詞需與 PRD、TRIZ skill 規格、頁面 spec 一致：
    - `矛盾 (Contradiction)`、`假設 (Assumption)`、`Gate (G0/G1/G2/G3/G4/G5/G6/G7)`、`Phase (I/II/III)`、`OZ-OT-Px`、`CCI`、`TR (TR1-TR10)`
-4. **TRIZ-aware**：所有涉及 TRIZ 的 scenarios 應引用 `docs/_harness/auto_triz_strategy.md` 與 `.claude/skills/triz-*` 的契約。
+4. **TRIZ-aware**：所有涉及 TRIZ 的 scenarios 應引用 `docs/methodology/auto_triz_strategy.md` 與 `.claude/skills/triz-*` 的契約。
 
 ---
 
@@ -465,8 +465,8 @@ Feature: 知識資產自動產出
 
 ## 文件溯源
 
-- 模板：`VibeCoding_Workflow_Templates/03_behavior_driven_development_guide.md`
+- 模板：`templates/vibecoding/03_behavior_driven_development_guide.md`
 - PRD：[`02_prd.md`](./02_prd.md)
 - 既有頁面規格：`docs/01-define/pages/INDEX.md` § 18 頁
-- TRIZ 策略：`docs/_harness/auto_triz_strategy.md`
+- TRIZ 策略：`docs/methodology/auto_triz_strategy.md`
 - Skill 規格：`.claude/skills/triz-*` / `.claude/skills/tr-*`

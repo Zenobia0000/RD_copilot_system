@@ -5,7 +5,7 @@
 **文件版本**：`v1.0`
 **最後更新**：`2026-04-28`
 **狀態**：`Active`
-**模板來源**：`VibeCoding_Workflow_Templates/00_workflow_manual.md`
+**模板來源**：`templates/vibecoding/00_workflow_manual.md`
 
 ---
 
@@ -91,7 +91,7 @@ A6 Deployment & Ops
 
 ### 3.3 工程 Gate（TR0-TR10）
 
-詳見 [`16_wbs.md §4`](./16_wbs.md) + `docs/_harness/engineering/tr_gate_framework.md`。
+詳見 [`16_wbs.md §4`](./16_wbs.md) + `docs/engineering/tr_gate_framework.md`。
 
 ---
 
@@ -132,5 +132,5 @@ graph LR
 
 ## 文件溯源
 
-- 模板：`VibeCoding_Workflow_Templates/00_workflow_manual.md`
+- 模板：`templates/vibecoding/00_workflow_manual.md`
 - 後續：[`01_cookbook.md`](./01_cookbook.md) 哲學對齊

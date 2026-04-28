@@ -5,7 +5,7 @@
 **文件版本**：`v2.0`（完全覆寫，對齊 08 v2.0 harness-first）
 **最後更新**：`2026-04-28`
 **狀態**：`Active — replaces v1.0 Clean Arch module table`
-**模板來源**：`VibeCoding_Workflow_Templates/07_module_specification_and_tests.md`（結構偏離模板以反映 harness）
+**模板來源**：`templates/vibecoding/07_module_specification_and_tests.md`（結構偏離模板以反映 harness）
 
 > **本檔定位**：harness-first 系統的「模組」不是 Python module 切分，而是三類契約：
 > - **Tool 契約**（Python class，繼承 `Tool` ABC）
@@ -231,7 +231,7 @@ description: TRIZ 主入口路由 + session 管理
 
 ## 文件溯源
 
-- 模板：`VibeCoding_Workflow_Templates/07_module_specification_and_tests.md`
+- 模板：`templates/vibecoding/07_module_specification_and_tests.md`
 - 對齊：[`08_project_structure.md`](./08_project_structure.md) v2.0
 - 既有 Tool 實作：`backend/app/harness/tools/{base,registry,fs,web,agent}.py`
 - 既有 Skill：`.claude/skills/triz-*` / `.claude/skills/tr-*`

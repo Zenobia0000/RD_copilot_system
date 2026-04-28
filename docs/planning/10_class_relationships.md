@@ -5,7 +5,7 @@
 **文件版本**：`v2.0`（完全覆寫，對齊 08 v2.0 harness-first）
 **最後更新**：`2026-04-28`
 **狀態**：`Active — replaces v1.0 fictional Domain UML`
-**模板來源**：`VibeCoding_Workflow_Templates/10_class_relationships_template.md`
+**模板來源**：`templates/vibecoding/10_class_relationships_template.md`
 
 > **本檔定位**：UML 類別圖反映**實際存在的 Python class**（harness runtime + dataclasses），不是虛構的 Domain entities。先前 v1.0 提的 `Project / Brief / Contradiction / TrizSolution` Python class 在 backend 不存在 — 這些概念活在 `.claude/skills/` markdown 與 `.claude/context/triz/.triz-state.json`，已從本檔刪除。
 
@@ -322,7 +322,7 @@ class ToolRegistry:
 
 ## 文件溯源
 
-- 模板：`VibeCoding_Workflow_Templates/10_class_relationships_template.md`
+- 模板：`templates/vibecoding/10_class_relationships_template.md`
 - 對齊：[`08_project_structure.md`](./08_project_structure.md) v2.0、[`05_architecture.md`](./05_architecture.md) v1.1、[`07_module_spec.md`](./07_module_spec.md) v2.0、[`09_file_dependencies.md`](./09_file_dependencies.md) v2.0
 - 實作對照：`backend/app/harness/{agent,skill,command,agents,config}.py`、`backend/app/harness/tools/{base,registry,fs,web,agent}.py`、`backend/app/api/sessions.py`
 

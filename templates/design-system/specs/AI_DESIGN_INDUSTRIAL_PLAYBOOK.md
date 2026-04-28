@@ -215,7 +215,7 @@ your-project/
 │   ├── pages/                 ← 頁面程式碼
 │   └── styles/
 │       └── tokens.css         ← Token → CSS Variables
-├── design-system-specs/       ← 本專案的規格文件
+├── templates/design-system/specs/       ← 本專案的規格文件
 │   ├── 00_foundations_spec.md
 │   ├── 01_components_spec.md
 │   ├── 02_patterns_spec.md
@@ -585,7 +585,7 @@ Claude Code Prompt:
 ```
 當你需要快速產出多個頁面：
 
-"Based on our design system specs in design-system-specs/,
+"Based on our design system specs in templates/design-system/specs/,
  generate the following pages:
 
  1. Dashboard (03_templates - Dashboard Template)
@@ -849,4 +849,4 @@ Phase 3（規模化）：
 
 **版本**：v1.0
 **最後更新**：2026-03-17
-**相關文件**：所有 `design-system-specs/` 下的規格文件
+**相關文件**：所有 `templates/design-system/specs/` 下的規格文件

@@ -5,7 +5,7 @@
 **文件版本**：`v1.0`
 **最後更新**：`2026-04-28`
 **狀態**：`Pointer`（指向既有規格庫）
-**模板來源**：`VibeCoding_Workflow_Templates/17_frontend_information_architecture_template.md`（1254 行）
+**模板來源**：`templates/vibecoding/17_frontend_information_architecture_template.md`（1254 行）
 
 ---
 
@@ -75,6 +75,6 @@ Phase III — Converge                                                          
 
 ## 文件溯源
 
-- 模板：`VibeCoding_Workflow_Templates/17_frontend_information_architecture_template.md`
+- 模板：`templates/vibecoding/17_frontend_information_architecture_template.md`
 - IA SSOT：`docs/01-define/pages/INDEX.md` + 18 頁 spec
 - 對應 frontmatter schema：`docs/01-define/pages/_schema.md`

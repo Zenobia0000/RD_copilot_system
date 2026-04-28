@@ -7,7 +7,7 @@ description: TRIZ Step 0 問題定向。使用 5Why、KT Is/IsNot、CECA 從症�
 
 ## Overview
 
-本 skill 實作 Auto-TRIZ 閉環流程的 Step 0（流程定位見 `docs/_domain-knowledge/DK-01--auto-triz-process.md` §3；製造領域邊界見 `docs/_domain-knowledge/DK-05--domain-fundamentals.md` §5.1）。
+本 skill 實作 Auto-TRIZ 閉環流程的 Step 0（流程定位見 `docs/methodology/DK-01--auto-triz-process.md` §3；製造領域邊界見 `docs/methodology/DK-05--domain-fundamentals.md` §5.1）。
 
 從問題症狀出發，透過三個子工具逐步收斂到可操作的因果節點，確定要分析的子系統和初步 TC 假設。
 

@@ -5,7 +5,7 @@
 **文件版本**：`v1.1`
 **最後更新**：`2026-04-28`
 **狀態**：`Active`
-**模板來源**：`VibeCoding_Workflow_Templates/01_development_workflow_cookbook.md`
+**模板來源**：`templates/vibecoding/01_development_workflow_cookbook.md`
 
 ---
 
@@ -70,10 +70,10 @@ Planning      Design       Development     Quality & Deployment
 | 用途 | 文件 |
 |:-----|:-----|
 | 整體工作流 | [`00_workflow_manual.md`](./00_workflow_manual.md) |
-| 設計系統規範 | [`design-system-specs/`](../../rd_assistant_design_system/design-system-specs/) |
-| TRIZ 方法學 | `docs/_harness/auto_triz_strategy.md` |
-| TR 工程框架 | `docs/_harness/engineering/tr_gate_framework.md` |
-| 領域知識 | `docs/_domain-knowledge/DK-01-05` |
+| 設計系統規範 | [`templates/design-system/specs/`](../../templates/design-system/specs/) |
+| TRIZ 方法學 | `docs/methodology/auto_triz_strategy.md` |
+| TR 工程框架 | `docs/engineering/tr_gate_framework.md` |
+| 領域知識 | `docs/methodology/DK-01-05` |
 
 ---
 
@@ -109,5 +109,5 @@ Global System Prompt（design-system 01_GLOBAL）不可被 Page Prompt 推翻
 
 ## 文件溯源
 
-- 模板：`VibeCoding_Workflow_Templates/01_development_workflow_cookbook.md`
-- 整合：`~/.claude/CLAUDE.md` Linus 思考流程 + `docs/_harness/auto_triz_strategy.md` Evidence 等級
+- 模板：`templates/vibecoding/01_development_workflow_cookbook.md`
+- 整合：`~/.claude/CLAUDE.md` Linus 思考流程 + `docs/methodology/auto_triz_strategy.md` Evidence 等級

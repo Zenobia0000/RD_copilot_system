@@ -7,7 +7,7 @@ description: TRIZ Step 4 驗證與複雜度檢查。判定解法為進化或補�
 
 ## Overview
 
-本 skill 實作 Auto-TRIZ 閉環流程的 Step 4（驗證流程與 Gate 條件見 `docs/_domain-knowledge/DK-01--auto-triz-process.md` §7；Px 分離與標準解見 `docs/_domain-knowledge/DK-02--triz-mechanics.md` §3-5；製造領域第五問見 `docs/_domain-knowledge/DK-05--domain-fundamentals.md` §5.2）。
+本 skill 實作 Auto-TRIZ 閉環流程的 Step 4（驗證流程與 Gate 條件見 `docs/methodology/DK-01--auto-triz-process.md` §7；Px 分離與標準解見 `docs/methodology/DK-02--triz-mechanics.md` §3-5；製造領域第五問見 `docs/methodology/DK-05--domain-fundamentals.md` §5.2）。
 
 接收 Step 2-3 產出的解法方案（F/S/OZ/OT + 分離策略 + 標準解），執行：
 1. Px 分離驗證
@@ -124,7 +124,7 @@ description: TRIZ Step 4 驗證與複雜度檢查。判定解法為進化或補�
 - 朝微觀發展（材料層級解決）
 - 動態化增加（感測器驅動的狀態切換）
 
-**領域特定趨勢來源：** 讀取策略文件 `docs/_harness/auto_triz_strategy.md` §8 中定義的演化趨勢。若該 section 有針對當前產品線的趨勢定義，以其取代上方預設。
+**領域特定趨勢來源：** 讀取策略文件 `docs/methodology/auto_triz_strategy.md` §8 中定義的演化趨勢。若該 section 有針對當前產品線的趨勢定義，以其取代上方預設。
 
 計算滿足趨勢的數量（N = 趨勢總數，通常 3）：
 

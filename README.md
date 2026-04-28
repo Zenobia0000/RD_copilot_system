@@ -114,7 +114,7 @@ JWT_SECRET=<your-jwt-secret>
 ANTHROPIC_API_KEY=sk-ant-...
 
 # ── TRIZ ──
-TRIZ_KB_PATH=../rd_assistant_design_system/triz_knowledge_base
+TRIZ_KB_PATH=../knowledge/triz
 ```
 
 > **JWT_SECRET 取得方式**：Supabase Dashboard → Settings → API → JWT Secret（點 Reveal）

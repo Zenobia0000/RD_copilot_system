@@ -20,15 +20,23 @@ from app.triz.tools import (
 )
 
 
-def triz_tools(*, kb_root: Path, state_dir: Path, engineering_root: Path | None = None) -> list[Tool]:
+def triz_tools(
+    *,
+    kb_root: Path,
+    state_dir: Path,
+    engineering_root: Path | None = None,
+    artifact_categories: list[str] | None = None,
+) -> list[Tool]:
     """Create all TRIZ domain tools, ready for ToolRegistry.register().
 
     Args:
-        kb_root: Path to triz_knowledge_base/ directory.
+        kb_root: Path to knowledge/triz/ directory.
         state_dir: Path to .claude/context/triz/ directory.
         engineering_root: Path to docs/engineering/ directory. If None,
             defaults to kb_root's grandparent / "docs" / "engineering"
             (i.e. project_root / "docs" / "engineering").
+        artifact_categories: Valid artifact categories for ArtifactBundle.
+            If None, uses the built-in defaults from bundle.py.
 
     Returns:
         List of Tool instances (8 tools).
@@ -37,11 +45,12 @@ def triz_tools(*, kb_root: Path, state_dir: Path, engineering_root: Path | None 
     mgr = TrizStateManager(state_dir)
 
     if engineering_root is None:
-        # kb_root is typically project_root/rd_assistant_design_system/triz_knowledge_base
+        # kb_root is typically project_root/knowledge/triz
         # Walk up to project_root
         engineering_root = kb_root.parent.parent / "docs" / "engineering"
 
-    bundle_mgr = BundleManager(engineering_root, state_dir=state_dir)
+    categories = frozenset(artifact_categories) if artifact_categories else None
+    bundle_mgr = BundleManager(engineering_root, state_dir=state_dir, valid_categories=categories)
 
     return [
         MatrixLookupTool(kb),

@@ -138,6 +138,7 @@ def default_registry_with_triz(
     agents_root: Path,
     kb_root: Path,
     state_dir: Path,
+    artifact_categories: list[str] | None = None,
     sub_registry_factory: Callable[[], "ToolRegistry"] | None = None,
 ) -> ToolRegistry:
     """Main-loop registry with TRIZ domain tools: fs + web + bash + agent + TRIZ.
@@ -149,8 +150,10 @@ def default_registry_with_triz(
         client: Anthropic client for sub-loops.
         default_model: Fallback model.
         agents_root: .claude/agents/ directory.
-        kb_root: triz_knowledge_base/ directory.
+        kb_root: knowledge/triz/ directory.
         state_dir: .claude/context/triz/ directory.
+        artifact_categories: Valid categories for ArtifactBundle.
+            If None, uses built-in defaults.
         sub_registry_factory: Factory for sub-loop registries.
     """
     from app.triz.registry import triz_tools
@@ -161,6 +164,10 @@ def default_registry_with_triz(
         agents_root=agents_root,
         sub_registry_factory=sub_registry_factory,
     )
-    for tool in triz_tools(kb_root=kb_root, state_dir=state_dir):
+    for tool in triz_tools(
+        kb_root=kb_root,
+        state_dir=state_dir,
+        artifact_categories=artifact_categories,
+    ):
         reg.register(tool)
     return reg

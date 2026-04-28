@@ -64,6 +64,21 @@ export function useTrizConsolidationResult(projectId: string | undefined) {
  * Used by the frontend for single-contradiction projects that skip the
  * backend `/triz/consolidate` endpoint.
  */
+/**
+ * Delete the consolidation result for a project.
+ * Called when directed solutions are regenerated to avoid stale consolidation data.
+ */
+export async function deleteConsolidationResult(projectId: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
+    .from('triz_consolidation_results')
+    .delete()
+    .eq('project_id', projectId);
+  if (error) {
+    console.error('deleteConsolidationResult failed:', error);
+  }
+}
+
 export async function upsertConsolidationResult(
   projectId: string,
   result: ConsolidationResult,

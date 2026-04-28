@@ -8,9 +8,9 @@
  *   - Expandable solution details per direction
  */
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
@@ -38,7 +38,6 @@ import type {
   DirectionScore,
   DirectionSolution,
 } from '@/types/directedTriz';
-import type { DirectedAdoptionMode } from '@/types/conceptRoute';
 
 // ---------------------------------------------------------------------------
 // Severity badge config
@@ -133,7 +132,10 @@ function SolutionItem({ sol }: { sol: DirectionSolution }) {
 // ---------------------------------------------------------------------------
 export interface DirectionResultCardProps {
   result: ContradictionDirectionResult;
-  onAdopt?: (mode: DirectedAdoptionMode, direction: DirectionGroup) => void;
+  /** IDs of directions currently selected for consolidation. */
+  selectedIds?: Set<string>;
+  /** Toggle a direction's selection state for consolidation. */
+  onToggleSelect?: (directionId: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -143,12 +145,14 @@ function DirectionBlock({
   direction,
   score,
   rank,
-  onAdopt,
+  selected,
+  onToggleSelect,
 }: {
   direction: DirectionGroup;
   score?: DirectionScore;
   rank: 'top1' | 'top2' | 'other';
-  onAdopt?: (mode: DirectedAdoptionMode, direction: DirectionGroup) => void;
+  selected?: boolean;
+  onToggleSelect?: (directionId: string) => void;
 }) {
   const [open, setOpen] = useState(rank === 'top1');
 
@@ -165,6 +169,16 @@ function DirectionBlock({
           <CardHeader className="p-3 cursor-pointer hover:bg-accent/30 transition-colors">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
+                {onToggleSelect && (
+                  <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+                    <Checkbox
+                      checked={!!selected}
+                      onCheckedChange={() => onToggleSelect(direction.direction_id)}
+                      className="h-4 w-4"
+                      aria-label={`選擇方向 ${direction.direction_name}`}
+                    />
+                  </div>
+                )}
                 {rank === 'top1' && <Trophy className="h-4 w-4 text-yellow-500" />}
                 {rank === 'top2' && <Medal className="h-4 w-4 text-blue-400" />}
                 <CardTitle className="text-sm font-semibold">
@@ -223,20 +237,6 @@ function DirectionBlock({
                 <SolutionItem key={i} sol={sol} />
               ))}
             </div>
-            {/* Adopt button */}
-            {onAdopt && (
-              <Button
-                size="sm"
-                variant={rank === 'other' ? 'outline' : 'default'}
-                className="text-[11px] gap-1 mt-1 w-full"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAdopt(rank === 'other' ? 'custom' : rank, direction);
-                }}
-              >
-                {rank === 'top1' ? '✦ 採納此方向 (Top1 推薦)' : rank === 'top2' ? '採納此方向 (Top2 備選)' : '自訂採納此方向'}
-              </Button>
-            )}
           </CardContent>
         </CollapsibleContent>
       </Card>
@@ -247,7 +247,7 @@ function DirectionBlock({
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
-export function DirectionResultCard({ result, onAdopt }: DirectionResultCardProps) {
+export function DirectionResultCard({ result, selectedIds, onToggleSelect }: DirectionResultCardProps) {
   const [cardOpen, setCardOpen] = useState(true);
   const [sortMode, setSortMode] = useState<SortMode>('weighted_total');
   const sev = SEVERITY_BADGE[result.severity] ?? SEVERITY_BADGE.unknown;
@@ -324,7 +324,8 @@ export function DirectionResultCard({ result, onAdopt }: DirectionResultCardProp
                 direction={dir}
                 score={scoreMap.get(dir.direction_id)}
                 rank={getRank(dir)}
-                onAdopt={onAdopt}
+                selected={selectedIds?.has(dir.direction_id)}
+                onToggleSelect={onToggleSelect}
               />
             ))}
           </CardContent>

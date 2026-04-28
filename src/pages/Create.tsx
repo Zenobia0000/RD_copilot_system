@@ -75,7 +75,7 @@ import {
   useDeleteAlternative,
 } from "@/hooks/api";
 import { useContradictions } from "@/hooks/api/useContradictions";
-import { useTrizConsolidationResult, upsertConsolidationResult } from "@/hooks/api/useTrizConsolidationResult";
+import { useTrizConsolidationResult, upsertConsolidationResult, deleteConsolidationResult } from "@/hooks/api/useTrizConsolidationResult";
 import { useDirectedTrizSolutions } from "@/hooks/api/useDirectedTrizSolutions";
 import type { Contradiction } from "@/types/contradiction";
 import type { Json } from "@/integrations/supabase/types";
@@ -131,7 +131,7 @@ const RADAR_COLORS = [
 ];
 
 const STEPS = [
-  { label: "TRIZ 解矛盾（含跨域去錨定）", shortLabel: "TRIZ", description: "分層 drill-down（L1 含跨域去錨定 / L2 根因 / L3 結構旁路），每條矛盾產出多層級候選方案", zone: "analysis" as const },
+  { label: "TRIZ 方向導向解法", shortLabel: "TRIZ", description: "TC·PC·SF 三路並行求解 → 方向聚類 → 評分推薦 Top1/Top2，跨矛盾整合檢查方向相容性", zone: "analysis" as const },
   { label: "子系統定義", shortLabel: "子系統", description: "識別受矛盾影響的子系統 (System→Module→Component)，聚焦分析範圍", zone: "analysis" as const },
   { label: "候選方案決策中心", shortLabel: "決策中心", description: "攤平所有來源方案，橫向比較機制、假設、CCI 複雜度、驗證需求與信心等級", zone: "hub" as const },
   { label: "MUST 快篩", shortLabel: "MUST", description: "以必要條件快速淘汰不可行方案（動態 M1-Mn 由 Brief 衍生）", zone: "eval" as const },
@@ -230,6 +230,34 @@ export default function Create() {
       setDirectedResults((prev) => ({ ...directedQuery.data, ...prev }));
     }
   }, [directedQuery.data]);
+
+  // v8: user-selected directions per contradiction (for consolidation)
+  const [selectedDirections, setSelectedDirections] = useState<Record<string, Set<string>>>({});
+
+  // Auto-select Top1 + Top2 when directedResults change
+  useEffect(() => {
+    const next: Record<string, Set<string>> = {};
+    for (const [cid, result] of Object.entries(directedResults)) {
+      const ids = new Set<string>();
+      if (result.top1) ids.add(result.top1.direction_id);
+      if (result.top2) ids.add(result.top2.direction_id);
+      next[cid] = ids;
+    }
+    setSelectedDirections(next);
+  }, [directedResults]);
+
+  // Toggle a direction selection for a given contradiction
+  const toggleDirectionSelect = useCallback((contradictionId: string, directionId: string) => {
+    setSelectedDirections(prev => {
+      const current = new Set(prev[contradictionId] ?? []);
+      if (current.has(directionId)) {
+        current.delete(directionId);
+      } else {
+        current.add(directionId);
+      }
+      return { ...prev, [contradictionId]: current };
+    });
+  }, []);
 
   // ── v8: directed single-contradiction solve helper ───────────────────────
   const solveDirectedSingle = async (c: Contradiction): Promise<[string, ContradictionDirectionResult] | null> => {
@@ -472,6 +500,9 @@ export default function Create() {
       const results = await Promise.allSettled(contrs.map(c => solveDirectedSingle(c)));
       const ok = results.filter(r => r.status === 'fulfilled' && r.value !== null).length;
       queryClient.invalidateQueries({ queryKey: queryKeys.directed_triz_solutions.byProject(id) });
+      // v8: 解法已重新產出，舊的 consolidation 不再有效 — 刪除並 invalidate cache
+      await deleteConsolidationResult(id);
+      queryClient.invalidateQueries({ queryKey: queryKeys.triz_consolidation_results.byProject(id) });
       if (ok === 0) {
         toast.error('TRIZ 方向式求解全部失敗');
       } else if (ok < contrs.length) {
@@ -546,14 +577,32 @@ export default function Create() {
   // ── v8: cross-contradiction consolidation ─────────────────────────────────
   const handleConsolidate = async () => {
     if (!id) return;
-    const resultList = Object.values(directedResults);
-    if (resultList.length < 2) {
-      toast.warning('至少需要 2 條矛盾的方向式結果才能進行 consolidation');
+    // Only consolidate results matching current contradictions
+    const currentCids = new Set((contradictionsQuery.data ?? []).filter(c => !c.parentContradictionId).map(c => c.id));
+    const resultList = Object.values(directedResults).filter(r => currentCids.has(r.contradiction_id));
+    if (resultList.length < 1) {
+      toast.warning('至少需要 1 條矛盾的方向式結果才能進行 consolidation');
       return;
     }
+    // Rewrite top1/top2 based on user-selected directions before sending
+    const adjustedResults = resultList.map(r => {
+      const selected = selectedDirections[r.contradiction_id];
+      if (!selected || selected.size === 0) return r;
+
+      // Sort selected directions by score (descending) to pick top1/top2
+      const selectedDirs = r.all_directions.filter(d => selected.has(d.direction_id));
+      const scoreMap = new Map(r.scored_directions.map(s => [s.direction_id, s.weighted_total]));
+      selectedDirs.sort((a, b) => (scoreMap.get(b.direction_id) ?? 0) - (scoreMap.get(a.direction_id) ?? 0));
+
+      return {
+        ...r,
+        top1: selectedDirs[0] ?? r.top1,
+        top2: selectedDirs[1] ?? r.top2,
+      };
+    });
     setAiLoading((p) => ({ ...p, consolidate: true }));
     try {
-      const resp = await trizConsolidate({ project_id: id, results: resultList });
+      const resp = await trizConsolidate({ project_id: id, results: adjustedResults });
       await upsertConsolidationResult(id, resp.consolidation);
       queryClient.invalidateQueries({ queryKey: queryKeys.triz_consolidation_results.byProject(id) });
       const statusLabel =
@@ -1100,12 +1149,20 @@ export default function Create() {
     }
   };
 
-  // ── Step 0: TRIZ 解矛盾（含跨域去錨定）— 分層 drill-down 診斷 ──
+  // ── Step 0: TRIZ 方向導向解法 — TC/PC/SF → 方向聚類 → 評分 → consolidation ──
   function renderTrizConvergence() {
     // v8: startPhaseA removed — L1 critic per-card replaces global Phase A scan
     const { state, confirmSeverity, forceContinue, retryBranch } = convergenceLoop;
     const contradictionsList = contradictionsQuery.data ?? [];
     const canStart = !!id && contradictionsList.length > 0;
+
+    // Only count directed results that match current top-level contradictions (防止 DB 舊資料造成 stale display)
+    const currentContradictionIds = new Set(topLevelContradictions.map(c => c.id));
+    const relevantDirectedCount = Object.keys(directedResults).filter(cid => currentContradictionIds.has(cid)).length;
+    // Check if consolidation data is relevant to current contradictions
+    const consolidationIsRelevant = consolidationQuery.data
+      ? Object.keys(consolidationQuery.data.adopted_directions).some(cid => currentContradictionIds.has(cid))
+      : false;
 
     const PATH_COLORS: Record<string, string> = { TC: 'bg-blue-100 text-blue-700', PC: 'bg-violet-100 text-violet-700', SF: 'bg-teal-100 text-teal-700' };
     const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
@@ -1148,7 +1205,7 @@ export default function Create() {
               </p>
             </div>
 
-            {Object.keys(directedResults).length === 0 ? (
+            {relevantDirectedCount === 0 ? (
               <Card className="border-dashed border-2 border-primary/30">
                 <CardContent className="p-6 text-center space-y-3">
                   <div className="mx-auto w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -1185,7 +1242,8 @@ export default function Create() {
                       {result && (
                         <DirectionResultCard
                           result={result}
-                          onAdopt={(mode, direction) => handleDirectedAdopt(result, mode, direction)}
+                          selectedIds={selectedDirections[tc.id]}
+                          onToggleSelect={(dirId) => toggleDirectionSelect(tc.id, dirId)}
                         />
                       )}
                     </div>
@@ -1195,7 +1253,7 @@ export default function Create() {
                   <AiButton aiVariant="outline" size="sm" loading={!!aiLoading.trizGen} onClick={handleAiGenDirected} className="text-xs">
                     重新產出方向導向解法
                   </AiButton>
-                  {Object.keys(directedResults).length >= 2 && (
+                  {relevantDirectedCount >= 1 && (
                     <AiButton aiVariant="outline" size="sm" loading={!!aiLoading.consolidate} onClick={handleConsolidate} className="text-xs">
                       {aiLoading.consolidate ? '整合中...' : '跨矛盾整合 (Consolidate)'}
                     </AiButton>
@@ -1206,7 +1264,7 @@ export default function Create() {
           </div>
 
         {/* Consolidation panel — shows multi-contradiction direction integration result */}
-        {consolidationQuery.data && (
+        {consolidationQuery.data && consolidationIsRelevant && relevantDirectedCount >= 1 && (
           <ConsolidationPanel consolidation={consolidationQuery.data} />
         )}
 

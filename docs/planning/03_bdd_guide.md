@@ -36,7 +36,7 @@
 1. **從對話開始**：BDD 不是寫測試，而是 PM/Engineer/QA 對需求達成共識。
 2. **由外而內**：從用戶與系統的互動（外部行為）出發，再深入內部實現。
 3. **Ubiquitous Language**：本專案的 BDD 用詞需與 PRD、TRIZ skill 規格、頁面 spec 一致：
-   - `矛盾 (Contradiction)`、`假設 (Assumption)`、`Gate (D1/D2/X1/X2/P/V1/V2/V4)`、`Phase (I/II/III)`、`OZ-OT-Px`、`CCI`、`TR (TR1-TR10)`
+   - `矛盾 (Contradiction)`、`假設 (Assumption)`、`Gate (G0/G1/G2/G3/G4/G5/G6/G7)`、`Phase (I/II/III)`、`OZ-OT-Px`、`CCI`、`TR (TR1-TR10)`
 4. **TRIZ-aware**：所有涉及 TRIZ 的 scenarios 應引用 `docs/_harness/auto_triz_strategy.md` 與 `.claude/skills/triz-*` 的契約。
 
 ---
@@ -135,9 +135,9 @@ Feature: 早期問題定義（Phase I — Define）
 ### Feature 2 `@tr0-ready`
 **檔名**：`features/phase_gate_check.feature`
 **對應 PRD**：US-103
-**對應頁面**：所有 Gate 頁（Explore D2, Track X1, Create X2, PreCAD P, Review V1, Decide V2, Feynman V4）
+**對應頁面**：所有 Gate 頁（Explore G1, Track navigation, Create G2, PreCAD G4, Review G5, Decide G6, Feynman G7）
 
-> **Gate 覆蓋說明**：D1/D2 由 TRIZ G0/G1 覆蓋、X1 為導航、X2 由 G2 覆蓋、P 簡化至 triz-verify `cad_readiness`。V1/V2 延後 Beta，V4 延後 GA。
+> **Gate 覆蓋說明**：G0/G1 由 TRIZ 內部覆蓋、navigation 為導航、G2 由 TRIZ 覆蓋、G4 簡化至 triz-verify `cad_readiness`。G5/G6 延後 Beta，G7 延後 GA。
 
 ```gherkin
 # Feature: Phase Gate 退出檢查
@@ -304,7 +304,7 @@ Feature: AI 黑帽質疑
   Background:
     Given 我是機構 RD
     And 候選方案 A 已通過 Gate P 並完成 CAD
-    And 我位於 "/projects/.../review" 頁面（V1）
+    And 我位於 "/projects/.../review" 頁面（G5）
 
   @happy-path @ai
   Scenario: 觸發黑帽質疑產出 ≥ 3 條問題
@@ -342,11 +342,11 @@ Feature: KT 決策記錄
 
   Background:
     Given 我是專案 PM
-    And 專案位於 "/projects/.../decide" 頁面（V2）
+    And 專案位於 "/projects/.../decide" 頁面（G6）
 
   @happy-path @kt
   Scenario: 完成 KT 四階段填寫
-    Given 候選方案 A、B、C 已通過 V1
+    Given 候選方案 A、B、C 已通過 G5
     When 我完成 MUST 篩選（A、B 通過）
     And 我完成 WANT 評分（A: 85, B: 78）
     And 我完成 AC 評估（A 負面後果可接受、B 中度風險）
@@ -389,8 +389,8 @@ Feature: 知識資產自動產出
 
   Background:
     Given 我是機構 RD
-    And 專案已完成 V2（決策記錄已簽核）
-    And 我位於 "/projects/.../feynman" 頁面（V4）
+    And 專案已完成 G6（決策記錄已簽核）
+    And 我位於 "/projects/.../feynman" 頁面（G7）
 
   @happy-path @knowledge
   Scenario: Knowledge Agent 全自動產出 6 類資產
@@ -414,12 +414,12 @@ Feature: 知識資產自動產出
     Then 條目狀態應該變為「已寫入知識庫」
     And 條目應該出現在 KnowledgeBase 頁面
 
-  @gate-v4
-  Scenario: Gate V4 完整性檢查
+  @gate-g7
+  Scenario: Gate G7 完整性檢查
     Given 已生成 ≥ 1 條知識條目
     And 6 類資產皆已覆蓋
     And 所有條目已審閱
-    Then Gate V4 應該標記為通過
+    Then Gate G7 應該標記為通過
     And 「結束專案」按鈕應該變為可點擊
 ```
 
@@ -438,7 +438,7 @@ Feature: 知識資產自動產出
 5. **Tag 規範**：
    - `@happy-path` / `@sad-path` / `@edge-case`
    - `@triz-step-N`（標記對應 TRIZ 步驟）
-   - `@gate-{D1/D2/X1/X2/P/V1/V2/V4}`
+   - `@gate-{G0/G1/G2/G3/G4/G5/G6/G7}`
    - `@smoke-test`（CI/CD 必跑）
    - `@ai`（涉及 LLM 服務）
 

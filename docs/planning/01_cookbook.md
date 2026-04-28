@@ -26,7 +26,7 @@ RD Design Copilot 採用 **BDD + DDD + Clean Architecture + TDD** 四方法論�
 > 把業務語言（TRIZ、TR、Phase Gate）變成程式碼結構
 
 - **Bounded Context**：見 [`05_architecture.md §1.2`](./05_architecture.md)
-- **Ubiquitous Language**：TC/PC/SF、OZ-OT-Px、CCI、Gate（D1 `[COVERED by G0]` / D2 `[COVERED by G1]` / X1 `[COVERED by navigation]` / X2 `[COVERED by G2]` / P `[SIMPLIFIED → triz-verify cad_readiness]` / V1 `[DEFER → Beta]` / V2 `[DEFER → Beta]` / V4 `[DEFER → GA]`）、TR0-TR10。Gate 層級分析見 [`18_flow_contract.md §2`](./18_flow_contract.md)
+- **Ubiquitous Language**：TC/PC/SF、OZ-OT-Px、CCI、Gate（G0 / G1 / G2 / G3 / G4 `[SIMPLIFIED → triz-verify cad_readiness]` / G5 `[DEFER → Beta]` / G6 `[DEFER → Beta]` / G7 `[DEFER → GA]`）、TR0-TR10。Gate 層級分析見 [`18_flow_contract.md §2`](./18_flow_contract.md)
 - **聚合根（Aggregate Root）**：Project（含 Brief/Contradictions/Alternatives/DecisionRecord）
 
 ### 1.3 Harness-first Architecture

@@ -391,7 +391,7 @@ gantt
 |:------|:----------|:---------|
 | Phase I | D1 + D2 + Phase Gate D | Brief 完成、矛盾分類、CLD 建立。D1/D2 由 TRIZ G0/G1 覆蓋 |
 | Phase II | X1 + X2 + Gate P | 假設追蹤、TRIZ 求解、Pre-CAD 通過。X1/X2 由 TRIZ G2 覆蓋；Gate P 簡化至 triz-verify `cad_readiness` |
-| Phase III | V1 + V2 + V4 | 設計審查、KT 決策、知識回寫。V1/V2 延後至 Beta，V4 延後至 GA |
+| Phase III | G5 + G6 + G7 | 設計審查、KT 決策、知識回寫。G5/G6 延後至 Beta，G7 延後至 GA |
 
 > Gate 層級分析詳見 [18_flow_contract.md §2](./18_flow_contract.md)。擴展路線見 §3。
 

@@ -488,7 +488,7 @@ Referrer-Policy: strict-origin-when-cross-origin
 {
   "id": "uuid",
   "project_id": "uuid",
-  "gate_code": "D1 [COVERED by G0] | D2 [COVERED by G1] | X1 [COVERED] | X2 [COVERED by G2] | P [SIMPLIFIED → cad_readiness] | V1 [DEFER → Beta] | V2 [DEFER → Beta] | V4 [DEFER → GA] | TR1 | ... | TR10",
+  "gate_code": "G0 | G1 | G2 | G3 | G4 [SIMPLIFIED → cad_readiness] | G5 [DEFER → Beta] | G6 [DEFER → Beta] | G7 [DEFER → GA] | TR1 | ... | TR10",
   "criteria": [
     {"name": "...", "passed": true, "note": "..."}
   ],

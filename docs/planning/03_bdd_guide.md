@@ -2,7 +2,7 @@
 
 ---
 
-**文件版本**：`v1.0`
+**文件版本**：`v1.1`
 **最後更新**：`2026-04-28`
 **主要作者**：技術負責人 + 產品經理（草稿由 AI Agent 整合產出）
 **狀態**：`Active`
@@ -59,7 +59,21 @@
 
 ## Ⅲ. 7 個核心 Feature
 
-### Feature 1
+### 階段就緒度對照
+
+> 依 [18_flow_contract.md §2-§3](./18_flow_contract.md) Gate 層級分析與擴展路線：
+
+| Feature | 階段 | 說明 |
+|:--------|:-----|:-----|
+| F1 早期問題定義 | `@tr0-ready` | triz-scoping/model 已驗證 |
+| F2 Phase Gate 退出檢查 | `@tr0-ready` | D1/D2/X1/X2 由 TRIZ 內部 gates 覆蓋；Gate P 簡化至 triz-verify `cad_readiness` |
+| F3 TRIZ 三路徑求解 | `@tr0-ready` | triz-contradict 已驗證 |
+| F4 Pre-CAD 五維審查 | `@tr0-ready` | 已合併至 triz-verify Phase 6 `cad_readiness` |
+| F5 AI 黑帽質疑 | `@beta-target` | 延後至 Beta（需真實 Post-CAD 場景） |
+| F6 KT 決策記錄 | `@beta-target` | 延後至 Beta（需多人協作場景） |
+| F7 知識資產自動產出 | `@ga-target` | 延後至 GA（需 ≥5 完成專案） |
+
+### Feature 1 `@tr0-ready`
 **檔名**：`features/define_problem.feature`
 **對應 PRD**：US-101, US-102
 **對應頁面**：P05 TaskDefinition, P06 Explore
@@ -118,10 +132,12 @@ Feature: 早期問題定義（Phase I — Define）
 
 ---
 
-### Feature 2
+### Feature 2 `@tr0-ready`
 **檔名**：`features/phase_gate_check.feature`
 **對應 PRD**：US-103
 **對應頁面**：所有 Gate 頁（Explore D2, Track X1, Create X2, PreCAD P, Review V1, Decide V2, Feynman V4）
+
+> **Gate 覆蓋說明**：D1/D2 由 TRIZ G0/G1 覆蓋、X1 為導航、X2 由 G2 覆蓋、P 簡化至 triz-verify `cad_readiness`。V1/V2 延後 Beta，V4 延後 GA。
 
 ```gherkin
 # Feature: Phase Gate 退出檢查
@@ -173,7 +189,7 @@ Feature: Phase Gate 退出檢查
 
 ---
 
-### Feature 3
+### Feature 3 `@tr0-ready`
 **檔名**：`features/triz_solve.feature`
 **對應 PRD**：US-201, US-202
 **對應頁面**：P08 Create
@@ -229,10 +245,12 @@ Feature: TRIZ 三路徑求解
 
 ---
 
-### Feature 4
+### Feature 4 `@tr0-ready`
 **檔名**：`features/precad_review.feature`
 **對應 PRD**：US-203
 **對應頁面**：P09 PreCadReview
+
+> **合併說明**：Gate P 五維審查已合併至 triz-verify Phase 6 `cad_readiness`。獨立 UI 頁面（P09）延後至 MVP。
 
 ```gherkin
 # Feature: Pre-CAD 五維審查（Gate P）
@@ -271,7 +289,7 @@ Feature: Pre-CAD 五維審查
 
 ---
 
-### Feature 5
+### Feature 5 `@beta-target`
 **檔名**：`features/ai_devil_advocate.feature`
 **對應 PRD**：US-301
 **對應頁面**：P11 DesignReview
@@ -310,7 +328,7 @@ Feature: AI 黑帽質疑
 
 ---
 
-### Feature 6
+### Feature 6 `@beta-target`
 **檔名**：`features/kt_decision_record.feature`
 **對應 PRD**：US-302
 **對應頁面**：P12 DecisionRecord
@@ -357,7 +375,7 @@ Feature: KT 決策記錄
 
 ---
 
-### Feature 7
+### Feature 7 `@ga-target`
 **檔名**：`features/knowledge_writeback.feature`
 **對應 PRD**：US-303
 **對應頁面**：P13 Feynman

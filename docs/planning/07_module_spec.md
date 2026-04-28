@@ -40,8 +40,8 @@
 | `triz-router` | `.claude/skills/triz-router/SKILL.md` | 主入口 | — |
 | `triz-scoping` | `.claude/skills/triz-scoping/SKILL.md` | Step 0 | F1 |
 | `triz-model` | `.claude/skills/triz-model/SKILL.md` | Step 1 | F1 |
-| `triz-contradict` | `.claude/skills/triz-contradict/SKILL.md` | Step 2+3 | F3 |
-| `triz-verify` | `.claude/skills/triz-verify/SKILL.md` | Step 4 | F4 |
+| `triz-contradict` | `.claude/skills/triz-contradict/SKILL.md` | Step 2+3 | F2 |
+| `triz-verify` | `.claude/skills/triz-verify/SKILL.md` | Step 4 | F3 + F4 (`cad_readiness` merged) |
 | `triz-wi` | `.claude/skills/triz-wi/SKILL.md` | Step 5 | — |
 | `tr-router` | `.claude/skills/tr-router/SKILL.md` | TR 主入口 | — |
 | `tr-gate` | `.claude/skills/tr-gate/SKILL.md` | TR1-TR10 Gate | F2 |
@@ -237,5 +237,6 @@ description: TRIZ 主入口路由 + session 管理
 
 | 日期 | 版本 | 變更 |
 |:-----|:-----|:-----|
+| 2026-04-28 | v2.1 | §1.2 triz-verify 映射更正為 F3+F4（cad_readiness merged），triz-contradict 更正為 F2 |
 | 2026-04-28 | v2.0 | 完全覆寫：模組改為 Tool / Skill / Command 三類契約。先前 v1.0 提的 Python function 契約（如 `solve_contradiction()`）已棄用。 |
 | 2026-04-28 | v1.0 | 初版（Python function 契約；方向錯誤被 v2.0 取代） |

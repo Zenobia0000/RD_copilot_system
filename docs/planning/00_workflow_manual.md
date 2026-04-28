@@ -83,6 +83,12 @@ A6 Deployment & Ops
 - Phase II: X1 (Track) → X2 (Create) → P (PreCAD) → Phase Gate X
 - Phase III: V1 (Review) → V2 (Decide) → V4 (Feynman) → Phase Gate V
 
+> **Flow Contract 對齊（[18_flow_contract.md §2](./18_flow_contract.md)）**：
+> 以上為 PRD 完整遠景。TR0 階段 Gate 層級分析結論：
+> - **COVERED**（由 TRIZ 內部 gates 覆蓋）：D1 → G0, D2 → G1, X1 → navigation, X2 → G2
+> - **SIMPLIFIED**：P → 合併至 triz-verify `cad_readiness`（Phase 6）
+> - **DEFERRED**：V1 → Beta, V2 → Beta, V4 → GA
+
 ### 3.3 工程 Gate（TR0-TR10）
 
 詳見 [`16_wbs.md §4`](./16_wbs.md) + `docs/_harness/engineering/tr_gate_framework.md`。

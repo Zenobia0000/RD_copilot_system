@@ -198,7 +198,7 @@ RD Design Copilot 開發
 
 | TR | 名稱 | 退出條件主軸 | 對應 Skill |
 |:---|:-----|:-------------|:-----------|
-| TR0 | 概念凍結 | TRIZ Step 5 完成 + WI/ICD/MC 確定 | triz-wi |
+| TR0 | 概念凍結 ≡ Gate P | TRIZ Step 5 完成 + WI/ICD/MC 確定 + `cad_readiness` Go | triz-wi + triz-verify |
 | TR1 | 可行性 | 架構 PoC + FEA 初算（≥ 8 條件） | tr-gate, tr-fea |
 | TR2 | 參數鎖定 | 主要設計參數凍結 | tr-gate |
 | TR3 | 詳細設計 | 機構/電子/軟體圖紙完成 | tr-gate, tr-fea |
@@ -288,9 +288,9 @@ gantt
 | 3.3.3 | TRIZ Service: triz-contradict（核心） | BE+AI | 80 | 3.3.2 |
 | 3.3.4 | TRIZ Service: triz-verify | BE+AI | 40 | 3.3.3 |
 | 3.3.5 | TRIZ Service: triz-wi | BE+AI | 40 | 3.3.4 |
-| 3.4.1 | KT 決策模組 | BE | 32 | 3.2.1 |
-| 3.4.2 | Pre-CAD Review 評分 | BE | 24 | 3.4.1 |
-| 3.4.3 | Knowledge Agent（Feynman） | BE+AI | 40 | 3.4.1 |
+| 3.4.1 | KT 決策模組 `[DEFERRED → Beta]` | BE | 32 | 3.2.1 |
+| 3.4.2 | Pre-CAD Review 評分 `[MERGED → triz-verify Phase 6]` | BE | 24 | 3.4.1 |
+| 3.4.3 | Knowledge Agent（Feynman）`[DEFERRED → GA]` | BE+AI | 40 | 3.4.1 |
 | 3.5.1 | TR Service（5 skill） | BE | 60 | 3.3.5 |
 
 ### 5.4 4.0 前端開發（18 頁 IA）
@@ -389,9 +389,11 @@ gantt
 
 | Phase | 退出 Gate | 必要條件 |
 |:------|:----------|:---------|
-| Phase I | D1 + D2 + Phase Gate D | Brief 完成、矛盾分類、CLD 建立 |
-| Phase II | X1 + X2 + Gate P | 假設追蹤、TRIZ 求解、Pre-CAD 通過 |
-| Phase III | V1 + V2 + V4 | 設計審查、KT 決策、知識回寫 |
+| Phase I | D1 + D2 + Phase Gate D | Brief 完成、矛盾分類、CLD 建立。D1/D2 由 TRIZ G0/G1 覆蓋 |
+| Phase II | X1 + X2 + Gate P | 假設追蹤、TRIZ 求解、Pre-CAD 通過。X1/X2 由 TRIZ G2 覆蓋；Gate P 簡化至 triz-verify `cad_readiness` |
+| Phase III | V1 + V2 + V4 | 設計審查、KT 決策、知識回寫。V1/V2 延後至 Beta，V4 延後至 GA |
+
+> Gate 層級分析詳見 [18_flow_contract.md §2](./18_flow_contract.md)。擴展路線見 §3。
 
 ### 7.3 里程碑與交付
 

@@ -25,6 +25,21 @@
 
 ---
 
+## 擴展路線（產品流 Skill）
+
+> 以下 Skill 尚未建構，依分階段觸發條件決定何時建立。完整分析見 `docs/planning/18_flow_contract.md` §3。
+
+| 觸發階段 | Skill | 用途 | 對應 BDD Feature |
+| :--- | :---- | :--- | :--- |
+| MVP Q3 | **precad-review** | Pre-CAD 五維審查（Gate P 獨立 UX） | F4 |
+| Beta Q4 | **devil-advocate** | AI 黑帽質疑 + 證據缺口偵測 | F5 |
+| Beta Q4 | **kt-decision** | KT 決策記錄（MUST/WANT/AC + 簽核） | F6 |
+| GA Q1/27 | **knowledge-agent** | 6 類知識資產自動合成 | F7 |
+
+**TR0 現況**：Gate P 的工程實質已由 `triz-verify` 的 `cad_readiness` 區塊覆蓋（Phase 6），不需要獨立 skill。
+
+---
+
 ## 知識庫注入策略
 
 全部 5 個 KB 檔全量內嵌於 triz-contradict SKILL.md（~26.5k tokens，佔 context window 13%）。

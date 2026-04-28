@@ -12,7 +12,7 @@
 | `/triz-scope` | Step 0: 問題定向 (5Why/KT/CECA) | triz-scoping |
 | `/triz-model` | Step 1: 功能建模 (FA+SF) | triz-model |
 | `/triz-solve` | Step 2+3: TC/PC/SF 解題 | triz-contradict |
-| `/triz-verify` | Step 4: 驗證 + 下游交付 | triz-verify |
+| `/triz-verify` | Step 4: 驗證 + 下游交付 + CAD 就緒評估 (Gate P) | triz-verify |
 | `/triz-wi` | Step 5: 從 TRIZ 概念產出生成工程作業指導書 (WI) 體系 | triz-wi |
 | `/triz-status` | 查看當前 TRIZ session 狀態 | (直接讀取 state) |
 
@@ -83,6 +83,10 @@ TR1-TR10 工程執行追蹤，從 TRIZ 概念凍結 (TR0) 銜接到量產釋放 
 |:-----|:-----|:---------|
 | `.claude/context/triz/.triz-state.json` | TRIZ session（step 0-5） | Session 級 |
 | `.claude/context/triz/.tr-state.json` | TR gate 進展（TR0-10） | 專案級 |
+
+### 流程合約
+
+產品生命週期（PRD 4 Epic）↔ TRIZ/TR Skills 的統一映射見 `docs/planning/18_flow_contract.md`。BDD 8 Gates 的層級分析（4 刪除 / 1 簡化 / 3 延後）、F4-F7 擴展路線圖、CLI/HTTP 一致性宣告均在該文件。
 
 ### 與國際標準的關係
 

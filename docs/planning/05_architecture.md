@@ -153,7 +153,7 @@ TRIZ Service
 | **TR Engineering** | TR0-TR10 工程執行 | `.claude/skills/tr-{router,gate,fea-assist,test-report,dfm}/SKILL.md` + `docs/engineering/` 寫入產物 |
 | **Knowledge Base** | 6 類資產管理 | `docs/_domain-knowledge/` + `triz_knowledge_base/`（人撰寫，Skill 透過 Read tool 讀） |
 | **User & Permission** | 認證、授權 | `app/middleware/auth.py`（Supabase JWT） |
-| **Analyst** | AI 約束萃取、蘇格拉底提問、黑帽質疑 | 待寫的 skill（融入既有 triz-scoping 或新增 analyst skill） |
+| **Analyst** | AI 約束萃取、蘇格拉底提問、多 TC fan-out | `triz-analyst` subagent（TRIZ Step 2 fan-out worker，設計依據 DK-03 §6-7）；黑帽質疑延後至 Beta（[18_flow_contract.md §3](./18_flow_contract.md)） |
 
 ```mermaid
 graph LR

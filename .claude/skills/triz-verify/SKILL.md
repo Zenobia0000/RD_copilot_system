@@ -117,15 +117,21 @@ description: TRIZ Step 4 驗證與複雜度檢查。判定解法為進化或補�
 
 ### Q4: 演化對齊 (Evolution Alignment)
 
-計算滿足以下三條演化趨勢的數量：
+**Domain Calibration：** 演化趨勢應從 session context 動態讀取，而非硬編碼。預設使用以下三條通用趨勢，但若 `.triz-state.json` 中有 `specs` 或 session 報告中有領域特定趨勢，應優先採用。
+
+**預設通用趨勢（domain-agnostic）：**
 - 理想度增加（更多功能，更少成本/危害）
 - 朝微觀發展（材料層級解決）
 - 動態化增加（感測器驅動的狀態切換）
 
+**領域特定趨勢來源：** 讀取策略文件 `docs/_harness/auto_triz_strategy.md` §8 中定義的演化趨勢。若該 section 有針對當前產品線的趨勢定義，以其取代上方預設。
+
+計算滿足趨勢的數量（N = 趨勢總數，通常 3）：
+
 | 分數 | 條件 |
 |:-----|:-----|
-| 0.00 | 3 條趨勢全部滿足 |
-| 0.33 | 滿足 2 條 |
+| 0.00 | 全部趨勢滿足 |
+| 0.33 | 滿足 N-1 條 |
 | 0.67 | 滿足 1 條 |
 | 1.00 | 0 條滿足 |
 
@@ -184,8 +190,19 @@ CCI = 0.30 × Q1 + 0.25 × Q2 + 0.20 × Q3 + 0.25 × Q4
 │     └─ 重疊 → 其實是同一個未正確定義的 PC
 │     └─ 不重疊 → 兩個獨立 TC
 │
-└─ 獨立新 TC → 回 Step 1（螺旋上升）
+└─ 獨立新 TC → 觸發 Spiral Ascent
 ```
+
+### Spiral Ascent 狀態處理
+
+當偵測到獨立新 TC 時，執行以下狀態更新：
+
+1. 更新 `.triz-state.json`：
+   - 設定 `spiral_iteration` += 1（若不存在則初始化為 1）
+   - 設定 `step4.new_tc_detected = true`
+   - 記錄 `step4.new_tc_description`：新 TC 的改善/惡化描述
+2. 提示使用者：「偵測到新的獨立 TC：{描述}。建議執行 `/triz` 進入 Spiral Ascent（第 {N} 輪），從 Step 1 開始處理新 TC，保留現有 session context。」
+3. 路由到 triz-router 的 **spiral** 入口（見 triz-router Phase 1）
 
 ---
 
@@ -262,6 +279,47 @@ CCI = 0.30 × Q1 + 0.25 × Q2 + 0.20 × Q3 + 0.25 × Q4
 
 ---
 
+## Phase 6: CAD 就緒評估（Gate P 簡化版）
+
+> **背景**：BDD Gate P（Pre-CAD 五維審查）的工程實質已被 Phase 1-5 覆蓋 4/5 維度。
+> 本 Phase 補齊第 5 維「CAD 工作量估算」，使 triz-verify 的輸出能完整回答「可以投入 CAD 嗎」。
+> 完整分析見 `docs/planning/18_flow_contract.md` §2。
+
+在 Phase 5 交付物完成後，評估 CAD 就緒度：
+
+### 6.1 五維覆蓋對照
+
+| 維度 | 來源 | 如何取得 |
+|:-----|:-----|:---------|
+| 空間約束 | Phase 5 工程規格書 OZ | 已有 — 從 step3 solutions 的 OZ 讀取 |
+| 解耦程度 | Phase 2 CCI structural | 已有 — Q1 分數 |
+| 可驗證性 | Phase 1 Evidence Registry | 已有 — coverage_pct |
+| 主要風險 | Phase 4 new_tc_detected + observation_items | 已有 |
+| **CAD 工作量** | **RD 評估**（本 Phase 新增） | **詢問 RD** |
+
+### 6.2 CAD 就緒判定
+
+詢問使用者：
+
+```
+基於以上工程規格書和驗證計畫，請評估將此方案轉為 3D CAD 的工作量：
+- HIGH：需全新建模 + 複雜拓撲（> 2 週）
+- MEDIUM：可基於現有模型修改（1-2 週）
+- LOW：簡單幾何修改或標準件替換（< 1 週）
+```
+
+### 6.3 綜合建議
+
+根據已有資訊綜合判定：
+
+| 條件 | Go/No-Go |
+|:-----|:---------|
+| CCI ≤ 0.55 + Evidence ≥ 50% HIGH+MEDIUM + CAD 工作量 ≤ MEDIUM | **Go** — 建議進入 CAD |
+| CCI ≤ 0.55 + Evidence ≥ 50% + CAD 工作量 = HIGH | **Conditional** — 可進入但需額外資源規劃 |
+| CCI > 0.55 或 Evidence < 50% | **No-Go** — 建議返回 Step 3 深挖 |
+
+---
+
 ## 狀態更新
 
 完成後執行兩件事：
@@ -284,6 +342,11 @@ CCI = 0.30 × Q1 + 0.25 × Q2 + 0.20 × Q3 + 0.25 × Q4
       "cci": 0.275
     },
     "cci_verdict": "Strong Evolution | Weak Evolution | Conscious Patch | Hard Patch",
+    "cad_readiness": {
+      "cad_effort": "LOW | MEDIUM | HIGH",
+      "recommendation": "go | conditional | no-go",
+      "note": "（選填）RD 補充說明"
+    },
     "new_tc_detected": false,
     "deliverables": ["engineering_spec", "verification_plan"]
   }
@@ -351,6 +414,11 @@ CCI = 0.30 × Q1 + 0.25 × Q2 + 0.20 × Q3 + 0.25 × Q4
 - **補丁風險**: {條件}
 - **建議方向**: {分離原理建議}
 - **預估解決時間**: {時程}
+
+### CAD 就緒評估（Gate P 簡化版）
+- **CAD 工作量**: {LOW / MEDIUM / HIGH}
+- **綜合建議**: {Go / Conditional / No-Go}
+- **備註**: {RD 補充說明}
 ```
 
 **注意：** Step 4 寫入後，同時更新報告檔頭部的 `> **判定**: 未完成` 改為 `> **判定**: {evolution | patch}`。
@@ -363,7 +431,9 @@ Step 4 完成後，依判定結果提示使用者：
 
 | 判定結果 | 提示 |
 |:---------|:-----|
-| 進化 (evolution) | 「Step 4 完成 — 判定為**進化**。工程規格書和驗證計畫已產出。TRIZ 閉環流程完成。可執行 `/triz-status` 查看完整 session 摘要。」 |
+| 進化 + Go | 「Step 4 完成 — 判定為**進化**，CAD 就緒評估：**Go**。工程規格書和驗證計畫已產出。建議進入 Step 5 產出 WI。可執行 `/triz-wi` 繼續，或 `/triz-status` 查看摘要。」 |
+| 進化 + Conditional | 「Step 4 完成 — 判定為**進化**，CAD 就緒評估：**Conditional**（CAD 工作量較高，需額外資源規劃）。可執行 `/triz-wi` 繼續。」 |
+| 進化 + No-Go | 「Step 4 完成 — 判定為**進化**但 CAD 就緒評估：**No-Go**（證據不足或 CCI 偏高）。建議返回 Step 3 深挖。」 |
 | 補丁 + 返回深挖 | 「Step 4 完成 — 判定為**補丁**。建議返回 Step 3 重新深挖 PC。請執行 `/triz-solve` 繼續。」 |
 | 補丁 + 有意識接受 | 「Step 4 完成 — 判定為**補丁**（出貨壓力下有意識接受）。技術債已記錄，工程規格書已產出。可執行 `/triz-status` 查看完整 session 摘要。」 |
 | 偵測到新 TC | 「Step 4 完成 — 偵測到新的技術矛盾。建議螺旋上升，以新 TC 為輸入重新進入流程。請執行 `/triz` 繼續。」 |

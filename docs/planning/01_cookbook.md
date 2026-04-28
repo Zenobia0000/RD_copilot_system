@@ -2,7 +2,7 @@
 
 ---
 
-**文件版本**：`v1.0`
+**文件版本**：`v1.1`
 **最後更新**：`2026-04-28`
 **狀態**：`Active`
 **模板來源**：`VibeCoding_Workflow_Templates/01_development_workflow_cookbook.md`
@@ -26,18 +26,19 @@ RD Design Copilot 採用 **BDD + DDD + Clean Architecture + TDD** 四方法論�
 > 把業務語言（TRIZ、TR、Phase Gate）變成程式碼結構
 
 - **Bounded Context**：見 [`05_architecture.md §1.2`](./05_architecture.md)
-- **Ubiquitous Language**：TC/PC/SF、OZ-OT-Px、CCI、Gate（D1/D2/X1/X2/P/V1/V2/V4）、TR0-TR10
+- **Ubiquitous Language**：TC/PC/SF、OZ-OT-Px、CCI、Gate（D1 `[COVERED by G0]` / D2 `[COVERED by G1]` / X1 `[COVERED by navigation]` / X2 `[COVERED by G2]` / P `[SIMPLIFIED → triz-verify cad_readiness]` / V1 `[DEFER → Beta]` / V2 `[DEFER → Beta]` / V4 `[DEFER → GA]`）、TR0-TR10。Gate 層級分析見 [`18_flow_contract.md §2`](./18_flow_contract.md)
 - **聚合根（Aggregate Root）**：Project（含 Brief/Contradictions/Alternatives/DecisionRecord）
 
-### 1.3 Clean Architecture
+### 1.3 Harness-first Architecture
 
-> 業務邏輯不依賴框架；框架是可替換的細節
+> 業務邏輯在 Skill（markdown），不在 Python class；Python 層是穩定的執行引擎
 
 ```
-Presentation → Application → Domain ← Infrastructure
+Command（使用者入口）→ Skill（業務邏輯 SKILL.md）→ Tool（Python ABC）
 ```
 
-- 詳見 [`05_architecture.md §1.3`](./05_architecture.md) + [`08_project_structure.md`](./08_project_structure.md)
+- 詳見 [`08_project_structure.md`](./08_project_structure.md) v2.0 + [`07_module_spec.md`](./07_module_spec.md) v2.0
+- 先前 Clean Architecture 提案（Domain/Application/Infrastructure）已被 harness-first 取代
 
 ### 1.4 TDD（Test-Driven Development）
 

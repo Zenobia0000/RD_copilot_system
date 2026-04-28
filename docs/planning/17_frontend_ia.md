@@ -42,8 +42,8 @@ VibeCoding 17 號模板涵蓋的 IA 內容已在 `docs/01-define/pages/` 完整�
 | `public` | 2 | P01 Auth, P02 ResetPassword |
 | `portfolio` | 2 | P03 ProjectList, P04 ProjectDashboard |
 | `phase1-define` | 2 | P05 TaskDefinition (Gate D1), P06 Explore (Gate D2) |
-| `phase2-diverge` | 3 | P07 Track (X1), P08 Create (X2), P09 PreCadReview (Gate P) |
-| `phase3-converge` | 4 | P10 CadInProgress, P11 DesignReview (V1), P12 DecisionRecord (V2), P13 Feynman (V4) |
+| `phase2-diverge` | 3 | P07 Track (X1 `[COVERED]`), P08 Create (X2 `[COVERED by G2]`), P09 PreCadReview (Gate P `[SIMPLIFIED → triz-verify cad_readiness]`) |
+| `phase3-converge` | 4 | P10 CadInProgress, P11 DesignReview (V1 `[DEFER → Beta]`), P12 DecisionRecord (V2 `[DEFER → Beta]`), P13 Feynman (V4 `[DEFER → GA]`) |
 | `knowledge` | 2 | P14 KnowledgeBase, P15 ConstraintLabelDictionary |
 | `system` | 2 | P16 Settings, P18 NotFound |
 | `dev` | 1 | P17 DevSeed |
@@ -55,13 +55,13 @@ Phase I — Define
    P05 Brief (D1) → P06 Explore (D2) ─┐
                                        │ Phase Gate D
 Phase II — Diverge                     ▼
-   P07 Track (X1) → P08 Create (X2) → P09 PreCAD (Gate P) ─┐
-                                                            │ Phase Gate X
-Phase III — Converge                                        ▼
-   P10 CadInProgress → P11 Review (V1) → P12 Decide (V2) → P13 Feynman (V4)
+   P07 Track (X1 [COVERED]) → P08 Create (X2 [COVERED]) → P09 PreCAD (Gate P [SIMPLIFIED]) ─┐
+                                                                                              │ Phase Gate X
+Phase III — Converge                                                                          ▼
+   P10 CadInProgress → P11 Review (V1 [DEFER]) → P12 Decide (V2 [DEFER]) → P13 Feynman (V4 [DEFER])
 ```
 
-詳見 [`02_prd.md §3.3`](./02_prd.md) 用戶旅程映射。
+詳見 [`02_prd.md §3.3`](./02_prd.md) 用戶旅程映射。Gate 狀態標記見 [`18_flow_contract.md §2`](./18_flow_contract.md)。
 
 ---
 

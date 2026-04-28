@@ -30,6 +30,7 @@
 | 15 | `15_documentation_and_maintenance_guide.md` | [`15_documentation_guide.md`](./15_documentation_guide.md) | skeleton | 文件治理規範 |
 | 16 | `16_wbs_development_plan_template.md` | [`16_wbs.md`](./16_wbs.md) | **FULL** | 雙軸 WBS：TRIZ Step 0-5 + TR0-TR10 |
 | 17 | `17_frontend_information_architecture_template.md` | [`17_frontend_ia.md`](./17_frontend_ia.md) | pointer | 指向 `docs/01-define/pages/INDEX.md`（既有 18 頁規格） |
+| 18 | — (自訂) | [`18_flow_contract.md`](./18_flow_contract.md) | **FULL** | 產品生命週期 ↔ TRIZ/TR 映射 + Gate 層級分析 + 擴展路線圖 |
 
 ---
 
@@ -160,3 +161,5 @@
 | 2026-04-28 | v1.0 | 初版建立：6 份 FULL（02/03/05/06/16）+ 2 份 pointer（12/17）+ 10 份 skeleton（00/01/04/07-11/13-15） |
 | 2026-04-28 | v1.1 | 08_project_structure 升 v2.0：發現先前 Clean Arch 提案與實際 backend（claude-code 風 harness）方向相反，完全覆寫對齊 M1-M4 現況。05/07/09/10 仍含 Clean Arch 用詞，待 follow-up 對齊。 |
 | 2026-04-28 | v1.2 | F1+F3+F4 follow-up 完成：05_architecture v1.1（surgical：加現況/演化警告 + §1.1.2/1.2/1.3 改寫）、07/09/10 全面覆寫到 v2.0、新增 ADR-006 Production Persistence + ADR-007 Multi-tenancy。F2（前端目錄）與 F5（HARNESS_INTERNALS.md）留待後續。 |
+| 2026-04-28 | v1.4 | docs/planning 全面對齊 Flow Contract：10 份文件加 gate 狀態標記、階段就緒度 tag、harness-first 語言替換（01/03/05/06/07/11/15/16/17 + 00）。 |
+| 2026-04-28 | v1.3 | 新增 18_flow_contract.md：第一性原理分析 BDD→Skill 映射、Gate 層級審查（8→1 簡化）、擴展路線圖。triz-verify 增加 cad_readiness 區塊（Gate P 合併）。 |

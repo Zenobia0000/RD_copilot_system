@@ -334,7 +334,9 @@ Referrer-Policy: strict-origin-when-cross-origin
 | POST | `/triz/sim-matrix` | SIM 矩陣評估 |
 | POST | `/triz/complexity-check` | CCI 計算 |
 
-### 7.7 Alternatives / Decision
+### 7.7 Alternatives / Decision `[DEFERRED → Beta]`
+
+> KT 決策流程（MUST/WANT/AC + 簽核）延後至 Beta 階段。見 [18_flow_contract.md §3](./18_flow_contract.md)。
 
 | Method | Path | 描述 |
 |:-------|:-----|:-----|
@@ -348,7 +350,9 @@ Referrer-Policy: strict-origin-when-cross-origin
 | POST | `/projects/{id}/decision-record/unlock` | 解鎖（回到草稿） |
 | GET | `/projects/{id}/decision-record/export` | 匯出 PDF/JSON |
 
-### 7.8 Pre-CAD Review
+### 7.8 Pre-CAD Review `[MERGED → triz-verify cad_readiness (TR0)]`
+
+> Gate P 五維審查已合併至 triz-verify Phase 6 `cad_readiness`。獨立 API 端點延後至 MVP（需要正式 UX）。見 [18_flow_contract.md §3](./18_flow_contract.md)。
 
 | Method | Path | 描述 |
 |:-------|:-----|:-----|
@@ -356,7 +360,9 @@ Referrer-Policy: strict-origin-when-cross-origin
 | POST | `/projects/{id}/pre-cad/score` | 五維評分 |
 | POST | `/projects/{id}/pre-cad/validation-passport` | 產生 Validation Passport |
 
-### 7.9 Design Review
+### 7.9 Design Review `[DEFERRED → Beta]`
+
+> AI 黑帽質疑 + 證據缺口偵測延後至 Beta 階段。見 [18_flow_contract.md §3](./18_flow_contract.md)。
 
 | Method | Path | 描述 |
 |:-------|:-----|:-----|
@@ -366,7 +372,9 @@ Referrer-Policy: strict-origin-when-cross-origin
 | GET / POST | `/projects/{id}/review/experiments` | 最小實驗計畫 |
 | GET / POST | `/projects/{id}/review/evidence-matrix` | 證據矩陣 |
 
-### 7.10 Knowledge Base
+### 7.10 Knowledge Base `[DEFERRED → GA]`
+
+> Knowledge Agent 延後至 GA 階段（需 ≥5 完成專案的知識累積）。見 [18_flow_contract.md §3](./18_flow_contract.md)。
 
 | Method | Path | 描述 |
 |:-------|:-----|:-----|
@@ -480,7 +488,7 @@ Referrer-Policy: strict-origin-when-cross-origin
 {
   "id": "uuid",
   "project_id": "uuid",
-  "gate_code": "D1 | D2 | X1 | X2 | P | V1 | V2 | V4 | TR1 | ... | TR10",
+  "gate_code": "D1 [COVERED by G0] | D2 [COVERED by G1] | X1 [COVERED] | X2 [COVERED by G2] | P [SIMPLIFIED → cad_readiness] | V1 [DEFER → Beta] | V2 [DEFER → Beta] | V4 [DEFER → GA] | TR1 | ... | TR10",
   "criteria": [
     {"name": "...", "passed": true, "note": "..."}
   ],

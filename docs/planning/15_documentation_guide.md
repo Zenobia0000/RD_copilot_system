@@ -64,7 +64,7 @@
 
 - **Markdown 優先**（除非要 mermaid / table 才用其他）
 - **Style guide**：每章一句話開頭、然後 bullet
-- **詞彙統一**：用 PRD / Skill spec 中的詞（TC/PC/SF/Gate D1...）
+- **詞彙統一**：用 PRD / Skill spec 中的詞（TC/PC/SF/CCI/Gate — 見 [`18_flow_contract.md §2`](./18_flow_contract.md) Gate 層級分析）
 - **語言**：繁體中文為主、技術術語保留英文
 - **Code block** 標明語言
 

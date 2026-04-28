@@ -320,10 +320,11 @@ class TestToolRegistry:
             reg.to_anthropic_schemas(only=["Read", "GhostTool"])
 
     def test_default_registry_has_standard_tools(self):
-        """Default registry: fs (Read/Write/Glob/Grep) + web (WebFetch/WebSearch)."""
+        """Default registry: fs (Read/Write/Edit/Glob/Grep) + Bash + web."""
         reg = default_registry()
         assert set(reg.names()) == {
-            "Read", "Write", "Glob", "Grep", "WebFetch", "WebSearch"
+            "Read", "Write", "Edit", "Glob", "Grep", "Bash",
+            "WebFetch", "WebSearch",
         }
 
 

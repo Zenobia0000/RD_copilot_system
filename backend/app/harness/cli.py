@@ -22,7 +22,11 @@ from app.harness.agent import AgentLoop, AgentLoopError
 from app.harness.command import CommandParseError, resolve_command
 from app.harness.config import HarnessConfigError, build_client, load_env
 from app.harness.skill import SkillParseError
-from app.harness.tools.registry import default_registry, default_registry_with_agent
+from app.harness.tools.registry import (
+    default_registry,
+    default_registry_with_agent,
+    default_registry_with_triz,
+)
 
 
 def find_project_root(start: Path | None = None) -> Path:
@@ -55,19 +59,35 @@ def build_system_prompt(
     header (e.g. "Skill: triz-router" or "Command: triz-status") so a human
     reading the prompt can tell where the body came from.
     """
-    return (
+    parts = [
         "# Environment\n\n"
         f"- Working directory: {project_root}\n"
         f"- Today's date: {date.today().isoformat()}\n"
         "- All filesystem tools require ABSOLUTE paths. When instructions\n"
         "  reference paths like `.claude/context/triz/...`, prefix them with\n"
-        "  the working directory above.\n"
-        "\n"
-        "---\n"
-        "\n"
+        "  the working directory above.\n",
+    ]
+
+    # Inject CLAUDE.md project instructions if present
+    claude_md = project_root / ".claude" / "CLAUDE.md"
+    if claude_md.is_file():
+        try:
+            content = claude_md.read_text(encoding="utf-8").strip()
+            parts.append(
+                "\n---\n\n"
+                "# Project Instructions\n\n"
+                f"{content}\n"
+            )
+        except OSError:
+            pass  # skip silently if unreadable
+
+    parts.append(
+        "\n---\n\n"
         f"# {instructions_label}\n\n"
         f"{instructions_body}\n"
     )
+
+    return "".join(parts)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -159,19 +179,29 @@ def main(argv: list[str] | None = None) -> int:
         f"請依 {resolved.name} 的步驟引導我，先告訴我下一步要做什麼。"
     )
 
-    # 5. Build and run the loop. Main loop gets the Agent tool so skills
-    #    that orchestrate multi-TC fan-out (e.g. triz-contradict) can dispatch
-    #    triz-analyst worker subagents. Sub-loops use default_registry()
-    #    (no Agent), preventing nested spawn (DK-03 §3.6).
+    # 5. Build and run the loop. TRIZ/TR commands get domain tools;
+    #    other commands get the standard agent tool set.
+    is_triz_command = cmd_name.startswith(("triz", "tr-"))
+    if is_triz_command:
+        registry = default_registry_with_triz(
+            client=hc.client,
+            default_model=hc.default_model,
+            agents_root=project_root / ".claude" / "agents",
+            kb_root=project_root / "rd_assistant_design_system" / "triz_knowledge_base",
+            state_dir=project_root / ".claude" / "context" / "triz",
+        )
+    else:
+        registry = default_registry_with_agent(
+            client=hc.client,
+            default_model=hc.default_model,
+            agents_root=project_root / ".claude" / "agents",
+        )
+
     loop = AgentLoop(
         client=hc.client,
         model=hc.default_model,
         system_prompt=system_prompt,
-        tool_registry=default_registry_with_agent(
-            client=hc.client,
-            default_model=hc.default_model,
-            agents_root=project_root / ".claude" / "agents",
-        ),
+        tool_registry=registry,
         allowed_tools=list(resolved.allowed_tools) if resolved.allowed_tools is not None else None,
         max_iterations=ns.max_iterations,
         max_tokens=ns.max_tokens,

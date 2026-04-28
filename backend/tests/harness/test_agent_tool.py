@@ -180,7 +180,8 @@ class TestAgentToolUnit:
 
         sub_tools = {t["name"] for t in client.messages.calls[0]["tools"]}
         assert sub_tools == {
-            "Read", "Write", "Glob", "Grep", "WebFetch", "WebSearch",
+            "Read", "Write", "Edit", "Glob", "Grep", "Bash",
+            "WebFetch", "WebSearch",
         }
 
     def test_missing_agent_returns_is_error(self, tmp_path):

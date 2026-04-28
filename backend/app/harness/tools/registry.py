@@ -8,7 +8,8 @@ from typing import Any, Callable
 from anthropic import Anthropic
 
 from app.harness.tools.base import Tool, ToolResult
-from app.harness.tools.fs import GlobTool, GrepTool, ReadTool, WriteTool
+from app.harness.tools.bash import BashTool
+from app.harness.tools.fs import EditTool, GlobTool, GrepTool, ReadTool, WriteTool
 from app.harness.tools.web import WebFetchTool, WebSearchTool
 
 
@@ -84,8 +85,10 @@ def default_registry() -> ToolRegistry:
     reg = ToolRegistry()
     reg.register(ReadTool())
     reg.register(WriteTool())
+    reg.register(EditTool())
     reg.register(GlobTool())
     reg.register(GrepTool())
+    reg.register(BashTool())
     reg.register(WebFetchTool())
     reg.register(WebSearchTool())
     return reg
@@ -125,4 +128,39 @@ def default_registry_with_agent(
             )
         )
     )
+    return reg
+
+
+def default_registry_with_triz(
+    *,
+    client: Anthropic,
+    default_model: str,
+    agents_root: Path,
+    kb_root: Path,
+    state_dir: Path,
+    sub_registry_factory: Callable[[], "ToolRegistry"] | None = None,
+) -> ToolRegistry:
+    """Main-loop registry with TRIZ domain tools: fs + web + bash + agent + TRIZ.
+
+    Use this for TRIZ/TR commands. Non-TRIZ commands use
+    ``default_registry_with_agent`` (no domain tools).
+
+    Args:
+        client: Anthropic client for sub-loops.
+        default_model: Fallback model.
+        agents_root: .claude/agents/ directory.
+        kb_root: triz_knowledge_base/ directory.
+        state_dir: .claude/context/triz/ directory.
+        sub_registry_factory: Factory for sub-loop registries.
+    """
+    from app.triz.registry import triz_tools
+
+    reg = default_registry_with_agent(
+        client=client,
+        default_model=default_model,
+        agents_root=agents_root,
+        sub_registry_factory=sub_registry_factory,
+    )
+    for tool in triz_tools(kb_root=kb_root, state_dir=state_dir):
+        reg.register(tool)
     return reg

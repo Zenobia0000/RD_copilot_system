@@ -146,6 +146,98 @@ class WriteTool(Tool):
         )
 
 
+class EditTool(Tool):
+    """Exact string replacement in files — mirrors Claude Code's Edit tool."""
+
+    name = "Edit"
+    description = (
+        "Perform an exact string replacement in a file. file_path must be "
+        "absolute. old_string must appear exactly once in the file (unless "
+        "replace_all is true). The edit fails if old_string is not found or "
+        "is ambiguous (appears more than once without replace_all)."
+    )
+    input_schema = {
+        "type": "object",
+        "properties": {
+            "file_path": {
+                "type": "string",
+                "description": "Absolute path to the file to edit.",
+            },
+            "old_string": {
+                "type": "string",
+                "description": "Exact text to find and replace.",
+            },
+            "new_string": {
+                "type": "string",
+                "description": "Replacement text.",
+            },
+            "replace_all": {
+                "type": "boolean",
+                "description": "Replace all occurrences. Default false.",
+            },
+        },
+        "required": ["file_path", "old_string", "new_string"],
+    }
+
+    def run(
+        self,
+        *,
+        file_path: str,
+        old_string: str,
+        new_string: str,
+        replace_all: bool = False,
+    ) -> ToolResult:
+        if (err := _require_absolute(file_path)) is not None:
+            return err
+
+        path = Path(file_path)
+        if not path.is_file():
+            return ToolResult(
+                content=f"Error: file not found: {file_path}",
+                is_error=True,
+            )
+
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            return ToolResult(
+                content=f"Error: cannot decode as utf-8: {file_path}",
+                is_error=True,
+            )
+
+        if old_string == new_string:
+            return ToolResult(
+                content="Error: old_string and new_string are identical.",
+                is_error=True,
+            )
+
+        count = text.count(old_string)
+        if count == 0:
+            return ToolResult(
+                content="Error: old_string not found in file.",
+                is_error=True,
+            )
+        if count > 1 and not replace_all:
+            return ToolResult(
+                content=(
+                    f"Error: old_string appears {count} times. "
+                    "Set replace_all=true or provide more context to make it unique."
+                ),
+                is_error=True,
+            )
+
+        if replace_all:
+            new_text = text.replace(old_string, new_string)
+        else:
+            new_text = text.replace(old_string, new_string, 1)
+
+        path.write_text(new_text, encoding="utf-8")
+        replacements = count if replace_all else 1
+        return ToolResult(
+            content=f"Replaced {replacements} occurrence(s) in {file_path}",
+        )
+
+
 class GlobTool(Tool):
     name = "Glob"
     description = (

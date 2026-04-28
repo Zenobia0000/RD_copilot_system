@@ -41,7 +41,11 @@ from app.harness.cli import build_system_prompt, find_project_root
 from app.harness.command import CommandParseError, resolve_command
 from app.harness.config import HarnessClient, HarnessConfigError, build_client, load_env
 from app.harness.skill import SkillParseError
-from app.harness.tools.registry import default_registry, default_registry_with_agent
+from app.harness.tools.registry import (
+    default_registry,
+    default_registry_with_agent,
+    default_registry_with_triz,
+)
 from app.middleware.auth import get_current_user
 
 
@@ -242,18 +246,29 @@ def _prepare_run(
         f"請依 {resolved.name} 的步驟引導我，先告訴我下一步要做什麼。"
     )
 
-    # Main loop gets the Agent tool so skills (e.g. triz-contradict) can
-    # dispatch triz-analyst worker subagents for multi-TC fan-out. Sub-loops
-    # use default_registry() (no Agent), preventing nested spawn (DK-03 §3.6).
+    # TRIZ/TR commands get domain tools (MatrixLookup, CCI, etc.);
+    # other commands get the standard agent tool set.
+    is_triz_command = cmd_name.startswith(("triz", "tr-"))
+    if is_triz_command:
+        registry = default_registry_with_triz(
+            client=harness.client,
+            default_model=harness.default_model,
+            agents_root=project_root / ".claude" / "agents",
+            kb_root=project_root / "rd_assistant_design_system" / "triz_knowledge_base",
+            state_dir=project_root / ".claude" / "context" / "triz",
+        )
+    else:
+        registry = default_registry_with_agent(
+            client=harness.client,
+            default_model=harness.default_model,
+            agents_root=project_root / ".claude" / "agents",
+        )
+
     loop = AgentLoop(
         client=harness.client,
         model=harness.default_model,
         system_prompt=system_prompt,
-        tool_registry=default_registry_with_agent(
-            client=harness.client,
-            default_model=harness.default_model,
-            agents_root=project_root / ".claude" / "agents",
-        ),
+        tool_registry=registry,
         allowed_tools=list(resolved.allowed_tools) if resolved.allowed_tools is not None else None,
         max_iterations=req.max_iterations,
         max_tokens=req.max_tokens,

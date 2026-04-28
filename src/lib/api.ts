@@ -1,4 +1,5 @@
 /**
+ * @module api — Frontend ↔ Backend request helpers.
  * API client for communicating with the FastAPI backend.
  *
  * All AI-powered features (TRIZ, Socratic, CLD, Risk, etc.)
@@ -7,10 +8,6 @@
 
 import type { ZodType } from "zod";
 import type { InterfaceContractMap } from "@/types/generated/subsystem";
-import type {
-  SolveTrizLayeredRequest,
-  SolveTrizLayeredResponse,
-} from "@/types/layeredTriz";
 
 const API_PREFIX = "/api/v1";
 const ENV_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
@@ -527,17 +524,30 @@ export function trizSolve(body: TrizSolveRequest) {
   return request<TrizSolveResponse>("/triz/solve", body, { timeoutMs: 300_000 });
 }
 
-// ─── TRIZ Layered Drill-Down (v7) ───────────────────────────────────────────
-// POST /triz/solve-layered returns a LayeredTrizSolution — see
-//   docs/e2e/TRIZ_Layered_DrillDown_Optimization.md §5 and
-//   src/types/layeredTriz.ts
+// ─── TRIZ Directed (v8) ─────────────────────────────────────────────────────
+// POST /triz/solve-directed  — parallel TC/PC/SF → cluster → score → Top1/Top2
+// POST /triz/consolidate     — cross-contradiction compatibility + conflict report
 //
-// The legacy /triz/solve above is kept as the primitive API; use this newer
-// endpoint whenever the `triz_layered_mode` feature flag is enabled.
+// Types imported from src/types/directedTriz.ts
 
-export function trizSolveLayered(body: SolveTrizLayeredRequest) {
-  return request<SolveTrizLayeredResponse>("/triz/solve-layered", body, {
+import type {
+  SolveDirectedRequest,
+  SolveDirectedResponse,
+  ConsolidateRequest,
+  ConsolidateResponse,
+} from "@/types/directedTriz";
+
+export type { SolveDirectedRequest, SolveDirectedResponse, ConsolidateRequest, ConsolidateResponse };
+
+export function trizSolveDirected(body: SolveDirectedRequest) {
+  return request<SolveDirectedResponse>("/triz/solve-directed", body, {
     timeoutMs: 480_000,
+  });
+}
+
+export function trizConsolidate(body: ConsolidateRequest) {
+  return request<ConsolidateResponse>("/triz/consolidate", body, {
+    timeoutMs: 300_000,
   });
 }
 
@@ -675,16 +685,6 @@ export interface ConvergenceContradictionInput {
   sf_field?: string;
 }
 
-/** v7 WP 10.6: phase_b_directive carried per-alternative so the backend
- *  scanner can honour intra-LTS SKIP without re-reading the LTS from DB. */
-export interface LayeredAlternativeDirective {
-  alternative_id: string;
-  lts_id: string;
-  adopted_layers: ("L1" | "L2" | "L3")[];
-  same_contradiction_intra_layer_conflict: "skip" | "check";
-  cross_contradiction_conflict: "skip" | "check";
-}
-
 export interface ConvergenceScanRequest {
   project_id: string;
   alternatives?: ConvergenceAlternativeInput[];  // optional — empty for Phase A
@@ -693,10 +693,6 @@ export interface ConvergenceScanRequest {
   constraints?: string[];
   kpis?: string[];
   phase?: "B";  // v8: always "B" — Phase A retired (L1 critic subsumes)
-  /** v7 WP 10.6: when non-empty, Phase B scanner applies the SKIP rules
-   *  described in TRIZ_Layered_DrillDown_Optimization.md §8.3. Back-compat
-   *  default is an empty array (legacy flat mode). */
-  layered_directives?: LayeredAlternativeDirective[];
 }
 
 export interface SecondaryContradictionResult {

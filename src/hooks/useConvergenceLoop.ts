@@ -50,10 +50,6 @@ export interface UseConvergenceLoopOptions {
   mission?: string;
   constraints?: string[];
   kpis?: string[];
-  /** v7 WP 10.6: layered directives pulled from adopted layered ConceptRoutes.
-   *  Passed through to `convergenceScan` so the backend Phase B scanner can
-   *  SKIP intra-LTS cross-layer pairs. */
-  layeredDirectives?: import('@/lib/api').LayeredAlternativeDirective[];
 }
 
 // ---------------------------------------------------------------------------
@@ -139,7 +135,6 @@ export function useConvergenceLoop(options: UseConvergenceLoopOptions): Converge
     mission,
     constraints,
     kpis,
-    layeredDirectives = [],
   } = options;
 
   const [state, _setStateRaw] = useState<ConvergenceState>(initialState);
@@ -280,9 +275,6 @@ export function useConvergenceLoop(options: UseConvergenceLoopOptions): Converge
           constraints,
           kpis,
           phase: phaseRef.current,
-          // v7 WP 10.6: directives from adopted layered Concept Routes — the
-          // backend scanner uses these to SKIP intra-LTS cross-layer pairs.
-          layered_directives: phaseRef.current === 'B' ? layeredDirectives : [],
         });
       } catch (err) {
         // On API error, halt the loop
@@ -402,7 +394,7 @@ export function useConvergenceLoop(options: UseConvergenceLoopOptions): Converge
         }, STEP_DELAY_MS);
       }
     },
-    [projectId, alternatives, contradictions, mission, constraints, kpis, layeredDirectives, appendToGraph],
+    [projectId, alternatives, contradictions, mission, constraints, kpis, appendToGraph],
   );
 
   // ------------------------------------------------------------------

@@ -38,6 +38,7 @@ import type {
   DirectionScore,
   DirectionSolution,
 } from '@/types/directedTriz';
+import type { DirectedAdoptionMode } from '@/types/conceptRoute';
 
 // ---------------------------------------------------------------------------
 // Severity badge config
@@ -132,6 +133,7 @@ function SolutionItem({ sol }: { sol: DirectionSolution }) {
 // ---------------------------------------------------------------------------
 export interface DirectionResultCardProps {
   result: ContradictionDirectionResult;
+  onAdopt?: (mode: DirectedAdoptionMode, direction: DirectionGroup) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -141,10 +143,12 @@ function DirectionBlock({
   direction,
   score,
   rank,
+  onAdopt,
 }: {
   direction: DirectionGroup;
   score?: DirectionScore;
   rank: 'top1' | 'top2' | 'other';
+  onAdopt?: (mode: DirectedAdoptionMode, direction: DirectionGroup) => void;
 }) {
   const [open, setOpen] = useState(rank === 'top1');
 
@@ -219,6 +223,20 @@ function DirectionBlock({
                 <SolutionItem key={i} sol={sol} />
               ))}
             </div>
+            {/* Adopt button */}
+            {onAdopt && (
+              <Button
+                size="sm"
+                variant={rank === 'other' ? 'outline' : 'default'}
+                className="text-[11px] gap-1 mt-1 w-full"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAdopt(rank === 'other' ? 'custom' : rank, direction);
+                }}
+              >
+                {rank === 'top1' ? '✦ 採納此方向 (Top1 推薦)' : rank === 'top2' ? '採納此方向 (Top2 備選)' : '自訂採納此方向'}
+              </Button>
+            )}
           </CardContent>
         </CollapsibleContent>
       </Card>
@@ -229,7 +247,7 @@ function DirectionBlock({
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
-export function DirectionResultCard({ result }: DirectionResultCardProps) {
+export function DirectionResultCard({ result, onAdopt }: DirectionResultCardProps) {
   const [cardOpen, setCardOpen] = useState(true);
   const [sortMode, setSortMode] = useState<SortMode>('weighted_total');
   const sev = SEVERITY_BADGE[result.severity] ?? SEVERITY_BADGE.unknown;
@@ -306,6 +324,7 @@ export function DirectionResultCard({ result }: DirectionResultCardProps) {
                 direction={dir}
                 score={scoreMap.get(dir.direction_id)}
                 rank={getRank(dir)}
+                onAdopt={onAdopt}
               />
             ))}
           </CardContent>

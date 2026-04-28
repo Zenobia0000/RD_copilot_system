@@ -110,15 +110,46 @@ export interface LayeredConceptRouteMeta {
   differentialHighlight?: string;
 }
 
+// ---- v8: M7 directed TRIZ adoption -----------------------------------------
+//
+// When ConceptRoute.type === 'directed', it wraps a ContradictionDirectionResult
+// with the direction the RD adopted (Top1 or Top2) from the direction-centric
+// flow.  Cross-contradiction consolidation is handled separately via
+// ConsolidationResult (rendered by ConsolidationPanel).
+// Refs:
+//   - plans/directed-triz-migration.md §Phase B
+//   - src/types/directedTriz.ts
+
+import type { DirectionGroup, DirectionScore } from './directedTriz';
+
+export type DirectedAdoptionMode = 'top1' | 'top2' | 'custom';
+
+export interface DirectedConceptRouteMeta {
+  /** ContradictionDirectionResult.contradiction_id */
+  contradictionId: string;
+  /** The direction the RD adopted. */
+  adoptedDirection: DirectionGroup;
+  /** Score of the adopted direction. */
+  adoptedScore: DirectionScore | null;
+  /** All direction IDs available at time of adoption (for audit trail). */
+  availableDirectionIds: string[];
+  /** Which pick the RD chose. */
+  adoptionMode: DirectedAdoptionMode;
+  /** Concise rationale shown in second/third eye. */
+  adoptionRationale?: string;
+}
+
 export interface ConceptRoute {
   id: string;
-  type: 'single' | 'composite' | 'layered';
+  type: 'single' | 'composite' | 'layered' | 'directed';
   composition: CompositionEntry[];
   compositionRationale: string;
   antiPatternWarnings: string[];
   createdAt?: string;
   /** Populated when type === 'layered' (v7 M6 drill-down). */
   layered?: LayeredConceptRouteMeta;
+  /** Populated when type === 'directed' (v8 direction-centric). */
+  directed?: DirectedConceptRouteMeta;
 }
 
 export interface CompatibilityMatrix {

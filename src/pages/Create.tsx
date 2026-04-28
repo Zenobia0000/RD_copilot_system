@@ -75,18 +75,16 @@ import {
   useDeleteAlternative,
 } from "@/hooks/api";
 import { useContradictions } from "@/hooks/api/useContradictions";
-import { useLayeredTrizSolutions } from "@/hooks/api/useLayeredTrizSolutions";
-import { useTrizConsolidationResult } from "@/hooks/api/useTrizConsolidationResult";
+import { useTrizConsolidationResult, upsertConsolidationResult } from "@/hooks/api/useTrizConsolidationResult";
+import { useDirectedTrizSolutions } from "@/hooks/api/useDirectedTrizSolutions";
 import type { Contradiction } from "@/types/contradiction";
 import type { Json } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useTrackAssumptions } from "@/hooks/api/useTrack";
 import { useBrief, useConstraints, useKpis } from "@/hooks/api/useBrief";
-import { trizSolveLayered, riskAnalyze, mustEvaluate, validationPassportGenerate, spatialComponentOverride, spatialLearnedComponent, subsystemSpatialOverlay } from "@/lib/api";
-import type { LayeredTrizSolution, TrizSeverity, AdoptedLayerId } from "@/types/layeredTriz";
-import { LayeredSolutionCard } from "@/components/create/LayeredSolutionCard";
-import type { AdoptionMode } from "@/components/create/LayeredSolutionCard";
-import type { LayeredConceptRouteMeta, LayeredLayerSnapshot } from "@/types/conceptRoute";
+import { trizSolveDirected, trizConsolidate, riskAnalyze, mustEvaluate, validationPassportGenerate, spatialComponentOverride, spatialLearnedComponent, subsystemSpatialOverlay } from "@/lib/api";
+import type { DirectedConceptRouteMeta, DirectedAdoptionMode } from "@/types/conceptRoute";
+import type { ContradictionDirectionResult, DirectionGroup, DirectionScore, ConsolidationResult } from "@/types/directedTriz";
 import { hashContracts, isContractDriftedSinceConfirm } from "@/lib/subsystemHash";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/hooks/api/useQueryConfig";
@@ -118,11 +116,12 @@ import { OzOtPanel } from "@/components/create/OzOtPanel";
 import { CciBadge } from "@/components/create/CciBadge";
 import { EvidenceCoverageGauge } from "@/components/create/EvidenceCoverageGauge";
 import { ConsolidationPanel } from "@/components/create/ConsolidationPanel";
+import { DirectionResultCard } from "@/components/create/DirectionResultCard";
 import { CompatibilityMatrixView as CompatibilityMatrix } from "@/components/create/CompatibilityMatrix";
 import { useConceptRoutes, useCompatibilityPairs } from "@/hooks/api/useConceptRoutes";
 // TODO: Replace with API when available — AI-generated adoption state, no dedicated DB table yet
 import { mockAdoptionState } from "@/data/mockConceptRoutes";
-import type { ConceptRoute, MultiSolutionAdoptionState } from "@/types/conceptRoute";
+import type { ConceptRoute, MultiSolutionAdoptionState, CompositionEntry } from "@/types/conceptRoute";
 
 const RADAR_COLORS = [
   "hsl(var(--primary))",
@@ -186,10 +185,7 @@ export default function Create() {
   const compatibilityPairsQuery = useCompatibilityPairs(id);
   const trackAssumptionsQuery = useTrackAssumptions(id);
   const contradictionsQuery = useContradictions(id);
-  // v7 persistence: LTS rows upserted by backend `/triz/solve-layered` live in
-  // Supabase `layered_triz_solutions`. Hydrate on mount so page reload / tab
-  // switch keeps the drill-down results instead of wiping in-memory state.
-  const layeredQuery = useLayeredTrizSolutions(id);
+  const directedQuery = useDirectedTrizSolutions(id);
   const consolidationQuery = useTrizConsolidationResult(id);
 
   // ── Phase 1 context ──
@@ -224,87 +220,63 @@ export default function Create() {
 
   // ── Derived data from queries (with local overrides for optimistic UI) ──
   const [localTrizSolutions, setLocalTrizSolutions] = useState<TrizSolution[]>([]);
-  // v7 (WP 7.2/7.3/8.x/9.5): layered drill-down state. Keyed by contradiction_id
-  // so each contradiction maps to exactly one LayeredTrizSolution card. Only
-  // v7/v8 layered drill-down state. Keyed by contradiction_id.
-  const [layeredSolutions, setLayeredSolutions] = useState<Record<string, LayeredTrizSolution>>({});
-  // Hydrate LTS state from Supabase on project load. Local optimistic updates
-  // (setLayeredSolutions after a fresh solve) win over server values because
-  // React Query refetch lags behind the in-flight POST by one tick — merging
-  // `prev` last preserves the just-computed entry until refetch completes.
-  useEffect(() => {
-    if (layeredQuery.data) {
-      setLayeredSolutions((prev) => ({ ...layeredQuery.data, ...prev }));
-    }
-  }, [layeredQuery.data]);
   // 9.2.4: Per-contradiction independent loading state
   const [solvingIds, setSolvingIds] = useState<Set<string>>(new Set());
-  // WP 7.2: per-project quick_mode toggle. Defaults to false.
-  const [trizQuickMode, setTrizQuickMode] = useState<boolean>(false);
 
-  // WBS 7.4: reusable per-contradiction lazy solve helper.
-  const solveSingleContradiction = async (c: Contradiction): Promise<[string, LayeredTrizSolution] | null> => {
+  // v8 directed mode state — keyed by contradiction_id like layeredSolutions
+  const [directedResults, setDirectedResults] = useState<Record<string, ContradictionDirectionResult>>({});
+  useEffect(() => {
+    if (directedQuery.data) {
+      setDirectedResults((prev) => ({ ...directedQuery.data, ...prev }));
+    }
+  }, [directedQuery.data]);
+
+  // ── v8: directed single-contradiction solve helper ───────────────────────
+  const solveDirectedSingle = async (c: Contradiction): Promise<[string, ContradictionDirectionResult] | null> => {
     if (!id) return null;
-    const pickSeverity = (raw: unknown): TrizSeverity => {
-      const allowed: TrizSeverity[] = ['fatal', 'major', 'minor', 'unknown'];
-      return (allowed.includes(raw as TrizSeverity) ? raw : 'unknown') as TrizSeverity;
-    };
-    const cType = c.type as 'TC' | 'PC' | 'SF';
     const cAny = c as unknown as Record<string, unknown>;
-    const isChildPC = !!c.parentContradictionId;
-    const hintFields = isChildPC ? {
-      separation_principle_id: c.separationPrincipleId ?? undefined,
-      separation_category: c.separationCategory ?? undefined,
-      separation_rationale: c.separationRationale ?? undefined,
-      derived_parameter: c.derivedParameter ?? undefined,
-    } : {};
-    const pcDesc = (isChildPC && c.pcAttributeA && c.pcAttributeNotA)
-      ? `${c.derivedParameter ?? ''} 必須 ${c.pcAttributeA} 且必須 ${c.pcAttributeNotA}`
-      : (cType === 'PC' ? c.physicalContradiction : undefined);
+    const pickSeverity = (raw: unknown): 'fatal' | 'major' | 'minor' | 'unknown' => {
+      const allowed = ['fatal', 'major', 'minor', 'unknown'] as const;
+      return (allowed.includes(raw as typeof allowed[number]) ? raw : 'unknown') as typeof allowed[number];
+    };
+    setSolvingIds(prev => { const next = new Set(prev); next.add(c.id); return next; });
     try {
-      setSolvingIds(prev => new Set(prev).add(c.id));
-      const resp = await trizSolveLayered({
+      const resp = await trizSolveDirected({
         project_id: id,
         contradiction_id: c.id,
         natural_description: c.naturalDescription,
-        severity: pickSeverity(c.severity ?? cAny.severity),
-        // ADR-007: Explore 階段 TC-only；PC/SF 由後端於 solve_triz_layered 入口派生
+        severity: pickSeverity(cAny.severity),
         improving_param: c.improvingParam ?? undefined,
         worsening_param: c.worseningParam ?? undefined,
-        physical_contradiction: pcDesc,
-        // sf_* 保留但通常為 null；後端會派生；舊 DB 若有 SF 資料亦可被傳入當 hint
-        sf_substance_1: (cAny.sfSubstance1 as string | undefined) ?? undefined,
-        sf_substance_2: (cAny.sfSubstance2 as string | undefined) ?? undefined,
-        sf_field: (cAny.sfField as string | undefined) ?? undefined,
-        quick_mode: trizQuickMode,
-        ...hintFields,
       });
       setSolvingIds(prev => { const next = new Set(prev); next.delete(c.id); return next; });
-      setLayeredSolutions(prev => ({ ...prev, [c.id]: resp.layered_solution }));
-      queryClient.invalidateQueries({ queryKey: queryKeys.layered_triz_solutions.byProject(id) });
-      return [c.id, resp.layered_solution];
+      setDirectedResults(prev => ({ ...prev, [c.id]: resp.result }));
+      queryClient.invalidateQueries({ queryKey: queryKeys.directed_triz_solutions.byProject(id) });
+      return [c.id, resp.result];
     } catch (err) {
       const desc = (c.naturalDescription || c.engineeringStatement || c.id).slice(0, 60);
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`trizSolveLayered failed for ${c.id}:`, err);
-      toast.error(`求解失敗：${desc}`, { description: msg.slice(0, 120) });
+      console.error(`trizSolveDirected failed for ${c.id}:`, err);
+      toast.error(`方向式求解失敗：${desc}`, { description: msg.slice(0, 120) });
       setSolvingIds(prev => { const next = new Set(prev); next.delete(c.id); return next; });
       return null;
     }
   };
 
-  // WBS 7.4: per-row lazy solve handler.
-  const handleSolveSingle = async (contradictionId: string) => {
+
+  // v8: per-row directed solve (mirrors handleSolveSingle for layered)
+  const handleSolveDirectedSingle = async (contradictionId: string) => {
     const contrs = contradictionsQuery.data ?? [];
     const c = contrs.find(x => x.id === contradictionId);
     if (!c) return;
-    const result = await solveSingleContradiction(c);
+    const result = await solveDirectedSingle(c);
     if (result) {
-      toast.success(`已為 "${c.naturalDescription?.slice(0, 30) ?? c.id.slice(0, 8)}" 產出分層診斷`);
+      toast.success(`已為 "${c.naturalDescription?.slice(0, 30) ?? c.id.slice(0, 8)}" 產出方向式診斷`);
     } else {
-      toast.error(`"${c.naturalDescription?.slice(0, 30) ?? c.id.slice(0, 8)}" 求解失敗`);
+      toast.error(`"${c.naturalDescription?.slice(0, 30) ?? c.id.slice(0, 8)}" 方向式求解失敗`);
     }
   };
+
   const [localSubsystems, setLocalSubsystems] = useState<Subsystem[]>([]);
   // @deprecated v9: SCAMPER local state removed
   const [localAlternatives, setLocalAlternatives] = useState<Alternative[]>([]);
@@ -332,23 +304,6 @@ export default function Create() {
   const [reviewConfirmed, setReviewConfirmed] = useState(false);
   const [conceptRoutes, setConceptRoutes] = useState<ConceptRoute[]>([]);
 
-  // v7 WP 10.6: build `layered_directives` from adopted layered ConceptRoutes.
-  // When Phase B runs, the backend scanner uses these to SKIP intra-LTS
-  // cross-layer pairs (same lts_id + same contradiction_id) and WARN on cross-
-  // LTS redundancy, per `check_phase_b_conflict` in evaluator.py.
-  const layeredDirectives = useMemo(() => {
-    return conceptRoutes
-      .filter((r) => r.layered && r.layered.adoptedLayers.length > 0)
-      .map((r) => ({
-        alternative_id: r.id,
-        lts_id: r.layered!.ltsId,
-        adopted_layers: r.layered!.adoptedLayers,
-        same_contradiction_intra_layer_conflict:
-          r.layered!.phaseBDirective.sameContradictionIntraLayerConflict,
-        cross_contradiction_conflict:
-          r.layered!.phaseBDirective.crossContradictionConflict,
-      }));
-  }, [conceptRoutes]);
 
   const convergenceLoop = useConvergenceLoop({
     projectId: id,
@@ -363,7 +318,6 @@ export default function Create() {
     mission: briefMission,
     constraints: constraintStrings,
     kpis: kpiStrings,
-    layeredDirectives,
   });
   const [subsystemView, setSubsystemView] = useState<"diagram" | "list">("diagram");
   const [showAddSubsystemForm, setShowAddSubsystemForm] = useState(false);
@@ -458,63 +412,6 @@ export default function Create() {
     [contradictionsQuery.data],
   );
 
-  // Group TRIZ solutions by contradiction for display (used in renderTrizConvergence)
-  const trizByContradiction = useMemo(() => {
-    const map = new Map<string, TrizSolution[]>();
-    for (const ts of trizSolutions) {
-      const key = ts.contradictionId || '__unlinked';
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(ts);
-    }
-    return map;
-  }, [trizSolutions]);
-
-  // Added: Entries sorted by TC > PC > SF
-  const PATH_ORDER = { TC: 0, PC: 1, SF: 2 } as const;
-
-  const sortedTrizEntries = useMemo(() => {
-    return Array.from(trizByContradiction.entries()).sort(([, aSols], [, bSols]) => {
-      const aPath = aSols[0]?.path ?? 'SF';
-      const bPath = bSols[0]?.path ?? 'SF';
-      const aOrder = PATH_ORDER[aPath as keyof typeof PATH_ORDER] ?? 99;
-      const bOrder = PATH_ORDER[bPath as keyof typeof PATH_ORDER] ?? 99;
-      return aOrder - bOrder;
-    });
-  }, [trizByContradiction]);
-
-  // v7 (WP 10.5): Decision Hub cross-alternative warnings.
-  //
-  // Legacy v6 flagged "same-contradiction multi-path" as a risk because
-  // TC/PC/SF were treated as mutually-exclusive solvers. v7 turns that into a
-  // drill-down diagnosis: multiple layers of the SAME `LayeredTrizSolution`
-  // (same lts_id) are the INTENDED adoption pattern and must NOT warn — only
-  // DIFFERENT LTS ids resolving the same contradiction indicate redundancy.
-  // See `backend/app/agents/evaluator.py::check_phase_b_conflict`.
-  const crossLtsRedundancyWarnings = useMemo(() => {
-    const byContradiction = new Map<string, { alt: Alternative; ltsId: string | null }[]>();
-    for (const alt of alternatives) {
-      for (const cid of alt.keyAssumptionIds) {
-        if (!byContradiction.has(cid)) byContradiction.set(cid, []);
-        // Find the ConceptRoute that backs this alternative (if any) so we
-        // can read its LTS id. Legacy single/composite routes return null.
-        const route = conceptRoutes.find((r) => r.id === alt.id || r.layered?.ltsId === alt.id);
-        const ltsId = route?.layered?.ltsId ?? null;
-        byContradiction.get(cid)!.push({ alt, ltsId });
-      }
-    }
-    const warnings: { contradictionId: string; alts: Alternative[] }[] = [];
-    for (const [cid, entries] of byContradiction.entries()) {
-      if (entries.length <= 1) continue;
-      // Count distinct non-null LTS ids. Entries sharing one LTS = drill-down → SKIP.
-      // Entries with null LTS (legacy) default to legacy behaviour: flag.
-      const distinctLtsIds = new Set(entries.map((e) => e.ltsId).filter((x): x is string => x !== null));
-      const legacyCount = entries.filter((e) => e.ltsId === null).length;
-      const isIntraLtsOnly = distinctLtsIds.size <= 1 && legacyCount === 0;
-      if (isIntraLtsOnly) continue; // all same LTS → drill-down, no warning
-      warnings.push({ contradictionId: cid, alts: entries.map((e) => e.alt) });
-    }
-    return warnings;
-  }, [alternatives, conceptRoutes]);
 
   const getMustValues = (a: Alternative) => MUST_KEYS.map((k) => a.mustScores[k] ?? null);
 
@@ -561,248 +458,118 @@ export default function Create() {
     [preCadPassedAlts]
   );
 
-  // ── TRIZ layered drill-down generation ──
-  const handleAiGenTriz = async () => {
+
+  // ── v8 (directed): batch generation for ALL contradictions ──────────────
+  const handleAiGenDirected = async () => {
     if (!id) return;
     const contrs = contradictionsQuery.data ?? [];
     if (contrs.length === 0) {
-      toast.warning("尚未識別任何矛盾，請先在「深度探索」階段完成矛盾識別");
+      toast.warning('尚無矛盾，無法觸發 TRIZ 方向式求解');
       return;
     }
-    // v8 client-side pre-check (non-blocking toast).
-    // Backend _run_l1 degrades gracefully when params are missing (status=error, auto-trigger L2).
-    const malformedTC = contrs.filter(c => c.type === 'TC' && (!c.improvingParam || !c.worseningParam));
-    if (malformedTC.length > 0) {
-      toast.warning(`${malformedTC.length} 條 TC 矛盾缺少改善/惡化參數，L1 矩陣查表可能不完整`);
-    }
-
     setAiLoading((p) => ({ ...p, trizGen: true }));
-
-    // Layered drill-down mode: call trizSolveLayered per contradiction.
-    // Results stored in `layeredSolutions` keyed by contradiction_id.
-    // WBS 7.4: use solveSingleContradiction helper (reused by per-row lazy solve).
     try {
-      setLayeredSolutions({});
-      // Serialize per-contradiction solves so the backend isn't hit with 3× concurrent
-      // multi-step LLM pipelines (L1+critic+L2+L3+differential). Parallel fan-out
-      // caused /triz/solve-layered to exceed the 300s request timeout under load.
-      const results: Array<[string, LayeredTrizSolution] | null> = [];
-      for (const c of contrs) {
-        results.push(await solveSingleContradiction(c));
-      }
-      const ok = results.filter(Boolean).length;
-      // Refresh the persisted layered_triz_solutions cache so that subsequent
-      // mounts / other tabs see the newly upserted rows without waiting for
-      // the default refetch window.
-      queryClient.invalidateQueries({ queryKey: queryKeys.layered_triz_solutions.byProject(id) });
+      const results = await Promise.allSettled(contrs.map(c => solveDirectedSingle(c)));
+      const ok = results.filter(r => r.status === 'fulfilled' && r.value !== null).length;
+      queryClient.invalidateQueries({ queryKey: queryKeys.directed_triz_solutions.byProject(id) });
       if (ok === 0) {
-        toast.error('TRIZ 分層求解全部失敗');
+        toast.error('TRIZ 方向式求解全部失敗');
       } else if (ok < contrs.length) {
-        toast.warning(`${ok}/${contrs.length} 條矛盾產出分層診斷`);
+        toast.warning(`${ok}/${contrs.length} 條矛盾產出方向式診斷`);
       } else {
-        toast.success(`已為 ${ok} 條矛盾產出分層 drill-down 診斷`);
+        toast.success(`已為 ${ok} 條矛盾產出方向式 (TC/PC/SF → 方向叢集) 診斷`);
       }
     } catch (err) {
-      console.error('Layered TRIZ generation failed:', err);
-      toast.error('TRIZ 分層求解失敗');
+      console.error('Directed TRIZ generation failed:', err);
+      toast.error('TRIZ 方向式求解失敗');
     } finally {
       setAiLoading((p) => ({ ...p, trizGen: false }));
     }
   };
 
-  // ── v7 (WP 9.2/9.4/9.5): layered adoption handlers ────────────────────
-  // When RD clicks [採納推薦路線] / [自訂組合] / [只採 L1 快速路線] on a
-  // LayeredSolutionCard, produce a `type='layered'` ConceptRoute and push it
-  // into the local `conceptRoutes` state. Supabase persistence (WP 11.6) is
-  // still pending migration apply; for now the route lives in FE memory and
-  // flows through the decision hub for Phase B cross-check.
-  const handleLayeredAdopt = (
-    solution: LayeredTrizSolution,
-    mode: AdoptionMode,
-    layers: AdoptedLayerId[],
+
+  // ── v8: directed adoption — build a ConceptRoute from a directed result ──
+  const handleDirectedAdopt = (
+    result: ContradictionDirectionResult,
+    mode: DirectedAdoptionMode,
+    direction?: DirectionGroup,
   ) => {
-    const availableLayers: AdoptedLayerId[] = ['L1'];
-    if (solution.l2_root_cause && solution.l2_root_cause.status === 'ran') availableLayers.push('L2');
-    if (solution.l3_structural_check.status === 'ran') availableLayers.push('L3');
-
-    // WP 10.3/10.4: build per-layer snapshots so the decision hub can render
-    // second/third eye content without re-fetching the LTS from backend.
-    const layerSnapshots: LayeredLayerSnapshot[] = [];
-    const l1 = solution.l1_surface;
-    layerSnapshots.push({
-      layer: 'L1',
-      depthIndicator: l1.depth_indicator,
-      mechanismSummary: l1.suggestions[0]?.suggestion ?? '(無具體建議)',
-      suggestionCount: l1.suggestions.length,
-      principleHits: l1.candidate_principles,
-      evidenceLevelFloor: l1.evidence_level_floor,
-      effortHint: 'low',
-      assumptions: l1.critic_reason ? [`critic: ${l1.critic_reason}`] : [],
-      validationPassport: {
-        mechanism: l1.suggestions[0]?.principle_name ?? '(TC matrix lookup)',
-        keyAssumptions: l1.critic_reason ? [l1.critic_reason] : [],
-        failConditions: l1.critic_trigger_l2 ? ['trade-off 折衷 — L2 根因未解'] : [],
-        evidenceLevel: l1.evidence_level_floor,
-        effort: 'low',
-        gain: l1.suggestions[0]?.suggestion?.slice(0, 60),
-      },
-    });
-    const l2 = solution.l2_root_cause;
-    if (l2 && l2.status === 'ran') {
-      const topSep = l2.deepen_link?.separation_type_candidates[0];
-      layerSnapshots.push({
-        layer: 'L2',
-        depthIndicator: l2.depth_indicator,
-        mechanismSummary: l2.suggestions[0]?.suggestion ?? '(無 L2 建議)',
-        suggestionCount: l2.suggestions.length,
-        principleHits: [],
-        evidenceLevelFloor: l2.evidence_level_floor,
-        effortHint: 'medium-high',
-        assumptions: l2.trigger_reason ? [`trigger: ${l2.trigger_reason}`] : [],
-        deepenLink: l2.deepen_link
-          ? {
-              derivedParameter: l2.deepen_link.derived_physical_parameter,
-              contradictionStatement: l2.deepen_link.contradiction_statement,
-              separationType: topSep
-                ? `${topSep.type} (${topSep.confidence.toFixed(2)})`
-                : '(未指定)',
-            }
-          : undefined,
-        validationPassport: {
-          mechanism: l2.deepen_link
-            ? `PC 根因 (${l2.deepen_link.derived_physical_parameter})`
-            : l2.suggestions[0]?.principle_name ?? '(L2)',
-          keyAssumptions: [
-            ...(l2.trigger_reason ? [`trigger: ${l2.trigger_reason}`] : []),
-            ...(l2.deepen_link ? [`separation: ${topSep?.type ?? 'unknown'}`] : []),
-          ],
-          failConditions: l2.deepen_link?.contradiction_statement
-            ? [`若 "${l2.deepen_link.contradiction_statement}" 假設不成立`]
-            : [],
-          evidenceLevel: l2.evidence_level_floor,
-          effort: 'medium-high',
-          gain: l2.suggestions[0]?.suggestion?.slice(0, 60),
-        },
-      });
+    // Determine which direction to adopt based on mode
+    const adoptedDir: DirectionGroup | null =
+      mode === 'top1' ? result.top1 :
+      mode === 'top2' ? result.top2 :
+      direction ?? null;                   // 'custom' requires explicit direction
+    if (!adoptedDir) {
+      toast.error('找不到可採納的方向');
+      return;
     }
-    const l3 = solution.l3_structural_check;
-    layerSnapshots.push({
-      layer: 'L3',
-      depthIndicator: l3.depth_indicator,
-      mechanismSummary: l3.suggestions[0]?.suggestion ?? '(無 L3 建議)',
-      suggestionCount: l3.suggestions.length,
-      principleHits: [],
-      evidenceLevelFloor: l3.evidence_level_floor,
-      effortHint: 'medium',
-      assumptions: l3.matched_standard_solutions.length > 0
-        ? [`Su-Field matched: ${l3.matched_standard_solutions.join(', ')}`]
-        : [],
-      bridgeText: {
-        supportsL1: l3.supports_l1,
-        supportsL2: l3.supports_l2,
-        standaloneValue: l3.standalone_value,
-      },
-      validationPassport: {
-        mechanism: l3.su_field_model.state !== 'unknown'
-          ? `Su-Field (${l3.su_field_model.state}): ${l3.su_field_model.S1}/${l3.su_field_model.S2}/${l3.su_field_model.F}`
-          : '(SF structural lens)',
-        keyAssumptions: l3.matched_standard_solutions.length > 0
-          ? [`標準解 ${l3.matched_standard_solutions.join(', ')} 適用`]
-          : [],
-        failConditions: l3.standalone_value
-          ? [`若結構旁路獨立價值不成立: ${l3.standalone_value.slice(0, 60)}`]
-          : [],
-        evidenceLevel: l3.evidence_level_floor,
-        effort: 'medium',
-        gain: l3.suggestions[0]?.suggestion?.slice(0, 60),
-      },
-    });
+    // Find score for the adopted direction
+    const adoptedScore: DirectionScore | null =
+      result.scored_directions.find(s => s.direction_id === adoptedDir.direction_id) ?? null;
 
-    // Build the concise differential highlight — first non-empty field wins.
-    const diff = solution.differential_analysis;
-    const highlight =
-      diff.l2_vs_l3.synergy ||
-      diff.l1_vs_l2.on_solving_degree ||
-      diff.l1_vs_l3.orthogonality ||
-      '';
+    // Build CompositionEntry[] from the direction's solutions
+    const composition: CompositionEntry[] = adoptedDir.solutions.map((sol) => ({
+      solutionId: `${result.contradiction_id}::${adoptedDir.direction_id}::${sol.principle_name}`,
+      sourcePrinciple: sol.principle_name,
+      concrete: sol.suggestion,
+      dimension: sol.path,
+      adoptionType: 'M1' as const,   // default to M1 (different dimension) — refineable later
+    }));
 
-    const layeredMeta: LayeredConceptRouteMeta = {
-      ltsId: solution.id,
-      adoptedLayers: layers,
-      availableLayers,
-      recommendedRoute: solution.differential_analysis.recommended_route.primary || '',
-      fallbackRoute: solution.differential_analysis.recommended_route.fallback || '',
-      recommendedRationale: solution.differential_analysis.recommended_route.rationale || '',
+    const directedMeta: DirectedConceptRouteMeta = {
+      contradictionId: result.contradiction_id,
+      adoptedDirection: adoptedDir,
+      adoptedScore: adoptedScore,
+      availableDirectionIds: result.all_directions.map(d => d.direction_id),
       adoptionMode: mode,
-      phaseBDirective: {
-        sameContradictionIntraLayerConflict:
-          solution.phase_b_directive.same_contradiction_intra_layer_conflict,
-        crossContradictionConflict: solution.phase_b_directive.cross_contradiction_conflict,
-      },
-      layerSnapshots,
-      differentialHighlight: highlight,
+      adoptionRationale: `${mode === 'top1' ? 'Top-1' : mode === 'top2' ? 'Top-2' : '自選'} 方向：${adoptedDir.direction_name}`,
     };
 
-    // v7 WP 9.3: single-layer auto-downgrade.
-    // If the RD picked only ONE layer via custom mode, downgrade type to
-    // `single` (or `composite` when L1 contains ≥ 2 adopted principles).
-    // We still keep `layered` meta attached so Phase B can trace back to
-    // the LTS id for intra-LTS SKIP; that's the critical requirement.
-    let routeType: ConceptRoute['type'] = 'layered';
-    if (layers.length === 1) {
-      const onlyLayer = layers[0];
-      if (onlyLayer === 'L1' && solution.l1_surface.suggestions.length >= 2) {
-        routeType = 'composite';
-      } else {
-        routeType = 'single';
-      }
-    }
-
     const route: ConceptRoute = {
-      id: `CR-${solution.id}-${Date.now().toString(36)}`,
-      type: routeType,
-      composition: [],
+      id: `DR-${result.contradiction_id.slice(0, 8)}-${Date.now().toString(36)}`,
+      type: 'directed',
+      composition,
       compositionRationale:
-        solution.differential_analysis.recommended_route.rationale ||
-        `${routeType === 'layered' ? 'M6 drill-down' : 'layer subset'} 採納 ${layers.join('+')}`,
+        `方向式採納 ${adoptedDir.direction_name}（score=${adoptedScore?.weighted_total?.toFixed(1) ?? '?'}）`,
       antiPatternWarnings: [],
-      // Always keep layered meta so cross-LTS WARN + intra-LTS SKIP tracing
-      // can work regardless of type downgrade.
-      layered: layeredMeta,
+      directed: directedMeta,
       createdAt: new Date().toISOString(),
     };
 
     setConceptRoutes((prev) => [...prev, route]);
-    const modeLabel = routeType === 'layered' ? '分層' : routeType === 'composite' ? '合併' : '單一';
+    const modeLabel = mode === 'top1' ? 'Top-1' : mode === 'top2' ? 'Top-2' : '自選';
     toast.success(
-      `已採納${modeLabel}路線 ${route.id}（${layers.join('+')}）→ 候選池 ${conceptRoutes.length + 1} 條`,
+      `已採納 ${modeLabel} 方向「${adoptedDir.direction_name}」→ 候選池 ${conceptRoutes.length + 1} 條`,
     );
   };
 
-  const handleForceDeepenL2 = async (contradictionId: string) => {
+  // ── v8: cross-contradiction consolidation ─────────────────────────────────
+  const handleConsolidate = async () => {
     if (!id) return;
-    const contrs = (contradictionsQuery.data ?? []).filter((c) => c.id === contradictionId);
-    if (contrs.length === 0) return;
-    const c = contrs[0];
-    const cAny = c as unknown as Record<string, unknown>;
+    const resultList = Object.values(directedResults);
+    if (resultList.length < 2) {
+      toast.warning('至少需要 2 條矛盾的方向式結果才能進行 consolidation');
+      return;
+    }
+    setAiLoading((p) => ({ ...p, consolidate: true }));
     try {
-      const resp = await trizSolveLayered({
-        project_id: id,
-        contradiction_id: c.id,
-        natural_description: c.naturalDescription,
-        severity: (cAny.severity as TrizSeverity) || 'major', // force major to guarantee L2
-        improving_param: c.improvingParam,
-        worsening_param: c.worseningParam,
-        force_l2: true,
-      });
-      setLayeredSolutions((prev) => ({ ...prev, [c.id]: resp.layered_solution }));
-      queryClient.invalidateQueries({ queryKey: queryKeys.layered_triz_solutions.byProject(id) });
-      toast.success(`已強制深挖 L2 for ${c.id}`);
+      const resp = await trizConsolidate({ project_id: id, results: resultList });
+      await upsertConsolidationResult(id, resp.consolidation);
+      queryClient.invalidateQueries({ queryKey: queryKeys.triz_consolidation_results.byProject(id) });
+      const statusLabel =
+        resp.consolidation.status === 'compatible' ? '✅ 全部相容' :
+        resp.consolidation.status === 'resolved_with_swap' ? '⚠️ 已 swap Top2 解決衝突' :
+        '❌ 存在衝突';
+      toast.success(`跨矛盾整合完成：${statusLabel}`);
     } catch (err) {
-      console.error('force_l2 failed:', err);
-      toast.error('L2 深挖失敗');
+      console.error('Consolidation failed:', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error('跨矛盾整合失敗', { description: msg.slice(0, 120) });
+    } finally {
+      setAiLoading((p) => ({ ...p, consolidate: false }));
     }
   };
+
 
   // TRIZ state transition guard — preserve traceability of human edits
   const TRIZ_VALID_TRANSITIONS: Record<TrizActionStatus, TrizActionStatus[]> = {
@@ -1371,29 +1138,17 @@ export default function Create() {
           </div>
         )}
 
-        {/* ── Section A: TRIZ candidate generation (layered drill-down) ── */}
-          <div className="space-y-3" data-testid="triz-layered-section">
-
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <h3 className="text-sm font-semibold">分層 Drill-Down 診斷（L1 現象 / L2 根因 / L3 結構）</h3>
-                <p className="text-xs text-muted-foreground">
-                  對每條矛盾同時產出 L1 (TC) 表象解、L2 (PC) 根因解（條件觸發）與 L3 (SF) 結構旁路。
-                  差異面板建議採納路線，RD 選擇 `採納推薦` / `自訂組合` / `只採 L1`。
-                </p>
-              </div>
-              <label className="flex items-center gap-1.5 text-[11px] shrink-0">
-                <input
-                  type="checkbox"
-                  checked={trizQuickMode}
-                  onChange={(e) => setTrizQuickMode(e.target.checked)}
-                  className="h-3 w-3"
-                />
-                quick_mode（minor 跳 L2）
-              </label>
+        {/* ── Section A: TRIZ candidate generation (directed) ── */}
+          <div className="space-y-3" data-testid="triz-directed-section">
+            <div>
+              <h3 className="text-sm font-semibold">方向導向 TRIZ 解法（TC / PC / SF 並行 → 方向聚類 → 評分）</h3>
+              <p className="text-xs text-muted-foreground">
+                每條矛盾同時啟動 TC·PC·SF 三路解法，LLM 將所有解法依實作方向聚類、評分，產出 Top1/Top2 推薦方向。
+                跨矛盾整合後執行 consolidate 相容性檢查與衝突報告。
+              </p>
             </div>
 
-            {Object.keys(layeredSolutions).length === 0 ? (
+            {Object.keys(directedResults).length === 0 ? (
               <Card className="border-dashed border-2 border-primary/30">
                 <CardContent className="p-6 text-center space-y-3">
                   <div className="mx-auto w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -1402,119 +1157,50 @@ export default function Create() {
                   <p className="text-sm text-muted-foreground">
                     {contradictionsList.length === 0
                       ? '前置條件：需先完成矛盾識別'
-                      : `已識別 ${contradictionsList.length} 條矛盾，可產出分層 drill-down 診斷`}
+                      : `已識別 ${contradictionsList.length} 條矛盾，可產出方向導向解法`}
                   </p>
-                  <AiButton loading={!!aiLoading.trizGen} onClick={handleAiGenTriz} disabled={!canStart}>
-                    {aiLoading.trizGen ? '分層求解中...' : 'AI 產出分層 drill-down 診斷'}
+                  <AiButton loading={!!aiLoading.trizGen} onClick={handleAiGenDirected} disabled={!canStart}>
+                    {aiLoading.trizGen ? '方向導向求解中...' : 'AI 產出方向導向解法'}
                   </AiButton>
                 </CardContent>
               </Card>
             ) : (
               <div className="space-y-4">
-                {/* 9.2.3: Group results by parent TC with child PCs indented */}
                 {topLevelContradictions.map(tc => {
-                  const tcSolution = layeredSolutions[tc.id];
-                  const children = childrenMap.get(tc.id) ?? [];
-                  // Skip TCs that have no solution AND no child solutions
-                  // WBS 7.4: show all TCs (with lazy-solve buttons for unsolved ones)
-                  // Only skip if there's zero user interest and no results at all
-                  const hasAnySolution = tcSolution || children.some(ch => layeredSolutions[ch.id]);
-                  const hasAnySolving = solvingIds.has(tc.id) || children.some(ch => solvingIds.has(ch.id));
-                  void hasAnySolution; void hasAnySolving; // used below
+                  const result = directedResults[tc.id];
                   return (
                     <div key={tc.id} className="space-y-2">
-                      {/* Parent TC header */}
                       <p className="text-[11px] font-medium text-muted-foreground truncate" title={tc.engineeringStatement || tc.naturalDescription}>
                         TC: {tc.engineeringStatement || tc.naturalDescription || tc.id.slice(0, 8)}
                       </p>
-                      {/* TC loading indicator */}
-                      {solvingIds.has(tc.id) && !tcSolution && (
-                        <Card className="border-dashed border animate-pulse"><CardContent className="p-3 text-xs text-muted-foreground flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin" />求解中...</CardContent></Card>
+                      {solvingIds.has(tc.id) && !result && (
+                        <Card className="border-dashed border animate-pulse"><CardContent className="p-3 text-xs text-muted-foreground flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin" />方向導向求解中...</CardContent></Card>
                       )}
-                      {/* WBS 7.4: per-row lazy solve button */}
-                      {!tcSolution && !solvingIds.has(tc.id) && (
-                        <Button size="sm" variant="outline" className="text-[11px] gap-1" onClick={() => handleSolveSingle(tc.id)}>
+                      {!result && !solvingIds.has(tc.id) && (
+                        <Button size="sm" variant="outline" className="text-[11px] gap-1" onClick={() => handleSolveDirectedSingle(tc.id)}>
                           <Sparkles className="h-3 w-3" />
-                          求解此矛盾
+                          求解此矛盾（方向導向）
                         </Button>
                       )}
-                      {/* TC solve result */}
-                      {tcSolution && (
-                        <LayeredSolutionCard
-                          solution={tcSolution}
-                          onAdopt={(mode, layers) => handleLayeredAdopt(tcSolution, mode, layers)}
-                          onForceDeepenL2={() => handleForceDeepenL2(tc.id)}
-                          onEditDeepenLink={(edits) => {
-                            // WBS 8.7: re-solve with edited parameters
-                            console.log('editDeepenLink for', tc.id, edits);
-                            handleForceDeepenL2(tc.id);
-                          }}
+                      {result && (
+                        <DirectionResultCard
+                          result={result}
+                          onAdopt={(mode, direction) => handleDirectedAdopt(result, mode, direction)}
                         />
                       )}
-                      {/* 9.2.3: Child PC results indented with category color bar */}
-                      {children.map(child => {
-                        const childSolution = layeredSolutions[child.id];
-                        const catColorMap: Record<string, string> = {
-                          time: 'border-l-blue-500',
-                          space: 'border-l-green-500',
-                          condition: 'border-l-orange-500',
-                          whole_part: 'border-l-purple-500',
-                        };
-                        const borderClass = catColorMap[child.separationCategory ?? ''] ?? 'border-l-gray-400';
-                        return (
-                          <div key={child.id} className={cn("ml-8 border-l-4 pl-4", borderClass)}>
-                            <p className="text-[10px] text-muted-foreground mb-1 truncate" title={child.derivedParameter ?? child.naturalDescription}>
-                              PC: {child.derivedParameter ?? child.naturalDescription}{child.separationCategory ? ` (${child.separationCategory})` : ''}
-                            </p>
-                            {solvingIds.has(child.id) && !childSolution && (
-                              <Card className="border-dashed border animate-pulse"><CardContent className="p-3 text-xs text-muted-foreground flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin" />求解中...</CardContent></Card>
-                            )}
-                            {/* WBS 7.4: per-child lazy solve */}
-                            {!childSolution && !solvingIds.has(child.id) && (
-                              <Button size="sm" variant="ghost" className="text-[10px] gap-1" onClick={() => handleSolveSingle(child.id)}>
-                                <Sparkles className="h-3 w-3" />
-                                求解此 PC
-                              </Button>
-                            )}
-                            {childSolution && (
-                              <LayeredSolutionCard
-                                solution={childSolution}
-                                onAdopt={(mode, layers) => handleLayeredAdopt(childSolution, mode, layers)}
-                                onForceDeepenL2={() => handleForceDeepenL2(child.id)}
-                                onEditDeepenLink={(edits) => {
-                                  console.log('editDeepenLink for', child.id, edits);
-                                  handleForceDeepenL2(child.id);
-                                }}
-                              />
-                            )}
-                          </div>
-                        );
-                      })}
                     </div>
                   );
                 })}
-                {/* Render standalone contradictions (no parent, not a parent themselves) that have solutions */}
-                {Object.entries(layeredSolutions)
-                  .filter(([cid]) => {
-                    const c = contradictionsList.find(x => x.id === cid);
-                    if (!c) return true; // unknown contradiction, show anyway
-                    // Already rendered as a top-level TC or as a child
-                    if (!c.parentContradictionId && topLevelContradictions.some(tc => tc.id === cid)) return false;
-                    if (c.parentContradictionId) return false;
-                    return true;
-                  })
-                  .map(([cid, lts]) => (
-                    <LayeredSolutionCard
-                      key={cid}
-                      solution={lts}
-                      onAdopt={(mode, layers) => handleLayeredAdopt(lts, mode, layers)}
-                      onForceDeepenL2={() => handleForceDeepenL2(cid)}
-                    />
-                  ))
-                }
-                <AiButton aiVariant="outline" size="sm" loading={!!aiLoading.trizGen} onClick={handleAiGenTriz} className="text-xs">
-                  重新產出分層診斷
-                </AiButton>
+                <div className="flex gap-2">
+                  <AiButton aiVariant="outline" size="sm" loading={!!aiLoading.trizGen} onClick={handleAiGenDirected} className="text-xs">
+                    重新產出方向導向解法
+                  </AiButton>
+                  {Object.keys(directedResults).length >= 2 && (
+                    <AiButton aiVariant="outline" size="sm" loading={!!aiLoading.consolidate} onClick={handleConsolidate} className="text-xs">
+                      {aiLoading.consolidate ? '整合中...' : '跨矛盾整合 (Consolidate)'}
+                    </AiButton>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -1826,27 +1512,6 @@ export default function Create() {
           </div>
         </div>
 
-        {/* ── v7 (WP 10.5): Cross-LTS redundancy warning ──
-            Legacy "same-contradiction multi-path" warning retired. Intra-LTS
-            drill-down combinations (e.g. L1+L2+L3 of the same LTS) are now
-            the INTENDED pattern and no longer flagged. This block only fires
-            when the SAME contradiction is adopted via DIFFERENT LTS ids,
-            which indicates redundant work rather than physical incompatibility. */}
-        {crossLtsRedundancyWarnings.length > 0 && (
-          <Card className="border-amber-300 bg-amber-50/30">
-            <CardContent className="p-3 space-y-1.5">
-              <div className="flex items-center gap-1.5">
-                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
-                <p className="text-xs font-medium text-amber-700">跨 LTS 重複採納提示</p>
-              </div>
-              {crossLtsRedundancyWarnings.map((w) => (
-                <p key={w.contradictionId} className="text-[10px] text-amber-600">
-                  矛盾 {contradictionMap.get(w.contradictionId) ?? w.contradictionId.slice(0, 8)} 被 {w.alts.length} 個採納方案同時解決，但它們來自不同的 LayeredTrizSolution — 屬於重複工作而非衝突，建議只保留一條。
-                </p>
-              ))}
-            </CardContent>
-          </Card>
-        )}
 
         {/* ── Candidate cards ── */}
         {alternatives.length === 0 ? (
@@ -1947,8 +1612,7 @@ export default function Create() {
               <div>
                 <p className="text-sm font-semibold">Phase B 收斂掃描 — 方案交叉檢查</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  檢查 {adoptedCount} 個方案之間是否存在跨矛盾衝突、參數干涉或跨 LTS 重複採納。
-                  （同一 LayeredTrizSolution 的跨層 drill-down 採納會被自動 SKIP，不視為衝突）
+                  檢查 {adoptedCount} 個方案之間是否存在跨矛盾衝突或參數干涉。
                   {convergenceLoop.state.phase === 'B' && convergenceLoop.state.status === 'converged'
                     ? ' ✓ 掃描完成，可進入 MUST 快篩。'
                     : convergenceLoop.state.phase === 'B' && convergenceLoop.state.status === 'exploring'

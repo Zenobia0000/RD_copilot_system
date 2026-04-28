@@ -48,6 +48,9 @@
 | `tr-fea-assist` | `.claude/skills/tr-fea-assist/SKILL.md` | FEA 設定 | — |
 | `tr-test-report` | `.claude/skills/tr-test-report/SKILL.md` | 測試報告 | — |
 | `tr-dfm` | `.claude/skills/tr-dfm/SKILL.md` | DFM 審查 | — |
+| `tr-sop` | `.claude/skills/tr-sop/SKILL.md` | SOP 草稿產出（TR8-9） | — |
+| `tr-spc` | `.claude/skills/tr-spc/SKILL.md` | SPC/Cpk 計算（TR9-10） | — |
+| `tr-ppap` | `.claude/skills/tr-ppap/SKILL.md` | PPAP 文件包組裝（TR9-10） | — |
 
 ### 1.3 Command 層（使用者入口）
 

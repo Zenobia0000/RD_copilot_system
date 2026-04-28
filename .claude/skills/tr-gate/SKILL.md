@@ -45,11 +45,13 @@
 |:-----------|:---------|
 | WI FEA 結果 | 讀取 WI 文件，檢查是否有 FEA 結果段落且數值 pass |
 | Material Card | 檢查 `docs/engineering/material_cards/MC-xx.md` 是否存在且有完整數據 |
-| ICD | 檢查 `docs/engineering/interface_control/ICD-xx.md` 是否存在且已簽核 |
+| ICD | 檢查 `docs/engineering/interface_control/ICD-xx.md` 是否存在且已簽核。**內容一致性審查（TR3+）**：讀取 ICD 的「配合規格」表和「公差與 GD&T」表，與 ICD 中標示的「相關 WI」的設計輸入參數交叉比對。若同一參數在 WI 和 ICD 中的值/公差不一致，標記為 FAIL 並列出差異清單。 |
 | Risk Register | 讀取 `docs/engineering/risk_register.md`，檢查 showstopper 風險狀態 |
 | V-test 結果 | 讀取 `.tr-state.json` 的 `v_tests` 欄位 |
-| FMEA | 檢查 FMEA 文件是否存在（TR3: Design FMEA, TR7: Process FMEA） |
-| Control Plan | 檢查 Control Plan 文件是否存在（TR7: 初版, TR8: 驗證, TR10: 最終版） |
+| 設計參數凍結 | 讀取目標 gate 相關 WI 的「設計輸入」表，掃描所有參數行。若任一參數的 `值` 欄為 "TBD"/"待定"/"?" 或 `Confidence` 欄為 "LOW"，標記為 FAIL 並列出未凍結參數清單。TR2 gate 要求所有 KC 參數 Confidence ≥ MEDIUM。 |
+| BOM 凍結 | 檢查 WI-structural（WI-04 或含 "CAD"/"assembly" 的 WI）的 BOM 段落或獨立 BOM 文件。驗證：(1) BOM 存在且有版本號 (2) 每個 BOM item 的材料與對應 MC 文件一致 (3) 若 TR4 gate，檢查「原型 BOM vs 量產 BOM 差異」段落存在。 |
+| FMEA | 檢查 FMEA 文件存在（TR3: Design FMEA, TR7: Process FMEA）。**內容品質審查**：讀取 FMEA 全文，檢查 (1) 每個失效模式是否有 Severity/Occurrence/Detection 評分 (2) RPN > 100 的項目是否有改善行動 (3) 改善行動是否有負責人和期限 (4) 失效模式覆蓋率：比對 WI 中涉及的子系統功能，標記未被 FMEA 覆蓋的功能為「覆蓋缺口」。Process FMEA 特殊檢查（TR7）：比對製程步驟清單（從 DFM review 報告讀取）與 PFMEA 中的步驟，標記未被 PFMEA 覆蓋的製程步驟。 |
+| Control Plan | 檢查 Control Plan 文件存在（TR7: 初版, TR8: 驗證版, TR10: 最終版）。**內容審查**：(1) KC 覆蓋率：比對 KC List（`docs/engineering/kc_list.md`）與 Control Plan 管控項，標記未覆蓋的 KC (2) 每個管控項是否有量測方法、頻率、樣本數 (3) 每個管控項是否有反應計劃（異常時的處置程序） (4) TR8 gate 追加：Control Plan 是否標記「已驗證」（Beta 原型實際執行過）。 |
 | 供應商確認 | 檢查 `.tr-state.json` 或相關文件中的供應商記錄 |
 
 ### Phase 3: 風險檢查

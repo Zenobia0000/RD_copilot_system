@@ -50,6 +50,9 @@ TR1-TR10 工程執行追蹤，從 TRIZ 概念凍結 (TR0) 銜接到量產釋放 
 | `/tr-fea WI-nn` | FEA 設定輔助 | tr-fea-assist |
 | `/tr-test Vn` | 測試報告產生 | tr-test-report |
 | `/tr-dfm subsystem` | DFM/DFA 審查 | tr-dfm |
+| `/tr-sop subsystem` | SOP 草稿產出 | tr-sop |
+| `/tr-spc KC-ID` | SPC/Cpk 計算 | tr-spc |
+| `/tr-ppap check/assemble` | PPAP 文件包組裝 | tr-ppap |
 
 ### 完整開發流程
 
@@ -84,9 +87,9 @@ TR1-TR10 工程執行追蹤，從 TRIZ 概念凍結 (TR0) 銜接到量產釋放 
 | `.claude/context/triz/.triz-state.json` | TRIZ session（step 0-5） | Session 級 |
 | `.claude/context/triz/.tr-state.json` | TR gate 進展（TR0-10） | 專案級 |
 
-### 流程合約
+### RDP-8 統一框架
 
-產品生命週期（PRD 4 Epic）↔ TRIZ/TR Skills 的統一映射見 `docs/planning/18_flow_contract.md`。BDD 8 Gates 的層級分析（4 刪除 / 1 簡化 / 3 延後）、F4-F7 擴展路線圖、CLI/HTTP 一致性宣告均在該文件。
+本系統採用 **RDP-8（Resolution-Driven Product Development）** 框架：8 個 Phase（P0-P7）+ 8 個 Gate（G0-G7），每個 Phase 消除恰好一種不確定性。發明性前端（P0 SCOPE → P1 MAP → P2 RESOLVE → P3 SPECIFY）由 TRIZ 引擎驅動，工程性後端（P4 PROVE → P5 BUILD → P6 HARDEN → P7 SCALE）由 TR 引擎驅動。Gate 3（概念凍結）是分水嶺。完整定義見 `docs/planning/18_flow_contract.md`。
 
 ### 與國際標準的關係
 

@@ -22,6 +22,9 @@
 | FEA 輔助 | **tr-fea-assist** | FEA 設定、材料卡、結果判讀 | `/tr-fea` |
 | 測試報告 | **tr-test-report** | V-test + DVP&R 報告產生 | `/tr-test` |
 | DFM 審查 | **tr-dfm** | DFM/DFA checklist + BOM 驗證 | `/tr-dfm` |
+| SOP 產出 | **tr-sop** | WI + FMEA + CP → 量產 SOP 草稿 | `/tr-sop` |
+| SPC/Cpk | **tr-spc** | 量測數據 → Cpk 計算 + 製程能力判定 | `/tr-spc` |
+| PPAP 組裝 | **tr-ppap** | 18 項文件包收集 + 完整度檢查 + PSW | `/tr-ppap` |
 
 ---
 

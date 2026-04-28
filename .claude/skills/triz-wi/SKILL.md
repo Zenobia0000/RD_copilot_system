@@ -440,6 +440,58 @@ MP, KXX, {mat_id}, {k_value}
 
 ---
 
+## Phase 4.5: KC List 產出
+
+WI、ICD、MC 全部完成後，從中萃取 Key Characteristics（KC）清單。KC List 是下游 Control Plan、SPC、PPAP 的基礎輸入。
+
+### 萃取規則
+
+1. 從每份 WI 的「設計輸入」表中，提取 Confidence = HIGH 且涉及安全/功能/法規的參數
+2. 從每份 ICD 的「公差與 GD&T」表中，提取所有 GD&T 特徵
+3. 從 `docs/engineering/risk_register.md` 中，提取影響度 = HIGH 的風險項對應的量測參數
+4. 從 WI-test 驗證矩陣中，提取與安全/法規相關的測試項對應的尺寸/性能特徵
+
+### 管控等級判定
+
+| 等級 | 判定規則 |
+|:-----|:---------|
+| **Critical** | 安全/法規相關，或 Risk Register 中 Impact = HIGH |
+| **Major** | 功能性能相關，或 GD&T 特徵 |
+| **Minor** | 外觀/非功能 |
+
+### 輸出
+
+產出到 `docs/engineering/kc_list.md`：
+
+```markdown
+# Key Characteristics List
+
+> **版本**: 1.0 | **日期**: {YYYY-MM-DD}
+> **來源**: WI 設計輸入 + ICD GD&T + Risk Register
+> **TRIZ Session**: {session_id}
+
+| KC ID | 特徵名稱 | 子系統 | 規格值 | 公差 | 來源 WI/ICD | 量測方法 | 管控等級 |
+|:------|:---------|:-------|:-------|:-----|:------------|:---------|:---------|
+| KC-001 | {name} | {subsystem} | {nominal} | {tolerance} | {WI-XX/ICD-XX} | {method} | Critical/Major/Minor |
+```
+
+### 統計摘要
+
+在 KC List 末尾附上統計：
+
+```markdown
+## 統計
+
+| 管控等級 | 數量 |
+|:---------|:-----|
+| Critical | {n} |
+| Major | {n} |
+| Minor | {n} |
+| **合計** | **{total}** |
+```
+
+---
+
 ## Phase 5: 狀態更新
 
 所有文件產出完成後，更新 `.claude/context/triz/.triz-state.json`。
@@ -457,6 +509,7 @@ MP, KXX, {mat_id}, {k_value}
     "icd_files": ["ICD-01_motor_housing.md", "..."],
     "mc_files": ["MC-01_{material}.md", "..."],
     "framework_files": ["README.md", "tr_gate_framework.md", "critical_path.md", "risk_register.md"],
+    "kc_list_file": "kc_list.md",
     "total_files": 0,
     "output_dir": "docs/engineering/"
   }
@@ -513,6 +566,37 @@ Step 5 完成 — 工程作業指導書體系已產出。
 可執行 `/triz-status` 查看完整 pipeline 狀態。
 下一步：執行 `/tr` 進入 TR1→TR10 工程執行追蹤，或各域 RD 工程師按 WI 程序獨立執行開發。
 ```
+
+### 5.3 TRIZ→TR 自動銜接（TR0 概念凍結）
+
+Step 5 完成後，**自動執行**以下銜接動作：
+
+1. **檢查 `.tr-state.json` 是否存在**：
+   - 若不存在 → 由 Bootstrap 邏輯建立（見 tr-router skill）
+   - 若已存在 → 更新 `triz_session_ref` 和 `triz_state_hash`
+
+2. **更新 `.tr-state.json`**：
+   ```json
+   {
+     "triz_session_ref": "{session_id}",
+     "triz_state_hash": "{SHA-256 of .triz-state.json content}"
+   }
+   ```
+
+3. **確認 `docs/engineering/` 目錄存在且含有必要檔案**：
+   - tr_gate_framework.md
+   - 至少 1 份 WI
+   - 至少 1 份 MC
+
+4. **輸出銜接摘要**：
+   ```
+   ═══ TR0 概念凍結 ═══
+   TRIZ 分析完成（Session: {session_id}）。
+   工程交付物：{total_files} 份（{N} WI + {N} ICD + {N} MC + 4 框架）。
+   TR0 → TR1 銜接就緒。
+   
+   下一步：執行 `/tr-gate TR1` 進行可行性 gate review。
+   ```
 
 ---
 

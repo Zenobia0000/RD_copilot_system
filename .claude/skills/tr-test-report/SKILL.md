@@ -16,11 +16,55 @@
 /tr-test phase-A           # 產出指定 Phase 全部測試報告
 /tr-test all               # 產出所有已完成測試的報告
 /tr-test dvpr              # 產出 DVP&R 總表（TR9 用）
+/tr-test plan              # 產出完整測試計劃
+/tr-test plan phase-A      # 產出指定 Phase 測試計劃
 ```
 
 | 參數 | 必要 | 說明 |
 |:-----|:-----|:-----|
-| Vn / Vn-Vm / phase-X / all / dvpr | 是 | 目標測試項 |
+| Vn / Vn-Vm / phase-X / all / dvpr / plan | 是 | 目標測試項或模式 |
+
+---
+
+## Phase 0: 測試計劃模式（plan 指令）
+
+當輸入為 `plan` 或 `plan phase-X` 時，切換至計劃模式（不進入數據收集）：
+
+1. 讀取 WI-test 的驗證矩陣（同 Phase 1 的搜尋策略）
+2. 若指定 `phase-X`，僅處理該 Phase 的 V-test；否則處理全部
+3. 為每個 V-test 產出：
+   - **測試目的**（從 WI 判定標準推導）
+   - **所需設備清單**（從 WI 方法描述推導）
+   - **樣本需求**（數量、製作方式、材料來源）
+   - **預估工時**（基於方法複雜度估算）
+   - **前置條件**（上游 V-test 依賴 或 WI 交付物依賴）
+4. 產出排程建議（基於前置依賴的 DAG，標示可並行 vs 必須循序的測試）
+5. 輸出到 `docs/engineering/test_reports/test_plan_{YYYY-MM-DD}.md`
+
+```markdown
+# 測試計劃
+
+> **日期**: {YYYY-MM-DD}
+> **範圍**: {全部 / Phase-X}
+> **對應 WI**: {wi_file}
+
+## 測試項目總覽
+
+| # | V-test | 測試名稱 | Phase | 設備 | 樣本數 | 預估工時 | 前置條件 |
+|:--|:-------|:---------|:------|:-----|:-------|:---------|:---------|
+| 1 | V{n} | {name} | {phase} | {equipment} | {samples} | {hours} | {prerequisites} |
+
+## 排程建議
+
+{DAG 圖 + 建議執行順序}
+
+## 設備與資源需求彙總
+
+| 設備 | 用於 V-test | 數量 | 備註 |
+|:-----|:-----------|:-----|:-----|
+```
+
+計劃模式完成後，**不進入 Phase 1-5**，直接結束。
 
 ---
 
@@ -161,6 +205,30 @@
 Alpha 結果從已有的 V-test 報告讀取。PV 結果引導使用者輸入。
 
 額外追加 `tr_gate_framework.md` 中 TR9→TR10 退出條件要求的測試項（耐久、環境、安全、防水等），引導使用者補充。
+
+### DVP&R 整體判定
+
+彙整完 DVP&R 表後，自動執行判定：
+
+| 判定 | 條件 |
+|:-----|:-----|
+| **ALL PASS** | 所有 V-test + PV 測試 result = pass |
+| **CONDITIONAL** | 有 marginal 項但無 fail 項，列出 marginal 清單 |
+| **FAIL** | 任一測試 result = fail，列出 fail 清單 + 影響分析 |
+
+判定結果寫入 DVP&R 報告頭部的 metadata：
+
+```markdown
+> **DVP&R 判定**: {ALL PASS / CONDITIONAL / FAIL}
+> **PASS 率**: {pass_count}/{total_count} ({pct}%)
+> **Marginal 項**: {marginal_list 或 "無"}
+> **FAIL 項**: {fail_list 或 "無"}
+```
+
+並更新 `.tr-state.json`：
+- `dvpr_verdict`: `"ALL_PASS"` / `"CONDITIONAL"` / `"FAIL"`
+- `dvpr_date`: `"YYYY-MM-DD"`
+- `dvpr_report`: 報告路徑
 
 ---
 

@@ -7,7 +7,7 @@ P1 cleared v1. P2 adds the /api/v1 router structure: /health (public) and
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import health, sessions
+from app.api import artifacts, deliverables, health, sessions, state
 from app.middleware.error_handler import register_error_handlers
 from app.middleware.request_id import RequestIDMiddleware
 from app.settings import settings, setup_logging
@@ -31,3 +31,6 @@ API_PREFIX = "/api/v1"
 
 app.include_router(health.router, prefix=API_PREFIX)
 app.include_router(sessions.router, prefix=API_PREFIX)
+app.include_router(state.router, prefix=API_PREFIX)
+app.include_router(artifacts.router, prefix=API_PREFIX)
+app.include_router(deliverables.router, prefix=API_PREFIX)

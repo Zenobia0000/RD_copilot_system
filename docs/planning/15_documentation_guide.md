@@ -2,9 +2,9 @@
 
 ---
 
-**文件版本**：`v1.0`
-**最後更新**：`2026-04-28`
-**狀態**：`Skeleton`
+**文件版本**：`v1.1`（新增 §2.5 Frontmatter Convention）
+**最後更新**：`2026-04-29`
+**狀態**：`Skeleton + Frontmatter SSOT 規範已收錄`
 **模板來源**：`templates/vibecoding/15_documentation_and_maintenance_guide.md`
 
 ---
@@ -44,6 +44,126 @@
 2. Skill 產出、人消費 → `docs/engineering/`
 3. 人撰寫、Skill 參考 → `docs/methodology/` 或 `knowledge/triz/`
 4. **狀態 JSON 只能由 Skill（透過 TrizState{Read,Write,Advance} Tool）修改，不可手動編輯** — 手動編輯會破壞 schema 驗證與 step advance guard rails
+
+---
+
+## 2.5 Frontmatter Convention（Engineering Outputs）
+
+`docs/engineering/` 下的 WI/ICD/MC 是 **typed property graph** 的節點（見 [`09_file_dependencies.md §3`](./09_file_dependencies.md)）。每個檔案頂部 YAML frontmatter 是 **single source of truth**；mermaid 視圖、`_graph.json`、CI lint 全部從 frontmatter 推導。
+
+### 2.5.1 通用必填欄位
+
+| 欄位 | 型別 | 說明 |
+|:-----|:-----|:-----|
+| `id` | string | 全 graph 唯一，格式 `<TYPE>-NN`（WI-01、ICD-03、MC-06） |
+| `type` | enum | `WI` / `ICD` / `MC` |
+| `title` | string | 一句話標題（mermaid 節點標籤會用此）|
+| `version` | string | SemVer，初版 `1.0` |
+| `date` | YYYY-MM-DD | 建立或最後一次重大修改 |
+
+### 2.5.2 WI 額外欄位
+
+| 欄位 | 型別 | 必填 | 說明 |
+|:-----|:-----|:----:|:-----|
+| `domain` | string | ✓ | electromagnetic / mechanical / thermal / structural / electronics / test / procurement |
+| `role` | enum | — | `cross-cutting`（橫切性 WI 例外 NO-TRACE lint） |
+| `owner` | string | ✓ | EE / ME / ME-Thermal / EE-FW / QA / SCM |
+| `effort_weeks` | number / "ongoing" | ✓ | 預估工時 |
+| `traces_to` | list[ID] | ✓ * | TC / SOL / Principle 列表（* `cross-cutting` WI 可省）|
+| `cites` | list[Claim ID] | — | 引用 Evidence Registry 條目（C-A001 等） |
+| `uses` | list[MC ID] | — | 使用的材料卡 |
+| `feeds` | list[obj] | — | 下游 WI（含 `target` / `artifact` / `purpose`） |
+| `depends_on` | list[obj] | — | 上游 WI（同上格式） |
+| `supports_icd` | list[ICD ID] | — | 支援的介面 |
+| `mitigates` | list[Risk ID] | — | 關閉的 Risk |
+| `satisfies_gates` | list[TR ID] | — | 滿足的 TR Gate |
+
+### 2.5.3 ICD 額外欄位
+
+| 欄位 | 必填 | 說明 |
+|:-----|:----:|:-----|
+| `links` | ✓ | 連結的 WI（雙向關係的「ICD 端」聲明） |
+| `mitigates` | — | 關閉的 Risk |
+
+### 2.5.4 MC 額外欄位
+
+| 欄位 | 必填 | 說明 |
+|:-----|:----:|:-----|
+| `material_class` | ✓ | permanent_magnet / soft_magnetic_composite / composite / aluminum_alloy / copper / phase_change / ... |
+| `cites` | ✓ | 引用 Evidence（C-NNN）|
+| `used_by` | — | WI 列表（uses 的反向，書寫便利）|
+| `mitigates` | — | 關閉的 Risk |
+
+### 2.5.5 完整範例（WI-01）
+
+```yaml
+---
+id: WI-01
+type: WI
+title: Halbach NdFeB 馬達 + SMC Stator + CFRP 套筒
+domain: electromagnetic
+version: 1.0
+date: 2026-04-28
+effort_weeks: 6
+owner: EE/ME
+
+traces_to:
+  - TC-B           # 功率密度 vs 重量
+  - SOL-TCB
+  - principle:14   # 曲面化 (Halbach)
+  - principle:40   # 複合材料 (CFRP)
+
+cites:
+  - C-B001         # NdFeB N42SH B_r=1.32 T (HIGH)
+  - C-B002         # Halbach +30~40% (MEDIUM, 待 FEA)
+  - C-B003         # SMC sat=1.6 T (HIGH)
+  - C-B004         # CFRP tip speed (LOW, 待 datasheet)
+
+uses: [MC-01, MC-02, MC-03]
+
+feeds:
+  - target: WI-03
+    artifact: Loss map (CSV)
+    purpose: thermal CFD 邊界條件
+  - target: WI-04
+    artifact: 馬達包絡尺寸
+    purpose: housing 設計輸入
+
+supports_icd: [ICD-01]
+mitigates: [R-001, R-004, R-005]
+satisfies_gates: [TR1, TR2, TR3, TR5, TR6]
+---
+```
+
+### 2.5.6 驗證指令（必跑）
+
+每次改完 frontmatter，跑：
+
+```bash
+python3 tools/build_graph.py --strict
+```
+
+Lint clean 才能 commit。常見失敗：
+
+| 訊息 | 修法 |
+|:-----|:-----|
+| `[NO-TRACE] WI-XX has no traces_to` | 補 `traces_to` 或加 `role: cross-cutting` |
+| `[OPEN-RISK] R-XXX` | 確認某 WI 的 `mitigates` 列表含此 Risk |
+| `[LOW-CLAIM] C-XXX` | 補實證或在 risk_register.md 增列風險條目 |
+| `[NO-FRONTMATTER] WI-XX...` | 補完整 frontmatter（參考 §2.5.5）|
+| `[YAML ERROR]` | YAML 語法錯（多半是縮排或冒號後空格） |
+
+### 2.5.7 視圖注入（請勿手寫 mermaid）
+
+frontmatter 是 SSOT，mermaid 視圖**不可手寫**，由：
+
+```bash
+python3 tools/build_graph.py --inject
+```
+
+自動產生並注入 `<!-- AUTO-GRAPH:START view=... -->` 與 `<!-- AUTO-GRAPH:END -->` 之間。手寫視圖會在下次 inject 被覆寫。
+
+完整工具行為見 [`09_file_dependencies.md §3`](./09_file_dependencies.md)；架構決策見 [`04_adr/ADR-008_knowledge_graph_as_ssot.md`](./04_adr/ADR-008_knowledge_graph_as_ssot.md)。
 
 ---
 
@@ -125,3 +245,13 @@ SemVer：MAJOR.MINOR.PATCH
 
 - 模板：`templates/vibecoding/15_documentation_and_maintenance_guide.md`
 - 政策：`.claude/CLAUDE.md` 內容位置邊界（lines 93-121）
+- §2.5 對齊：[`09_file_dependencies.md §3`](./09_file_dependencies.md)、`tools/build_graph.py`、[`04_adr/ADR-008_knowledge_graph_as_ssot.md`](./04_adr/ADR-008_knowledge_graph_as_ssot.md)
+
+---
+
+## 變更紀錄
+
+| 日期 | 版本 | 變更 |
+|:-----|:-----|:-----|
+| 2026-04-29 | v1.1 | 新增 §2.5 Frontmatter Convention：完整 schema（WI/ICD/MC 各別欄位）+ WI-01 範例 + `build_graph.py --strict` 驗證指引 + lint 訊息對照表。 |
+| 2026-04-28 | v1.0 | 初版（VibeCoding template skeleton）|

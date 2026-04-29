@@ -2,9 +2,9 @@
 
 ---
 
-**文件版本**：`v2.0`（完全覆寫，對齊 08 v2.0 harness-first）
-**最後更新**：`2026-04-28`
-**狀態**：`Active — replaces v1.0 Clean Arch DAG`
+**文件版本**：`v2.1`（新增 Engineering Knowledge Graph 章節）
+**最後更新**：`2026-04-29`
+**狀態**：`Active — covers backend DAG + engineering knowledge graph`
 **模板來源**：`templates/vibecoding/09_file_dependencies_template.md`
 
 > **本檔定位**：依賴分析應反映實際 `backend/app/` 與 `.claude/` 的關係，不是虛構的 `api → application → domain → infrastructure` 層次。先前 v1.0 提的 layered DAG 與實際零相關，已棄用。
@@ -117,7 +117,146 @@ graph TD
 
 ---
 
-## 3. 模組職責定義
+## 3. Engineering Knowledge Graph（`docs/engineering/`）
+
+`docs/engineering/` 下的工程交付物（WI / ICD / MC / Risk / KC）之間是 **typed property graph**（多類型節點 + 多類型邊 + 環），不是樹結構。例如：
+- WI-01 ↔ WI-03 雙向（Loss map → 熱設計，但熱限反饋給 WI-01 設計約束）
+- ICD-01 同時被 WI-01、WI-03、WI-04 引用（多 parent）
+- KC-001 跨 ICD-01 + WI-04 兩個檔案
+
+為了避免散文 cross-reference 漂移，採用「YAML frontmatter = SSOT、視圖 = 投影」設計。維護工具：`tools/build_graph.py`。
+
+### 3.1 節點類型
+
+| Type | ID 前綴 | 來源 |
+|:-----|:--------|:-----|
+| `WI` | `WI-NN` | `docs/engineering/work_instructions/` |
+| `ICD` | `ICD-NN` | `docs/engineering/interface_control/` |
+| `MC` | `MC-NN` | `docs/engineering/material_cards/` |
+| `KC` | `KC-NNN` | `docs/engineering/kc_list.md`（隱式節點） |
+| `Risk` | `R-NNN` | `docs/engineering/risk_register.md`（隱式節點） |
+| `Gate` | `TRn` | `docs/engineering/tr_gate_framework.md`（隱式節點） |
+| `Claim` | `C-X NNN` | Evidence Registry（session 報告 / WI 內）|
+| `TC` | `TC-X` | TRIZ session（隱式 — 在 `.claude/context/triz/`） |
+| `SOL` | `SOL-TCX` | 同上 |
+| `Principle` | `principle:N` | 40 TRIZ 原理（隱式） |
+
+「隱式節點」= 不對應獨立 markdown 檔，僅作為 graph 中的引用目標。
+
+### 3.2 邊類型（frontmatter relation 欄位）
+
+| Frontmatter 欄位 | Edge relation | 用途 |
+|:----------------|:--------------|:-----|
+| `traces_to` | TRACES_TO | WI/ICD/MC → TC/SOL/Principle（為什麼這樣設計）|
+| `cites` | CITES | WI/MC → Claim（引用具體證據數值） |
+| `uses` | USES | WI → MC（使用某材料） |
+| `used_by` | USED_BY | MC → WI（反向，書寫便利） |
+| `feeds` | FEEDS | WI → WI（資料流，含 `artifact` 屬性） |
+| `depends_on` | DEPENDS_ON | WI → WI（前置依賴，含 `artifact` 屬性） |
+| `supports_icd` | SUPPORTS | WI → ICD |
+| `links` | LINKS | ICD → WI（反向） |
+| `mitigates` | MITIGATES | WI/ICD/MC → Risk |
+| `satisfies_gates` | SATISFIES | WI → Gate |
+| `blocks` | BLOCKS | Risk → Gate（隱式） |
+| `measures` | MEASURES | KC → WI/ICD（隱式） |
+
+完整 frontmatter schema 見 [`15_documentation_guide.md §2.5`](./15_documentation_guide.md)。
+
+### 3.3 build_graph.py 工作流
+
+```mermaid
+flowchart LR
+    FM[各 WI/ICD/MC<br/>YAML frontmatter] -->|scan| BG[build_graph.py]
+    BG -->|nodes + edges| GJ[_graph.json]
+    BG -->|lint| WARN[警告報告]
+    BG -->|--inject| MM[mermaid blocks<br/>注入 README + risk_register +<br/>各檔 ego graph]
+    BG -->|--scaffold| MK[加 marker 到<br/>缺 marker 的檔]
+```
+
+三種模式：
+
+| 模式 | 命令 | 副作用 | 用途 |
+|:-----|:-----|:-------|:-----|
+| Scan | `python3 tools/build_graph.py` | 寫 `_graph.json`、印 lint 報告 | 改 frontmatter 後驗證 |
+| Inject | `python3 tools/build_graph.py --inject` | 上述 + 更新所有 marker 內 mermaid block | 視圖需更新時 |
+| Scaffold | `python3 tools/build_graph.py --scaffold` | 上述 + 在缺 marker 的檔插入注入點 | 新增 WI/ICD/MC 後 |
+| Strict | `python3 tools/build_graph.py --strict` | 上述 + lint 失敗 exit 1 | CI / pre-commit |
+
+### 3.4 `_graph.json` 結構
+
+```json
+{
+  "version": "1.0",
+  "nodes": [
+    {"id": "WI-01", "type": "WI", "title": "...", "domain": "electromagnetic", ...}
+  ],
+  "edges": [
+    {"source": "WI-01", "target": "WI-03", "relation": "FEEDS",
+     "artifact": "Loss map (CSV)", "purpose": "thermal CFD 邊界條件"}
+  ],
+  "stats": {
+    "node_count": 17,
+    "edge_count": 161,
+    "by_type": {"WI": 7, "ICD": 4, "MC": 6}
+  }
+}
+```
+
+`_graph.json` 是衍生產物（derived artifact），可被 CI、未來 skill（`triz-graph-audit` 等）直接消費。**不要手改**；改 frontmatter 後重跑 build_graph.py。
+
+### 3.5 視圖類型（mermaid 投影）
+
+| 視圖 | 注入位置 | 內容 |
+|:-----|:---------|:-----|
+| `topology` | `docs/engineering/README.md` | WI × ICD 主架構 + feeds 標籤 |
+| `risk-matrix` | `docs/engineering/risk_register.md` | WI × Risk 緩解矩陣（過濾 source = WI） |
+| `ego` | 各 WI/ICD/MC 檔頂部 | 該節點 1-hop 鄰居 by type subgraph |
+
+注入區塊以標記包夾：
+
+```markdown
+<!-- AUTO-GRAPH:START view=ego -->
+（mermaid block — 由 build_graph.py 渲染）
+<!-- AUTO-GRAPH:END -->
+```
+
+**重要**：標記之間的內容會被覆寫，不要手改。
+
+### 3.6 Lint 規則
+
+| 規則 | 檢查 | 處理 |
+|:-----|:-----|:-----|
+| `[UNKNOWN-PREFIX]` | ID 前綴非 WI/ICD/MC/TC/SOL/C/R/KC/TR/principle | 警告 |
+| `[NO-TRACE]` | WI 無 `traces_to`（cross-cutting WI 例外）| 警告（建議補 SOL/TC） |
+| `[OPEN-RISK]` | Risk 沒被任何 WI mitigates | 警告 |
+| `[LOW-CLAIM]` | Confidence=LOW 的 Claim 仍被引用 | 警告（建議補實證） |
+| `[NO-FRONTMATTER]` | WI/ICD/MC 檔缺 frontmatter | 警告（framework files 例外） |
+| `[DUP]` | 重複 ID | 錯誤 |
+| `[YAML ERROR]` | frontmatter 解析失敗 | 錯誤 |
+
+### 3.7 Framework files（不需要 frontmatter）
+
+以下視為 aggregation views / index files，scaffold/lint 都跳過：
+
+- `README.md`、`FILE_DEPENDENCY_GUIDE.md`
+- `tr_gate_framework.md`、`critical_path.md`、`risk_register.md`、`kc_list.md`
+
+這些檔案是 graph 的「投影視圖」，不是節點本身。
+
+### 3.8 為什麼是 Graph 而非樹？
+
+| 樹的假設 | 實際違反 |
+|:---------|:---------|
+| 每節點唯一父節點 | ICD-01 同時被 3 個 WI 擁有；KC-001 跨 ICD+WI |
+| 引用單向 | WI-01 ↔ WI-03 雙向（feeds + 反饋）|
+| 同質節點 | 12+ 種節點類型 |
+| 無環 | 設計反饋形成循環（電熱耦合、製造↔公差）|
+
+決策依據見 [`04_adr/ADR-008_knowledge_graph_as_ssot.md`](./04_adr/ADR-008_knowledge_graph_as_ssot.md)。
+
+---
+
+## 4. 模組職責定義
 
 | 層 | 後端目錄 | 主要職責 | 輸出 |
 |:---|:---------|:---------|:-----|
@@ -132,7 +271,7 @@ graph TD
 
 ---
 
-## 4. 關鍵呼叫鏈
+## 5. 關鍵呼叫鏈
 
 ### 4.1 「使用者 HTTP /run 觸發 TRIZ 求解」
 
@@ -187,7 +326,7 @@ AgentLoop 主迴圈呼叫 Agent tool
 
 ---
 
-## 5. 依賴風險與管理
+## 6. 依賴風險與管理
 
 ### 5.1 風險
 
@@ -208,7 +347,7 @@ AgentLoop 主迴圈呼叫 Agent tool
 
 ---
 
-## 6. 外部依賴管理
+## 7. 外部依賴管理
 
 | 依賴 | 鎖定版本 | 升級策略 |
 |:-----|:---------|:---------|
@@ -241,5 +380,6 @@ AgentLoop 主迴圈呼叫 Agent tool
 
 | 日期 | 版本 | 變更 |
 |:-----|:-----|:-----|
+| 2026-04-29 | v2.1 | 新增 §3「Engineering Knowledge Graph」描述 `docs/engineering/` 的 typed property graph、`tools/build_graph.py` 工作流、frontmatter relation schema、`_graph.json` 結構、視圖類型、lint 規則。原 §3-6 重新編號為 §4-7。 |
 | 2026-04-28 | v2.0 | 完全覆寫：DAG 改為實際 harness 內部依賴 + filesystem 運行時依賴。先前 v1.0 的 `api → application → domain → infrastructure` 分層 DAG 與實際零相關，已棄用。 |
 | 2026-04-28 | v1.0 | 初版（Clean Arch 分層 DAG；方向錯誤被 v2.0 取代） |

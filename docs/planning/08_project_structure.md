@@ -2,8 +2,8 @@
 
 ---
 
-**文件版本**：`v2.3`（domain.yaml 解耦 + 資料夾重組 + DomainConfig）
-**最後更新**：`2026-04-28`
+**文件版本**：`v2.4`（doc tooling 補註）
+**最後更新**：`2026-04-29`
 **狀態**：`Active — reflects actual harness; new features must follow this structure`
 **模板來源**：`templates/vibecoding/08_project_structure_guide.md`（本檔結構偏離模板以反映 claude-code 風 harness）
 
@@ -121,6 +121,8 @@ backend/
         ├── session-*.md      # 跨步驟敘事記錄
         └── session-template.md
 ```
+
+**頂層 `tools/`**（與 `backend/app/` 平行）：放維運型 Python 工具，例如 `tools/build_graph.py` 從 `docs/engineering/` frontmatter 構建 typed property graph 並注入 mermaid 視圖。**不在** `backend/app/` 下，因為它跟 FastAPI runtime 無關，是 doc tooling。
 
 ### 3.1 內容位置邊界（引用 `.claude/CLAUDE.md`）
 
@@ -337,7 +339,7 @@ else:
 | `docs/planning/06_api_spec.md` | API 契約 | §7 endpoints 對應 `app/api/`，多數 TRIZ endpoints 透過 harness 實現 |
 | `docs/planning/04_adr/ADR-002` | TRIZ Skill 架構決策 | 對應 `.claude/skills/triz-*` |
 | `docs/methodology/auto_triz_strategy.md` | TRIZ 方法策略 SSOT | Skill body 引用 |
-| `docs/engineering/` | 工程交付物範本（WI/ICD/MC） | `triz-wi` skill 寫入此 |
+| `docs/engineering/` | 工程交付物（WI/ICD/MC）+ **typed property graph SSOT** | `triz-wi` skill 寫入；frontmatter schema 見 [`15_documentation_guide.md §2.5`](./15_documentation_guide.md)；維護工具 `tools/build_graph.py`（見 [`09_file_dependencies.md §3`](./09_file_dependencies.md)） |
 | `docs/methodology/DK-01-05` | 方法論 KB | Skill 參考 |
 | `docs/01-define/pages/` | 18 頁產品 IA | 前端實作目標（前端尚未存在） |
 
@@ -387,6 +389,7 @@ frontend/
 
 | 日期 | 版本 | 變更 |
 |:-----|:-----|:-----|
+| 2026-04-29 | v2.4 | §3 標註頂層 `tools/`（doc tooling），如 `tools/build_graph.py`；§10 表格 `docs/engineering/` 行加 frontmatter schema 與 graph 工具連結。 |
 | 2026-04-28 | v2.3 | 資料夾重組（`knowledge/` + `templates/` + `docs/methodology|engineering|research/`）+ `domain.yaml` + `domain_config.py` 解耦 harness↔domain 硬編碼；`BundleManager` categories 可配置化。 |
 | 2026-04-28 | v2.2 | 加入 `ArtifactBundle` tool + `bundle.py`（MANIFEST.json 管理：register/validate/status/export），domain tools 7→8。 |
 | 2026-04-28 | v2.1 | 加入 `app/triz/` domain tools layer（7 Tool 子類 + registry）、EditTool、BashTool、TRIZ command 路由（§5.1）、§6.1 domain tool 慣例。 |

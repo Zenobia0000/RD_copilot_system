@@ -2,9 +2,9 @@
 
 ---
 
-**文件版本**：`v1.1`
-**最後更新**：`2026-04-28`
-**狀態**：`Skeleton — Kubernetes / Celery / PostgreSQL 為 v3 roadmap 目標，非當前 MVP 架構`
+**文件版本**：`v1.2`（新增 §3.1 Graph Lint in CI + §3.2 pre-commit hook）
+**最後更新**：`2026-04-29`
+**狀態**：`Skeleton + Graph CI 步驟已收錄`
 **模板來源**：`templates/vibecoding/14_deployment_and_operations_guide.md`
 
 > **注意**：當前 MVP 為單進程 Docker Compose（`uvicorn app.main:app`）+ in-memory session store。下文 Kubernetes / Celery / RDS 等描述為未來 production 目標架構（v3 roadmap），非現行部署方式。
@@ -52,6 +52,7 @@ jobs:
     steps:
       - ESLint + ruff
       - tsc + mypy
+      - graph-lint: python3 tools/build_graph.py --strict   # 見 §3.1
 
   test:
     needs: lint-typecheck
@@ -85,6 +86,66 @@ jobs:
       - Helm upgrade
       - Smoke test
 ```
+
+---
+
+### 3.1 Graph Lint in CI（`docs/engineering/` frontmatter 驗證）
+
+`docs/engineering/` 下 WI/ICD/MC 的 YAML frontmatter 是 typed property graph 的 SSOT（見 [`05_architecture.md §5.5`](./05_architecture.md)、[ADR-008](./04_adr/ADR-008_knowledge_graph_as_ssot.md)）。任何 PR 修改這些檔必須通過 lint，否則 graph 視圖與 CI 一致性會崩。
+
+**CI step 完整寫法**：
+
+```yaml
+- name: Engineering Knowledge Graph lint
+  run: |
+    pip install pyyaml
+    python3 tools/build_graph.py --strict
+  # exit code: 0 = lint clean / 1 = lint warnings (will fail CI)
+```
+
+**檢查項目**（詳見 [`09_file_dependencies.md §3.6`](./09_file_dependencies.md)）：
+- 所有 WI/ICD/MC 必含 frontmatter（framework files 例外）
+- ID 唯一、ID 前綴合法
+- WI 必含 `traces_to`（除非 `role: cross-cutting`）
+- 每個 Risk 必須被某 WI/MC `mitigates`
+- Confidence=LOW 的 Claim 仍被引用 → 警告
+- frontmatter YAML 解析無錯
+
+**PR check 行為**：
+
+| 情境 | CI 結果 | 處理 |
+|:-----|:--------|:-----|
+| 改 frontmatter 後 lint clean | ✅ pass | 自動 review |
+| 新增 WI 但沒跑 `--inject` | ⚠️ pass（lint 通過但視圖過時）| 建議 PR 評論提醒跑 `--inject` |
+| frontmatter YAML 語法錯 | ❌ fail | 修語法後重提 |
+| 引用不存在的 ID（拼錯） | ⚠️ `[UNKNOWN-PREFIX]` warning | strict 模式擋下，需修正 |
+| Risk 沒被任何 WI 關閉 | ⚠️ `[OPEN-RISK]` | 補 mitigates 或刪除孤兒 risk |
+
+### 3.2 Pre-commit Hook（建議）
+
+Local commit 前自動跑 graph lint，避免 push 後 CI fail：
+
+```yaml
+# .pre-commit-config.yaml
+repos:
+  - repo: local
+    hooks:
+      - id: build-graph-strict
+        name: Engineering Knowledge Graph lint
+        entry: python3 tools/build_graph.py --strict
+        language: system
+        files: '^docs/engineering/.*\.md$'
+        pass_filenames: false
+```
+
+啟用：
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+之後每次 `git commit` 都會自動跑 lint，失敗則阻擋 commit。
 
 ---
 
@@ -204,3 +265,14 @@ Detect → Acknowledge → Mitigate → Resolve → Post-Mortem
 
 - 模板：`templates/vibecoding/14_deployment_and_operations_guide.md`
 - 對應：[`13_security_checklist.md`](./13_security_checklist.md), [`05_architecture.md §6`](./05_architecture.md)
+- §3.1-3.2 對齊：[`09_file_dependencies.md §3`](./09_file_dependencies.md)、[`04_adr/ADR-008_knowledge_graph_as_ssot.md`](./04_adr/ADR-008_knowledge_graph_as_ssot.md)、`tools/build_graph.py`
+
+---
+
+## 變更紀錄
+
+| 日期 | 版本 | 變更 |
+|:-----|:-----|:-----|
+| 2026-04-29 | v1.2 | 新增 §3.1 Graph Lint in CI（`build_graph.py --strict` 整合 GitHub Actions 的 lint-typecheck job）+ §3.2 Pre-commit Hook 配置範例。 |
+| 2026-04-28 | v1.1 | 標註 K8s / Celery / RDS 為 v3 roadmap，非當前 MVP 架構 |
+| 2026-04-28 | v1.0 | 初版 |

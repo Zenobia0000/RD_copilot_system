@@ -2,8 +2,8 @@
 
 ---
 
-**文件版本**：`v2.0`（完全覆寫，對齊 08 v2.0 harness-first）
-**最後更新**：`2026-04-28`
+**文件版本**：`v2.2`（新增 Engineering Doc 契約）
+**最後更新**：`2026-04-29`
 **狀態**：`Active — replaces v1.0 Clean Arch module table`
 **模板來源**：`templates/vibecoding/07_module_specification_and_tests.md`（結構偏離模板以反映 harness）
 
@@ -196,7 +196,70 @@ description: TRIZ 主入口路由 + session 管理
 
 ---
 
-## 5. 測試矩陣
+## 5. Engineering Doc 契約（WI/ICD/MC frontmatter）
+
+§2-4 講的是 Python/Skill/Command 三類模組契約。**§5 補第四類**：`docs/engineering/` 下的工程交付物也是受 lint 約束的「契約」— 由 YAML frontmatter 宣告 typed graph relations，由 `tools/build_graph.py --strict` 驗證。
+
+### 5.1 為什麼這是契約
+
+- **跨檔依賴**：WI-01 宣告 `feeds: WI-03` 後，WI-03 必須真實存在；改 WI-03 的 ID 而沒同步 WI-01 → CI 應擋下
+- **關閉風險**：`risk_register.md` 列 R-001 後，必須有某 WI 的 `mitigates` 列表含 R-001，否則 lint 警告 OPEN-RISK
+- **證據引用**：`cites: C-B002` 必須在 Evidence Registry 中找得到此 Claim ID
+
+### 5.2 契約模板（範例：WI）
+
+```yaml
+---
+id: WI-01                # 必填，全 graph 唯一
+type: WI                 # 必填，enum
+title: ...               # 必填
+domain: electromagnetic  # 必填（WI 專屬）
+version: 1.0
+date: 2026-04-29
+effort_weeks: 6
+owner: EE/ME
+
+# Typed relations（用於 graph 構建 + lint）
+traces_to: [TC-B, SOL-TCB, "principle:14"]
+cites:     [C-B001, C-B002]
+uses:      [MC-01, MC-02]
+feeds:
+  - target: WI-03
+    artifact: Loss map (CSV)
+mitigates:        [R-001, R-004]
+satisfies_gates:  [TR1, TR2, TR3]
+---
+```
+
+完整 schema（含 ICD / MC 個別欄位、`role: cross-cutting` 例外規則、所有 11+ relation 欄位）見 [`15_documentation_guide.md §2.5`](./15_documentation_guide.md)。
+
+### 5.3 與 Tool/Skill 契約的對比
+
+| 維度 | Tool（§2） | Skill（§3） | Command（§4） | **Eng Doc（§5）** |
+|:-----|:----------|:-----------|:-------------|:------------------|
+| 載體 | Python class | markdown body | markdown body | markdown frontmatter |
+| 介面定義 | `input_schema` JSON | frontmatter (`name` / `allowed_tools`) | frontmatter + body 引用 | frontmatter typed relations |
+| 執行 | `run() -> ToolResult` | LLM 系統提示 | resolve 後載入 skill | 不執行（純資料）|
+| 驗證 | pytest 四象限 | live test (`@pytest.mark.live`) | command parser tests | `build_graph.py --strict` lint |
+| 失敗模式 | `is_error=True` | LLM 看到 tool error 自決策 | 解析失敗降級 | lint warning / error |
+
+### 5.4 測試重點
+
+| 檢查項 | 工具 | 失敗時 |
+|:-------|:-----|:-------|
+| frontmatter 解析 | `yaml.safe_load` in `build_graph.py` | `[YAML ERROR]` |
+| ID 唯一性 | build_graph 內部 dict | `[DUP]` 錯誤 |
+| Relation 目標存在 | lint pass | `[UNKNOWN-PREFIX]` 警告 |
+| WI 必含 `traces_to` | lint | `[NO-TRACE]` 警告（除非 `role: cross-cutting`） |
+| Risk 被 mitigates | lint | `[OPEN-RISK]` 警告 |
+| LOW Claim 仍被引用 | lint | `[LOW-CLAIM]` 警告 |
+| frontmatter 完整 | lint | `[NO-FRONTMATTER]` 警告（framework files 例外） |
+
+CI 在 [`14_deployment_ops.md §3`](./14_deployment_ops.md) 描述如何整合 `build_graph.py --strict` 到 GitHub Actions。
+
+---
+
+## 6. 測試矩陣
 
 每類契約對應的測試重點：
 
@@ -211,7 +274,7 @@ description: TRIZ 主入口路由 + session 管理
 
 ---
 
-## 6. LLM Prompting Guide（給 AI 開發者）
+## 7. LLM Prompting Guide（給 AI 開發者）
 
 當你要為新 Tool / Skill 產生 boilerplate：
 
@@ -240,6 +303,7 @@ description: TRIZ 主入口路由 + session 管理
 
 | 日期 | 版本 | 變更 |
 |:-----|:-----|:-----|
+| 2026-04-29 | v2.2 | 新增 §5「Engineering Doc 契約」：把 `docs/engineering/` 的 frontmatter SSOT 納入第四類模組契約，含 schema、lint 規則、與 Tool/Skill/Command 對比表。原 §5-6 重新編號為 §6-7。 |
 | 2026-04-28 | v2.1 | §1.2 triz-verify 映射更正為 F3+F4（cad_readiness merged），triz-contradict 更正為 F2 |
 | 2026-04-28 | v2.0 | 完全覆寫：模組改為 Tool / Skill / Command 三類契約。先前 v1.0 提的 Python function 契約（如 `solve_contradiction()`）已棄用。 |
 | 2026-04-28 | v1.0 | 初版（Python function 契約；方向錯誤被 v2.0 取代） |

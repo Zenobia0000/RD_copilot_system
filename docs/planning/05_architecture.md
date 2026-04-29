@@ -441,6 +441,36 @@ erDiagram
 
 **核心原則**：狀態 JSON 只能由 Skill 修改，不可手動編輯。
 
+### 5.5 Engineering Knowledge Graph Layer
+
+`docs/engineering/` 下的工程交付物（WI/ICD/MC/Risk/KC）構成 **typed property graph**（17 nodes / 161 edges 於本實作；隨 session 增長）。本層補充 §5.1 ER 模型外的「跨檔案語義關聯」。
+
+**設計三要素**：
+
+```
+YAML frontmatter   ──scan──▶  _graph.json  ──inject──▶  mermaid views
+(SSOT, 人讀人寫)               (衍生 artifact)            (README / risk / ego)
+        ▲                            ▲                          ▲
+        │                            │                          │
+   git diff 友善             tools/build_graph.py         GitHub/VSCode 自動渲染
+```
+
+| 元素 | 位置 | 角色 |
+|:-----|:-----|:-----|
+| frontmatter | 各 WI/ICD/MC 檔頭 YAML | **Single Source of Truth** |
+| `_graph.json` | `docs/engineering/_graph.json` | 衍生 artifact（CI / 未來 skill 消費） |
+| mermaid views | 注入到 README / risk_register / 各檔 ego marker | 人類視覺投影 |
+| `tools/build_graph.py` | `tools/build_graph.py` | 維護工具（scan / lint / inject / scaffold） |
+
+**節點類型**：WI / ICD / MC / KC / Risk / Gate / Claim / TC / SOL / Principle（10+ 種）
+**邊類型**：traces_to / cites / uses / used_by / feeds / depends_on / supports_icd / links / mitigates / satisfies_gates / blocks / measures（11+ 種）
+
+**為什麼不是 ER 模型？** §5.1 的 ER 是 PostgreSQL 持久化目標（多專案、多用戶），對應 ADR-006/007 的 Production 演化。**§5.5 是 markdown-first 知識圖**，活在 git 倉庫裡，per-session 產出，跟 PostgreSQL 並行不衝突。兩者交集是「Engineering 交付物」概念，但實作層完全分離。
+
+**架構決策**：見 [`04_adr/ADR-008_knowledge_graph_as_ssot.md`](./04_adr/ADR-008_knowledge_graph_as_ssot.md)
+**Schema**：見 [`15_documentation_guide.md §2.5`](./15_documentation_guide.md)
+**工具行為**：見 [`09_file_dependencies.md §3`](./09_file_dependencies.md)
+
 ---
 
 ## 6. 部署與基礎設施

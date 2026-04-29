@@ -106,7 +106,7 @@
 | `docs/01-define/pages/INDEX.md` | 頁面對照索引 | 02_prd / 17_fe_ia 引用 |
 | `docs/methodology/` | DK-01-05 方法論 KB | 02_prd 用 DK-01 流程，05_architecture 用 DK-02 機制 |
 | `docs/methodology/auto_triz_strategy.md` | TRIZ 主策略 SSOT | 05_architecture 整合，16_wbs 雙軸引用 |
-| `docs/engineering/` | TR0-10 工程執行範本 | 16_wbs 引用 TR Gate 框架，05_architecture §9 |
+| `docs/engineering/` | TR0-10 工程執行範本 + **typed property graph SSOT**（YAML frontmatter）| 16_wbs 引用 TR Gate 框架；`tools/build_graph.py` 自動產生 `_graph.json` + mermaid 視圖（見 §6） |
 | `docs/methodology/uml/` | 11 張流程 UML | 05_architecture 引用 |
 | `docs/engineering/gate_reviews/` | TR Gate 實際產出 | 16_wbs 追蹤實際進度 |
 | `templates/design-system/specs/` | 設計系統 6 份規格 | 12_frontend_architecture pointer |
@@ -163,13 +163,32 @@
 - **新增文件**：複製對應 VibeCoding 模板，填 frontmatter，更新 §1 表格 + §2 依賴圖
 - **既有資料移動**：本目錄改 link，不複製內容
 - **TRIZ session 推進**：16_wbs 同步 `.triz-state.json` / `.tr-state.json` 進展
+- **`docs/engineering/` 變動**：改完 frontmatter 後跑 `python3 tools/build_graph.py --inject` 重新產 mermaid 視圖（見 §6）
 
 ---
 
-## 6. 變更紀錄
+## 6. Graph 工具鏈（`docs/engineering/` 自動化）
+
+`docs/engineering/` 下的 WI/ICD/MC 是 **typed property graph**（多類型節點 + 多類型邊 + 環）— 不是樹結構。為避免散文 cross-reference 漂移，採「frontmatter = SSOT、視圖 = 投影」設計。詳見 [`09_file_dependencies.md §3`](./09_file_dependencies.md) 與 [`15_documentation_guide.md §2.5`](./15_documentation_guide.md)。
+
+**工具**：`tools/build_graph.py`（stdlib + PyYAML）
+
+| 命令 | 用途 | 何時跑 |
+|:-----|:-----|:------|
+| `python3 tools/build_graph.py` | scan + lint + 產出 `docs/engineering/_graph.json` | 改 frontmatter 後 |
+| `python3 tools/build_graph.py --inject` | 上述 + 重新渲染 README/risk_register/各 ego graph mermaid | 視圖需要更新時 |
+| `python3 tools/build_graph.py --scaffold` | 自動在缺 marker 的 WI/ICD/MC 插入 `<!-- AUTO-GRAPH:START -->` | 新增 WI/ICD/MC 後 |
+| `python3 tools/build_graph.py --strict` | 上述 + lint 失敗時 exit 1 | CI / pre-commit |
+
+**架構決策**：見 [`04_adr/ADR-008_knowledge_graph_as_ssot.md`](./04_adr/ADR-008_knowledge_graph_as_ssot.md)。
+
+---
+
+## 7. 變更紀錄
 
 | 日期 | 版本 | 變更 |
 |:-----|:-----|:-----|
+| 2026-04-29 | v1.8 | 新增 §6「Graph 工具鏈」對齊 `tools/build_graph.py` 與 `docs/engineering/` frontmatter SSOT 工作流；§3 表格 `docs/engineering/` 行加 graph 註記；§5 加維護指引一條；新增 ADR-008 (Knowledge Graph as SSOT)。 |
 | 2026-04-28 | v1.7 | 新增 `ppt/22_onepage_ppt_ready_copy.md`、`ppt/23_onepage_leadership_summary.md`、`ppt/24_onepage_cross_team_tech_arch.md`：補齊可直接貼進投影片、主管版、跨部門技術架構版 three-pack。 |
 | 2026-04-28 | v1.6 | 新增 `ppt/20_onepage_strike_prompt.md` 與 `ppt/21_onepage_slide_structure.md`：面向跨部門與內部技術架構受眾的 one-page prompt 與簡報骨架。 |
 | 2026-04-28 | v1.5 | 新增 19_internal_pitch_strategy：面向非專案參與者的簡報方向規劃，含主敘事、10 頁頁綱與 STRIKE prompt 模板。 |

@@ -2,8 +2,8 @@
 
 ---
 
-**文件版本**：`v1.0`
-**最後更新**：`2026-04-28`
+**文件版本**：`v1.1`
+**最後更新**：`2026-04-29`
 **模板來源**：`templates/vibecoding/04_architecture_decision_record_template.md`
 
 ---
@@ -19,6 +19,7 @@
 | [ADR-005](./ADR-005_llm_abstraction.md) | LLM 抽象層（多 provider 支援） | Proposed | 2026-04-28 |
 | [ADR-006](./ADR-006_production_persistence.md) | Production Persistence（in-memory → Supabase） | Proposed | 2026-04-28 |
 | [ADR-007](./ADR-007_multi_tenancy.md) | Multi-tenancy（專案級隔離） | Proposed | 2026-04-28 |
+| [ADR-008](./ADR-008_knowledge_graph_as_ssot.md) | Engineering Knowledge Graph 採 Frontmatter SSOT + Tool-Derived Views | Accepted | 2026-04-29 |
 
 ---
 

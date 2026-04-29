@@ -1002,16 +1002,16 @@
     "node_count": 17,
     "edge_count": 161,
     "by_type": {
-      "TC": 0,
-      "SOL": 0,
-      "Gate": 0,
-      "ICD": 4,
-      "Risk": 0,
-      "WI": 7,
-      "Claim": 0,
       "MC": 6,
+      "Risk": 0,
+      "SOL": 0,
       "KC": 0,
-      "Principle": 0
+      "WI": 7,
+      "Gate": 0,
+      "Principle": 0,
+      "ICD": 4,
+      "TC": 0,
+      "Claim": 0
     }
   }
 }

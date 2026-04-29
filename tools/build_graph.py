@@ -497,7 +497,7 @@ def main():
         "stats": {
             "node_count": len(nodes),
             "edge_count": len(edges),
-            "by_type": {t: sum(1 for v in nodes.values() if v.get("type") == t) for t in NODE_TYPES},
+            "by_type": {t: sum(1 for v in nodes.values() if v.get("type") == t) for t in sorted(NODE_TYPES)},
         },
     }
     GRAPH_JSON.write_text(json.dumps(graph, ensure_ascii=False, indent=2, default=str), encoding="utf-8")

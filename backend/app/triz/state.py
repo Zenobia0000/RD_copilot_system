@@ -1,7 +1,17 @@
-"""Pydantic v2 models for TRIZ session state (.triz-state.json).
+"""Pydantic v2 models for TRIZ session state (.triz-state.json) and TR
+engineering state (.tr-state.json).
 
-These models are the single source of truth for state structure.
-All step orchestrators and the state manager import from here.
+Design note — "permissive" schema:
+The skills evolved faster than this file. To accept what's actually written
+to disk (e.g. ``preliminary_tcs`` as ``list[str]``, ``step3.solutions`` as a
+dict keyed by TC id, ``.tr-state.json`` using the ``current_tr / tr_gates /
+subsystems`` shape), every model carries ``extra: "allow"``. New summary
+fields (``*_count`` etc.) are declared with safe defaults so older payloads
+written by skills before those fields existed still validate.
+
+If you're tightening a field after this file is reconciled with the skill
+contracts, drop the matching ``extra: "allow"`` AND remove the legacy
+default. Don't drop one without the other.
 """
 
 from __future__ import annotations
@@ -85,9 +95,13 @@ class SeparationType(str, Enum):
 # ── Sub-models ───────────────────────────────────────────────────────
 
 class TCBrief(BaseModel):
+    """Structured TC brief. Some sessions store preliminary_tcs as plain
+    strings instead — see ``TrizSession.preliminary_tcs`` typing."""
     id: str
     improve: str
     worsen: str
+
+    model_config = {"extra": "allow"}
 
 
 class FAEntry(BaseModel):
@@ -208,6 +222,8 @@ class Step0State(BaseModel):
     ceca_key_nodes: list[str] = Field(default_factory=list)
     note: str = ""
 
+    model_config = {"extra": "allow"}
+
 
 class Step1State(BaseModel):
     completed: bool = False
@@ -215,6 +231,12 @@ class Step1State(BaseModel):
     sf_diagnosis: list[SFEntry] = Field(default_factory=list)
     improve_worsen_nl: dict[str, ImproveWorsen] = Field(default_factory=dict)
     routing: Step1Routing | None = None
+    # Summary counters — written by step1 even when full entries aren't echoed.
+    fa_components_count: int = 0
+    sf_diagnosis_count: int = 0
+    tc_count: int = 0
+
+    model_config = {"extra": "allow"}
 
 
 class Step2State(BaseModel):
@@ -223,15 +245,27 @@ class Step2State(BaseModel):
     bottleneck_tc: str = ""
     dependent_tcs: list[str] = Field(default_factory=list)
     evidence_gate: EvidenceGate | None = None
+    # Dispatcher / summary fields written by triz-contradict.
+    dispatch_mode: str = ""
+    tc_count: int = 0
+    evidence_gate_passed: bool = False
+    evidence_coverage_pct: float = 0.0
+
+    model_config = {"extra": "allow"}
 
 
 class Step3State(BaseModel):
     completed: bool = False
     refinement_round: int = 0
-    solutions: list[SolutionEntry] = Field(default_factory=list)
-    sim: SIMResult | None = None
+    # ``solutions`` is dict-keyed by TC id in the v3 sessions (``{"TC-A": {...}, ...}``)
+    # but earlier flows used a flat list of SolutionEntry. Accept both.
+    solutions: dict[str, Any] | list[SolutionEntry] = Field(default_factory=dict)
+    solutions_count: int = 0
+    sim: dict[str, Any] | SIMResult | None = None
     sim_iteration_count: int = 0
     sim_minus1_history: list[int] = Field(default_factory=list)
+
+    model_config = {"extra": "allow"}
 
 
 class Step4State(BaseModel):
@@ -239,13 +273,19 @@ class Step4State(BaseModel):
     px_separation_verified: bool = False
     px_results: dict[str, str] = Field(default_factory=dict)
     verdict: Step4Verdict | None = None
-    complexity_scores: dict[str, CCIScores] | CCIScores | None = None
+    # Real sessions store complexity_scores as a flat CCIScores dict.
+    complexity_scores: dict[str, Any] | None = None
     cci_verdict: str = ""
     evidence_registry: EvidenceRegistry | None = None
+    # Summary counts written alongside (or instead of) the full registry.
+    evidence_registry_stats: dict[str, Any] | None = None
     new_tc_detected: bool = False
     new_tc_description: str = ""
     observation_items: list[str] = Field(default_factory=list)
+    cad_readiness: dict[str, Any] | None = None
     deliverables: list[str] = Field(default_factory=list)
+
+    model_config = {"extra": "allow"}
 
 
 class Step5State(BaseModel):
@@ -255,8 +295,11 @@ class Step5State(BaseModel):
     icd_files: list[str] = Field(default_factory=list)
     mc_files: list[str] = Field(default_factory=list)
     framework_files: list[str] = Field(default_factory=list)
+    kc_list_file: str = ""
     total_files: int = 0
     output_dir: str = "docs/engineering/"
+
+    model_config = {"extra": "allow"}
 
 
 # ── Root Model ───────────────────────────────────────────────────────
@@ -271,7 +314,9 @@ class TrizSession(BaseModel):
     problem_description: str
     report_file: str
     specs: dict[str, Any] = Field(default_factory=dict)
-    preliminary_tcs: list[TCBrief] = Field(default_factory=list)
+    # ``preliminary_tcs`` is written as plain strings ("TC-A: 散熱 vs 體積")
+    # in v3 sessions; older flows used TCBrief objects. Accept both.
+    preliminary_tcs: list[TCBrief | str] = Field(default_factory=list)
     spiral_iteration: int = 0
 
     step0: Step0State = Field(default_factory=Step0State)
@@ -281,7 +326,7 @@ class TrizSession(BaseModel):
     step4: Step4State = Field(default_factory=Step4State)
     step5: Step5State = Field(default_factory=Step5State)
 
-    model_config = {"use_enum_values": True}
+    model_config = {"use_enum_values": True, "extra": "allow"}
 
 
 # ── Step transition order ────────────────────────────────────────────
@@ -311,46 +356,57 @@ def step_completed(session: TrizSession, step: StepName) -> bool:
 
 
 # ── TR State Models ──────────────────────────────────────────────────
+#
+# These models mirror what triz-wi (Phase 5.3 bootstrap) and tr-gate write
+# to .tr-state.json. The v2-era SubsystemTR/WIStatus/GateReview classes were
+# removed because no skill ever wrote that shape — the actual on-disk format
+# is current_tr / next_target / tr_gates / subsystems / deliverable_counts.
 
-class SubsystemTR(BaseModel):
-    current: str = "TR0"
-    target: str = "TR1"
-    blockers: list[str] = Field(default_factory=list)
-    responsible_wi: list[str] = Field(default_factory=list)
+class TRGate(BaseModel):
+    """One row in ``tr_gates``. Pending gates have only name + status; the
+    completed/blocking fields populate as the project advances."""
+    name: str
+    status: str  # completed | pending | in_progress
+    completed_at: str | None = None
+    exit_evidence: str | None = None
+    blocking_risks: list[str] = Field(default_factory=list)
 
-
-class WIStatus(BaseModel):
-    status: str = "not_started"  # not_started | in_progress | completed
-    steps_completed: list[str] = Field(default_factory=list)
-    deliverables: dict[str, Any] = Field(default_factory=dict)
-
-
-class GateReview(BaseModel):
-    gate: str
-    date: str
-    verdict: str  # GO | CONDITIONAL | NO-GO
-    report_file: str = ""
-    conditions: list[str] = Field(default_factory=list)
+    model_config = {"extra": "allow"}
 
 
-class VTest(BaseModel):
-    status: str = "not_tested"  # not_tested | pass | fail | conditional
-    result: str | None = None
-    phase: str = ""  # A | B | C | D
-    subsystem: str = ""
+class TRSubsystem(BaseModel):
+    """Per-subsystem TR progress (motor, gear, thermal, ...)."""
+    current_tr: str
+    next_target: str
+    wi: str = ""
+
+    model_config = {"extra": "allow"}
+
+
+class TRDeliverableCounts(BaseModel):
+    """Mirror of ``deliverable_counts`` in .tr-state.json."""
+    wi: int = 0
+    icd: int = 0
+    mc: int = 0
+    framework: int = 0
+    kc_list: int = 0
+    total: int = 0
+
+    model_config = {"extra": "allow"}
 
 
 class TRState(BaseModel):
-    """Root model for .tr-state.json."""
+    """Root model for .tr-state.json — bootstrapped at TR0 by triz-wi."""
 
     project_id: str
+    created_at: datetime
     triz_session_ref: str
     triz_state_hash: str = ""
-    created_at: datetime
-    subsystem_tr: dict[str, SubsystemTR] = Field(default_factory=dict)
-    wi_status: dict[str, WIStatus] = Field(default_factory=dict)
-    gate_reviews: list[GateReview] = Field(default_factory=list)
-    v_tests: dict[str, VTest] = Field(default_factory=dict)
-    risk_status: dict[str, str] = Field(default_factory=dict)
+    current_tr: str = "TR0"
+    next_target: str = "TR1"
+    tr_gates: dict[str, TRGate] = Field(default_factory=dict)
+    subsystems: dict[str, TRSubsystem] = Field(default_factory=dict)
+    deliverables_dir: str = "docs/engineering/"
+    deliverable_counts: TRDeliverableCounts | None = None
 
-    model_config = {"use_enum_values": True}
+    model_config = {"use_enum_values": True, "extra": "allow"}

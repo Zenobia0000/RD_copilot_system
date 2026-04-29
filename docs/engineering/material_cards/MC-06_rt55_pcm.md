@@ -1,9 +1,67 @@
+---
+id: MC-06
+type: MC
+title: RT55 PCM (相變材料)
+version: 1.0
+date: 2026-04-28
+material_class: phase_change
+cites: [C-A003, C-A004]
+used_by: [WI-03, WI-07]
+mitigates: [R-010]
+---
+
 # MC-06: RT55 PCM（相變材料）
 
 > **版本**: 1.0 | **日期**: 2026-04-28
 > **來源**: Evidence C-A003, C-A004
 > **適用 WI**: WI-03, WI-04
 > **FEA 軟體**: ANSYS Fluent (solidification/melting), COMSOL Heat Transfer
+
+
+## Relations Graph (auto-generated)
+
+<!-- AUTO-GRAPH:START view=ego -->
+
+```mermaid
+flowchart LR
+    MC_06(["<b>MC-06</b><br/>RT55 PCM (相變材料)"]):::center
+
+    subgraph Evidence["Evidence"]
+        direction TB
+        C_A003["C-A003"]:::ev
+        C_A004["C-A004"]:::ev
+    end
+    subgraph 相關_WI["相關 WI"]
+        direction TB
+        WI_03(["WI-03"]):::wi
+        WI_07(["WI-07"]):::wi
+    end
+    subgraph Risks["Risks"]
+        direction TB
+        R_010(("R-010")):::risk
+    end
+
+    MC_06 -->|"cites"| C_A003
+    MC_06 -->|"cites"| C_A004
+    MC_06 -->|"used_by"| WI_03
+    MC_06 -->|"used_by"| WI_07
+    MC_06 -->|"mitigates"| R_010
+    WI_03 -->|"uses"| MC_06
+    WI_07 -->|"uses"| MC_06
+
+    classDef wi fill:#e1f5ff,stroke:#0288d1
+    classDef icd fill:#fce4ec,stroke:#ad1457
+    classDef mc fill:#e8f5e9,stroke:#388e3c
+    classDef tc fill:#fff3e0,stroke:#f57c00
+    classDef ev fill:#f3e5f5,stroke:#7b1fa2
+    classDef risk fill:#ffebee,stroke:#c62828
+    classDef gate fill:#fffde7,stroke:#f9a825
+    classDef kc fill:#e0f2f1,stroke:#00796b
+    classDef p fill:#fafafa,stroke:#616161
+    classDef center fill:#fff,stroke:#000,stroke-width:3px,font-weight:bold
+```
+
+<!-- AUTO-GRAPH:END -->
 
 ---
 

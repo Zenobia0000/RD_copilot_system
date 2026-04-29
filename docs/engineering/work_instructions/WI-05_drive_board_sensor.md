@@ -1,3 +1,26 @@
+---
+id: WI-05
+type: WI
+title: 環形 Drive Board + 扭力/角度感測器整合
+domain: electronics
+role: cross-cutting   # 服務 TC-A 熱保護 + TC-B 馬達控制
+version: 1.0
+date: 2026-04-28
+effort_weeks: 4
+owner: EE
+
+depends_on:
+  - target: WI-01
+    artifact: 繞組規格 + IL_rms
+    purpose: MOSFET 額定確認
+  - target: WI-03
+    artifact: 熱保護邏輯
+    purpose: MCU 韌體實作 NTC 閾值
+supports_icd: [ICD-03]
+mitigates: [R-005, R-008]
+satisfies_gates: [TR1, TR2, TR3, TR5, TR6]
+---
+
 # WI-05: 環形 Drive Board + 扭力/角度感測器整合
 
 > **版本**: 1.0 | **日期**: 2026-04-28
@@ -6,6 +29,70 @@
 > **產出物**: PCB layout、MCU firmware spec、感測器規格、EMI 屏蔽方案
 > **預估工時**: 4 週
 > **阻塞下游**: WI-04（endcap 設計）、ICD-03
+
+
+## Relations Graph (auto-generated)
+
+<!-- AUTO-GRAPH:START view=ego -->
+
+```mermaid
+flowchart LR
+    WI_05(["<b>WI-05</b><br/>環形 Drive Board + 扭力/角度感測器整合"]):::center
+
+    subgraph 相關_WI["相關 WI"]
+        direction TB
+        WI_01(["WI-01"]):::wi
+        WI_03(["WI-03"]):::wi
+        WI_04(["WI-04"]):::wi
+        WI_06(["WI-06"]):::wi
+    end
+    subgraph Interfaces["Interfaces"]
+        direction TB
+        ICD_03[/"ICD-03"/]:::icd
+    end
+    subgraph Risks["Risks"]
+        direction TB
+        R_005(("R-005")):::risk
+        R_008(("R-008")):::risk
+    end
+    subgraph TR_Gates["TR Gates"]
+        direction TB
+        TR1{{"TR1"}}:::gate
+        TR2{{"TR2"}}:::gate
+        TR3{{"TR3"}}:::gate
+        TR5{{"TR5"}}:::gate
+        TR6{{"TR6"}}:::gate
+    end
+
+    WI_05 -->|"supports"| ICD_03
+    WI_05 -->|"mitigates"| R_005
+    WI_05 -->|"mitigates"| R_008
+    WI_05 -->|"satisfies"| TR1
+    WI_05 -->|"satisfies"| TR2
+    WI_05 -->|"satisfies"| TR3
+    WI_05 -->|"satisfies"| TR5
+    WI_05 -->|"satisfies"| TR6
+    WI_05 -->|"繞組規格 + IL_rms"| WI_01
+    WI_05 -->|"熱保護邏輯"| WI_03
+    ICD_03 -->|"links"| WI_05
+    WI_01 -->|"feeds"| WI_05
+    WI_03 -->|"feeds"| WI_05
+    WI_04 -->|"depends_on"| WI_05
+    WI_06 -->|"depends_on"| WI_05
+
+    classDef wi fill:#e1f5ff,stroke:#0288d1
+    classDef icd fill:#fce4ec,stroke:#ad1457
+    classDef mc fill:#e8f5e9,stroke:#388e3c
+    classDef tc fill:#fff3e0,stroke:#f57c00
+    classDef ev fill:#f3e5f5,stroke:#7b1fa2
+    classDef risk fill:#ffebee,stroke:#c62828
+    classDef gate fill:#fffde7,stroke:#f9a825
+    classDef kc fill:#e0f2f1,stroke:#00796b
+    classDef p fill:#fafafa,stroke:#616161
+    classDef center fill:#fff,stroke:#000,stroke-width:3px,font-weight:bold
+```
+
+<!-- AUTO-GRAPH:END -->
 
 ---
 

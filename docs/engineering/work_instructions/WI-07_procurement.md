@@ -1,3 +1,21 @@
+---
+id: WI-07
+type: WI
+title: 採購與長交期物料
+domain: procurement
+role: cross-cutting   # 服務全部 6 個 MC
+version: 1.0
+date: 2026-04-28
+effort_weeks: ongoing
+owner: SCM
+
+# 橫切 WI — 服務所有 MC 與 BOM
+uses: [MC-01, MC-02, MC-03, MC-04, MC-05, MC-06]
+cites: [C-A003, C-B001, C-B003, C-B004, C-C001]
+mitigates: [R-003, R-004]
+satisfies_gates: [TR2, TR3, TR4, TR7, TR8, TR10]
+---
+
 # WI-07: 採購與長交期物料
 
 > **版本**: 1.0 | **日期**: 2026-04-28
@@ -6,6 +24,87 @@
 > **產出物**: 供應商評估報告、長交期物料清單、替代材料計畫、Beta BOM
 > **預估工時**: 持續，與 TR1-TR4 並行
 > **阻塞下游**: TR4 原型備料、TR8 量產 BOM 凍結
+
+
+## Relations Graph (auto-generated)
+
+<!-- AUTO-GRAPH:START view=ego -->
+
+```mermaid
+flowchart LR
+    WI_07(["<b>WI-07</b><br/>採購與長交期物料"]):::center
+
+    subgraph Evidence["Evidence"]
+        direction TB
+        C_A003["C-A003"]:::ev
+        C_B001["C-B001"]:::ev
+        C_B003["C-B003"]:::ev
+        C_B004["C-B004"]:::ev
+        C_C001["C-C001"]:::ev
+    end
+    subgraph Materials["Materials"]
+        direction TB
+        MC_01[("MC-01")]:::mc
+        MC_02[("MC-02")]:::mc
+        MC_03[("MC-03")]:::mc
+        MC_04[("MC-04")]:::mc
+        MC_05[("MC-05")]:::mc
+        MC_06[("MC-06")]:::mc
+    end
+    subgraph Risks["Risks"]
+        direction TB
+        R_003(("R-003")):::risk
+        R_004(("R-004")):::risk
+    end
+    subgraph TR_Gates["TR Gates"]
+        direction TB
+        TR10{{"TR10"}}:::gate
+        TR2{{"TR2"}}:::gate
+        TR3{{"TR3"}}:::gate
+        TR4{{"TR4"}}:::gate
+        TR7{{"TR7"}}:::gate
+        TR8{{"TR8"}}:::gate
+    end
+
+    WI_07 -->|"cites"| C_A003
+    WI_07 -->|"cites"| C_B001
+    WI_07 -->|"cites"| C_B003
+    WI_07 -->|"cites"| C_B004
+    WI_07 -->|"cites"| C_C001
+    WI_07 -->|"uses"| MC_01
+    WI_07 -->|"uses"| MC_02
+    WI_07 -->|"uses"| MC_03
+    WI_07 -->|"uses"| MC_04
+    WI_07 -->|"uses"| MC_05
+    WI_07 -->|"uses"| MC_06
+    WI_07 -->|"mitigates"| R_003
+    WI_07 -->|"mitigates"| R_004
+    WI_07 -->|"satisfies"| TR2
+    WI_07 -->|"satisfies"| TR3
+    WI_07 -->|"satisfies"| TR4
+    WI_07 -->|"satisfies"| TR7
+    WI_07 -->|"satisfies"| TR8
+    WI_07 -->|"satisfies"| TR10
+    MC_01 -->|"used_by"| WI_07
+    MC_02 -->|"used_by"| WI_07
+    MC_03 -->|"used_by"| WI_07
+    MC_04 -->|"used_by"| WI_07
+    MC_05 -->|"used_by"| WI_07
+    MC_06 -->|"used_by"| WI_07
+
+    classDef wi fill:#e1f5ff,stroke:#0288d1
+    classDef icd fill:#fce4ec,stroke:#ad1457
+    classDef mc fill:#e8f5e9,stroke:#388e3c
+    classDef tc fill:#fff3e0,stroke:#f57c00
+    classDef ev fill:#f3e5f5,stroke:#7b1fa2
+    classDef risk fill:#ffebee,stroke:#c62828
+    classDef gate fill:#fffde7,stroke:#f9a825
+    classDef kc fill:#e0f2f1,stroke:#00796b
+    classDef p fill:#fafafa,stroke:#616161
+    classDef center fill:#fff,stroke:#000,stroke-width:3px,font-weight:bold
+```
+
+<!-- AUTO-GRAPH:END -->
 
 ---
 

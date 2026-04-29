@@ -1,8 +1,57 @@
+---
+id: ICD-03
+type: ICD
+title: Drive Board ↔ Endcap (散熱 + EMI 屏蔽)
+version: 1.0
+date: 2026-04-28
+links: [WI-04, WI-05]
+mitigates: [R-005]
+---
+
 # ICD-03: Drive Board ↔ Endcap（散熱 + EMI 屏蔽）
 
 > **版本**: 1.0 | **日期**: 2026-04-28
 > **相關 WI**: WI-05 (Drive Board), WI-04 (Housing/Endcap)
 > **介面雙方**: 環形 PCB ↔ Al endcap
+
+
+## Relations Graph (auto-generated)
+
+<!-- AUTO-GRAPH:START view=ego -->
+
+```mermaid
+flowchart LR
+    ICD_03(["<b>ICD-03</b><br/>Drive Board ↔ Endcap (散熱 + EMI 屏蔽)"]):::center
+
+    subgraph 相關_WI["相關 WI"]
+        direction TB
+        WI_04(["WI-04"]):::wi
+        WI_05(["WI-05"]):::wi
+    end
+    subgraph Risks["Risks"]
+        direction TB
+        R_005(("R-005")):::risk
+    end
+
+    ICD_03 -->|"links"| WI_04
+    ICD_03 -->|"links"| WI_05
+    ICD_03 -->|"mitigates"| R_005
+    WI_04 -->|"supports"| ICD_03
+    WI_05 -->|"supports"| ICD_03
+
+    classDef wi fill:#e1f5ff,stroke:#0288d1
+    classDef icd fill:#fce4ec,stroke:#ad1457
+    classDef mc fill:#e8f5e9,stroke:#388e3c
+    classDef tc fill:#fff3e0,stroke:#f57c00
+    classDef ev fill:#f3e5f5,stroke:#7b1fa2
+    classDef risk fill:#ffebee,stroke:#c62828
+    classDef gate fill:#fffde7,stroke:#f9a825
+    classDef kc fill:#e0f2f1,stroke:#00796b
+    classDef p fill:#fafafa,stroke:#616161
+    classDef center fill:#fff,stroke:#000,stroke-width:3px,font-weight:bold
+```
+
+<!-- AUTO-GRAPH:END -->
 
 ---
 

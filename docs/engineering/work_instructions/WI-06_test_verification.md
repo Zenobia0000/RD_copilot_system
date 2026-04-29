@@ -1,3 +1,28 @@
+---
+id: WI-06
+type: WI
+title: V1-V14 測試與驗證計畫
+domain: test
+version: 1.0
+date: 2026-04-28
+effort_weeks: 8
+owner: QA/Test
+
+# 橫切 WI — 驗證所有 TC 解法
+traces_to: [TC-A, TC-B, TC-C, SOL-TCA, SOL-TCB, SOL-TCC]
+depends_on:
+  - target: WI-01
+    artifact: Halbach 馬達 (V1-V4)
+  - target: WI-02
+    artifact: 齒輪箱 (V5-V8)
+  - target: WI-03
+    artifact: 熱管理 (V10, V13)
+  - target: WI-05
+    artifact: PCB + 整機 (V11, V12, V14)
+mitigates: [R-002, R-008, R-009, R-010]
+satisfies_gates: [TR4, TR6, TR9]
+---
+
 # WI-06: V1-V14 測試與驗證計畫
 
 > **版本**: 1.0 | **日期**: 2026-04-28
@@ -6,6 +31,77 @@
 > **產出物**: 驗證矩陣、測試規格、治具設計、Pass/Fail 判定
 > **預估工時**: 4 週測試治具 + 4-6 週實測
 > **阻塞下游**: TR6 Alpha 驗證 → TR9 DVP&R
+
+
+## Relations Graph (auto-generated)
+
+<!-- AUTO-GRAPH:START view=ego -->
+
+```mermaid
+flowchart LR
+    WI_06(["<b>WI-06</b><br/>V1-V14 測試與驗證計畫"]):::center
+
+    subgraph TRIZ_溯源["TRIZ 溯源"]
+        direction TB
+        SOL_TCA["SOL-TCA"]:::tc
+        SOL_TCB["SOL-TCB"]:::tc
+        SOL_TCC["SOL-TCC"]:::tc
+        TC_A["TC-A"]:::tc
+        TC_B["TC-B"]:::tc
+        TC_C["TC-C"]:::tc
+    end
+    subgraph 相關_WI["相關 WI"]
+        direction TB
+        WI_01(["WI-01"]):::wi
+        WI_02(["WI-02"]):::wi
+        WI_03(["WI-03"]):::wi
+        WI_05(["WI-05"]):::wi
+    end
+    subgraph Risks["Risks"]
+        direction TB
+        R_002(("R-002")):::risk
+        R_008(("R-008")):::risk
+        R_009(("R-009")):::risk
+        R_010(("R-010")):::risk
+    end
+    subgraph TR_Gates["TR Gates"]
+        direction TB
+        TR4{{"TR4"}}:::gate
+        TR6{{"TR6"}}:::gate
+        TR9{{"TR9"}}:::gate
+    end
+
+    WI_06 -->|"traces_to"| TC_A
+    WI_06 -->|"traces_to"| TC_B
+    WI_06 -->|"traces_to"| TC_C
+    WI_06 -->|"traces_to"| SOL_TCA
+    WI_06 -->|"traces_to"| SOL_TCB
+    WI_06 -->|"traces_to"| SOL_TCC
+    WI_06 -->|"mitigates"| R_002
+    WI_06 -->|"mitigates"| R_008
+    WI_06 -->|"mitigates"| R_009
+    WI_06 -->|"mitigates"| R_010
+    WI_06 -->|"satisfies"| TR4
+    WI_06 -->|"satisfies"| TR6
+    WI_06 -->|"satisfies"| TR9
+    WI_06 -->|"Halbach 馬達 (V1-V4)"| WI_01
+    WI_06 -->|"齒輪箱 (V5-V8)"| WI_02
+    WI_06 -->|"熱管理 (V10, V13)"| WI_03
+    WI_06 -->|"PCB + 整機 (V11, V12, V14)"| WI_05
+
+    classDef wi fill:#e1f5ff,stroke:#0288d1
+    classDef icd fill:#fce4ec,stroke:#ad1457
+    classDef mc fill:#e8f5e9,stroke:#388e3c
+    classDef tc fill:#fff3e0,stroke:#f57c00
+    classDef ev fill:#f3e5f5,stroke:#7b1fa2
+    classDef risk fill:#ffebee,stroke:#c62828
+    classDef gate fill:#fffde7,stroke:#f9a825
+    classDef kc fill:#e0f2f1,stroke:#00796b
+    classDef p fill:#fafafa,stroke:#616161
+    classDef center fill:#fff,stroke:#000,stroke-width:3px,font-weight:bold
+```
+
+<!-- AUTO-GRAPH:END -->
 
 ---
 

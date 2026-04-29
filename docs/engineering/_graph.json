@@ -1,0 +1,1017 @@
+{
+  "version": "1.0",
+  "nodes": [
+    {
+      "id": "ICD-01",
+      "type": "ICD",
+      "title": "Motor Stator ↔ Housing (Cu 嵌件熱接觸)",
+      "version": 1.0,
+      "date": "2026-04-28",
+      "_source": "docs/engineering/interface_control/ICD-01_motor_to_housing.md"
+    },
+    {
+      "id": "ICD-02",
+      "type": "ICD",
+      "title": "Gearbox ↔ Housing (軸承座 + 油浴密封)",
+      "version": 1.0,
+      "date": "2026-04-28",
+      "_source": "docs/engineering/interface_control/ICD-02_gearbox_to_housing.md"
+    },
+    {
+      "id": "ICD-03",
+      "type": "ICD",
+      "title": "Drive Board ↔ Endcap (散熱 + EMI 屏蔽)",
+      "version": 1.0,
+      "date": "2026-04-28",
+      "_source": "docs/engineering/interface_control/ICD-03_pcb_to_endcap.md"
+    },
+    {
+      "id": "ICD-04",
+      "type": "ICD",
+      "title": "Housing Halves (外殼分模 + O-ring 密封 + IP 等級)",
+      "version": 1.0,
+      "date": "2026-04-28",
+      "_source": "docs/engineering/interface_control/ICD-04_housing_halves.md"
+    },
+    {
+      "id": "MC-01",
+      "type": "MC",
+      "title": "NdFeB N42SH (Halbach 磁鐵)",
+      "version": 1.0,
+      "date": "2026-04-28",
+      "material_class": "permanent_magnet",
+      "_source": "docs/engineering/material_cards/MC-01_ndfeb_n42sh.md"
+    },
+    {
+      "id": "MC-02",
+      "type": "MC",
+      "title": "SMC Somaloy 700-5P (Stator iron)",
+      "version": 1.0,
+      "date": "2026-04-28",
+      "material_class": "soft_magnetic_composite",
+      "_source": "docs/engineering/material_cards/MC-02_smc_somaloy.md"
+    },
+    {
+      "id": "MC-03",
+      "type": "MC",
+      "title": "CFRP T700 + 環氧基複材 (Rotor 套筒)",
+      "version": 1.0,
+      "date": "2026-04-28",
+      "material_class": "composite",
+      "_source": "docs/engineering/material_cards/MC-03_cfrp_t700.md"
+    },
+    {
+      "id": "MC-04",
+      "type": "MC",
+      "title": "Al-6061-T6 (Coaxial Housing)",
+      "version": 1.0,
+      "date": "2026-04-28",
+      "material_class": "aluminum_alloy",
+      "_source": "docs/engineering/material_cards/MC-04_al_6061.md"
+    },
+    {
+      "id": "MC-05",
+      "type": "MC",
+      "title": "Cu C11000 (熱嵌件)",
+      "version": 1.0,
+      "date": "2026-04-28",
+      "material_class": "copper",
+      "_source": "docs/engineering/material_cards/MC-05_cu_c11000.md"
+    },
+    {
+      "id": "MC-06",
+      "type": "MC",
+      "title": "RT55 PCM (相變材料)",
+      "version": 1.0,
+      "date": "2026-04-28",
+      "material_class": "phase_change",
+      "_source": "docs/engineering/material_cards/MC-06_rt55_pcm.md"
+    },
+    {
+      "id": "WI-01",
+      "type": "WI",
+      "title": "Halbach NdFeB 馬達 + SMC Stator + CFRP 套筒",
+      "domain": "electromagnetic",
+      "version": 1.0,
+      "date": "2026-04-28",
+      "effort_weeks": 6,
+      "owner": "EE/ME",
+      "_source": "docs/engineering/work_instructions/WI-01_halbach_motor.md"
+    },
+    {
+      "id": "WI-02",
+      "type": "WI",
+      "title": "雙級減速齒輪箱 + 齒面修形 + EHD 油浴",
+      "domain": "mechanical",
+      "version": 1.0,
+      "date": "2026-04-28",
+      "effort_weeks": 6,
+      "owner": "ME",
+      "_source": "docs/engineering/work_instructions/WI-02_two_stage_gear.md"
+    },
+    {
+      "id": "WI-03",
+      "type": "WI",
+      "title": "Cu 嵌件 + RT55 PCM 熱管理",
+      "domain": "thermal",
+      "version": 1.0,
+      "date": "2026-04-28",
+      "effort_weeks": 5,
+      "owner": "ME/Thermal",
+      "_source": "docs/engineering/work_instructions/WI-03_thermal_pcm.md"
+    },
+    {
+      "id": "WI-04",
+      "type": "WI",
+      "title": "Al-6061 Coaxial Housing 結構整合",
+      "domain": "structural",
+      "version": 1.0,
+      "date": "2026-04-28",
+      "effort_weeks": 4,
+      "owner": "ME",
+      "_source": "docs/engineering/work_instructions/WI-04_coaxial_housing.md"
+    },
+    {
+      "id": "WI-05",
+      "type": "WI",
+      "title": "環形 Drive Board + 扭力/角度感測器整合",
+      "domain": "electronics",
+      "role": "cross-cutting",
+      "version": 1.0,
+      "date": "2026-04-28",
+      "effort_weeks": 4,
+      "owner": "EE",
+      "_source": "docs/engineering/work_instructions/WI-05_drive_board_sensor.md"
+    },
+    {
+      "id": "WI-06",
+      "type": "WI",
+      "title": "V1-V14 測試與驗證計畫",
+      "domain": "test",
+      "version": 1.0,
+      "date": "2026-04-28",
+      "effort_weeks": 8,
+      "owner": "QA/Test",
+      "_source": "docs/engineering/work_instructions/WI-06_test_verification.md"
+    },
+    {
+      "id": "WI-07",
+      "type": "WI",
+      "title": "採購與長交期物料",
+      "domain": "procurement",
+      "role": "cross-cutting",
+      "version": 1.0,
+      "date": "2026-04-28",
+      "effort_weeks": "ongoing",
+      "owner": "SCM",
+      "_source": "docs/engineering/work_instructions/WI-07_procurement.md"
+    }
+  ],
+  "edges": [
+    {
+      "source": "ICD-01",
+      "target": "WI-01",
+      "relation": "LINKS"
+    },
+    {
+      "source": "ICD-01",
+      "target": "WI-03",
+      "relation": "LINKS"
+    },
+    {
+      "source": "ICD-01",
+      "target": "WI-04",
+      "relation": "LINKS"
+    },
+    {
+      "source": "ICD-01",
+      "target": "R-006",
+      "relation": "MITIGATES"
+    },
+    {
+      "source": "ICD-02",
+      "target": "WI-02",
+      "relation": "LINKS"
+    },
+    {
+      "source": "ICD-02",
+      "target": "WI-04",
+      "relation": "LINKS"
+    },
+    {
+      "source": "ICD-03",
+      "target": "WI-04",
+      "relation": "LINKS"
+    },
+    {
+      "source": "ICD-03",
+      "target": "WI-05",
+      "relation": "LINKS"
+    },
+    {
+      "source": "ICD-03",
+      "target": "R-005",
+      "relation": "MITIGATES"
+    },
+    {
+      "source": "ICD-04",
+      "target": "WI-02",
+      "relation": "LINKS"
+    },
+    {
+      "source": "ICD-04",
+      "target": "WI-04",
+      "relation": "LINKS"
+    },
+    {
+      "source": "MC-01",
+      "target": "C-B001",
+      "relation": "CITES"
+    },
+    {
+      "source": "MC-01",
+      "target": "WI-01",
+      "relation": "USED_BY"
+    },
+    {
+      "source": "MC-01",
+      "target": "WI-07",
+      "relation": "USED_BY"
+    },
+    {
+      "source": "MC-02",
+      "target": "C-B003",
+      "relation": "CITES"
+    },
+    {
+      "source": "MC-02",
+      "target": "WI-01",
+      "relation": "USED_BY"
+    },
+    {
+      "source": "MC-02",
+      "target": "WI-07",
+      "relation": "USED_BY"
+    },
+    {
+      "source": "MC-03",
+      "target": "C-B004",
+      "relation": "CITES"
+    },
+    {
+      "source": "MC-03",
+      "target": "WI-01",
+      "relation": "USED_BY"
+    },
+    {
+      "source": "MC-03",
+      "target": "WI-07",
+      "relation": "USED_BY"
+    },
+    {
+      "source": "MC-03",
+      "target": "R-004",
+      "relation": "MITIGATES"
+    },
+    {
+      "source": "MC-04",
+      "target": "C-A002",
+      "relation": "CITES"
+    },
+    {
+      "source": "MC-04",
+      "target": "WI-02",
+      "relation": "USED_BY"
+    },
+    {
+      "source": "MC-04",
+      "target": "WI-03",
+      "relation": "USED_BY"
+    },
+    {
+      "source": "MC-04",
+      "target": "WI-04",
+      "relation": "USED_BY"
+    },
+    {
+      "source": "MC-04",
+      "target": "WI-07",
+      "relation": "USED_BY"
+    },
+    {
+      "source": "MC-05",
+      "target": "C-A001",
+      "relation": "CITES"
+    },
+    {
+      "source": "MC-05",
+      "target": "WI-03",
+      "relation": "USED_BY"
+    },
+    {
+      "source": "MC-05",
+      "target": "WI-07",
+      "relation": "USED_BY"
+    },
+    {
+      "source": "MC-06",
+      "target": "C-A003",
+      "relation": "CITES"
+    },
+    {
+      "source": "MC-06",
+      "target": "C-A004",
+      "relation": "CITES"
+    },
+    {
+      "source": "MC-06",
+      "target": "WI-03",
+      "relation": "USED_BY"
+    },
+    {
+      "source": "MC-06",
+      "target": "WI-07",
+      "relation": "USED_BY"
+    },
+    {
+      "source": "MC-06",
+      "target": "R-010",
+      "relation": "MITIGATES"
+    },
+    {
+      "source": "WI-01",
+      "target": "TC-B",
+      "relation": "TRACES_TO"
+    },
+    {
+      "source": "WI-01",
+      "target": "SOL-TCB",
+      "relation": "TRACES_TO"
+    },
+    {
+      "source": "WI-01",
+      "target": "principle:14",
+      "relation": "TRACES_TO"
+    },
+    {
+      "source": "WI-01",
+      "target": "principle:40",
+      "relation": "TRACES_TO"
+    },
+    {
+      "source": "WI-01",
+      "target": "C-B001",
+      "relation": "CITES"
+    },
+    {
+      "source": "WI-01",
+      "target": "C-B002",
+      "relation": "CITES"
+    },
+    {
+      "source": "WI-01",
+      "target": "C-B003",
+      "relation": "CITES"
+    },
+    {
+      "source": "WI-01",
+      "target": "C-B004",
+      "relation": "CITES"
+    },
+    {
+      "source": "WI-01",
+      "target": "MC-01",
+      "relation": "USES"
+    },
+    {
+      "source": "WI-01",
+      "target": "MC-02",
+      "relation": "USES"
+    },
+    {
+      "source": "WI-01",
+      "target": "MC-03",
+      "relation": "USES"
+    },
+    {
+      "source": "WI-01",
+      "target": "WI-03",
+      "relation": "FEEDS",
+      "artifact": "Loss map (CSV)",
+      "purpose": "thermal CFD 邊界條件"
+    },
+    {
+      "source": "WI-01",
+      "target": "WI-04",
+      "relation": "FEEDS",
+      "artifact": "馬達包絡尺寸",
+      "purpose": "housing 設計輸入"
+    },
+    {
+      "source": "WI-01",
+      "target": "WI-05",
+      "relation": "FEEDS",
+      "artifact": "繞組 IL_rms",
+      "purpose": "MOSFET 額定確認"
+    },
+    {
+      "source": "WI-01",
+      "target": "ICD-01",
+      "relation": "SUPPORTS"
+    },
+    {
+      "source": "WI-01",
+      "target": "R-001",
+      "relation": "MITIGATES"
+    },
+    {
+      "source": "WI-01",
+      "target": "R-004",
+      "relation": "MITIGATES"
+    },
+    {
+      "source": "WI-01",
+      "target": "R-005",
+      "relation": "MITIGATES"
+    },
+    {
+      "source": "WI-01",
+      "target": "TR1",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-01",
+      "target": "TR2",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-01",
+      "target": "TR3",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-01",
+      "target": "TR5",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-01",
+      "target": "TR6",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-02",
+      "target": "TC-C",
+      "relation": "TRACES_TO"
+    },
+    {
+      "source": "WI-02",
+      "target": "SOL-TCC",
+      "relation": "TRACES_TO"
+    },
+    {
+      "source": "WI-02",
+      "target": "principle:1",
+      "relation": "TRACES_TO"
+    },
+    {
+      "source": "WI-02",
+      "target": "principle:14",
+      "relation": "TRACES_TO"
+    },
+    {
+      "source": "WI-02",
+      "target": "principle:35",
+      "relation": "TRACES_TO"
+    },
+    {
+      "source": "WI-02",
+      "target": "C-C001",
+      "relation": "CITES"
+    },
+    {
+      "source": "WI-02",
+      "target": "C-C002",
+      "relation": "CITES"
+    },
+    {
+      "source": "WI-02",
+      "target": "C-C003",
+      "relation": "CITES"
+    },
+    {
+      "source": "WI-02",
+      "target": "C-C004",
+      "relation": "CITES"
+    },
+    {
+      "source": "WI-02",
+      "target": "MC-04",
+      "relation": "USES"
+    },
+    {
+      "source": "WI-02",
+      "target": "WI-04",
+      "relation": "FEEDS",
+      "artifact": "軸承選型 + 油浴密封規格",
+      "purpose": "housing 軸承座 + 油封座設計"
+    },
+    {
+      "source": "WI-02",
+      "target": "ICD-02",
+      "relation": "SUPPORTS"
+    },
+    {
+      "source": "WI-02",
+      "target": "ICD-04",
+      "relation": "SUPPORTS"
+    },
+    {
+      "source": "WI-02",
+      "target": "R-002",
+      "relation": "MITIGATES"
+    },
+    {
+      "source": "WI-02",
+      "target": "R-009",
+      "relation": "MITIGATES"
+    },
+    {
+      "source": "WI-02",
+      "target": "TR1",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-02",
+      "target": "TR2",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-02",
+      "target": "TR3",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-02",
+      "target": "TR5",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-02",
+      "target": "TR6",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-03",
+      "target": "TC-A",
+      "relation": "TRACES_TO"
+    },
+    {
+      "source": "WI-03",
+      "target": "SOL-TCA",
+      "relation": "TRACES_TO"
+    },
+    {
+      "source": "WI-03",
+      "target": "principle:3",
+      "relation": "TRACES_TO"
+    },
+    {
+      "source": "WI-03",
+      "target": "principle:36",
+      "relation": "TRACES_TO"
+    },
+    {
+      "source": "WI-03",
+      "target": "C-A001",
+      "relation": "CITES"
+    },
+    {
+      "source": "WI-03",
+      "target": "C-A002",
+      "relation": "CITES"
+    },
+    {
+      "source": "WI-03",
+      "target": "C-A003",
+      "relation": "CITES"
+    },
+    {
+      "source": "WI-03",
+      "target": "C-A004",
+      "relation": "CITES"
+    },
+    {
+      "source": "WI-03",
+      "target": "MC-04",
+      "relation": "USES"
+    },
+    {
+      "source": "WI-03",
+      "target": "MC-05",
+      "relation": "USES"
+    },
+    {
+      "source": "WI-03",
+      "target": "MC-06",
+      "relation": "USES"
+    },
+    {
+      "source": "WI-03",
+      "target": "WI-05",
+      "relation": "FEEDS",
+      "artifact": "熱保護邏輯規格 (T 閾值/限流策略)",
+      "purpose": "MCU 韌體實作"
+    },
+    {
+      "source": "WI-03",
+      "target": "WI-04",
+      "relation": "FEEDS",
+      "artifact": "PCM 腔體 + Cu 嵌件配置",
+      "purpose": "housing 內襯設計"
+    },
+    {
+      "source": "WI-03",
+      "target": "ICD-01",
+      "relation": "SUPPORTS"
+    },
+    {
+      "source": "WI-03",
+      "target": "R-008",
+      "relation": "MITIGATES"
+    },
+    {
+      "source": "WI-03",
+      "target": "R-010",
+      "relation": "MITIGATES"
+    },
+    {
+      "source": "WI-03",
+      "target": "TR1",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-03",
+      "target": "TR2",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-03",
+      "target": "TR5",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-03",
+      "target": "TR6",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-04",
+      "target": "TC-A",
+      "relation": "TRACES_TO"
+    },
+    {
+      "source": "WI-04",
+      "target": "TC-B",
+      "relation": "TRACES_TO"
+    },
+    {
+      "source": "WI-04",
+      "target": "TC-C",
+      "relation": "TRACES_TO"
+    },
+    {
+      "source": "WI-04",
+      "target": "MC-04",
+      "relation": "USES"
+    },
+    {
+      "source": "WI-04",
+      "target": "ICD-01",
+      "relation": "SUPPORTS"
+    },
+    {
+      "source": "WI-04",
+      "target": "ICD-02",
+      "relation": "SUPPORTS"
+    },
+    {
+      "source": "WI-04",
+      "target": "ICD-03",
+      "relation": "SUPPORTS"
+    },
+    {
+      "source": "WI-04",
+      "target": "ICD-04",
+      "relation": "SUPPORTS"
+    },
+    {
+      "source": "WI-04",
+      "target": "R-006",
+      "relation": "MITIGATES"
+    },
+    {
+      "source": "WI-04",
+      "target": "R-007",
+      "relation": "MITIGATES"
+    },
+    {
+      "source": "WI-04",
+      "target": "TR2",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-04",
+      "target": "TR3",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-04",
+      "target": "TR5",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-04",
+      "target": "TR7",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-04",
+      "target": "WI-01",
+      "relation": "DEPENDS_ON",
+      "artifact": "馬達包絡尺寸"
+    },
+    {
+      "source": "WI-04",
+      "target": "WI-02",
+      "relation": "DEPENDS_ON",
+      "artifact": "軸承 + 油浴密封規格"
+    },
+    {
+      "source": "WI-04",
+      "target": "WI-03",
+      "relation": "DEPENDS_ON",
+      "artifact": "PCM 腔體 + Cu 嵌件配置"
+    },
+    {
+      "source": "WI-04",
+      "target": "WI-05",
+      "relation": "DEPENDS_ON",
+      "artifact": "PCB endcap 介面"
+    },
+    {
+      "source": "WI-05",
+      "target": "ICD-03",
+      "relation": "SUPPORTS"
+    },
+    {
+      "source": "WI-05",
+      "target": "R-005",
+      "relation": "MITIGATES"
+    },
+    {
+      "source": "WI-05",
+      "target": "R-008",
+      "relation": "MITIGATES"
+    },
+    {
+      "source": "WI-05",
+      "target": "TR1",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-05",
+      "target": "TR2",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-05",
+      "target": "TR3",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-05",
+      "target": "TR5",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-05",
+      "target": "TR6",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-05",
+      "target": "WI-01",
+      "relation": "DEPENDS_ON",
+      "artifact": "繞組規格 + IL_rms",
+      "purpose": "MOSFET 額定確認"
+    },
+    {
+      "source": "WI-05",
+      "target": "WI-03",
+      "relation": "DEPENDS_ON",
+      "artifact": "熱保護邏輯",
+      "purpose": "MCU 韌體實作 NTC 閾值"
+    },
+    {
+      "source": "WI-06",
+      "target": "TC-A",
+      "relation": "TRACES_TO"
+    },
+    {
+      "source": "WI-06",
+      "target": "TC-B",
+      "relation": "TRACES_TO"
+    },
+    {
+      "source": "WI-06",
+      "target": "TC-C",
+      "relation": "TRACES_TO"
+    },
+    {
+      "source": "WI-06",
+      "target": "SOL-TCA",
+      "relation": "TRACES_TO"
+    },
+    {
+      "source": "WI-06",
+      "target": "SOL-TCB",
+      "relation": "TRACES_TO"
+    },
+    {
+      "source": "WI-06",
+      "target": "SOL-TCC",
+      "relation": "TRACES_TO"
+    },
+    {
+      "source": "WI-06",
+      "target": "R-002",
+      "relation": "MITIGATES"
+    },
+    {
+      "source": "WI-06",
+      "target": "R-008",
+      "relation": "MITIGATES"
+    },
+    {
+      "source": "WI-06",
+      "target": "R-009",
+      "relation": "MITIGATES"
+    },
+    {
+      "source": "WI-06",
+      "target": "R-010",
+      "relation": "MITIGATES"
+    },
+    {
+      "source": "WI-06",
+      "target": "TR4",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-06",
+      "target": "TR6",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-06",
+      "target": "TR9",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-06",
+      "target": "WI-01",
+      "relation": "DEPENDS_ON",
+      "artifact": "Halbach 馬達 (V1-V4)"
+    },
+    {
+      "source": "WI-06",
+      "target": "WI-02",
+      "relation": "DEPENDS_ON",
+      "artifact": "齒輪箱 (V5-V8)"
+    },
+    {
+      "source": "WI-06",
+      "target": "WI-03",
+      "relation": "DEPENDS_ON",
+      "artifact": "熱管理 (V10, V13)"
+    },
+    {
+      "source": "WI-06",
+      "target": "WI-05",
+      "relation": "DEPENDS_ON",
+      "artifact": "PCB + 整機 (V11, V12, V14)"
+    },
+    {
+      "source": "WI-07",
+      "target": "C-A003",
+      "relation": "CITES"
+    },
+    {
+      "source": "WI-07",
+      "target": "C-B001",
+      "relation": "CITES"
+    },
+    {
+      "source": "WI-07",
+      "target": "C-B003",
+      "relation": "CITES"
+    },
+    {
+      "source": "WI-07",
+      "target": "C-B004",
+      "relation": "CITES"
+    },
+    {
+      "source": "WI-07",
+      "target": "C-C001",
+      "relation": "CITES"
+    },
+    {
+      "source": "WI-07",
+      "target": "MC-01",
+      "relation": "USES"
+    },
+    {
+      "source": "WI-07",
+      "target": "MC-02",
+      "relation": "USES"
+    },
+    {
+      "source": "WI-07",
+      "target": "MC-03",
+      "relation": "USES"
+    },
+    {
+      "source": "WI-07",
+      "target": "MC-04",
+      "relation": "USES"
+    },
+    {
+      "source": "WI-07",
+      "target": "MC-05",
+      "relation": "USES"
+    },
+    {
+      "source": "WI-07",
+      "target": "MC-06",
+      "relation": "USES"
+    },
+    {
+      "source": "WI-07",
+      "target": "R-003",
+      "relation": "MITIGATES"
+    },
+    {
+      "source": "WI-07",
+      "target": "R-004",
+      "relation": "MITIGATES"
+    },
+    {
+      "source": "WI-07",
+      "target": "TR2",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-07",
+      "target": "TR3",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-07",
+      "target": "TR4",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-07",
+      "target": "TR7",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-07",
+      "target": "TR8",
+      "relation": "SATISFIES"
+    },
+    {
+      "source": "WI-07",
+      "target": "TR10",
+      "relation": "SATISFIES"
+    }
+  ],
+  "stats": {
+    "node_count": 17,
+    "edge_count": 161,
+    "by_type": {
+      "TC": 0,
+      "SOL": 0,
+      "Gate": 0,
+      "ICD": 4,
+      "Risk": 0,
+      "WI": 7,
+      "Claim": 0,
+      "MC": 6,
+      "KC": 0,
+      "Principle": 0
+    }
+  }
+}

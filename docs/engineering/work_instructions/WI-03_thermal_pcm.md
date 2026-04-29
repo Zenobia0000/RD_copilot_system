@@ -1,3 +1,28 @@
+---
+id: WI-03
+type: WI
+title: Cu 嵌件 + RT55 PCM 熱管理
+domain: thermal
+version: 1.0
+date: 2026-04-28
+effort_weeks: 5
+owner: ME/Thermal
+
+traces_to: [TC-A, SOL-TCA, "principle:3", "principle:36"]
+cites: [C-A001, C-A002, C-A003, C-A004]
+uses: [MC-04, MC-05, MC-06]
+feeds:
+  - target: WI-05
+    artifact: 熱保護邏輯規格 (T 閾值/限流策略)
+    purpose: MCU 韌體實作
+  - target: WI-04
+    artifact: PCM 腔體 + Cu 嵌件配置
+    purpose: housing 內襯設計
+supports_icd: [ICD-01]
+mitigates: [R-008, R-010]
+satisfies_gates: [TR1, TR2, TR5, TR6]
+---
+
 # WI-03: Cu 嵌件 + RT55 PCM 熱管理
 
 > **版本**: 1.0 | **日期**: 2026-04-28
@@ -6,6 +31,105 @@
 > **產出物**: CFD-PCM 模擬報告、Cu 嵌件 spec、PCM 層配置圖、熱保護策略
 > **預估工時**: 5 週
 > **阻塞下游**: WI-04（housing 內襯設計）、WI-05（過熱保護邏輯）
+
+
+## Relations Graph (auto-generated)
+
+<!-- AUTO-GRAPH:START view=ego -->
+
+```mermaid
+flowchart LR
+    WI_03(["<b>WI-03</b><br/>Cu 嵌件 + RT55 PCM 熱管理"]):::center
+
+    subgraph TRIZ_溯源["TRIZ 溯源"]
+        direction TB
+        SOL_TCA["SOL-TCA"]:::tc
+        TC_A["TC-A"]:::tc
+    end
+    subgraph TRIZ_原理["TRIZ 原理"]
+        direction TB
+        principle_3["principle:3"]:::p
+        principle_36["principle:36"]:::p
+    end
+    subgraph Evidence["Evidence"]
+        direction TB
+        C_A001["C-A001"]:::ev
+        C_A002["C-A002"]:::ev
+        C_A003["C-A003"]:::ev
+        C_A004["C-A004"]:::ev
+    end
+    subgraph Materials["Materials"]
+        direction TB
+        MC_04[("MC-04")]:::mc
+        MC_05[("MC-05")]:::mc
+        MC_06[("MC-06")]:::mc
+    end
+    subgraph 相關_WI["相關 WI"]
+        direction TB
+        WI_01(["WI-01"]):::wi
+        WI_04(["WI-04"]):::wi
+        WI_05(["WI-05"]):::wi
+        WI_06(["WI-06"]):::wi
+    end
+    subgraph Interfaces["Interfaces"]
+        direction TB
+        ICD_01[/"ICD-01"/]:::icd
+    end
+    subgraph Risks["Risks"]
+        direction TB
+        R_008(("R-008")):::risk
+        R_010(("R-010")):::risk
+    end
+    subgraph TR_Gates["TR Gates"]
+        direction TB
+        TR1{{"TR1"}}:::gate
+        TR2{{"TR2"}}:::gate
+        TR5{{"TR5"}}:::gate
+        TR6{{"TR6"}}:::gate
+    end
+
+    WI_03 -->|"traces_to"| TC_A
+    WI_03 -->|"traces_to"| SOL_TCA
+    WI_03 -->|"traces_to"| principle_3
+    WI_03 -->|"traces_to"| principle_36
+    WI_03 -->|"cites"| C_A001
+    WI_03 -->|"cites"| C_A002
+    WI_03 -->|"cites"| C_A003
+    WI_03 -->|"cites"| C_A004
+    WI_03 -->|"uses"| MC_04
+    WI_03 -->|"uses"| MC_05
+    WI_03 -->|"uses"| MC_06
+    WI_03 -->|"熱保護邏輯規格 (T 閾值/限流策略)"| WI_05
+    WI_03 -->|"PCM 腔體 + Cu 嵌件配置"| WI_04
+    WI_03 -->|"supports"| ICD_01
+    WI_03 -->|"mitigates"| R_008
+    WI_03 -->|"mitigates"| R_010
+    WI_03 -->|"satisfies"| TR1
+    WI_03 -->|"satisfies"| TR2
+    WI_03 -->|"satisfies"| TR5
+    WI_03 -->|"satisfies"| TR6
+    ICD_01 -->|"links"| WI_03
+    MC_04 -->|"used_by"| WI_03
+    MC_05 -->|"used_by"| WI_03
+    MC_06 -->|"used_by"| WI_03
+    WI_01 -->|"feeds"| WI_03
+    WI_04 -->|"depends_on"| WI_03
+    WI_05 -->|"depends_on"| WI_03
+    WI_06 -->|"depends_on"| WI_03
+
+    classDef wi fill:#e1f5ff,stroke:#0288d1
+    classDef icd fill:#fce4ec,stroke:#ad1457
+    classDef mc fill:#e8f5e9,stroke:#388e3c
+    classDef tc fill:#fff3e0,stroke:#f57c00
+    classDef ev fill:#f3e5f5,stroke:#7b1fa2
+    classDef risk fill:#ffebee,stroke:#c62828
+    classDef gate fill:#fffde7,stroke:#f9a825
+    classDef kc fill:#e0f2f1,stroke:#00796b
+    classDef p fill:#fafafa,stroke:#616161
+    classDef center fill:#fff,stroke:#000,stroke-width:3px,font-weight:bold
+```
+
+<!-- AUTO-GRAPH:END -->
 
 ---
 

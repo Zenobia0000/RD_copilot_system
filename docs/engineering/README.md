@@ -7,6 +7,57 @@
 
 ---
 
+## 文件相依拓撲（auto-generated）
+
+> 由 `tools/build_graph.py --inject` 自動產生，不要手改下方 mermaid block。
+> Source of truth = 各 WI/ICD/MC 的 YAML frontmatter。
+
+<!-- AUTO-GRAPH:START view=topology -->
+
+```mermaid
+flowchart LR
+    WI_01(["<b>WI-01</b><br/>Halbach NdFeB 馬達 + SMC Stator + CFRP 套筒"]):::wi
+    WI_02(["<b>WI-02</b><br/>雙級減速齒輪箱 + 齒面修形 + EHD 油浴"]):::wi
+    WI_03(["<b>WI-03</b><br/>Cu 嵌件 + RT55 PCM 熱管理"]):::wi
+    WI_04(["<b>WI-04</b><br/>Al-6061 Coaxial Housing 結構整合"]):::wi
+    WI_05(["<b>WI-05</b><br/>環形 Drive Board + 扭力/角度感測器整合"]):::wi
+    WI_06(["<b>WI-06</b><br/>V1-V14 測試與驗證計畫"]):::wi
+    WI_07(["<b>WI-07</b><br/>採購與長交期物料"]):::wi
+    ICD_01[/"<b>ICD-01</b><br/>Motor Stator ↔ Housing (Cu 嵌件熱接觸)"/]:::icd
+    ICD_02[/"<b>ICD-02</b><br/>Gearbox ↔ Housing (軸承座 + 油浴密封)"/]:::icd
+    ICD_03[/"<b>ICD-03</b><br/>Drive Board ↔ Endcap (散熱 + EMI 屏蔽)"/]:::icd
+    ICD_04[/"<b>ICD-04</b><br/>Housing Halves (外殼分模 + O-ring 密封 + IP 等級)"/]:::icd
+    WI_01 -->|"Loss map (CSV)"| WI_03
+    WI_01 -->|"馬達包絡尺寸"| WI_04
+    WI_01 -->|"繞組 IL_rms"| WI_05
+    WI_01 -.-> ICD_01
+    WI_02 -->|"軸承選型 + 油浴密封規格"| WI_04
+    WI_02 -.-> ICD_02
+    WI_02 -.-> ICD_04
+    WI_03 -->|"熱保護邏輯規格 (T 閾值/限流策略)"| WI_05
+    WI_03 -->|"PCM 腔體 + Cu 嵌件配置"| WI_04
+    WI_03 -.-> ICD_01
+    WI_04 -.-> ICD_01
+    WI_04 -.-> ICD_02
+    WI_04 -.-> ICD_03
+    WI_04 -.-> ICD_04
+    WI_05 -.-> ICD_03
+
+    classDef wi fill:#e1f5ff,stroke:#0288d1
+    classDef icd fill:#fce4ec,stroke:#ad1457
+    classDef mc fill:#e8f5e9,stroke:#388e3c
+    classDef tc fill:#fff3e0,stroke:#f57c00
+    classDef ev fill:#f3e5f5,stroke:#7b1fa2
+    classDef risk fill:#ffebee,stroke:#c62828
+    classDef gate fill:#fffde7,stroke:#f9a825
+    classDef kc fill:#e0f2f1,stroke:#00796b
+    classDef p fill:#fafafa,stroke:#616161
+```
+
+<!-- AUTO-GRAPH:END -->
+
+---
+
 ## 系統架構（Coaxial Topology）
 
 ```

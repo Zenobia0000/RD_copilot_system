@@ -1,3 +1,25 @@
+---
+id: WI-02
+type: WI
+title: 雙級減速齒輪箱 + 齒面修形 + EHD 油浴
+domain: mechanical
+version: 1.0
+date: 2026-04-28
+effort_weeks: 6
+owner: ME
+
+traces_to: [TC-C, SOL-TCC, "principle:1", "principle:14", "principle:35"]
+cites: [C-C001, C-C002, C-C003, C-C004]
+uses: [MC-04]
+feeds:
+  - target: WI-04
+    artifact: 軸承選型 + 油浴密封規格
+    purpose: housing 軸承座 + 油封座設計
+supports_icd: [ICD-02, ICD-04]
+mitigates: [R-002, R-009]
+satisfies_gates: [TR1, TR2, TR3, TR5, TR6]
+---
+
 # WI-02: 雙級減速齒輪箱（行星 1:5 × 偏心擺線 1:6.5）+ 齒面修形 + EHD 油浴
 
 > **版本**: 1.0 | **日期**: 2026-04-28
@@ -6,6 +28,101 @@
 > **產出物**: 齒輪參數表、修形 KISSsoft 報告、軸承選型、油浴密封規格、NVH 模態分析
 > **預估工時**: 6 週
 > **阻塞下游**: WI-04（軸承座+油浴密封）、ICD-02、ICD-04
+
+
+## Relations Graph (auto-generated)
+
+<!-- AUTO-GRAPH:START view=ego -->
+
+```mermaid
+flowchart LR
+    WI_02(["<b>WI-02</b><br/>雙級減速齒輪箱 + 齒面修形 + EHD 油浴"]):::center
+
+    subgraph TRIZ_溯源["TRIZ 溯源"]
+        direction TB
+        SOL_TCC["SOL-TCC"]:::tc
+        TC_C["TC-C"]:::tc
+    end
+    subgraph TRIZ_原理["TRIZ 原理"]
+        direction TB
+        principle_1["principle:1"]:::p
+        principle_14["principle:14"]:::p
+        principle_35["principle:35"]:::p
+    end
+    subgraph Evidence["Evidence"]
+        direction TB
+        C_C001["C-C001"]:::ev
+        C_C002["C-C002"]:::ev
+        C_C003["C-C003"]:::ev
+        C_C004["C-C004"]:::ev
+    end
+    subgraph Materials["Materials"]
+        direction TB
+        MC_04[("MC-04")]:::mc
+    end
+    subgraph 相關_WI["相關 WI"]
+        direction TB
+        WI_04(["WI-04"]):::wi
+        WI_06(["WI-06"]):::wi
+    end
+    subgraph Interfaces["Interfaces"]
+        direction TB
+        ICD_02[/"ICD-02"/]:::icd
+        ICD_04[/"ICD-04"/]:::icd
+    end
+    subgraph Risks["Risks"]
+        direction TB
+        R_002(("R-002")):::risk
+        R_009(("R-009")):::risk
+    end
+    subgraph TR_Gates["TR Gates"]
+        direction TB
+        TR1{{"TR1"}}:::gate
+        TR2{{"TR2"}}:::gate
+        TR3{{"TR3"}}:::gate
+        TR5{{"TR5"}}:::gate
+        TR6{{"TR6"}}:::gate
+    end
+
+    WI_02 -->|"traces_to"| TC_C
+    WI_02 -->|"traces_to"| SOL_TCC
+    WI_02 -->|"traces_to"| principle_1
+    WI_02 -->|"traces_to"| principle_14
+    WI_02 -->|"traces_to"| principle_35
+    WI_02 -->|"cites"| C_C001
+    WI_02 -->|"cites"| C_C002
+    WI_02 -->|"cites"| C_C003
+    WI_02 -->|"cites"| C_C004
+    WI_02 -->|"uses"| MC_04
+    WI_02 -->|"軸承選型 + 油浴密封規格"| WI_04
+    WI_02 -->|"supports"| ICD_02
+    WI_02 -->|"supports"| ICD_04
+    WI_02 -->|"mitigates"| R_002
+    WI_02 -->|"mitigates"| R_009
+    WI_02 -->|"satisfies"| TR1
+    WI_02 -->|"satisfies"| TR2
+    WI_02 -->|"satisfies"| TR3
+    WI_02 -->|"satisfies"| TR5
+    WI_02 -->|"satisfies"| TR6
+    ICD_02 -->|"links"| WI_02
+    ICD_04 -->|"links"| WI_02
+    MC_04 -->|"used_by"| WI_02
+    WI_04 -->|"depends_on"| WI_02
+    WI_06 -->|"depends_on"| WI_02
+
+    classDef wi fill:#e1f5ff,stroke:#0288d1
+    classDef icd fill:#fce4ec,stroke:#ad1457
+    classDef mc fill:#e8f5e9,stroke:#388e3c
+    classDef tc fill:#fff3e0,stroke:#f57c00
+    classDef ev fill:#f3e5f5,stroke:#7b1fa2
+    classDef risk fill:#ffebee,stroke:#c62828
+    classDef gate fill:#fffde7,stroke:#f9a825
+    classDef kc fill:#e0f2f1,stroke:#00796b
+    classDef p fill:#fafafa,stroke:#616161
+    classDef center fill:#fff,stroke:#000,stroke-width:3px,font-weight:bold
+```
+
+<!-- AUTO-GRAPH:END -->
 
 ---
 

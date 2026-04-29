@@ -14,6 +14,64 @@
 
 ---
 
+## Risk × WI Mitigation Matrix（auto-generated）
+
+> 由 `tools/build_graph.py --inject` 自動產生。
+
+<!-- AUTO-GRAPH:START view=risk-matrix -->
+
+```mermaid
+flowchart LR
+    R_001(["R-001"]):::risk
+    R_002(["R-002"]):::risk
+    R_003(["R-003"]):::risk
+    R_004(["R-004"]):::risk
+    R_005(["R-005"]):::risk
+    R_006(["R-006"]):::risk
+    R_007(["R-007"]):::risk
+    R_008(["R-008"]):::risk
+    R_009(["R-009"]):::risk
+    R_010(["R-010"]):::risk
+    WI_01["<b>WI-01</b><br/>Halbach NdFeB 馬達 + SMC Stator + CFRP 套筒"]:::wi
+    WI_02["<b>WI-02</b><br/>雙級減速齒輪箱 + 齒面修形 + EHD 油浴"]:::wi
+    WI_03["<b>WI-03</b><br/>Cu 嵌件 + RT55 PCM 熱管理"]:::wi
+    WI_04["<b>WI-04</b><br/>Al-6061 Coaxial Housing 結構整合"]:::wi
+    WI_05["<b>WI-05</b><br/>環形 Drive Board + 扭力/角度感測器整合"]:::wi
+    WI_06["<b>WI-06</b><br/>V1-V14 測試與驗證計畫"]:::wi
+    WI_07["<b>WI-07</b><br/>採購與長交期物料"]:::wi
+    WI_01 -->|mitigates| R_001
+    WI_01 -->|mitigates| R_004
+    WI_01 -->|mitigates| R_005
+    WI_02 -->|mitigates| R_002
+    WI_02 -->|mitigates| R_009
+    WI_03 -->|mitigates| R_008
+    WI_03 -->|mitigates| R_010
+    WI_04 -->|mitigates| R_006
+    WI_04 -->|mitigates| R_007
+    WI_05 -->|mitigates| R_005
+    WI_05 -->|mitigates| R_008
+    WI_06 -->|mitigates| R_002
+    WI_06 -->|mitigates| R_008
+    WI_06 -->|mitigates| R_009
+    WI_06 -->|mitigates| R_010
+    WI_07 -->|mitigates| R_003
+    WI_07 -->|mitigates| R_004
+
+    classDef wi fill:#e1f5ff,stroke:#0288d1
+    classDef icd fill:#fce4ec,stroke:#ad1457
+    classDef mc fill:#e8f5e9,stroke:#388e3c
+    classDef tc fill:#fff3e0,stroke:#f57c00
+    classDef ev fill:#f3e5f5,stroke:#7b1fa2
+    classDef risk fill:#ffebee,stroke:#c62828
+    classDef gate fill:#fffde7,stroke:#f9a825
+    classDef kc fill:#e0f2f1,stroke:#00796b
+    classDef p fill:#fafafa,stroke:#616161
+```
+
+<!-- AUTO-GRAPH:END -->
+
+---
+
 ## 風險清單
 
 | Risk ID | 風險描述 | 來源 | 影響域 | 可能性 | 衝擊度 | 緩解措施 | 負責 WI |

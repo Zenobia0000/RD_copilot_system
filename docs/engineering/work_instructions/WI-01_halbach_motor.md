@@ -1,3 +1,59 @@
+---
+id: WI-01
+type: WI
+title: Halbach NdFeB 馬達 + SMC Stator + CFRP 套筒
+domain: electromagnetic
+version: 1.0
+date: 2026-04-28
+effort_weeks: 6
+owner: EE/ME
+
+# ── TRIZ 溯源（WHY this design） ───────────
+traces_to:
+  - TC-B           # 功率密度 vs 重量
+  - SOL-TCB        # Halbach + SMC + CFRP 解法
+  - principle:14   # 曲面化 (Halbach 排列)
+  - principle:40   # 複合材料 (CFRP 套筒)
+
+# ── 引用證據（聲明數值的來源） ───────────
+cites:
+  - C-B001         # NdFeB N42SH B_r=1.32 T (HIGH)
+  - C-B002         # Halbach +30~40% gain (MEDIUM, 待 FEA)
+  - C-B003         # SMC Somaloy sat=1.6 T (HIGH)
+  - C-B004         # CFRP tip speed 200 m/s (LOW, 待 datasheet)
+
+# ── 使用材料 ─────────────────────────────
+uses:
+  - MC-01          # NdFeB N42SH
+  - MC-02          # SMC Somaloy 700-5P
+  - MC-03          # CFRP T700
+
+# ── 資料流（產出給下游 WI） ───────────────
+feeds:
+  - target: WI-03
+    artifact: Loss map (CSV)
+    purpose: thermal CFD 邊界條件
+  - target: WI-04
+    artifact: 馬達包絡尺寸
+    purpose: housing 設計輸入
+  - target: WI-05
+    artifact: 繞組 IL_rms
+    purpose: MOSFET 額定確認
+
+# ── 介面對接 ─────────────────────────────
+supports_icd:
+  - ICD-01         # Motor Stator ↔ Housing
+
+# ── 風險關閉 ─────────────────────────────
+mitigates:
+  - R-001          # Halbach FEA 驗證
+  - R-004          # CFRP datasheet
+  - R-005          # Halbach 製造容差
+
+# ── 滿足的 TR Gates ──────────────────────
+satisfies_gates: [TR1, TR2, TR3, TR5, TR6]
+---
+
 # WI-01: Halbach NdFeB 馬達 + SMC Stator + CFRP 套筒
 
 > **版本**: 1.0 | **日期**: 2026-04-28
@@ -6,6 +62,109 @@
 > **產出物**: 3D EM FEA 結果、Loss map、繞組規格、Halbach 配置圖、CFRP 套筒規格
 > **預估工時**: 6 週
 > **阻塞下游**: WI-03（Loss map 為 thermal CFD 邊界條件）、WI-04（包絡尺寸）、ICD-01
+
+
+## Relations Graph (auto-generated)
+
+<!-- AUTO-GRAPH:START view=ego -->
+
+```mermaid
+flowchart LR
+    WI_01(["<b>WI-01</b><br/>Halbach NdFeB 馬達 + SMC Stator + CFRP 套筒"]):::center
+
+    subgraph TRIZ_溯源["TRIZ 溯源"]
+        direction TB
+        SOL_TCB["SOL-TCB"]:::tc
+        TC_B["TC-B"]:::tc
+    end
+    subgraph TRIZ_原理["TRIZ 原理"]
+        direction TB
+        principle_14["principle:14"]:::p
+        principle_40["principle:40"]:::p
+    end
+    subgraph Evidence["Evidence"]
+        direction TB
+        C_B001["C-B001"]:::ev
+        C_B002["C-B002"]:::ev
+        C_B003["C-B003"]:::ev
+        C_B004["C-B004"]:::ev
+    end
+    subgraph Materials["Materials"]
+        direction TB
+        MC_01[("MC-01")]:::mc
+        MC_02[("MC-02")]:::mc
+        MC_03[("MC-03")]:::mc
+    end
+    subgraph 相關_WI["相關 WI"]
+        direction TB
+        WI_03(["WI-03"]):::wi
+        WI_04(["WI-04"]):::wi
+        WI_05(["WI-05"]):::wi
+        WI_06(["WI-06"]):::wi
+    end
+    subgraph Interfaces["Interfaces"]
+        direction TB
+        ICD_01[/"ICD-01"/]:::icd
+    end
+    subgraph Risks["Risks"]
+        direction TB
+        R_001(("R-001")):::risk
+        R_004(("R-004")):::risk
+        R_005(("R-005")):::risk
+    end
+    subgraph TR_Gates["TR Gates"]
+        direction TB
+        TR1{{"TR1"}}:::gate
+        TR2{{"TR2"}}:::gate
+        TR3{{"TR3"}}:::gate
+        TR5{{"TR5"}}:::gate
+        TR6{{"TR6"}}:::gate
+    end
+
+    WI_01 -->|"traces_to"| TC_B
+    WI_01 -->|"traces_to"| SOL_TCB
+    WI_01 -->|"traces_to"| principle_14
+    WI_01 -->|"traces_to"| principle_40
+    WI_01 -->|"cites"| C_B001
+    WI_01 -->|"cites"| C_B002
+    WI_01 -->|"cites"| C_B003
+    WI_01 -->|"cites"| C_B004
+    WI_01 -->|"uses"| MC_01
+    WI_01 -->|"uses"| MC_02
+    WI_01 -->|"uses"| MC_03
+    WI_01 -->|"Loss map (CSV)"| WI_03
+    WI_01 -->|"馬達包絡尺寸"| WI_04
+    WI_01 -->|"繞組 IL_rms"| WI_05
+    WI_01 -->|"supports"| ICD_01
+    WI_01 -->|"mitigates"| R_001
+    WI_01 -->|"mitigates"| R_004
+    WI_01 -->|"mitigates"| R_005
+    WI_01 -->|"satisfies"| TR1
+    WI_01 -->|"satisfies"| TR2
+    WI_01 -->|"satisfies"| TR3
+    WI_01 -->|"satisfies"| TR5
+    WI_01 -->|"satisfies"| TR6
+    ICD_01 -->|"links"| WI_01
+    MC_01 -->|"used_by"| WI_01
+    MC_02 -->|"used_by"| WI_01
+    MC_03 -->|"used_by"| WI_01
+    WI_04 -->|"depends_on"| WI_01
+    WI_05 -->|"depends_on"| WI_01
+    WI_06 -->|"depends_on"| WI_01
+
+    classDef wi fill:#e1f5ff,stroke:#0288d1
+    classDef icd fill:#fce4ec,stroke:#ad1457
+    classDef mc fill:#e8f5e9,stroke:#388e3c
+    classDef tc fill:#fff3e0,stroke:#f57c00
+    classDef ev fill:#f3e5f5,stroke:#7b1fa2
+    classDef risk fill:#ffebee,stroke:#c62828
+    classDef gate fill:#fffde7,stroke:#f9a825
+    classDef kc fill:#e0f2f1,stroke:#00796b
+    classDef p fill:#fafafa,stroke:#616161
+    classDef center fill:#fff,stroke:#000,stroke-width:3px,font-weight:bold
+```
+
+<!-- AUTO-GRAPH:END -->
 
 ---
 

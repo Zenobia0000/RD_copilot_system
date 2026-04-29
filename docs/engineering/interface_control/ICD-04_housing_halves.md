@@ -1,8 +1,51 @@
+---
+id: ICD-04
+type: ICD
+title: Housing Halves (外殼分模 + O-ring 密封 + IP 等級)
+version: 1.0
+date: 2026-04-28
+links: [WI-02, WI-04]
+---
+
 # ICD-04: Housing Halves（外殼分模 + O-ring 密封 + IP 等級）
 
 > **版本**: 1.0 | **日期**: 2026-04-28
 > **相關 WI**: WI-04 (Housing 主)、WI-02 (油浴密封)、WI-03 (PCM 腔體)
 > **介面雙方**: Housing 前半 ↔ Housing 後半（含 endcap）
+
+
+## Relations Graph (auto-generated)
+
+<!-- AUTO-GRAPH:START view=ego -->
+
+```mermaid
+flowchart LR
+    ICD_04(["<b>ICD-04</b><br/>Housing Halves (外殼分模 + O-ring 密封 + IP 等級)"]):::center
+
+    subgraph 相關_WI["相關 WI"]
+        direction TB
+        WI_02(["WI-02"]):::wi
+        WI_04(["WI-04"]):::wi
+    end
+
+    ICD_04 -->|"links"| WI_02
+    ICD_04 -->|"links"| WI_04
+    WI_02 -->|"supports"| ICD_04
+    WI_04 -->|"supports"| ICD_04
+
+    classDef wi fill:#e1f5ff,stroke:#0288d1
+    classDef icd fill:#fce4ec,stroke:#ad1457
+    classDef mc fill:#e8f5e9,stroke:#388e3c
+    classDef tc fill:#fff3e0,stroke:#f57c00
+    classDef ev fill:#f3e5f5,stroke:#7b1fa2
+    classDef risk fill:#ffebee,stroke:#c62828
+    classDef gate fill:#fffde7,stroke:#f9a825
+    classDef kc fill:#e0f2f1,stroke:#00796b
+    classDef p fill:#fafafa,stroke:#616161
+    classDef center fill:#fff,stroke:#000,stroke-width:3px,font-weight:bold
+```
+
+<!-- AUTO-GRAPH:END -->
 
 ---
 

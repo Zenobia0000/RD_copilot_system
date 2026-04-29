@@ -1,8 +1,51 @@
+---
+id: ICD-02
+type: ICD
+title: Gearbox ↔ Housing (軸承座 + 油浴密封)
+version: 1.0
+date: 2026-04-28
+links: [WI-02, WI-04]
+---
+
 # ICD-02: Gearbox ↔ Housing（軸承座 + 油浴密封）
 
 > **版本**: 1.0 | **日期**: 2026-04-28
 > **相關 WI**: WI-02 (Gear), WI-04 (Housing)
 > **介面雙方**: 雙級齒輪箱 ↔ Al Housing 軸承座 + 油浴腔
+
+
+## Relations Graph (auto-generated)
+
+<!-- AUTO-GRAPH:START view=ego -->
+
+```mermaid
+flowchart LR
+    ICD_02(["<b>ICD-02</b><br/>Gearbox ↔ Housing (軸承座 + 油浴密封)"]):::center
+
+    subgraph 相關_WI["相關 WI"]
+        direction TB
+        WI_02(["WI-02"]):::wi
+        WI_04(["WI-04"]):::wi
+    end
+
+    ICD_02 -->|"links"| WI_02
+    ICD_02 -->|"links"| WI_04
+    WI_02 -->|"supports"| ICD_02
+    WI_04 -->|"supports"| ICD_02
+
+    classDef wi fill:#e1f5ff,stroke:#0288d1
+    classDef icd fill:#fce4ec,stroke:#ad1457
+    classDef mc fill:#e8f5e9,stroke:#388e3c
+    classDef tc fill:#fff3e0,stroke:#f57c00
+    classDef ev fill:#f3e5f5,stroke:#7b1fa2
+    classDef risk fill:#ffebee,stroke:#c62828
+    classDef gate fill:#fffde7,stroke:#f9a825
+    classDef kc fill:#e0f2f1,stroke:#00796b
+    classDef p fill:#fafafa,stroke:#616161
+    classDef center fill:#fff,stroke:#000,stroke-width:3px,font-weight:bold
+```
+
+<!-- AUTO-GRAPH:END -->
 
 ---
 

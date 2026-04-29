@@ -1,3 +1,30 @@
+---
+id: WI-04
+type: WI
+title: Al-6061 Coaxial Housing 結構整合
+domain: structural
+version: 1.0
+date: 2026-04-28
+effort_weeks: 4
+owner: ME
+
+# 整合 WI — 接收所有子系統輸出，產出整機 CAD/BOM/DFMEA
+traces_to: [TC-A, TC-B, TC-C]
+uses: [MC-04]
+depends_on:
+  - target: WI-01
+    artifact: 馬達包絡尺寸
+  - target: WI-02
+    artifact: 軸承 + 油浴密封規格
+  - target: WI-03
+    artifact: PCM 腔體 + Cu 嵌件配置
+  - target: WI-05
+    artifact: PCB endcap 介面
+supports_icd: [ICD-01, ICD-02, ICD-03, ICD-04]
+mitigates: [R-006, R-007]
+satisfies_gates: [TR2, TR3, TR5, TR7]
+---
+
 # WI-04: Al-6061 Coaxial Housing 結構整合
 
 > **版本**: 1.0 | **日期**: 2026-04-28
@@ -6,6 +33,93 @@
 > **產出物**: 完整 3D CAD 組裝、GD&T、BOM、公差鏈分析、Design FMEA
 > **預估工時**: 4 週（前置等子系統設計）
 > **阻塞下游**: TR3 詳細設計凍結
+
+
+## Relations Graph (auto-generated)
+
+<!-- AUTO-GRAPH:START view=ego -->
+
+```mermaid
+flowchart LR
+    WI_04(["<b>WI-04</b><br/>Al-6061 Coaxial Housing 結構整合"]):::center
+
+    subgraph TRIZ_溯源["TRIZ 溯源"]
+        direction TB
+        TC_A["TC-A"]:::tc
+        TC_B["TC-B"]:::tc
+        TC_C["TC-C"]:::tc
+    end
+    subgraph Materials["Materials"]
+        direction TB
+        MC_04[("MC-04")]:::mc
+    end
+    subgraph 相關_WI["相關 WI"]
+        direction TB
+        WI_01(["WI-01"]):::wi
+        WI_02(["WI-02"]):::wi
+        WI_03(["WI-03"]):::wi
+        WI_05(["WI-05"]):::wi
+    end
+    subgraph Interfaces["Interfaces"]
+        direction TB
+        ICD_01[/"ICD-01"/]:::icd
+        ICD_02[/"ICD-02"/]:::icd
+        ICD_03[/"ICD-03"/]:::icd
+        ICD_04[/"ICD-04"/]:::icd
+    end
+    subgraph Risks["Risks"]
+        direction TB
+        R_006(("R-006")):::risk
+        R_007(("R-007")):::risk
+    end
+    subgraph TR_Gates["TR Gates"]
+        direction TB
+        TR2{{"TR2"}}:::gate
+        TR3{{"TR3"}}:::gate
+        TR5{{"TR5"}}:::gate
+        TR7{{"TR7"}}:::gate
+    end
+
+    WI_04 -->|"traces_to"| TC_A
+    WI_04 -->|"traces_to"| TC_B
+    WI_04 -->|"traces_to"| TC_C
+    WI_04 -->|"uses"| MC_04
+    WI_04 -->|"supports"| ICD_01
+    WI_04 -->|"supports"| ICD_02
+    WI_04 -->|"supports"| ICD_03
+    WI_04 -->|"supports"| ICD_04
+    WI_04 -->|"mitigates"| R_006
+    WI_04 -->|"mitigates"| R_007
+    WI_04 -->|"satisfies"| TR2
+    WI_04 -->|"satisfies"| TR3
+    WI_04 -->|"satisfies"| TR5
+    WI_04 -->|"satisfies"| TR7
+    WI_04 -->|"馬達包絡尺寸"| WI_01
+    WI_04 -->|"軸承 + 油浴密封規格"| WI_02
+    WI_04 -->|"PCM 腔體 + Cu 嵌件配置"| WI_03
+    WI_04 -->|"PCB endcap 介面"| WI_05
+    ICD_01 -->|"links"| WI_04
+    ICD_02 -->|"links"| WI_04
+    ICD_03 -->|"links"| WI_04
+    ICD_04 -->|"links"| WI_04
+    MC_04 -->|"used_by"| WI_04
+    WI_01 -->|"feeds"| WI_04
+    WI_02 -->|"feeds"| WI_04
+    WI_03 -->|"feeds"| WI_04
+
+    classDef wi fill:#e1f5ff,stroke:#0288d1
+    classDef icd fill:#fce4ec,stroke:#ad1457
+    classDef mc fill:#e8f5e9,stroke:#388e3c
+    classDef tc fill:#fff3e0,stroke:#f57c00
+    classDef ev fill:#f3e5f5,stroke:#7b1fa2
+    classDef risk fill:#ffebee,stroke:#c62828
+    classDef gate fill:#fffde7,stroke:#f9a825
+    classDef kc fill:#e0f2f1,stroke:#00796b
+    classDef p fill:#fafafa,stroke:#616161
+    classDef center fill:#fff,stroke:#000,stroke-width:3px,font-weight:bold
+```
+
+<!-- AUTO-GRAPH:END -->
 
 ---
 

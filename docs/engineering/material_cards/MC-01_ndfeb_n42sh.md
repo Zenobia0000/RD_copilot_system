@@ -1,9 +1,59 @@
+---
+id: MC-01
+type: MC
+title: NdFeB N42SH (Halbach 磁鐵)
+version: 1.0
+date: 2026-04-28
+material_class: permanent_magnet
+cites: [C-B001]
+used_by: [WI-01, WI-07]
+---
+
 # MC-01: NdFeB N42SH（Halbach 磁鐵）
 
 > **版本**: 1.0 | **日期**: 2026-04-28
 > **來源**: Evidence C-B001
 > **適用 WI**: WI-01
 > **FEA 軟體**: ANSYS Maxwell, Altair Flux, COMSOL
+
+
+## Relations Graph (auto-generated)
+
+<!-- AUTO-GRAPH:START view=ego -->
+
+```mermaid
+flowchart LR
+    MC_01(["<b>MC-01</b><br/>NdFeB N42SH (Halbach 磁鐵)"]):::center
+
+    subgraph Evidence["Evidence"]
+        direction TB
+        C_B001["C-B001"]:::ev
+    end
+    subgraph 相關_WI["相關 WI"]
+        direction TB
+        WI_01(["WI-01"]):::wi
+        WI_07(["WI-07"]):::wi
+    end
+
+    MC_01 -->|"cites"| C_B001
+    MC_01 -->|"used_by"| WI_01
+    MC_01 -->|"used_by"| WI_07
+    WI_01 -->|"uses"| MC_01
+    WI_07 -->|"uses"| MC_01
+
+    classDef wi fill:#e1f5ff,stroke:#0288d1
+    classDef icd fill:#fce4ec,stroke:#ad1457
+    classDef mc fill:#e8f5e9,stroke:#388e3c
+    classDef tc fill:#fff3e0,stroke:#f57c00
+    classDef ev fill:#f3e5f5,stroke:#7b1fa2
+    classDef risk fill:#ffebee,stroke:#c62828
+    classDef gate fill:#fffde7,stroke:#f9a825
+    classDef kc fill:#e0f2f1,stroke:#00796b
+    classDef p fill:#fafafa,stroke:#616161
+    classDef center fill:#fff,stroke:#000,stroke-width:3px,font-weight:bold
+```
+
+<!-- AUTO-GRAPH:END -->
 
 ---
 

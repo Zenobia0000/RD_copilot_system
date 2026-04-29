@@ -144,7 +144,10 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
     const updateData: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
-    if (editForm.description !== undefined) updateData.natural_description = editForm.description;
+    if (editForm.description !== undefined) {
+      updateData.natural_description = editForm.description;
+      updateData.engineering_statement = editForm.description;
+    }
     if (editForm.improvingParam !== undefined) updateData.improving_param = editForm.improvingParam;
     if (editForm.worseningParam !== undefined) updateData.worsening_param = editForm.worseningParam;
     if (editForm.type !== undefined) updateData.type = editForm.type;

@@ -525,7 +525,7 @@ export default function Explore() {
           <TabsTrigger value="contradictions" className="text-xs sm:text-sm data-[state=active]:border-b-[3px] data-[state=active]:border-b-blue-500 rounded-none">
             矛盾識別
             <Badge variant="secondary" className="text-[10px] ml-1.5 hidden sm:inline-flex">
-              {tcCount} TC + {pcCount} PC{sfCount > 0 ? ` + ${sfCount} SF` : ''}
+               {`${tcCount} TC`}
             </Badge>
           </TabsTrigger>
           <TabsTrigger value="cld" className="text-xs sm:text-sm data-[state=active]:border-b-[3px] data-[state=active]:border-b-blue-500 rounded-none">

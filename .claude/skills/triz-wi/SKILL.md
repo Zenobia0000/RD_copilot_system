@@ -204,7 +204,51 @@ description: TRIZ Step 5 工程作業指導書產出。將 Step 4 驗證通過�
 
 每份 WI 檔案命名為 `docs/engineering/WI-{NN}_{domain}.md`，編號從 01 開始。
 
+每份 WI 檔開頭**必須**包含 YAML frontmatter（供 `tools/build_graph.py` 建構 typed property graph）與 AUTO-GRAPH marker 區塊（供圖塊注入）。Frontmatter 欄位 `traces_to` / `satisfies_gates` 為必填；若有對應內容則 `uses` / `feeds` / `supports_icd` / `mitigates` / `cites` 也必填。範例見 `docs/engineering/work_instructions/WI-01_halbach_motor.md`。
+
 ```markdown
+---
+id: WI-{NN}
+type: WI
+title: {標題}
+domain: {electromagnetic|mechanical|thermal|structural|electronics|test|procurement|corrosion}
+version: 1.0
+date: {today, YYYY-MM-DD}
+effort_weeks: {估計週數}
+owner: {ME|EE|QA|...}
+
+# ── TRIZ 溯源（必填，至少 1 項；來自 step3.solutions）─────
+traces_to:
+  - TC-{ID}            # Technical Contradiction ID
+  - SOL-{TCID}         # 該 TC 的 SOL/SF 解
+  - principle:{n}      # 引用的發明原理（可選）
+
+# ── 引用證據（從 step4.evidence_registry 展開；若有引用則必填）─────
+cites:
+  - C-{NNN}            # Evidence/Claim ID
+
+# ── 使用材料（若 WI 涉及材料則必填，對應 MC 檔）─────
+uses:
+  - MC-{NN}
+
+# ── 資料流（產出給下游 WI；可選）─────
+feeds:
+  - target: WI-{NN}
+    artifact: {交付物名稱}
+    purpose: {下游用途}
+
+# ── 介面對接（若涉及跨域介面則必填）─────
+supports_icd:
+  - ICD-{NN}
+
+# ── 風險關閉（從 risk_register 展開；若關閉風險則必填）─────
+mitigates:
+  - R-{NNN}
+
+# ── 滿足的 TR Gates（必填）─────
+satisfies_gates: [TR1, TR2, ...]
+---
+
 # WI-{NN}: {標題}
 
 > **版本**: 1.0 | **日期**: {today, YYYY-MM-DD}
@@ -213,6 +257,13 @@ description: TRIZ Step 5 工程作業指導書產出。將 Step 4 驗證通過�
 > **產出物**: {本 WI 的交付物清單}
 > **預估工時**: {估計值，含單位}
 > **阻塞下游**: {下游 WI 列表，若無則填「無」}
+
+
+## Relations Graph (auto-generated)
+
+<!-- AUTO-GRAPH:START view=ego -->
+<!-- AUTO-GRAPH:END -->
+
 
 ---
 
@@ -303,12 +354,31 @@ WI 全部完成後，產出介面控制文件與材料卡。
 
 ICD 檔案命名為 `docs/engineering/ICD-{NN}_{interface_name}.md`。
 
+每份 ICD 檔開頭**必須**包含 YAML frontmatter 與 AUTO-GRAPH marker。`links` 為必填（介面雙方相關的所有 WI），`mitigates` 在緩解風險時必填。範例見 `docs/engineering/interface_control/ICD-01_motor_to_housing.md`。
+
 ```markdown
+---
+id: ICD-{NN}
+type: ICD
+title: {介面名稱}
+version: 1.0
+date: {today, YYYY-MM-DD}
+links: [WI-{NN}, WI-{MM}, ...]   # 介面相關的所有 WI（必填，雙向）
+mitigates: [R-{NNN}, ...]         # 緩解的風險（若有則必填）
+---
+
 # ICD-{NN}: {介面名稱}
 
 > **版本**: 1.0 | **日期**: {today, YYYY-MM-DD}
 > **相關 WI**: WI-{NN}, WI-{MM}
 > **介面雙方**: {子系統 A} <-> {子系統 B}
+
+
+## Relations Graph (auto-generated)
+
+<!-- AUTO-GRAPH:START view=ego -->
+<!-- AUTO-GRAPH:END -->
+
 
 ---
 
@@ -360,13 +430,33 @@ ICD 檔案命名為 `docs/engineering/ICD-{NN}_{interface_name}.md`。
 
 MC 檔案命名為 `docs/engineering/MC-{NN}_{material_name}.md`。
 
+每份 MC 檔開頭**必須**包含 YAML frontmatter 與 AUTO-GRAPH marker。`cites` 必填（追溯到 evidence_registry），`used_by` 必填（哪些 WI 使用此材料）。範例見 `docs/engineering/material_cards/MC-01_ndfeb_n42sh.md`。
+
 ```markdown
+---
+id: MC-{NN}
+type: MC
+title: {材料名稱}
+version: 1.0
+date: {today, YYYY-MM-DD}
+material_class: {permanent_magnet|soft_magnetic|composite|metal|polymer|pcm|...}
+cites: [C-{NNN}, ...]            # 必填，追溯 evidence_registry
+used_by: [WI-{NN}, ...]          # 必填，哪些 WI 使用此材料（reverse pointer）
+---
+
 # MC-{NN}: {材料名稱}
 
 > **版本**: 1.0 | **日期**: {today, YYYY-MM-DD}
 > **來源**: Evidence {C-NNN}
 > **適用 WI**: WI-{NN}, WI-{MM}
 > **FEA 軟體**: {ANSYS / Abaqus / COMSOL / 通用}
+
+
+## Relations Graph (auto-generated)
+
+<!-- AUTO-GRAPH:START view=ego -->
+<!-- AUTO-GRAPH:END -->
+
 
 ---
 
@@ -564,6 +654,13 @@ Step 5 完成 — 工程作業指導書體系已產出。
 
 所有文件位於 docs/engineering/。
 可執行 `/triz-status` 查看完整 pipeline 狀態。
+
+⚠ 建圖提示：所有 WI/ICD/MC 已自帶 frontmatter 與 AUTO-GRAPH marker。
+   執行 `python3 tools/build_graph.py --inject` 即可：
+   - 重建 docs/engineering/_graph.json
+   - 把 mermaid ego graph / topology / risk-matrix 圖塊回填到各檔
+   - 二次執行為冪等（無變動）
+
 下一步：執行 `/tr` 進入 TR1→TR10 工程執行追蹤，或各域 RD 工程師按 WI 程序獨立執行開發。
 ```
 
@@ -629,7 +726,26 @@ step5 擴展現有 `.triz-state.json`，不使用獨立的狀態檔。完整 pip
 
 WI/ICD/MC 是專案產出物，必須放在 `docs/engineering/`，不得放在 `.claude/context/triz/`。
 
-### 6. Weak Evolution 處理
+### 6. Graph-aware 輸出（Frontmatter Contract）
+
+triz-wi 是第一個 graph-aware skill。所有 WI/ICD/MC 輸出**必須**：
+
+1. **檔頭包含 YAML frontmatter** — 由 `tools/build_graph.py` 解析為 typed property graph 節點與邊。Schema：
+   - `id` 必填，是節點唯一識別（命名遵守 `WI-NN` / `ICD-NN` / `MC-NN`）
+   - `type` 必填，限 `{WI, ICD, MC}`（其他節點類型 TC/SOL/Claim/Risk/KC 是隱式節點，存於 state JSON / risk_register / kc_list）
+   - 關係欄位（`traces_to`, `cites`, `uses`, `feeds`, `supports_icd`, `links`, `mitigates`, `used_by`, `satisfies_gates`）依文件類型擇用，被引用 ID 必須能在 state JSON 或其他 frontmatter 中找到，避免產生孤兒 edge
+
+2. **檔尾包含 AUTO-GRAPH marker 區塊** — `<!-- AUTO-GRAPH:START view=ego -->...<!-- AUTO-GRAPH:END -->`，供 `build_graph.py --inject` 將 mermaid ego graph 寫入。Skill 不渲染圖；只負責保留注入點。
+
+3. **不在 marker 之間寫任何內容** — marker 區塊每次 inject 會被覆寫。Skill 第一次產出時，marker 之間留空（兩行 marker 之間無內容）即可。
+
+職責邊界：
+- **Skill 負責**：產出符合 schema 的 frontmatter、保留 AUTO-GRAPH marker 注入點。
+- **`build_graph.py` 負責**：scan frontmatter、聚合 graph、注入 mermaid 圖塊、lint 警告。
+
+兩者解耦——skill 不呼叫 `build_graph.py`；engineer 在 skill 完成所有產出後手動執行（或交由 hook / CI 處理）。
+
+### 7. Weak Evolution 處理
 
 當 `step4.cci_verdict === "Weak Evolution"` 時：
 - 所有 WI 正常產出

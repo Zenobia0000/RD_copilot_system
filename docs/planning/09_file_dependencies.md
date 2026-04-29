@@ -243,7 +243,27 @@ flowchart LR
 
 這些檔案是 graph 的「投影視圖」，不是節點本身。
 
-### 3.8 為什麼是 Graph 而非樹？
+### 3.8 Skill ↔ build_graph.py 分工
+
+兩階段、解耦、不互相呼叫。
+
+| 階段 | 誰做 | 做什麼 | 何時 |
+|:-----|:-----|:-------|:-----|
+| **產出時（per-doc）** | Skill（如 `triz-wi`） | 1. 產出符合 schema 的 frontmatter（id/type + 關係欄位）<br>2. 在檔尾保留 AUTO-GRAPH marker（`<!-- AUTO-GRAPH:START view=ego -->`）<br>3. **不**呼叫 `build_graph.py`，**不**渲染 mermaid | 每次產 WI/ICD/MC |
+| **產出後（per-batch）** | 人 / hook / CI | 執行 `python3 tools/build_graph.py --inject` 重建 `_graph.json` 並注入所有 mermaid view（topology / risk-matrix / ego） | Skill 完成、commit 前、或 CI 階段 |
+
+**為什麼不在產出時建圖：**
+- 圖是全域聚合，每生成一份檔就重建全圖是浪費；
+- frontmatter 在人類校對前不穩定，提早 inject 只會反覆刷髒；
+- skill 的職責是「讓圖**可被建**」，而不是「**建圖**」。
+
+**為什麼不等全部產完才一次建：**
+- 「全部產完」在持續開發中不存在的時間點；
+- 但 `build_graph.py` 是冪等批次工具（見 §3.3）— 任何時間點重跑都安全。
+
+**第一個 graph-aware skill：** `triz-wi`（Step 5）。其 WI/ICD/MC 模板已內建 frontmatter 與 marker。新增其他輸出至 `docs/engineering/` 的 skill（`tr-sop`、`tr-test-report` 等）時，請依此模式整合。
+
+### 3.9 為什麼是 Graph 而非樹？
 
 | 樹的假設 | 實際違反 |
 |:---------|:---------|

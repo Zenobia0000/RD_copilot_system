@@ -589,6 +589,18 @@ Contradiction (TC). A TC means "improving one engineering parameter worsens
 another". You MUST map the description onto TWO distinct TRIZ 39 engineering
 parameters (integers 1–39).
 
+Before mapping to TRIZ parameters, first infer the intended problem framing
+from the structured context:
+- what system is being improved,
+- what object/input is being processed or evaluated,
+- what decision/output/result the system produces,
+- what the KPI/error metrics mean in this specific context,
+- what trade-offs are explicitly acceptable or unacceptable,
+- what interpretations are excluded or contradicted by the context.
+
+Do NOT silently reinterpret the problem as a more common adjacent problem.
+Do NOT invert the direction of the contradiction.
+
 If you absolutely CANNOT identify two distinct parameters, set type = null
 and explain in `rationale`. Do NOT output PC or SF — those are derived
 separately from the TC in a later step.
@@ -596,9 +608,11 @@ separately from the TC in a later step.
 
 <context>
 <mission>{mission}</mission>
+
 <known_constraints>
 {constraints}
 </known_constraints>
+
 <known_kpis>
 {kpis}
 </known_kpis>
@@ -606,7 +620,7 @@ separately from the TC in a later step.
 <clarified_insights>
 The following insights were derived from structured Socratic questioning with the problem owner.
 Use them to understand system boundaries, constraint severity, hidden assumptions,
-and evaluation ambiguity.
+metric definitions, acceptable tradeoffs, non-goals, and evaluation ambiguity.
 
 {socratic_insights}
 </clarified_insights>
@@ -616,15 +630,95 @@ and evaluation ambiguity.
 {natural_description}
 </input>
 
+<interpretation_rules>
+1. Use this priority order to resolve ambiguity:
+   clarified_insights > known_kpis > known_constraints > mission > natural_description.
+
+2. The natural_description may be informal, incomplete, or ambiguous.
+   Use it as the contradiction seed, but use the structured context to determine
+   the actual system boundary, evaluated object, KPI meanings, critical error,
+   acceptable tradeoffs, and excluded interpretations.
+
+3. Preserve the direction of the contradiction.
+   If the input states or clearly implies "improving X worsens Y", then map X to
+   `improving_param` and Y to `worsening_param`.
+   Do NOT invert it into "improving Y worsens X" unless the input explicitly frames
+   Y as the improvement target.
+
+4. Do not treat a constraint, threshold, limit, or requirement as the improving
+   parameter merely because it is mentioned.
+   A latency limit, cost ceiling, safety target, error-rate threshold, or quality
+   requirement may indicate the parameter that is worsened or must be protected.
+   Use the causal wording of the input to decide direction.
+
+5. If FNR, FPR, precision, recall, false acceptance, false rejection, false positive,
+   or false negative are mentioned, identify what the positive class or critical
+   error means in this specific context.
+   If the context does not define it clearly, lower confidence and explain the
+   ambiguity in `rationale`.
+
+6. Preserve asymmetric KPI importance.
+   If the context says one error type or tradeoff is unconstrained, acceptable,
+   or much less costly, do not optimize for it or treat it as the main worsening
+   parameter unless the input explicitly says so.
+
+7. Do not infer the operational setting solely from domain words such as
+   "inspection", "screening", "defect", "quality", "FNR", "FPR", "accuracy",
+   "speed", or "automation".
+   Interpret these terms according to mission, constraints, KPIs, and clarified insights.
+
+8. If the problem is about an acceptance gate, quality review, triage, filtering,
+   generation, simulation, dataset validation, or data quality control task,
+   do not rewrite it as a physical detection, localization, production inspection,
+   or control problem unless the context explicitly says so.
+
+9. If multiple possible TCs are present, formalize the TC most directly expressed
+   by the input sentence. Do not synthesize a new inverse TC.
+   If multiple TCs are equally plausible, lower confidence and mention the ambiguity
+   in `rationale`.
+</interpretation_rules>
+
 <instructions>
-1. Produce a one-sentence `engineering_statement` describing the contradiction
+1. First internally determine the intended problem framing:
+   - system being improved,
+   - evaluated object/input,
+   - output decision/result,
+   - meaning of the key KPI/error metric,
+   - critical error or failure mode,
+   - acceptable tradeoffs,
+   - excluded interpretations.
+
+2. Produce a one-sentence `engineering_statement` describing the contradiction
    as a trade-off between two engineering parameters.
-2. Map onto TWO distinct TRIZ 39 engineering parameters (1–39).
+
+3. The `engineering_statement` MUST preserve:
+   - the intended system boundary,
+   - the evaluated object/input when relevant,
+   - the output decision/result when relevant,
+   - the original improvement-to-worsening direction.
+
+4. Map onto TWO distinct TRIZ 39 engineering parameters (1–39).
    Set `improving_param` and `worsening_param` as integers.
-3. If you CANNOT confidently map to two parameters, set `type = null`,
+
+5. If you CANNOT confidently map to two parameters, set `type = null`,
    leave params null, and write a `rationale` explaining why.
-4. Assign `confidence` ∈ [0,1]. Lower it if insights reveal ambiguity.
-5. Leave all PC and SF fields as null — they are derived in a later step.
+
+6. Assign `confidence` ∈ [0,1].
+   Lower confidence if:
+   - the system boundary is ambiguous,
+   - the KPI polarity is unclear,
+   - the positive class of FNR/FPR is undefined,
+   - the contradiction direction is ambiguous,
+   - multiple different TCs are equally plausible,
+   - the natural_description conflicts with the structured context.
+
+7. If the mapping is confident, set `rationale` to null.
+   If confidence is reduced due to ambiguity, explain the ambiguity in `rationale`.
+
+8. Leave all PC and SF fields as null — they are derived in a later step.
+
+9. Output only JSON matching the output_schema. Do not include markdown, comments,
+   explanations, or extra keys.
 </instructions>
 
 <output_schema>
@@ -648,32 +742,267 @@ and evaluation ambiguity.
 
 <example_tc>
 {{
-  "engineering_statement": "Increasing motor torque (power) worsens heat dissipation (temperature)",
+  "engineering_statement": "Increasing motor torque improves power but worsens temperature because the motor generates more heat.",
   "type": "TC",
   "confidence": 0.85,
   "rationale": null,
   "improving_param": 21,
   "worsening_param": 17,
   "physical_contradiction": null,
-  "pc_attribute_a": null, "pc_attribute_not_a": null,
-  "sf_substance_1": null, "sf_substance_2": null, "sf_field": null,
-  "sf_interaction": null, "sf_completeness": null
+  "pc_attribute_a": null,
+  "pc_attribute_not_a": null,
+  "sf_substance_1": null,
+  "sf_substance_2": null,
+  "sf_field": null,
+  "sf_interaction": null,
+  "sf_completeness": null
 }}
 </example_tc>
 
+<example_direction_preservation>
+{{
+  "engineering_statement": "Improving classifier reliability by reducing missed critical cases worsens speed because additional verification increases inference latency.",
+  "type": "TC",
+  "confidence": 0.86,
+  "rationale": null,
+  "improving_param": 27,
+  "worsening_param": 9,
+  "physical_contradiction": null,
+  "pc_attribute_a": null,
+  "pc_attribute_not_a": null,
+  "sf_substance_1": null,
+  "sf_substance_2": null,
+  "sf_field": null,
+  "sf_interaction": null,
+  "sf_completeness": null
+}}
+</example_direction_preservation>
+
+<example_constraint_not_improvement>
+{{
+  "engineering_statement": "Improving measurement accuracy by using more thorough inspection worsens speed because the added checks increase processing time under a latency limit.",
+  "type": "TC",
+  "confidence": 0.84,
+  "rationale": null,
+  "improving_param": 28,
+  "worsening_param": 9,
+  "physical_contradiction": null,
+  "pc_attribute_a": null,
+  "pc_attribute_not_a": null,
+  "sf_substance_1": null,
+  "sf_substance_2": null,
+  "sf_field": null,
+  "sf_interaction": null,
+  "sf_completeness": null
+}}
+</example_constraint_not_improvement>
+
+<example_metric_ambiguity>
+{{
+  "engineering_statement": "Making the classifier stricter may improve one error metric but worsen another, but the positive class and critical error are not defined clearly enough to map the contradiction confidently.",
+  "type": null,
+  "confidence": 0.3,
+  "rationale": "The description mentions FNR/FPR but does not define the positive class or what false negative means in this system. Cannot confidently map to two TRIZ 39 parameters without knowing which error is critical.",
+  "improving_param": null,
+  "worsening_param": null,
+  "physical_contradiction": null,
+  "pc_attribute_a": null,
+  "pc_attribute_not_a": null,
+  "sf_substance_1": null,
+  "sf_substance_2": null,
+  "sf_field": null,
+  "sf_interaction": null,
+  "sf_completeness": null
+}}
+</example_metric_ambiguity>
+
 <example_cannot_map>
 {{
-  "engineering_statement": "The system must be both creative and reproducible during ideation workshops",
+  "engineering_statement": "The system must be both creative and reproducible during ideation workshops.",
   "type": null,
   "confidence": 0.25,
   "rationale": "Cannot confidently map to two TRIZ 39 parameters — both sides describe team/process outcomes rather than quantifiable engineering attributes. Recommend Socratic follow-up to extract a measurable trade-off.",
-  "improving_param": null, "worsening_param": null,
+  "improving_param": null,
+  "worsening_param": null,
   "physical_contradiction": null,
-  "pc_attribute_a": null, "pc_attribute_not_a": null,
-  "sf_substance_1": null, "sf_substance_2": null, "sf_field": null,
-  "sf_interaction": null, "sf_completeness": null
+  "pc_attribute_a": null,
+  "pc_attribute_not_a": null,
+  "sf_substance_1": null,
+  "sf_substance_2": null,
+  "sf_field": null,
+  "sf_interaction": null,
+  "sf_completeness": null
 }}
 </example_cannot_map>
+"""
+
+
+# ---------------------------------------------------------------------------
+# Multi-TC Identification from project context (ADR-007 TC-only)
+# ---------------------------------------------------------------------------
+
+MULTI_TC_IDENTIFICATION = """\
+<task>
+Based on the project context below, identify 2–5 distinct TRIZ Technical
+Contradictions (TC). A TC means "improving one engineering parameter worsens
+another". You MUST map each contradiction onto TWO distinct TRIZ 39
+engineering parameters (integers 1–39).
+
+Analyze the mission, constraints, KPIs, and Socratic insights to discover
+ALL meaningful trade-offs in the system — do NOT stop after finding one.
+
+Rules:
+- Each TC must be genuinely distinct: different (improving_param, worsening_param) pairs.
+  Two TCs with the same pair but different wording are considered duplicates — keep only one.
+- Do NOT output PC (Physical Contradiction) or SF (Su-Field) — those are derived
+  separately from each TC in a later step.
+- If you absolutely CANNOT identify two distinct TRIZ 39 parameters for a given
+  trade-off, include it with type = null and explain in rationale.
+- If fewer than 2 genuinely distinct TCs exist in the context, output only 1.
+- Maximum 5 TCs. Prioritize by confidence (highest first).
+- If the project context is too vague to identify any TC, return an empty array [].
+</task>
+
+<context>
+<mission>{mission}</mission>
+
+<known_constraints>
+{constraints}
+</known_constraints>
+
+<known_kpis>
+{kpis}
+</known_kpis>
+
+<clarified_insights>
+The following insights were derived from structured Socratic questioning
+with the problem owner. Use them to understand system boundaries, constraint
+severity, hidden assumptions, metric definitions, acceptable tradeoffs,
+non-goals, and evaluation ambiguity.
+
+{socratic_insights}
+</clarified_insights>
+
+<already_identified>
+The following contradictions have already been identified. Do NOT repeat them.
+If no prior contradictions exist, this section will be empty.
+
+{existing_descriptions}
+</already_identified>
+</context>
+
+<interpretation_rules>
+1. Use this priority order to resolve ambiguity:
+   clarified_insights > known_kpis > known_constraints > mission.
+
+2. Each TC must be derived from a genuine trade-off visible in the context.
+   Do NOT fabricate contradictions that are not supported by the given information.
+
+3. Preserve the direction of each contradiction.
+   If the context states or implies "improving X worsens Y", map X to
+   improving_param and Y to worsening_param. Do NOT invert.
+
+4. Do not treat a constraint, threshold, limit, or requirement as the improving
+   parameter merely because it is mentioned. Use the causal framing to decide.
+
+5. If FNR, FPR, precision, recall, or similar metrics are mentioned, identify
+   what the positive class or critical error means in this specific context.
+   If unclear, lower confidence and explain in rationale.
+
+6. Preserve asymmetric KPI importance. If the context says one error type or
+   tradeoff is unconstrained or acceptable, do not force it into a TC.
+
+7. Look for contradictions across different dimensions:
+   - Performance vs. resource consumption
+   - Accuracy vs. speed
+   - Reliability vs. complexity
+   - Cost vs. capability
+   - Size/weight vs. functionality
+   - Durability vs. manufacturability
+   - Safety vs. performance
+   But only include a dimension if the context genuinely supports it.
+</interpretation_rules>
+
+<instructions>
+1. Read all context sections carefully. Identify the system boundary, key
+   objectives, constraints, and known trade-offs.
+
+2. For each potential trade-off discovered:
+   a. Formulate a one-sentence engineering_statement describing the contradiction.
+   b. Map onto TWO distinct TRIZ 39 parameters (1–39).
+   c. Assign confidence in [0, 1].
+   d. If mapping is uncertain, set type = null with rationale.
+
+3. Deduplicate: if two TCs share the same (improving_param, worsening_param)
+   pair, keep only the one with higher confidence.
+
+4. Sort output by confidence descending. Cap at 5 items.
+
+5. Output ONLY a JSON array matching the output_schema. No markdown, no
+   comments, no explanations, no extra keys.
+</instructions>
+
+<output_schema>
+[
+  {{
+    "engineering_statement": "Increasing motor torque improves power output but worsens thermal management because higher current generates more resistive heating.",
+    "type": "TC",
+    "confidence": 0.88,
+    "rationale": null,
+    "improving_param": 21,
+    "worsening_param": 17
+  }},
+  {{
+    "engineering_statement": "Reducing device weight improves portability but worsens structural strength because thinner walls reduce load-bearing capacity.",
+    "type": "TC",
+    "confidence": 0.82,
+    "rationale": null,
+    "improving_param": 1,
+    "worsening_param": 14
+  }}
+]
+</output_schema>
+
+<example_single_tc>
+When only one genuine trade-off exists:
+[
+  {{
+    "engineering_statement": "Improving classifier reliability by adding ensemble verification worsens inference speed due to increased computational overhead.",
+    "type": "TC",
+    "confidence": 0.85,
+    "rationale": null,
+    "improving_param": 27,
+    "worsening_param": 9
+  }}
+]
+</example_single_tc>
+
+<example_mixed_confidence>
+When some TCs are confident and others are ambiguous:
+[
+  {{
+    "engineering_statement": "Increasing battery capacity extends range but worsens device weight.",
+    "type": "TC",
+    "confidence": 0.90,
+    "rationale": null,
+    "improving_param": 19,
+    "worsening_param": 1
+  }},
+  {{
+    "engineering_statement": "The context mentions a cost-durability tension but does not specify which durability aspect is affected.",
+    "type": null,
+    "confidence": 0.30,
+    "rationale": "The context implies a cost-durability trade-off but does not clarify whether durability refers to mechanical wear, chemical degradation, or thermal cycling. Cannot confidently map to two TRIZ 39 parameters.",
+    "improving_param": null,
+    "worsening_param": null
+  }}
+]
+</example_mixed_confidence>
+
+<example_empty>
+When context is too vague:
+[]
+</example_empty>
 """
 
 

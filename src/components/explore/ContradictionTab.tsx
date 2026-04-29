@@ -13,8 +13,8 @@ import { AiButton } from "@/components/ui/ai-button";
 import { trizParameters } from "@/data/trizParameters";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/hooks/api/useQueryConfig";
-import { contradictionFormalize, contradictionDecompose, contradictionDeriveSF } from "@/lib/api";
-import type { ContradictionFormalizeResponse } from "@/lib/api";
+import { contradictionFormalize, contradictionDecompose, contradictionDeriveSF, contradictionIdentifyMulti } from "@/lib/api";
+import type { ContradictionFormalizeResponse, IdentifiedTC } from "@/lib/api";
 import { DEFAULT_SEVERITY } from "@/types/contradiction";
 import type { ExploreContradiction, ContradictionType } from "@/types/explore";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
@@ -478,64 +478,76 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
           toast.success(`已自動深挖出 ${totalDecomposed} 個子矛盾 (PC + SF)`);
         }
       } else {
-        // 無待形式化目標 → 新建 TC 矛盾 (Plan B: TC-only)
-        const desc = mission
-          ? `Based on mission "${mission}", identify a key technical contradiction (TC).`
-          : `Identify a key technical contradiction from the project context.`;
+        // Path B: 無待形式化目標 → 一次辨識多個 TC (Multi-TC)
+        const existingDescs = topLevelContradictions
+          .filter(c => c.type === 'TC' && c.description)
+          .map(c => c.description!);
 
-        const now = new Date().toISOString();
-        const { data: draft, error: insertErr } = await supabase
-          .from('contradictions')
-          .insert({
-            project_id: projectId,
-            type: null,
-            natural_description: desc,
-            severity: DEFAULT_SEVERITY,
-            created_at: now,
-            updated_at: now,
-          })
-          .select()
-          .single();
-        if (insertErr) throw insertErr;
-
-        const result = await contradictionFormalize({
+        const multiResult = await contradictionIdentifyMulti({
           project_id: projectId,
-          contradiction_id: draft.id,
-          natural_description: desc,
-          mission, constraints, kpis, socraticAnswers,
+          mission: mission || '',
+          constraints: constraints || [],
+          kpis: kpis || [],
+          socraticAnswers: socraticAnswers || [],
+          existing_descriptions: existingDescs,
         });
 
-        if (result.type === null) {
-          await supabase.from('contradictions').delete().eq('id', draft.id);
-          toast.warning('AI 無法形式化此矛盾', {
-            description: (result.rationale ?? '請提供更具體的工程描述或先答 Socratic 題目').slice(0, 160),
+        const validTcs = multiResult.items.filter(tc => tc.type === 'TC');
+        if (validTcs.length === 0) {
+          toast.warning('AI 無法辨識任何技術矛盾', {
+            description: '請提供更具體的工程描述或先答 Socratic 題目後重試',
           });
           invalidate();
           return;
         }
 
-        await supabase
-          .from('contradictions')
-          .update({
-            type: 'TC',
-            improving_param: result.improving_param,
-            worsening_param: result.worsening_param,
-            engineering_statement: result.engineering_statement,
-            natural_description: result.engineering_statement || desc,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', draft.id);
+        // 對每個有效 TC：插入 draft → 更新 → 自動分解
+        const processOneTc = async (tc: IdentifiedTC): Promise<number> => {
+          const now = new Date().toISOString();
+          const { data: draft, error: insertErr } = await supabase
+            .from('contradictions')
+            .insert({
+              project_id: projectId,
+              type: 'TC',
+              natural_description: tc.engineering_statement,
+              engineering_statement: tc.engineering_statement,
+              improving_param: tc.improving_param,
+              worsening_param: tc.worsening_param,
+              severity: DEFAULT_SEVERITY,
+              created_at: now,
+              updated_at: now,
+            })
+            .select()
+            .single();
+          if (insertErr) throw insertErr;
 
-        // Parallel: decompose TC → child PCs + derive child SF
-        const [decomposedCount] = await Promise.all([
-          maybeAutoDecomposeTC(draft.id, result),
-          maybeAutoDeriveChildSF(draft.id, result),
-        ]);
+          // Parallel: decompose TC → child PCs + derive child SF
+          const [pcCount] = await Promise.all([
+            maybeAutoDecomposeTC(draft.id, {
+              engineering_statement: tc.engineering_statement,
+              improving_param: tc.improving_param,
+              worsening_param: tc.worsening_param,
+            } as ContradictionFormalizeResponse),
+            maybeAutoDeriveChildSF(draft.id, {
+              engineering_statement: tc.engineering_statement,
+              improving_param: tc.improving_param,
+              worsening_param: tc.worsening_param,
+            } as ContradictionFormalizeResponse),
+          ]);
+          return pcCount;
+        };
+
+        const results = await Promise.allSettled(validTcs.map(processOneTc));
+        const successCount = results.filter(r => r.status === 'fulfilled').length;
+        const totalDecomposed = results.reduce(
+          (sum, r) => sum + (r.status === 'fulfilled' ? (r as PromiseFulfilledResult<number>).value : 0),
+          0,
+        );
 
         invalidate();
-        toast.success('AI 已識別新技術矛盾 (TC)');
-        if (decomposedCount > 0) {
-          toast.success(`已自動深挖出 ${decomposedCount} 個子矛盾 (PC + SF)`);
+        toast.success(`AI 已識別 ${successCount} 個技術矛盾 (TC)`);
+        if (totalDecomposed > 0) {
+          toast.success(`已自動深挖出 ${totalDecomposed} 個子矛盾 (PC + SF)`);
         }
       }
     } catch (err) {

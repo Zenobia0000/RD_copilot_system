@@ -897,6 +897,36 @@ export function contradictionFormalize(body: ContradictionFormalizeRequest) {
   return request<ContradictionFormalizeResponse>(`/contradictions/${body.contradiction_id}/formalize`, body);
 }
 
+// ─── Multi-TC Identification (one-shot identify multiple TCs) ──────────────
+
+export interface MultiTcIdentifyRequest {
+  project_id: string;
+  mission: string;
+  constraints: string[];
+  kpis: string[];
+  socraticAnswers: string[];
+  existing_descriptions: string[];
+}
+
+export interface IdentifiedTC {
+  engineering_statement: string;
+  type: "TC" | null;
+  confidence: number;
+  rationale: string | null;
+  improving_param: number | null;
+  worsening_param: number | null;
+}
+
+export interface MultiTcIdentifyResponse {
+  items: IdentifiedTC[];
+}
+
+export function contradictionIdentifyMulti(
+  body: MultiTcIdentifyRequest,
+): Promise<MultiTcIdentifyResponse> {
+  return request("/contradictions/identify-multi", body);
+}
+
 // ─── Contradiction PC Decomposition (L2 WBS 5.1) ───────────────────────────
 
 export interface DecomposedPCPayload {

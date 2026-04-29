@@ -961,6 +961,36 @@ class ContradictionFormalizeResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Multi-TC Identification (POST /contradictions/identify-multi)
+# ---------------------------------------------------------------------------
+
+class MultiTcIdentifyRequest(BaseModel):
+    """Identify multiple TCs from project context in one call."""
+    project_id: str
+    mission: str = ""
+    constraints: list[str] = Field(default_factory=list)
+    kpis: list[str] = Field(default_factory=list)
+    socraticAnswers: list[str] = Field(default_factory=list)
+    # 已有的 contradiction descriptions，供 LLM 避免重複
+    existing_descriptions: list[str] = Field(default_factory=list)
+
+
+class IdentifiedTC(BaseModel):
+    """A single TC item within the multi-TC response."""
+    engineering_statement: str
+    type: Literal["TC"] | None = "TC"
+    confidence: float = Field(ge=0, le=1, default=0.7)
+    rationale: str | None = None
+    improving_param: int | None = None
+    worsening_param: int | None = None
+
+
+class MultiTcIdentifyResponse(BaseModel):
+    """Response containing multiple identified TCs."""
+    items: list[IdentifiedTC] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
 # Assumption Extraction (SOW: POST /assumptions/extract)
 # ---------------------------------------------------------------------------
 

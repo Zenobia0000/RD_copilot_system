@@ -19,8 +19,15 @@ from app.models.schemas import (
     ContradictionDecomposeResponse,
     ContradictionDeriveSFRequest,
     ContradictionDeriveSFResponse,
+    MultiTcIdentifyRequest,
+    MultiTcIdentifyResponse,
 )
-from app.agents.analyst import formalize_contradiction, decompose_tc_to_pcs, derive_su_field_from_tc
+from app.agents.analyst import (
+    formalize_contradiction,
+    decompose_tc_to_pcs,
+    derive_su_field_from_tc,
+    identify_multiple_tcs,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -77,3 +84,16 @@ def contradictions_derive_sf(cid: str, req: ContradictionDeriveSFRequest):
             req.project_id, cid,
         )
         raise HTTPException(status_code=502, detail="SF 推導失敗，請稍後重試")
+
+
+@router.post("/contradictions/identify-multi", response_model=MultiTcIdentifyResponse)
+def contradictions_identify_multi(req: MultiTcIdentifyRequest):
+    """Identify multiple TCs from project context in one call (Multi-TC)."""
+    try:
+        return identify_multiple_tcs(req)
+    except Exception:
+        logger.exception(
+            "Multi-TC identification failed for project %s",
+            req.project_id,
+        )
+        raise HTTPException(status_code=502, detail="Multi-TC 識別失敗，請稍後重試")

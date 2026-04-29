@@ -29,6 +29,7 @@ from app.prompts.analyst import (
     ANTI_ANCHOR_GENERATION,
     SOCRATIC_INSIGHT_EXTRACTION,
     CONTRADICTION_FORMALIZATION,
+    MULTI_TC_IDENTIFICATION,
     SU_FIELD_DERIVATION_FROM_TC,
     ASSUMPTION_EXTRACTION,
     UNKNOWN_FACTOR_DISCOVERY,
@@ -79,6 +80,9 @@ from app.models.schemas import (
     AntiAnchorResponse,
     ContradictionFormalizeRequest,
     ContradictionFormalizeResponse,
+    MultiTcIdentifyRequest,
+    MultiTcIdentifyResponse,
+    IdentifiedTC,
     SuFieldModel,
     ContradictionDecomposeRequest,
     ContradictionDecomposeResponse,
@@ -423,6 +427,7 @@ def formalize_contradiction(req: ContradictionFormalizeRequest) -> Contradiction
         kpis="\n".join(f"- {k}" for k in req.kpis) or "（尚無）",
         socratic_insights=socratic_insights,
     )
+    print("prompt: ", prompt)
     if settings.use_harness_agents:
         from app.harness.agent_base import HarnessAgent
         from pydantic import BaseModel as _BM
@@ -477,6 +482,125 @@ def formalize_contradiction(req: ContradictionFormalizeRequest) -> Contradiction
                 )
 
     return ContradictionFormalizeResponse(**data)
+
+
+# ---------------------------------------------------------------------------
+# Multi-TC Identification (POST /contradictions/identify-multi)
+# ---------------------------------------------------------------------------
+MAX_IDENTIFIED_TCS = 5
+
+
+def identify_multiple_tcs(req: MultiTcIdentifyRequest) -> MultiTcIdentifyResponse:
+    """Identify multiple TCs from project context in one LLM call.
+
+    ADR-007: Explore stage always emits TC. Non-TC items are coerced to
+    type=null and filtered out by the frontend.
+    """
+    # Step 1: Extract socratic insights (reuse existing helper)
+    socratic_insights = _extract_socratic_insights(
+        req.socraticAnswers, purpose=PURPOSE_CONTRADICTION,
+    )
+
+    # Step 2: Assemble prompt
+    prompt = MULTI_TC_IDENTIFICATION.format(
+        mission=req.mission or "（未提供）",
+        constraints="\n".join(f"- {c}" for c in req.constraints) or "（尚無）",
+        kpis="\n".join(f"- {k}" for k in req.kpis) or "（尚無）",
+        socratic_insights=socratic_insights,
+        existing_descriptions="\n".join(f"- {d}" for d in req.existing_descriptions) or "（無）",
+    )
+
+    # Step 3: Call LLM → parse JSON
+    if settings.use_harness_agents:
+        from app.harness.agent_base import HarnessAgent
+        from pydantic import BaseModel as _BM
+
+        class _MultiTcRaw(_BM):
+            class Config:
+                extra = "allow"
+
+        agent = HarnessAgent(
+            name="analyst_multi_tc", system_prompt=ANALYST_SYSTEM, output_type=_MultiTcRaw,
+        )
+        raw_result = agent.run_sync(prompt)
+        data = raw_result.model_dump()
+        # HarnessAgent may return the wrapper; extract the list
+        if isinstance(data, dict) and "items" in data:
+            data = data["items"]
+        elif isinstance(data, dict):
+            data = [data]
+    else:
+        raw = call_llm_json(ANALYST_SYSTEM, prompt)
+        data = json.loads(raw)
+
+    # Step 4: Normalise — if LLM returns single object instead of list
+    if isinstance(data, dict):
+        if "items" in data and isinstance(data["items"], list):
+            data = data["items"]
+        else:
+            data = [data]
+
+    # Step 5: Truncate to MAX_IDENTIFIED_TCS
+    data = data[:MAX_IDENTIFIED_TCS]
+
+    # Step 6: ADR-007 coercion per item + dedup
+    items: list[IdentifiedTC] = []
+    seen_pairs: set[tuple[int | None, int | None]] = set()
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+
+        raw_type = item.get("type")
+        ip = item.get("improving_param")
+        wp = item.get("worsening_param")
+
+        # Coerce non-TC to null
+        if raw_type != "TC" and raw_type is not None:
+            logger.info(
+                "MultiTC: LLM returned type=%r — ADR-007 coerces to TC-only; setting type=null",
+                raw_type,
+            )
+            item["type"] = None
+            item["improving_param"] = None
+            item["worsening_param"] = None
+            if not item.get("rationale"):
+                item["rationale"] = (
+                    f"LLM classified as '{raw_type}' but Explore stage requires TC "
+                    "(ADR-007). PC/SF are derived automatically from TC."
+                )
+        elif raw_type == "TC":
+            tc_params_valid = (
+                isinstance(ip, int) and isinstance(wp, int)
+                and 1 <= ip <= 39 and 1 <= wp <= 39
+            )
+            if not tc_params_valid:
+                logger.warning(
+                    "MultiTC: type=TC but params invalid (ip=%s, wp=%s) — coercing to type=null",
+                    ip, wp,
+                )
+                item["type"] = None
+                item["improving_param"] = None
+                item["worsening_param"] = None
+                if not item.get("rationale"):
+                    item["rationale"] = (
+                        "LLM returned type=TC but could not supply two valid TRIZ 39 "
+                        "parameters (1–39). Please refine the description."
+                    )
+
+        # Dedup by (improving_param, worsening_param) pair
+        pair = (item.get("improving_param"), item.get("worsening_param"))
+        if pair != (None, None) and pair in seen_pairs:
+            logger.info("MultiTC: duplicate param pair %s — skipping", pair)
+            continue
+        if pair != (None, None):
+            seen_pairs.add(pair)
+
+        try:
+            items.append(IdentifiedTC(**item))
+        except Exception:
+            logger.warning("MultiTC: failed to parse item %s — skipping", item)
+
+    return MultiTcIdentifyResponse(items=items)
 
 
 def derive_su_field_from_tc(

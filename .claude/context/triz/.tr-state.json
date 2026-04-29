@@ -1,0 +1,31 @@
+{
+  "project_id": "ebike-mid-drive-coaxial-v3",
+  "created_at": "2026-04-28T16:00:00+08:00",
+  "triz_session_ref": "2026-04-28-1500-eBike-MidDrive-Coaxial",
+  "triz_state_hash": "ab4ae09e85c4db8f265c753c20b6170caa04f8ce1bdd69f579d31c1fb8cf6cd7",
+  "current_tr": "TR0",
+  "next_target": "TR1",
+  "tr_gates": {
+    "TR0": { "name": "概念凍結", "status": "completed", "completed_at": "2026-04-28T16:00:00+08:00", "exit_evidence": "TRIZ Step 4 evolution + Gate P Go" },
+    "TR1": { "name": "可行性分析", "status": "pending", "blocking_risks": ["R-001", "R-002", "R-004"] },
+    "TR2": { "name": "設計參數鎖定", "status": "pending" },
+    "TR3": { "name": "詳細設計", "status": "pending" },
+    "TR4": { "name": "原型備料", "status": "pending" },
+    "TR5": { "name": "Alpha 原型", "status": "pending" },
+    "TR6": { "name": "Alpha 驗證", "status": "pending" },
+    "TR7": { "name": "Beta 設計", "status": "pending" },
+    "TR8": { "name": "Beta 原型", "status": "pending" },
+    "TR9": { "name": "量產驗證", "status": "pending" },
+    "TR10": { "name": "量產釋放", "status": "pending" }
+  },
+  "subsystems": {
+    "halbach_motor": { "current_tr": "TR0", "next_target": "TR1", "wi": "WI-01" },
+    "two_stage_gear": { "current_tr": "TR0.5", "next_target": "TR1", "wi": "WI-02" },
+    "thermal_pcm": { "current_tr": "TR0", "next_target": "TR1", "wi": "WI-03" },
+    "coaxial_housing": { "current_tr": "TR0.5", "next_target": "TR2", "wi": "WI-04" },
+    "drive_board": { "current_tr": "TR0.5", "next_target": "TR2", "wi": "WI-05" },
+    "pedaling_sensor": { "current_tr": "TR1", "next_target": "TR2", "wi": "WI-05" }
+  },
+  "deliverables_dir": "docs/engineering/",
+  "deliverable_counts": { "wi": 7, "icd": 4, "mc": 6, "framework": 4, "kc_list": 1, "total": 22 }
+}

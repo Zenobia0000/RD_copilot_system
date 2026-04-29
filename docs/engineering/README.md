@@ -1,90 +1,120 @@
-# e-Bike Mid-Mounted Drive Unit v2 — 工程執行指引
+# Engineering Deliverables — e-Bike Mid-Drive Unit (Coaxial v3)
 
-> **來源**: TRIZ Session `session-2026-04-21-ebike-drive-unit-v2.md` (CCI=0.35, Weak Evolution)
-> **目的**: 將 TRIZ 概念規格轉化為 RD 可獨立執行的作業指導書
-
----
-
-## 文件總覽
-
-本目錄包含從 TR0（概念凍結）到 TR6（Alpha 驗證）所需的全部工程執行文件。
-
-### 框架文件
-
-| 文件 | 用途 |
-|:-----|:-----|
-| [TR Gate Framework](tr_gate_framework.md) | TR0-TR10 定義、退出條件、子系統成熟度 |
-| [Critical Path](critical_path.md) | WI 間依賴關係、時程、里程碑 |
-| [Risk Register](risk_register.md) | Top 技術風險、對策、追蹤狀態 |
-
-### 作業指導書 (Work Instructions)
-
-每份 WI 為步驟式程序，使用祈使語氣，目標讀者為 3-5 年經驗的域工程師。
-
-| WI# | 名稱 | 負責域 | 狀態 |
-|:----|:-----|:-------|:-----|
-| [WI-01](work_instructions/WI-01_afm_magnetic_circuit.md) | AFM 磁路設計程序 | 馬達/電磁 | — |
-| [WI-02](work_instructions/WI-02_harmonic_drive_design.md) | 諧波齒輪設計程序 | 機構/齒輪 | — |
-| [WI-03](work_instructions/WI-03_pcm_thermal_management.md) | PCM 熱管理設計程序 | 熱流 | — |
-| [WI-04](work_instructions/WI-04_structural_integration_cad.md) | 結構整合與 CAD 組裝程序 | 結構/機械 | — |
-| [WI-05](work_instructions/WI-05_annular_pcb_design.md) | 環形 PCB 設計程序 | 電子/韌體 | — |
-| [WI-06](work_instructions/WI-06_prototype_build_test.md) | 原型製作與測試程序 | 系統整合 | — |
-| [WI-07](work_instructions/WI-07_material_procurement.md) | 材料採購與供應商管理 | 採購/品保 | — |
-| [WI-08](work_instructions/WI-08_galvanic_corrosion_prevention.md) | 電偶腐蝕防護程序 | 材料/表面 | — |
-
-### 介面控制文件 (ICD)
-
-| ICD# | 介面 |
-|:-----|:-----|
-| [ICD-01](interface_control/ICD-01_motor_to_shell.md) | 馬達 ↔ 殼體 |
-| [ICD-02](interface_control/ICD-02_gearbox_to_shell.md) | 齒輪箱 ↔ 殼體 |
-| [ICD-03](interface_control/ICD-03_pcb_to_endcap.md) | PCB ↔ 端蓋 |
-| [ICD-04](interface_control/ICD-04_shell_halves.md) | 殼體上蓋 ↔ 下蓋 |
-
-### FEA 材料卡 (Material Cards)
-
-| MC# | 材料 | 用途 |
-|:----|:-----|:-----|
-| [MC-01](material_cards/MC-01_ndfeb_n42sh.md) | NdFeB N42SH | AFM 轉子磁石 |
-| [MC-02](material_cards/MC-02_smc_somaloy700_5p.md) | Somaloy 700 5P | AFM 定子芯 |
-| [MC-03](material_cards/MC-03_cocrmo_f1537.md) | CoCrMo wrought | 諧波柔輪 |
-| [MC-04](material_cards/MC-04_cfpeek_30cf.md) | CF-PEEK 30%CF | 諧波剛輪 |
-| [MC-05](material_cards/MC-05_az91d.md) | AZ91D | 殼體 |
-| [MC-06](material_cards/MC-06_rt55_pcm.md) | RT55 石蠟 | PCM 熱管理 |
+> **TRIZ Session**: 2026-04-28-1500-eBike-MidDrive-Coaxial
+> **Verdict**: Evolution (Weak Evolution, CCI=0.3125) — Gate P **Go**
+> **產生日期**: 2026-04-28
+> **整體信心**: Weak Evolution — 部分項目（C-B002 Halbach FEA、C-B004 CFRP、C-C002 HPR50 噪音）需實驗補強
 
 ---
 
-## 系統架構速覽
+## 系統架構（Coaxial Topology）
 
 ```
-e-Bike Drive Unit v2 (OD111mm × 92mm, ≤2500g)
-│
-├── Motor: Axial Flux IPM (雙轉子夾定子)
-│   Ø100mm(ID30mm), 軸向18mm, NdFeB N42SH, SMC Somaloy 700 5P
-│   8極12槽集中繞組, MTPA+場弱, 目標 ≥5Nm
-│
-├── Gearbox: 諧波齒輪 1:25-30 單級
-│   CoCrMo wrought 柔輪 + CF-PEEK 30%CF 剛輪
-│   軸向28mm, η≈85%, 噪聲≤HPR50
-│
-├── Shell: AZ91D 薄壁(2.5-4mm) + SUS304嵌件
-│   PCM RT55 ~250g 石蠟夾層 + 淺鰭片
-│
-├── Board: 環形PCB嵌入端蓋, 軸向8mm
-├── Sensor: 磁致伸縮扭矩感測器, 軸向5mm
-│
-├── 軸向: 18+28+8+5 = 59mm << 92mm (裕量 33mm)
-└── 重量: ~2350g < 2500g (裕量 150g)
+                      OD 111 mm × Axial 92 mm
+    ┌───────────────────────────────────────────┐
+    │  ┌─────────────────────────────────────┐  │
+    │  │  Pedaling Shaft + Torque/Angle Sensor│  │  ← 中軸感測 (WI-05)
+    │  └────────────┬────────────────────────┘  │
+    │               │ coaxial through                 │
+    │  ┌──────────────────────────────────────┐  │
+    │  │  Halbach NdFeB Rotor + CFRP Sleeve   │  │  ← 馬達 (WI-01)
+    │  │  ┌──────────────────────────────┐    │  │
+    │  │  │ SMC Somaloy 700-5P Stator    │    │  │
+    │  │  │ + Cu Hairpin Winding         │    │  │
+    │  │  └──────────────────────────────┘    │  │
+    │  └──────────────────────────────────────┘  │
+    │  ┌──────────────────────────────────────┐  │
+    │  │  Stage 1: Planetary 1:5              │  │  ← 齒輪 (WI-02)
+    │  │  Stage 2: Eccentric Cycloidal 1:6.5  │  │     雙級 = 1:32.5
+    │  └──────────────────────────────────────┘  │
+    │  ┌──────────────────────────────────────┐  │
+    │  │  Cu Insert + RT55 PCM Layer          │  │  ← 熱管理 (WI-03)
+    │  │  in Al-6061 Housing                  │  │
+    │  └──────────────────────────────────────┘  │
+    │  ┌──────────────────────────────────────┐  │
+    │  │  Annular Drive Board (MOSFET + MCU)  │  │  ← 電子 (WI-05)
+    │  └──────────────────────────────────────┘  │
+    └───────────────────────────────────────────┘
+                Output Sprocket → Chain
 ```
 
 ---
 
-## 使用方式
+## 文件索引
 
-1. 閱讀 [TR Gate Framework](tr_gate_framework.md) 了解當前所在階段
-2. 查看 [Critical Path](critical_path.md) 確認哪些 WI 可並行、哪些有依賴
-3. 依 WI 編號順序（或並行路徑）逐份執行
-4. 每個 TR Gate 前，對照退出條件自查
-5. 風險項目在 [Risk Register](risk_register.md) 追蹤
+### 框架文件（4 份）
 
-**關鍵原則**：WI 告訴你「怎麼做」；TRIZ session 告訴你「為什麼這樣做」。遇到設計判斷困難時，回溯 TRIZ session 中的 PC/分離策略可以找到設計意圖。
+| 檔案 | 用途 |
+|:-----|:-----|
+| `README.md` | 本檔案，工程體系總覽 |
+| `tr_gate_framework.md` | TR0-TR10 閘門定義（唯一權威來源） |
+| `critical_path.md` | WI 依賴 DAG + 關鍵路徑 |
+| `risk_register.md` | 風險登記冊 |
+
+### Work Instructions（7 份，`work_instructions/`）
+
+| WI | 域 | 對應 TC | 負責 |
+|:---|:---|:--------|:-----|
+| WI-01 | Halbach 馬達 + SMC + CFRP | TC-B | EE/ME |
+| WI-02 | 雙級減速 + 齒面修形 + EHD | TC-C | ME |
+| WI-03 | Cu 嵌件 + RT55 PCM 熱管理 | TC-A | ME/Thermal |
+| WI-04 | Al-6061 Coaxial Housing 結構整合 | 多 TC | ME |
+| WI-05 | 環形 Drive Board + 扭力感測 | — | EE |
+| WI-06 | V1-V14 測試與驗證計畫 | 全 TC | QA/Test |
+| WI-07 | 採購與長交期物料 | — | SCM |
+
+### Interface Control Documents（4 份，`interface_control/`）
+
+| ICD | 介面 |
+|:----|:-----|
+| ICD-01 | Motor Stator ↔ Housing（Cu 嵌件熱接觸） |
+| ICD-02 | Gearbox ↔ Housing（軸承座 + 油浴密封） |
+| ICD-03 | Drive Board ↔ Endcap（PCB 散熱 + EMI 屏蔽） |
+| ICD-04 | Housing Halves（外殼分模 + O-ring 密封 + IP 等級） |
+
+### Material Cards（6 份，`material_cards/`）
+
+| MC | 材料 | 對應 Evidence |
+|:---|:-----|:--------------|
+| MC-01 | NdFeB N42SH（Halbach 磁鐵） | C-B001 |
+| MC-02 | SMC Somaloy 700-5P（Stator iron） | C-B003 |
+| MC-03 | CFRP T700（轉子套筒） | C-B004 |
+| MC-04 | Al-6061-T6（Housing） | C-A002 |
+| MC-05 | Cu C11000（熱嵌件） | C-A001 |
+| MC-06 | RT55（PCM） | C-A003, C-A004 |
+
+### KC List
+
+| 檔案 | 內容 |
+|:-----|:-----|
+| `kc_list.md` | Key Characteristics 清單，Critical/Major/Minor 分類 |
+
+---
+
+## TRIZ 溯源摘要
+
+3 個 TC 的解法摘要：
+
+| TC | 解法 (一句話) | 主分離 | 嵌套 |
+|:---|:--------------|:-------|:-----|
+| TC-A | Cu 嵌件 + RT55 PCM 在 Al housing 內襯 | 空間 | 整體局部 |
+| TC-B | Halbach NdFeB N42SH + SMC stator + CFRP 套筒 | 空間 | 整體局部 |
+| TC-C | 齒面 Δδ 修形 + 雙級減速分配 + EHD 油膜 | 空間 | 整體局部 + 條件 |
+
+**SIM 收斂**：第 1 輪 -1 數=0 → CONVERGED；2 條協同效應（A×B 散熱解鎖功率密度；A×C 油浴雙重利用）。
+
+完整 TRIZ session 報告見 `.claude/context/triz/session-2026-04-28-1500-eBike-MidDrive-Coaxial.md`。
+
+---
+
+## 閱讀指引
+
+| 角色 | 起點 |
+|:-----|:-----|
+| PM/系統工程師 | README → critical_path → tr_gate_framework |
+| 馬達 EE | WI-01 → MC-01/02/03 → ICD-01 |
+| 機械 ME | WI-02 → WI-04 → MC-04/05 → ICD-02/04 |
+| 熱工程師 | WI-03 → MC-04/05/06 → ICD-01 |
+| 電子工程師 | WI-05 → ICD-03 |
+| 測試 QA | WI-06 → kc_list |
+| 供應鏈 | WI-07 → 全部 MC |

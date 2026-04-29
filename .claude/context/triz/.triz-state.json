@@ -1,252 +1,74 @@
 {
-  "session_id": "2026-04-28-1400-eBike-MidDrive-Coaxial",
-  "created_at": "2026-04-28T14:00:00+08:00",
+  "session_id": "2026-04-28-1500-eBike-MidDrive-Coaxial",
+  "created_at": "2026-04-28T15:00:00+08:00",
   "current_step": "step5",
-  "path": "multi-tc-sim",
-  "problem_description": "e-Bike mid-mounted drive unit (coaxial): OD111mm/axial92mm/2500g/peak125Nm/cont100Nm, ratio 1:30~35, benchmark TQ HPR50",
-  "report_file": ".claude/context/triz/session-2026-04-28-1400-eBike-MidDrive-Coaxial.md",
+  "path": "tc-main",
+  "problem_description": "設計 e-Bike mid-mounted drive unit (coaxial structure)，含 gearbox、motor、drive board、pedaling shaft (torque+angle sensing)。目標：小型(OD111mm/axial92mm)、輕量(2500g)、低噪(對標TQ HPR50)、高扭力(peak 125Nm/continuous 100Nm)。減速比約 1:30~1:35。",
+  "report_file": ".claude/context/triz/session-2026-04-28-1500-eBike-MidDrive-Coaxial.md",
   "specs": {
     "od_mm": 111,
     "axial_mm": 92,
     "weight_g": 2500,
     "peak_torque_Nm": 125,
     "cont_torque_Nm": 100,
-    "ratio_range": "1:30~35"
+    "ratio_range": "1:30~35",
+    "benchmark": "TQ HPR50"
   },
-  "preliminary_tcs": [],
+  "preliminary_tcs": [
+    "TC-A: 散熱(P17) vs 體積(P8)",
+    "TC-B: 功率密度(P21) vs 重量(P1)",
+    "TC-C: 噪音(P31) vs 複雜度(P36)"
+  ],
   "spiral_iteration": 0,
-  "step0": {
-    "completed": true,
-    "routing": "step1",
-    "root_causes": [
-      "coaxial結構使馬達與慣性輸出軸同軸，徑小四壁與散熱路徑相互掣肘",
-      "高減出比集中在有限封裝內，齒輪負荷和噪音難以遏制",
-      "扭力密度要求高轉速比馬達，但封裝體積限制馬達散熱結構"
-    ],
-    "tc_hypothesis": [
-      "TC-A: 改善散熱資源(P17) vs. 惡化體積(P8)",
-      "TC-B: 提升功率密度(P21) vs. 惡化重量(P1)",
-      "TC-C: 降低噪音(P31) vs. 惡化裝置複雜度(P36)"
-    ],
-    "ceca_nodes": [
-      {
-        "cause": "coaxial封裝限制熱接觸面積",
-        "effect": "散熱不足"
-      },
-      {
-        "cause": "高減速比必須多級齒輪",
-        "effect": "噪音疊加"
-      },
-      {
-        "cause": "高扭力+輕量要求",
-        "effect": "熱負荷大"
-      }
-    ],
-    "ceca_key_nodes": [
-      "K1: 散熱路徑被封裝尺寸鎖死",
-      "K2: 齒輪噪音漏出動力封囊外",
-      "K3: 扭力+重量物理矛盾無法單維展開"
-    ],
-    "note": "Level B 直接路由至 Step1+Step2. 3個TC並行解析."
-  },
-  "step1": {
-    "completed": true,
-    "fa_components": [
-      {
-        "source": "Motor Winding",
-        "function": "conducts heat to",
-        "target": "Housing",
-        "type": "insufficient"
-      },
-      {
-        "source": "Gear Mesh",
-        "function": "generates vibration/noise to",
-        "target": "Housing/Air",
-        "type": "harmful"
-      },
-      {
-        "source": "Motor EM field",
-        "function": "drives torque to",
-        "target": "Gearbox input",
-        "type": "insufficient"
-      },
-      {
-        "source": "Gearbox",
-        "function": "amplifies torque to",
-        "target": "Output Sprocket",
-        "type": "useful"
-      },
-      {
-        "source": "Pedaling Shaft",
-        "function": "transmits torque signal to",
-        "target": "Torque/Angle Sensor",
-        "type": "useful"
-      },
-      {
-        "source": "Drive Board",
-        "function": "controls current to",
-        "target": "Motor Winding",
-        "type": "useful"
-      },
-      {
-        "source": "Housing",
-        "function": "conducts heat to",
-        "target": "Ambient",
-        "type": "insufficient"
-      }
-    ],
-    "sf_diagnosis": [
-      {
-        "id": "SF-01",
-        "s1": "Motor Winding",
-        "f": "Thermal",
-        "s2": "Housing",
-        "status": "insufficient",
-        "tc": "TC-A"
-      },
-      {
-        "id": "SF-02",
-        "s1": "Gear Mesh",
-        "f": "Mechanical",
-        "s2": "Air/Housing",
-        "status": "harmful",
-        "tc": "TC-C"
-      },
-      {
-        "id": "SF-03",
-        "s1": "Motor",
-        "f": "Electromagnetic",
-        "s2": "Gearbox",
-        "status": "insufficient",
-        "tc": "TC-B"
-      }
-    ],
-    "improve_worsen_nl": {
-      "TC-A": {
-        "improve": "散熱能力(Temperature P17)",
-        "worsen": "封裝體積(Volume stationary object P8)"
-      },
-      "TC-B": {
-        "improve": "功率/扭力密度(Power P21)",
-        "worsen": "系統重量(Weight of moving object P1)"
-      },
-      "TC-C": {
-        "improve": "降低齒輪噪音/有害振動(Object-generated harmful P31)",
-        "worsen": "裝置複雜度(Device complexity P36)"
-      }
-    },
-    "routing": "tc-main"
-  },
-  "step2": {
-    "completed": true,
-    "tc_definitions": [],
-    "bottleneck_tc": "",
-    "dependent_tcs": [],
-    "evidence_gate": null
-  },
-  "step3": {
-    "completed": true,
-    "refinement_round": 0,
-    "solutions": [
-      {
-        "id": "SOL-TCA",
-        "tc_id": "TC-A",
-        "pc": {
-          "parameter": "熱接觸面積 A_contact（定子-Housing徑向界面，PxScore=0.76）",
-          "required_A": "A_contact 大（高導熱複合嵌件，界面覆蓋率高）",
-          "required_notA": "A_contact 小（輕薄結構，不佔用體積）",
-          "separation": "whole-part",
-          "separation_detail": ""
-        },
-        "description": "",
-        "sf_standard": null,
-        "claim_ids": []
-      },
-      {
-        "id": "SOL-TCB",
-        "tc_id": "TC-B",
-        "pc": {
-          "parameter": "磁鐵剩磁 Br (T)，NdFeB牌號（PxScore=1.00）",
-          "required_A": "Br 高（NdFeB N42H~N45H，高功率密度側）",
-          "required_notA": "Br 低或非NdFeB（低重量側，如鐵氧體）",
-          "separation": "space",
-          "separation_detail": ""
-        },
-        "description": "",
-        "sf_standard": null,
-        "claim_ids": []
-      },
-      {
-        "id": "SOL-TCC",
-        "tc_id": "TC-C",
-        "pc": {
-          "parameter": "齒面修形量 Δδ（μm，齒廓/齒向修整幅度，PxScore=1.00）",
-          "required_A": "Δδ 大（5~15μm修緣+3~8μm鼓形修，低噪音側）",
-          "required_notA": "Δδ 小或零修形（低複雜度/低成本側）",
-          "separation": "space",
-          "separation_detail": ""
-        },
-        "description": "",
-        "sf_standard": null,
-        "claim_ids": []
-      }
-    ],
-    "sim": {
-      "iteration": 1,
-      "matrix": {},
-      "summary": {},
-      "verdict": "CONVERGED — 全部三個解法方案可並行實施，進入Step 4",
-      "synergies": [
-        "TC-A×TC-B: 散熱↑→J_max解除限制→Halbach功率密度可行",
-        "TC-A×TC-C: 油溫穩定→EHD阻尼如預期"
-      ],
-      "conflicts": []
-    },
-    "sim_iteration_count": 1,
-    "sim_minus1_history": [
-      0
-    ]
-  },
+  "step0": { "completed": true, "routing": "step1" },
+  "step1": { "completed": true, "routing": "tc-main", "fa_components_count": 12, "sf_diagnosis_count": 3, "tc_count": 3 },
+  "step2": { "completed": true, "dispatch_mode": "inline-supervisor", "tc_count": 3, "evidence_gate_passed": true, "evidence_coverage_pct": 83 },
+  "step3": { "completed": true, "refinement_round": 0, "solutions_count": 3, "sim": { "iteration": 1, "verdict": "CONVERGED", "synergies_count": 2, "conflicts_count": 0 }, "sim_iteration_count": 1, "sim_minus1_history": [0] },
   "step4": {
     "completed": true,
     "px_separation_verified": true,
-    "px_results": {
-      "TC-A": "PASS: 整體局部+空間分離 — A_contact大(Cu嵌件)→P17✓; A_contact小(不超OD111mm)→P8✓",
-      "TC-B": "PASS: 空間+整體局部分離 — Br高(Halbach有效側+41%)→P21✓; 無效側≈0(磁鐵總量不變)→P1✓",
-      "TC-C": "PASS: 空間+條件分離 — Δδ大(5~15μm嚙合區)→P31✓; 複雜度移至設計/磨齒工序非運行結構→P36✓"
-    },
     "verdict": "evolution",
-    "complexity_scores": {
-      "structural": 0.33,
-      "energy": 0.17,
-      "cognitive": 0.58,
-      "evolution_aligned": 0.0,
-      "cci": 0.258
-    },
-    "cci_verdict": "Strong Evolution",
-    "evidence_registry": null,
+    "complexity_scores": { "structural": 0.50, "energy": 0.25, "cognitive": 0.50, "evolution_aligned": 0.00, "cci": 0.3125 },
+    "cci_verdict": "Weak Evolution",
+    "evidence_registry_stats": { "high": 6, "medium": 4, "low": 2, "total": 12, "coverage_pct": 83 },
     "new_tc_detected": false,
-    "new_tc_description": "",
     "observation_items": [
-      "C-B002 Halbach功率密度倍率為LLM估計，建議FEA-Mag模擬補強",
-      "C-C002 修形降噪60%聲明需原型NVH測試確認",
-      "TC-B×TC-C累積製造成本風險，建議DFM審查"
+      "C-B002 Halbach 增益為 LLM 估計，建議 FEA-Mag 模擬補強",
+      "C-C002 噪音基準需取 TQ HPR50 spec sheet 或實測",
+      "TC-B × TC-C 製造工序累積，建議 TR1-2 進行 DFM 審查"
     ],
-    "deliverables": [
-      "engineering_spec",
-      "verification_plan",
-      "evidence_registry",
-      "cad_readiness_gate_p"
-    ]
+    "cad_readiness": { "cad_effort": "MEDIUM", "recommendation": "go" },
+    "deliverables": ["engineering_spec", "verification_plan", "evidence_registry", "cad_readiness_gate_p"]
   },
   "step5": {
-    "completed": false,
-    "subsystems_identified": [],
-    "wi_files": [],
-    "icd_files": [],
-    "mc_files": [],
-    "framework_files": [],
-    "total_files": 0,
+    "completed": true,
+    "subsystems_identified": ["motor", "gear", "thermal", "structural", "electronics", "test", "procurement"],
+    "wi_files": [
+      "work_instructions/WI-01_halbach_motor.md",
+      "work_instructions/WI-02_two_stage_gear.md",
+      "work_instructions/WI-03_thermal_pcm.md",
+      "work_instructions/WI-04_coaxial_housing.md",
+      "work_instructions/WI-05_drive_board_sensor.md",
+      "work_instructions/WI-06_test_verification.md",
+      "work_instructions/WI-07_procurement.md"
+    ],
+    "icd_files": [
+      "interface_control/ICD-01_motor_to_housing.md",
+      "interface_control/ICD-02_gearbox_to_housing.md",
+      "interface_control/ICD-03_pcb_to_endcap.md",
+      "interface_control/ICD-04_housing_halves.md"
+    ],
+    "mc_files": [
+      "material_cards/MC-01_ndfeb_n42sh.md",
+      "material_cards/MC-02_smc_somaloy.md",
+      "material_cards/MC-03_cfrp_t700.md",
+      "material_cards/MC-04_al_6061.md",
+      "material_cards/MC-05_cu_c11000.md",
+      "material_cards/MC-06_rt55_pcm.md"
+    ],
+    "framework_files": ["README.md", "tr_gate_framework.md", "critical_path.md", "risk_register.md"],
+    "kc_list_file": "kc_list.md",
+    "total_files": 22,
     "output_dir": "docs/engineering/"
   }
 }

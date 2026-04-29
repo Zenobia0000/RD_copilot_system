@@ -1,4 +1,4 @@
-# TR Gate Framework — e-Bike Drive Unit v2
+# TR Gate Framework — e-Bike Mid-Drive Unit (Coaxial v3)
 
 > **適用範圍**: 從 TRIZ 概念規格到量產釋放的全生命週期
 > **TR = Technology Review**：產品開發里程碑 gate review，每個 Gate 有明確退出條件，通過後才能進入下一階段
@@ -40,12 +40,12 @@
 
 | 子系統 | 現在 TR | 下一個目標 | 主要障礙 | 負責 WI |
 |:-------|:--------|:-----------|:---------|:--------|
-| AFM 馬達 | **TR0** | TR1 | 全新拓撲，需 3D 電磁 FEA + 軸向力驗證 | WI-01 |
-| 諧波齒輪 | TR0.5 | TR1 | 商用技術但 CoCrMo+CF-PEEK 材料組合需驗證 | WI-02 |
-| PCM 熱管理 | **TR0** | TR1 | 概念新穎，無殼體夾層 PCM 的熱原型數據 | WI-03 |
-| AZ91D 殼體 | TR0.5 | TR2 | 鎂合金壓鑄成熟，但 2.5mm 薄壁+嵌件+PCM 腔體是新挑戰 | WI-04, WI-08 |
-| 環形 PCB | TR0.5 | TR2 | 環形 layout + EMI 屏蔽有挑戰但無基本未知數 | WI-05 |
-| 扭矩感測器 | TR1 | TR2 | 商用品(NCTE等)，整合+EMI 隔離是重點 | WI-05 |
+| Halbach 馬達 (TC-B) | **TR0** | TR1 | Halbach 增益為 LLM 估計，需 FEA-Mag 驗證；CFRP 套筒 tip speed 200 m/s 為 LOW confidence | WI-01 |
+| 雙級減速齒輪 (TC-C) | TR0.5 | TR1 | 1:5 行星 × 1:6.5 偏心擺線 = 1:32.5；齒面修形 Δδ 5~15μm 需磨齒製程驗證 | WI-02 |
+| Cu 嵌件 + PCM 熱管理 (TC-A) | **TR0** | TR1 | RT55 PCM @55°C 熔化平台需 CFD-PCM 模擬；Cu/Al 嵌件熱嵌製程未驗證 | WI-03 |
+| Al-6061 Housing (Coaxial) | TR0.5 | TR2 | 內襯 PCM 夾層 + Cu 嵌件 + OD111×axial92 緊湊封裝 | WI-04 |
+| Drive Board (環形 PCB) | TR0.5 | TR2 | MOSFET 結溫管理 + EMI 屏蔽 + Halbach 漏磁干擾 | WI-05 |
+| Pedaling Shaft + Sensor | TR1 | TR2 | 商用扭力/角度感測器整合 | WI-05 |
 
 ---
 
@@ -53,12 +53,12 @@
 
 ### TR0 → TR1 Gate Review
 
-- [ ] WI-01 AFM 磁路 FEA 完成：Bg ≥ 0.8T, 扭矩 ≥ 5Nm, 軸向力 < 推力軸承額定
-- [ ] WI-02 諧波齒輪 FEA 完成：柔輪 von Mises < S-N 安全係數 3×, 剛輪齒根 ≤ 150MPa
-- [ ] WI-03 PCM 熱模擬完成：100Nm@8min 殼溫 ≤ 80°C, 恢復時間合理
-- [ ] WI-01 Loss map 已交付 WI-03
+- [ ] WI-01 Halbach 馬達 FEA-Mag 完成：B_g ≥ +30% vs baseline、peak torque ≥ 125 Nm @ rotor、CFRP tip speed 安全裕度 ≥ 1.5
+- [ ] WI-02 雙級齒輪 FEA + KISSsoft 完成：齒根應力 ≤ S-N 3×、PEE < 5μm、NVH 模態避共振
+- [ ] WI-03 PCM CFD 完成：peak 5-30s 期 winding 溫升 ≤ 80K、PCM 55°C 平台穩定、housing 表面 ≤ 80°C
+- [ ] WI-01 Loss map（銅損 + 鐵損 + 渦流）已交付 WI-03
 - [ ] 6 份 Material Card 已建立並標註資料來源
-- [ ] Risk Register 已更新（風險概率是否需修正）
+- [ ] Risk Register 已更新（C-B002、C-B004、C-C002 LOW confidence 項目修正）
 
 ### TR1 → TR2 Gate Review
 

@@ -383,6 +383,64 @@ export default function Create() {
     setAiLoading((p) => ({ ...p, directedTriz: false }));
   };
 
+  // v8: Consolidate-only — skip solving, just re-run cross-contradiction consolidation
+  const handleConsolidateOnly = async () => {
+    if (!id) return;
+    // Collect results that are already 'done'
+    const doneResults = Object.entries(directedStatusMap)
+      .filter(([, s]) => s === 'done')
+      .map(([cid]) => directedResults[cid])
+      .filter(Boolean);
+
+    if (doneResults.length === 0) {
+      toast.warning('尚無已完成的方向分析結果，請先執行方向導向分析');
+      return;
+    }
+
+    // Clear previous consolidation display
+    setConsolidationResult(null);
+
+    if (doneResults.length >= 2) {
+      try {
+        setDirectedConsolidating(true);
+        const consResp = await trizConsolidate({ project_id: id, results: doneResults });
+        setConsolidationResult(consResp.consolidation);
+        // Persist to DB
+        upsertConsolidationResult(id, consResp.consolidation).catch(err =>
+          console.warn('persist consolidation failed:', err),
+        );
+        toast.success(`跨矛盾整併完成：${
+          consResp.consolidation.status === 'compatible' ? '全部相容 ✓'
+          : consResp.consolidation.status === 'resolved_with_swap' ? '替換後相容'
+          : '存在衝突'
+        }`);
+      } catch (err) {
+        console.error('consolidation failed:', err);
+        toast.error('跨矛盾整併失敗');
+      } finally {
+        setDirectedConsolidating(false);
+      }
+    } else {
+      // Single contradiction — build local ConsolidationResult
+      const singleResult = doneResults[0];
+      const singleConsolidation: ConsolidationResult = {
+        status: 'compatible',
+        adopted_directions: singleResult.top1
+          ? { [singleResult.contradiction_id]: singleResult.top1 }
+          : {},
+        conflict_report: null,
+        integration_advice: singleResult.top1
+          ? `唯一矛盾「${singleResult.natural_description}」的首選方向：${singleResult.top1.direction_name}。`
+          : '',
+      };
+      setConsolidationResult(singleConsolidation);
+      upsertConsolidationResult(id, singleConsolidation).catch(err =>
+        console.warn('persist single-contradiction consolidation failed:', err),
+      );
+      toast.success('已為 1 條矛盾產出方向整併');
+    }
+  };
+
   // v8: Per-contradiction retry for directed TRIZ solving
   const handleDirectedSolveSingle = async (contradictionId: string) => {
     if (!id) return;
@@ -2239,15 +2297,27 @@ export default function Create() {
                 />
               )}
 
-              <AiButton
-                aiVariant="outline"
-                size="sm"
-                loading={!!aiLoading.directedTriz}
-                onClick={handleDirectedSolveAll}
-                className="text-xs"
-              >
-                重新執行方向導向分析
-              </AiButton>
+              <div className="flex items-center gap-2">
+                <AiButton
+                  aiVariant="outline"
+                  size="sm"
+                  loading={!!aiLoading.directedTriz}
+                  onClick={handleDirectedSolveAll}
+                  className="text-xs"
+                >
+                  重新執行方向導向分析
+                </AiButton>
+                <AiButton
+                  aiVariant="outline"
+                  size="sm"
+                  loading={directedConsolidating}
+                  onClick={handleConsolidateOnly}
+                  disabled={Object.values(directedStatusMap).filter(s => s === 'done').length === 0}
+                  className="text-xs"
+                >
+                  跨矛盾方向整併
+                </AiButton>
+              </div>
             </div>
           )}
         </div>

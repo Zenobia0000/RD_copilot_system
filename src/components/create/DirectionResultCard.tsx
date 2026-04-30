@@ -52,23 +52,23 @@ const SEVERITY_BADGE: Record<string, { label: string; variant: 'destructive' | '
 // ---------------------------------------------------------------------------
 // Sort mode config
 // ---------------------------------------------------------------------------
-type SortMode = 'weighted_total' | 'feasibility' | 'cost_difficulty' | 'tool_support';
+type SortMode = 'tool_support' | 'feasibility' | 'cost_difficulty' | 'coverage';
 
 const SORT_OPTIONS: { value: SortMode; label: string }[] = [
-  { value: 'weighted_total', label: '加權總分' },
+  { value: 'tool_support', label: '工具共識優先' },
   { value: 'feasibility', label: '可行性優先' },
   { value: 'cost_difficulty', label: '成本難度優先' },
-  { value: 'tool_support', label: '工具共識優先' },
+  { value: 'coverage', label: '覆蓋率優先' },
 ];
 
 /** Return the score value for a given sort mode. cost_difficulty is ascending (lower = better). */
 function getSortValue(score: DirectionScore | undefined, mode: SortMode): number {
   if (!score) return mode === 'cost_difficulty' ? Infinity : -Infinity;
   switch (mode) {
-    case 'weighted_total': return score.weighted_total;
+    case 'tool_support': return score.tool_support;
     case 'feasibility': return score.feasibility;
     case 'cost_difficulty': return -score.cost_difficulty; // negate so ascending sort = lower cost first
-    case 'tool_support': return score.tool_support;
+    case 'coverage': return score.coverage_score;
   }
 }
 
@@ -235,7 +235,7 @@ function DirectionBlock({
 // ---------------------------------------------------------------------------
 export function DirectionResultCard({ result }: DirectionResultCardProps) {
   const [cardOpen, setCardOpen] = useState(true);
-  const [sortMode, setSortMode] = useState<SortMode>('weighted_total');
+  const [sortMode, setSortMode] = useState<SortMode>('tool_support');
   const sev = SEVERITY_BADGE[result.severity] ?? SEVERITY_BADGE.unknown;
   const scoreMap = new Map(result.scored_directions.map((s) => [s.direction_id, s]));
 
@@ -248,15 +248,8 @@ export function DirectionResultCard({ result }: DirectionResultCardProps) {
     return 'other';
   };
 
-  // Sort: when default mode, keep top1 first → top2 second → rest by score desc.
-  // Otherwise sort purely by chosen metric (top1/top2 badges still shown but order follows metric).
+  // Sort purely by chosen metric (top1/top2 badges still shown but order follows metric).
   const sorted = [...result.all_directions].sort((a, b) => {
-    if (sortMode === 'weighted_total') {
-      const ra = getRank(a);
-      const rb = getRank(b);
-      const order = { top1: 0, top2: 1, other: 2 };
-      if (order[ra] !== order[rb]) return order[ra] - order[rb];
-    }
     const sa = getSortValue(scoreMap.get(a.direction_id), sortMode);
     const sb = getSortValue(scoreMap.get(b.direction_id), sortMode);
     return sb - sa; // descending (getSortValue already negates cost_difficulty)

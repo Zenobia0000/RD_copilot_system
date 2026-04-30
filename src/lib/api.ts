@@ -601,7 +601,7 @@ export function trizSolveDirected(body: SolveDirectedRequest) {
 
 export function trizConsolidate(body: ConsolidateRequest) {
   return request<ConsolidateResponse>("/triz/consolidate", body, {
-    timeoutMs: 300_000,
+    timeoutMs: 600_000,
   });
 }
 

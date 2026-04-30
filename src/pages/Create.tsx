@@ -91,7 +91,7 @@ import type { Json } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useTrackAssumptions } from "@/hooks/api/useTrack";
 import { useBrief, useConstraints, useKpis } from "@/hooks/api/useBrief";
-import { antiAnchorGenerate, trizSolveLayered, trizSolveDirected, trizConsolidate, scamperTransform, riskAnalyze, mustEvaluate, validationPassportGenerate, scamperSpatialOverlay, spatialComponentOverride, spatialLearnedComponent } from "@/lib/api";
+import { antiAnchorGenerate, trizSolveLayered, trizSolveDirected, trizConsolidate, scamperTransform, riskAnalyze, mustEvaluate, validationPassportGenerate, scamperSpatialOverlay, spatialComponentOverride, spatialLearnedComponent, getApiErrorMessage } from "@/lib/api";
 import type { LayeredTrizSolution, TrizSeverity, AdoptedLayerId } from "@/types/layeredTriz";
 import type { ContradictionDirectionResult, ConsolidationResult } from "@/types/directedTriz";
 import { LayeredSolutionCard } from "@/components/create/LayeredSolutionCard";
@@ -354,7 +354,7 @@ export default function Create() {
         toast.success(`跨矛盾整併完成：${consResp.consolidation.status === 'compatible' ? '全部相容 ✓' : consResp.consolidation.status === 'resolved_with_swap' ? '替換後相容' : '存在衝突'}`);
       } catch (err) {
         console.error('consolidation failed:', err);
-        toast.error('跨矛盾整併失敗');
+        toast.error(getApiErrorMessage(err, '跨矛盾整併'));
       } finally {
         setDirectedConsolidating(false);
       }
@@ -416,7 +416,7 @@ export default function Create() {
         }`);
       } catch (err) {
         console.error('consolidation failed:', err);
-        toast.error('跨矛盾整併失敗');
+        toast.error(getApiErrorMessage(err, '跨矛盾整併'));
       } finally {
         setDirectedConsolidating(false);
       }

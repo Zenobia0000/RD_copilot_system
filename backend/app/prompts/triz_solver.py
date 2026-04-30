@@ -1116,3 +1116,164 @@ IF status == "conflict":
 }}
 </output_schema>
 """
+
+# ---------------------------------------------------------------------------
+# Step H-1: Contradiction Decomposition — break contradiction into physical
+#            sub-requirements that MUST ALL be satisfied.
+# ---------------------------------------------------------------------------
+
+CONTRADICTION_DECOMPOSE_PROMPT = """\
+<task>
+You are a TRIZ methodology expert and domain engineer.
+Given a technical contradiction, decompose it into its underlying physical
+sub-requirements — the distinct physical phenomena that MUST ALL be satisfied
+for the contradiction to be fully resolved.
+</task>
+
+<context>
+<contradiction>{natural_description}</contradiction>
+</context>
+
+<instructions>
+- Identify 2-6 physical sub-requirements.
+- Each sub-requirement should map to a distinct physical domain
+  (e.g. thermal, electromagnetic, mechanical, structural, kinematic, material).
+- For each sub-requirement, explain WHY it is a necessary condition for
+  resolving the contradiction.
+- Do NOT list implementation directions or solutions — only the underlying
+  physical demands the system must meet.
+- Use engineering-precise language; avoid vague generalities.
+</instructions>
+
+<output_schema>
+{{
+  "sub_requirements": [
+    {{
+      "id": "SR-1",
+      "domain": "thermal",
+      "description": "The motor must dissipate enough heat to sustain continuous output without thermal throttling.",
+      "why_necessary": "Continuous torque is thermally limited; if heat cannot be removed the motor derates below the 100 Nm target."
+    }}
+  ]
+}}
+</output_schema>
+"""
+
+
+# ---------------------------------------------------------------------------
+# Step H-2: Resolution Coverage Audit — check which sub-requirements each
+#            Top-N direction actually addresses.
+# ---------------------------------------------------------------------------
+
+RESOLUTION_COVERAGE_AUDIT_PROMPT = """\
+<task>
+You are auditing whether each proposed solution direction actually resolves
+every physical sub-requirement of the original contradiction.
+For each (direction, sub_requirement) pair, judge honestly whether the
+direction addresses that sub-requirement.
+</task>
+
+<context>
+<contradiction>{natural_description}</contradiction>
+
+<sub_requirements>
+{sub_requirements_json}
+</sub_requirements>
+
+<top_directions>
+{top_directions_json}
+</top_directions>
+</context>
+
+<scoring>
+For each (direction, sub_requirement) pair assign an integer score:
+  2 = directly and substantially addresses this sub-requirement
+  1 = partially or indirectly addresses (e.g. a side-effect benefit)
+  0 = does not address at all
+
+coverage_score formula per direction:
+  coverage_score = sum_of_pair_scores / (2 × number_of_sub_requirements) × 10
+  (result is 0.0 – 10.0; 10.0 = perfect coverage)
+
+Be strict: a direction that only handles ONE domain out of four should NOT
+score above 3.0.
+</scoring>
+
+<output_schema>
+{{
+  "audits": [
+    {{
+      "direction_id": "DIR-1",
+      "coverage_matrix": [
+        {{"sub_requirement_id": "SR-1", "score": 2, "rationale": "..."}},
+        {{"sub_requirement_id": "SR-2", "score": 0, "rationale": "..."}}
+      ],
+      "coverage_score": 5.0,
+      "unresolved_gaps": ["SR-2: mechanical strength — not addressed"]
+    }}
+  ]
+}}
+</output_schema>
+"""
+
+
+# ---------------------------------------------------------------------------
+# Step I: Compose Combined Direction — select complementary directions to
+#         achieve full coverage when no single direction suffices.
+# ---------------------------------------------------------------------------
+
+COMPOSE_COMBINED_DIRECTION_PROMPT = """\
+<task>
+The highest-scoring direction does not fully resolve the contradiction.
+Your job is to compose a combined solution strategy that achieves full
+resolution by selecting the MINIMUM set of complementary directions from
+the candidate pool.
+</task>
+
+<context>
+<contradiction>{natural_description}</contradiction>
+
+<sub_requirements>
+{sub_requirements_json}
+</sub_requirements>
+
+<coverage_audits>
+{coverage_audits_json}
+</coverage_audits>
+
+<all_directions>
+{all_directions_json}
+</all_directions>
+</context>
+
+<instructions>
+- Select the MINIMUM number of directions that together cover ALL
+  sub-requirements (each SR must receive a pair score >= 1 from at least
+  one selected direction).
+- Prefer directions that already scored high on feasibility and consensus.
+- If full coverage is impossible with available directions, state which
+  sub-requirements remain unresolved and recommend external research
+  directions.
+- Explain synergies (where two directions reinforce each other) and
+  potential conflicts (where they may interfere).
+- Provide a concrete integration_strategy: how the selected directions
+  should be combined in an actual design.
+</instructions>
+
+<output_schema>
+{{
+  "combined_direction": {{
+    "selected_direction_ids": ["DIR-1", "DIR-3"],
+    "total_coverage_score": 9.2,
+    "coverage_matrix": [
+      {{"sub_requirement_id": "SR-1", "best_direction": "DIR-1", "score": 2}},
+      {{"sub_requirement_id": "SR-2", "best_direction": "DIR-3", "score": 2}}
+    ],
+    "unresolved_gaps": [],
+    "synergies": "...",
+    "potential_conflicts": "...",
+    "integration_strategy": "..."
+  }}
+}}
+</output_schema>
+"""

@@ -1556,8 +1556,47 @@ class DirectionScore(BaseModel):
     tool_support: int = 0               # TC票 + PC票 + SF票
     feasibility: float = 0.0            # 0~10
     cost_difficulty: float = 0.0        # 0~10
+    coverage_score: float = 0.0         # 0~10  (Step H coverage audit)
     weighted_total: float = 0.0         # 加權總分
     score_rationale: str = ""
+
+
+# ---------------------------------------------------------------------------
+# Step H / Step I: Resolution Coverage models
+# ---------------------------------------------------------------------------
+
+class SubRequirement(BaseModel):
+    """矛盾分解出的單一物理子需求 (Step H-1)。"""
+    id: str = ""            # e.g. "SR-1"
+    domain: str = ""        # e.g. "thermal", "electromagnetic", "mechanical"
+    description: str = ""
+    why_necessary: str = ""
+
+
+class CoverageEntry(BaseModel):
+    """單一 (方向, 子需求) 配對的覆蓋評分。"""
+    sub_requirement_id: str = ""
+    score: int = 0          # 0 / 1 / 2
+    rationale: str = ""
+
+
+class DirectionCoverageAudit(BaseModel):
+    """單一方向的覆蓋率審計結果 (Step H-2)。"""
+    direction_id: str = ""
+    coverage_matrix: list[CoverageEntry] = Field(default_factory=list)
+    coverage_score: float = 0.0   # 0.0–10.0
+    unresolved_gaps: list[str] = Field(default_factory=list)
+
+
+class CombinedDirection(BaseModel):
+    """互補方向組合結果 (Step I)。"""
+    selected_direction_ids: list[str] = Field(default_factory=list)
+    total_coverage_score: float = 0.0
+    coverage_matrix: list[dict] = Field(default_factory=list)
+    unresolved_gaps: list[str] = Field(default_factory=list)
+    synergies: str = ""
+    potential_conflicts: str = ""
+    integration_strategy: str = ""
 
 
 class ContradictionDirectionResult(BaseModel):
@@ -1572,6 +1611,10 @@ class ContradictionDirectionResult(BaseModel):
     top2: DirectionGroup | None = None
     top1_score: DirectionScore | None = None
     top2_score: DirectionScore | None = None
+    # Step H/I: Resolution Coverage
+    sub_requirements: list[SubRequirement] = Field(default_factory=list)
+    coverage_audits: list[DirectionCoverageAudit] = Field(default_factory=list)
+    combined_direction: CombinedDirection | None = None
 
 
 # ---- Conflict type enum (locked vocabulary for compat check) ----

@@ -189,7 +189,7 @@ function DirectionBlock({
           <CardContent className="p-3 pt-0 space-y-2">
             {/* Score details */}
             {score && (
-              <div className="grid grid-cols-3 gap-2 text-[11px]">
+              <div className="grid grid-cols-4 gap-2 text-[11px]">
                 <div className="bg-muted/50 rounded p-1.5 text-center">
                   <div className="text-muted-foreground">工具支持</div>
                   <div className="font-bold">{score.tool_support}</div>
@@ -201,6 +201,10 @@ function DirectionBlock({
                 <div className="bg-muted/50 rounded p-1.5 text-center">
                   <div className="text-muted-foreground">成本難度</div>
                   <div className="font-bold">{score.cost_difficulty.toFixed(1)}</div>
+                </div>
+                <div className="bg-muted/50 rounded p-1.5 text-center">
+                  <div className="text-muted-foreground">覆蓋率</div>
+                  <div className="font-bold">{score.coverage_score?.toFixed(1) ?? '—'}</div>
                 </div>
               </div>
             )}

@@ -2232,7 +2232,11 @@ export default function Create() {
                 </div>
               )}
               {consolidationResult && (
-                <ConsolidationPanel consolidation={consolidationResult} />
+                <ConsolidationPanel
+                  consolidation={consolidationResult}
+                  contradictionLabels={Object.fromEntries(contradictionMap)}
+                  directedResults={directedResults}
+                />
               )}
 
               <AiButton

@@ -37,6 +37,7 @@ export interface DirectionScore {
   tool_support: number;       // TC + PC + SF vote count
   feasibility: number;        // 0~10
   cost_difficulty: number;    // 0~10
+  coverage_score: number;     // 0~10 (Step H coverage audit)
   weighted_total: number;
   score_rationale: string;
 }

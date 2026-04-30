@@ -1428,6 +1428,9 @@ def _format_contracts_for_scamper_prompt(contracts: dict) -> str:
 #   Step E: _cluster_directions → group by implementation direction (LLM)
 #   Step F: _score_directions → rate each direction (LLM + rules)
 #   Step G: _pick_top_directions → select Top1 + Top2
+#   Step H: _decompose_contradiction + _audit_coverage → coverage audit
+#           + _apply_coverage_to_scores → re-rank with coverage weight
+#   Step I: _compose_combined_direction → combined direction (if coverage < 7.0)
 # ---------------------------------------------------------------------------
 
 from app.prompts.triz_solver import (
@@ -1435,6 +1438,9 @@ from app.prompts.triz_solver import (
     DIRECTION_SCORE_PROMPT,
     COMPATIBILITY_CHECK_PROMPT,
     CONFLICT_REPORT_PROMPT,
+    CONTRADICTION_DECOMPOSE_PROMPT,
+    RESOLUTION_COVERAGE_AUDIT_PROMPT,
+    COMPOSE_COMBINED_DIRECTION_PROMPT,
 )
 from app.models.schemas import (
     DirectionSolution,
@@ -1448,6 +1454,10 @@ from app.models.schemas import (
     SolveDirectedResponse,
     ConsolidateRequest,
     ConsolidateResponse,
+    SubRequirement,
+    CoverageEntry,
+    DirectionCoverageAudit,
+    CombinedDirection,
 )
 
 
@@ -1601,6 +1611,18 @@ def _make_fallback_group(solutions: list[DirectionSolution], summary: str) -> Di
     )
 
 
+# ---------------------------------------------------------------------------
+# Scoring weight constants (module-level so _apply_coverage_to_scores can reuse)
+# ---------------------------------------------------------------------------
+WEIGHT_CONSENSUS = 3.0   # cross-tool agreement (0..3 → 0..9)
+WEIGHT_FEASIBILITY = 2.0  # LLM feasibility (0..10 → 0..20)
+WEIGHT_COST = 1.0         # LLM cost_difficulty (0..10 → 0..10)
+WEIGHT_COVERAGE = 4.0     # resolution coverage (0..10 → 0..40) — highest weight
+OVER_CLUSTER_THRESHOLD = 6
+OVER_CLUSTER_PENALTY = 1.5
+COVERAGE_THRESHOLD = 7.0  # below this → trigger combined direction composition
+
+
 def _score_directions(
     natural_description: str,
     directions: list[DirectionGroup],
@@ -1628,19 +1650,6 @@ def _score_directions(
         data = {}
 
     llm_scores = {s.get("direction_id"): s for s in data.get("scores", [])}
-
-    # Weights (revised):
-    #   - cross_tool_consensus rewards REAL cross-tool agreement (max 3),
-    #     not raw solution count, so over-clustering can no longer game the score.
-    #   - feasibility is the single most important practical signal.
-    #   - cost_difficulty is a tie-breaker.
-    #   - A small over-cluster penalty discourages mega-buckets without forbidding
-    #     legitimately rich directions.
-    WEIGHT_CONSENSUS = 3.0   # 0..3 → 0..9 contribution
-    WEIGHT_FEASIBILITY = 2.0  # 0..10 → 0..20 contribution
-    WEIGHT_COST = 1.0         # 0..10 → 0..10 contribution
-    OVER_CLUSTER_THRESHOLD = 6  # solutions per direction
-    OVER_CLUSTER_PENALTY = 1.5  # points deducted per solution above threshold
 
     scores: list[DirectionScore] = []
     for d in directions:
@@ -1706,6 +1715,204 @@ def _pick_top_directions(
     return top1, top2, top1_score, top2_score
 
 
+# ---------------------------------------------------------------------------
+# Step H / Step I: Resolution Coverage helpers
+# ---------------------------------------------------------------------------
+
+
+def _decompose_contradiction(natural_description: str) -> list[SubRequirement]:
+    """Step H-1: Decompose contradiction into physical sub-requirements."""
+    prompt = CONTRADICTION_DECOMPOSE_PROMPT.format(
+        natural_description=natural_description,
+    )
+    try:
+        raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt, model=settings.fast_model)
+        data = json.loads(raw) if raw and raw.strip() else {}
+    except (json.JSONDecodeError, Exception) as exc:
+        logger.warning("_decompose_contradiction LLM failed: %s", exc)
+        return []
+
+    subs: list[SubRequirement] = []
+    for item in data.get("sub_requirements", []):
+        try:
+            subs.append(SubRequirement(
+                id=item.get("id", f"SR-{len(subs)+1}"),
+                domain=item.get("domain", ""),
+                description=item.get("description", ""),
+                why_necessary=item.get("why_necessary", ""),
+            ))
+        except Exception as exc:
+            logger.debug("Dropping malformed sub_requirement: %s (%s)", item, exc)
+
+    if not subs:
+        logger.warning("_decompose_contradiction returned 0 sub-requirements")
+    return subs
+
+
+def _audit_coverage(
+    natural_description: str,
+    sub_requirements: list[SubRequirement],
+    top_directions: list[DirectionGroup],
+) -> list[DirectionCoverageAudit]:
+    """Step H-2: Audit how well each direction covers the sub-requirements."""
+    if not sub_requirements or not top_directions:
+        return []
+
+    sr_json = json.dumps(
+        [sr.model_dump(mode="json") for sr in sub_requirements],
+        ensure_ascii=False,
+    )
+    dirs_json = json.dumps(
+        [
+            {
+                "direction_id": d.direction_id,
+                "direction_name": d.direction_name,
+                "direction_summary": d.direction_summary,
+            }
+            for d in top_directions
+        ],
+        ensure_ascii=False,
+    )
+
+    prompt = RESOLUTION_COVERAGE_AUDIT_PROMPT.format(
+        natural_description=natural_description,
+        sub_requirements_json=sr_json,
+        top_directions_json=dirs_json,
+    )
+
+    try:
+        raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt, model=settings.fast_model)
+        data = json.loads(raw) if raw and raw.strip() else {}
+    except (json.JSONDecodeError, Exception) as exc:
+        logger.warning("_audit_coverage LLM failed: %s", exc)
+        return []
+
+    audits: list[DirectionCoverageAudit] = []
+    for item in data.get("audits", []):
+        try:
+            matrix = [
+                CoverageEntry(
+                    sub_requirement_id=e.get("sub_requirement_id", ""),
+                    score=int(e.get("score", 0)),
+                    rationale=str(e.get("rationale", "")),
+                )
+                for e in item.get("coverage_matrix", [])
+            ]
+            audits.append(DirectionCoverageAudit(
+                direction_id=item.get("direction_id", ""),
+                coverage_matrix=matrix,
+                coverage_score=float(item.get("coverage_score", 0.0)),
+                unresolved_gaps=item.get("unresolved_gaps", []),
+            ))
+        except Exception as exc:
+            logger.debug("Dropping malformed coverage audit: %s (%s)", item, exc)
+
+    return audits
+
+
+def _apply_coverage_to_scores(
+    scores: list[DirectionScore],
+    audits: list[DirectionCoverageAudit],
+    directions: list[DirectionGroup],
+) -> list[DirectionScore]:
+    """Re-compute weighted_total incorporating coverage_score from audits."""
+    audit_map = {a.direction_id: a for a in audits}
+    dir_map = {d.direction_id: d for d in directions}
+
+    new_scores: list[DirectionScore] = []
+    for s in scores:
+        audit = audit_map.get(s.direction_id)
+        cov = audit.coverage_score if audit else 0.0
+
+        # Recalculate penalty from direction counts
+        d = dir_map.get(s.direction_id)
+        raw_count = (d.tc_count + d.pc_count + d.sf_count) if d else 0
+        over_cluster = max(0, raw_count - OVER_CLUSTER_THRESHOLD)
+        penalty = over_cluster * OVER_CLUSTER_PENALTY
+
+        weighted = (
+            s.tool_support * WEIGHT_CONSENSUS
+            + s.feasibility * WEIGHT_FEASIBILITY
+            + s.cost_difficulty * WEIGHT_COST
+            + cov * WEIGHT_COVERAGE
+            - penalty
+        )
+        new_scores.append(DirectionScore(
+            direction_id=s.direction_id,
+            tool_support=s.tool_support,
+            feasibility=s.feasibility,
+            cost_difficulty=s.cost_difficulty,
+            coverage_score=round(cov, 2),
+            weighted_total=round(weighted, 2),
+            score_rationale=s.score_rationale,
+        ))
+
+    return new_scores
+
+
+def _compose_combined_direction(
+    natural_description: str,
+    sub_requirements: list[SubRequirement],
+    audits: list[DirectionCoverageAudit],
+    all_directions: list[DirectionGroup],
+) -> CombinedDirection | None:
+    """Step I: Compose a combined direction from complementary candidates."""
+    if not sub_requirements or not audits or not all_directions:
+        return None
+
+    sr_json = json.dumps(
+        [sr.model_dump(mode="json") for sr in sub_requirements],
+        ensure_ascii=False,
+    )
+    audits_json = json.dumps(
+        [a.model_dump(mode="json") for a in audits],
+        ensure_ascii=False,
+    )
+    dirs_json = json.dumps(
+        [
+            {
+                "direction_id": d.direction_id,
+                "direction_name": d.direction_name,
+                "direction_summary": d.direction_summary,
+            }
+            for d in all_directions
+        ],
+        ensure_ascii=False,
+    )
+
+    prompt = COMPOSE_COMBINED_DIRECTION_PROMPT.format(
+        natural_description=natural_description,
+        sub_requirements_json=sr_json,
+        coverage_audits_json=audits_json,
+        all_directions_json=dirs_json,
+    )
+
+    try:
+        raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt, model=settings.fast_model)
+        data = json.loads(raw) if raw and raw.strip() else {}
+    except (json.JSONDecodeError, Exception) as exc:
+        logger.warning("_compose_combined_direction LLM failed: %s", exc)
+        return None
+
+    cd = data.get("combined_direction", data)
+    if not cd or not cd.get("selected_direction_ids"):
+        return None
+
+    try:
+        return CombinedDirection(
+            selected_direction_ids=cd.get("selected_direction_ids", []),
+            total_coverage_score=float(cd.get("total_coverage_score", 0.0)),
+            coverage_matrix=cd.get("coverage_matrix", []),
+            unresolved_gaps=cd.get("unresolved_gaps", []),
+            synergies=str(cd.get("synergies", "")),
+            potential_conflicts=str(cd.get("potential_conflicts", "")),
+            integration_strategy=str(cd.get("integration_strategy", "")),
+        )
+    except Exception as exc:
+        logger.warning("_compose_combined_direction parse failed: %s", exc)
+        return None
+
+
 def solve_triz_directed(req: SolveDirectedRequest) -> SolveDirectedResponse:
     """Main entry: Direction-centric TRIZ solver for ONE contradiction.
 
@@ -1713,6 +1920,8 @@ def solve_triz_directed(req: SolveDirectedRequest) -> SolveDirectedResponse:
         Step A (TC) ─┐
         Step B (PC) ─┼─ parallel ─→ Step D (merge) → Step E (cluster)
         Step C (SF) ─┘                → Step F (score) → Step G (top)
+                                       → Step H (decompose + coverage audit + re-rank)
+                                       → Step I (combined direction if coverage < threshold)
     """
     with phase_timer("solve_triz_directed"):
         # --- Steps A/B/C: TC, PC, SF in parallel via ThreadPoolExecutor ---
@@ -1799,8 +2008,45 @@ def solve_triz_directed(req: SolveDirectedRequest) -> SolveDirectedResponse:
         # --- Step F: Score ---
         scored_directions = _score_directions(req.natural_description, all_directions)
 
-        # --- Step G: Top1 + Top2 ---
+        # --- Step G: Top1 + Top2 (preliminary) ---
         top1, top2, top1_score, top2_score = _pick_top_directions(all_directions, scored_directions)
+
+        # --- Step H: Contradiction Decomposition + Coverage Audit ---
+        sub_requirements = _decompose_contradiction(req.natural_description)
+        coverage_audits: list[DirectionCoverageAudit] = []
+        combined_direction: CombinedDirection | None = None
+
+        if sub_requirements:
+            coverage_audits = _audit_coverage(
+                req.natural_description, sub_requirements, all_directions,
+            )
+            if coverage_audits:
+                # Re-rank with coverage scores
+                scored_directions = _apply_coverage_to_scores(
+                    scored_directions, coverage_audits, all_directions,
+                )
+                # Re-pick top1/top2 after re-ranking
+                top1, top2, top1_score, top2_score = _pick_top_directions(
+                    all_directions, scored_directions,
+                )
+
+                # --- Step I: Combined Direction (if best coverage < threshold) ---
+                best_coverage = max(
+                    (a.coverage_score for a in coverage_audits), default=0.0,
+                )
+                if best_coverage < COVERAGE_THRESHOLD:
+                    combined_direction = _compose_combined_direction(
+                        req.natural_description,
+                        sub_requirements,
+                        coverage_audits,
+                        all_directions,
+                    )
+                    logger.info(
+                        "solve_triz_directed: best_coverage=%.1f < %.1f, composed combined direction: %s",
+                        best_coverage,
+                        COVERAGE_THRESHOLD,
+                        combined_direction is not None,
+                    )
 
         result = ContradictionDirectionResult(
             contradiction_id=req.contradiction_id,
@@ -1813,6 +2059,9 @@ def solve_triz_directed(req: SolveDirectedRequest) -> SolveDirectedResponse:
             top2=top2,
             top1_score=top1_score,
             top2_score=top2_score,
+            sub_requirements=sub_requirements,
+            coverage_audits=coverage_audits,
+            combined_direction=combined_direction,
         )
 
         # Persist to DB
@@ -1841,6 +2090,9 @@ def _persist_directed_solution(project_id: str, result: ContradictionDirectionRe
             "top2": result.top2.model_dump(mode="json") if result.top2 else None,
             "top1_score": result.top1_score.model_dump(mode="json") if result.top1_score else None,
             "top2_score": result.top2_score.model_dump(mode="json") if result.top2_score else None,
+            "sub_requirements": [sr.model_dump(mode="json") for sr in result.sub_requirements] if result.sub_requirements else [],
+            "coverage_audits": [ca.model_dump(mode="json") for ca in result.coverage_audits] if result.coverage_audits else [],
+            "combined_direction": result.combined_direction.model_dump(mode="json") if result.combined_direction else None,
         }
         sb.table("directed_triz_solutions").upsert(payload, on_conflict="id").execute()
     except Exception as exc:

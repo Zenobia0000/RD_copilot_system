@@ -17,10 +17,14 @@ import {
   Lightbulb,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { ConsolidationResult } from '@/types/directedTriz';
+import type { ConsolidationResult, ContradictionDirectionResult } from '@/types/directedTriz';
 
 export interface ConsolidationPanelProps {
   consolidation: ConsolidationResult;
+  /** contradiction ID → human-readable label (engineeringStatement / naturalDescription) */
+  contradictionLabels?: Record<string, string>;
+  /** Per-contradiction directed results — used to detect Top1→Top2 swap */
+  directedResults?: Record<string, ContradictionDirectionResult>;
 }
 
 const STATUS_CONFIG = {
@@ -44,9 +48,23 @@ const STATUS_CONFIG = {
   },
 };
 
-export function ConsolidationPanel({ consolidation }: ConsolidationPanelProps) {
+export function ConsolidationPanel({
+  consolidation,
+  contradictionLabels,
+  directedResults,
+}: ConsolidationPanelProps) {
   const config = STATUS_CONFIG[consolidation.status];
   const Icon = config.icon;
+
+  /** Resolve a contradiction ID to a human-readable label, falling back to truncated hash. */
+  const label = (id: string) => contradictionLabels?.[id] ?? id.slice(0, 12);
+
+  /** Check if the adopted direction for a contradiction was swapped from Top1 to Top2. */
+  const isSwapped = (cid: string, directionId: string): boolean => {
+    const r = directedResults?.[cid];
+    if (!r || !r.top1) return false;
+    return r.top1.direction_id !== directionId;
+  };
 
   return (
     <Card className={cn('border', config.bg)}>
@@ -74,11 +92,16 @@ export function ConsolidationPanel({ consolidation }: ConsolidationPanelProps) {
                 key={cid}
                 className="flex items-center gap-2 text-[11px] bg-background/80 rounded p-1.5"
               >
-                <span className="text-muted-foreground font-mono">
-                  {cid.slice(0, 12)}
+                <span className="text-muted-foreground truncate max-w-[220px]" title={cid}>
+                  {label(cid)}
                 </span>
-                <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground" />
                 <span className="font-medium">{dir.direction_name}</span>
+                {isSwapped(cid, dir.direction_id) && (
+                  <Badge variant="outline" className="text-[9px] text-amber-600 border-amber-300 bg-amber-50">
+                    Top2 替換
+                  </Badge>
+                )}
                 <Badge variant="outline" className="text-[9px] ml-auto">
                   TC:{dir.tc_count} PC:{dir.pc_count} SF:{dir.sf_count}
                 </Badge>
@@ -101,7 +124,7 @@ export function ConsolidationPanel({ consolidation }: ConsolidationPanelProps) {
                     「{pair.direction_a}」 vs 「{pair.direction_b}」
                   </div>
                   <div className="text-muted-foreground mt-0.5">
-                    矛盾 {pair.contradiction_a_id} ↔ {pair.contradiction_b_id}
+                    矛盾 {label(pair.contradiction_a_id)} ↔ {label(pair.contradiction_b_id)}
                   </div>
                   {pair.reason && (
                     <div className="text-muted-foreground mt-0.5 italic">
@@ -122,7 +145,7 @@ export function ConsolidationPanel({ consolidation }: ConsolidationPanelProps) {
               </div>
               <ul className="text-[11px] text-muted-foreground space-y-0.5 list-disc list-inside">
                 {consolidation.conflict_report.suggestions.map((s, i) => (
-                  <li key={i}>{s}</li>
+                  <li key={i}>{s.description}</li>
                 ))}
               </ul>
             </div>

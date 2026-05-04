@@ -12,8 +12,8 @@ import logging
 from typing import Any
 
 from app.agents.base import call_llm_json
-from app.core.supabase import get_client
-from app.data.concept_subsystem_templates import format_template_for_prompt, get_template
+from app.core.supabase import get_supabase
+from app.data.concept_subsystem_templates import format_template_for_prompt
 from app.models.schemas import (
     ConceptArchitecturePack,
     ConceptArchitecturePackRequest,
@@ -51,18 +51,17 @@ def generate_concept_architecture_pack(
     """生成概念架構包 — 整合上游產出物，透過 LLM 產出概念級架構."""
     with phase_timer("generate_concept_architecture_pack", project_id=req.project_id):
         # 1. 選擇模板
-        template = get_template(req.template_id)
-        template_text = format_template_for_prompt(template)
+        template_text = format_template_for_prompt(req.template_id)
 
-        # 2. 組裝 prompt
+        # 2. 組裝 prompt（upstream 欄位皆為 list[str]，需 join 為文字）
         upstream = req.upstream
         user_prompt = CONCEPT_ARCHITECTURE_PACK_PROMPT.format(
             mission=upstream.mission or "(未提供)",
-            constraints_text=upstream.constraints_text or "(未提供)",
-            kpis_text=upstream.kpis_text or "(未提供)",
-            socratic_text=upstream.socratic_text or "(未提供)",
-            contradiction_text=upstream.contradiction_text or "(未提供)",
-            triz_text=upstream.triz_text or "(未提供)",
+            constraints_text="\n".join(upstream.constraints) if upstream.constraints else "(未提供)",
+            kpis_text="\n".join(upstream.kpis) if upstream.kpis else "(未提供)",
+            socratic_text="\n".join(upstream.socratic_insights) if upstream.socratic_insights else "(未提供)",
+            contradiction_text="\n".join(upstream.contradiction_summaries) if upstream.contradiction_summaries else "(未提供)",
+            triz_text="\n".join(upstream.triz_solution_summaries) if upstream.triz_solution_summaries else "(未提供)",
             template_subsystems=template_text,
         )
 
@@ -88,7 +87,7 @@ def generate_concept_architecture_pack(
 def fetch_latest_pack(project_id: str) -> ConceptArchitecturePackResponse | None:
     """從資料庫讀取最新的概念架構包."""
     try:
-        sb = get_client()
+        sb = get_supabase()
         result = (
             sb.table("concept_architecture_packs")
             .select("*")
@@ -103,7 +102,7 @@ def fetch_latest_pack(project_id: str) -> ConceptArchitecturePackResponse | None
         pack = ConceptArchitecturePack.model_validate(row["pack_json"])
         return ConceptArchitecturePackResponse(
             pack=pack,
-            source_badges=row.get("source_badges", []),
+            source_badges=row.get("source_badges", {}),
         )
     except Exception:
         log.warning("fetch_latest_pack failed for project %s", project_id, exc_info=True)
@@ -114,22 +113,16 @@ def fetch_latest_pack(project_id: str) -> ConceptArchitecturePackResponse | None
 # Internals
 # ---------------------------------------------------------------------------
 
-def _compute_source_badges(upstream: UpstreamArtifactSummary) -> list[str]:
-    """根據上游產出物的可用性計算 source badges."""
-    badges: list[str] = []
-    if upstream.mission:
-        badges.append("Brief")
-    if upstream.constraints_text:
-        badges.append("Constraints")
-    if upstream.kpis_text:
-        badges.append("KPIs")
-    if upstream.socratic_text:
-        badges.append("Socratic Q&A")
-    if upstream.contradiction_text:
-        badges.append("Contradictions")
-    if upstream.triz_text:
-        badges.append("TRIZ Solutions")
-    return badges
+def _compute_source_badges(upstream: UpstreamArtifactSummary) -> dict[str, bool]:
+    """根據上游產出物的可用性計算 source badges (dict[str, bool])."""
+    return {
+        "brief": bool(upstream.mission),
+        "constraints": bool(upstream.constraints),
+        "kpis": bool(upstream.kpis),
+        "socratic": bool(upstream.socratic_insights),
+        "contradictions": bool(upstream.contradiction_summaries),
+        "triz": bool(upstream.triz_solution_summaries),
+    }
 
 
 def _persist_concept_architecture_pack(
@@ -139,7 +132,7 @@ def _persist_concept_architecture_pack(
 ) -> None:
     """Upsert concept architecture pack into DB. Non-fatal on failure."""
     try:
-        sb = get_client()
+        sb = get_supabase()
         sb.table("concept_architecture_packs").upsert(
             {
                 "project_id": project_id,
@@ -158,11 +151,9 @@ def _persist_concept_architecture_pack(
         )
 
 
-def _compute_source_badges_from_pack(pack: ConceptArchitecturePack) -> list[str]:
-    """Derive minimal badge list from pack content (fallback for persist)."""
-    badges: list[str] = []
-    if pack.subsystems:
-        badges.append("Architecture")
-    if pack.interfaces:
-        badges.append("Interfaces")
-    return badges
+def _compute_source_badges_from_pack(pack: ConceptArchitecturePack) -> dict[str, bool]:
+    """Derive minimal badge dict from pack content (fallback for persist)."""
+    return {
+        "architecture": bool(pack.subsystems),
+        "interfaces": bool(pack.interfaces),
+    }

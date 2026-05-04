@@ -37,19 +37,20 @@ CONCEPT_ARCHITECTURE_PACK_PROMPT = """\
 {{
   "subsystems": [
     {{
-      "id": "string (template_ref or custom)",
+      "code": "string — 子系統代碼，例如 G1, S3, CUSTOM-01",
       "name": "string",
-      "description": "string",
-      "responsibility": "string — 此子系統負責解決什麼",
-      "related_contradiction_ids": ["string"],
-      "related_kpi_ids": ["string"],
-      "priority": "high | medium | low"
+      "role": "string — 此子系統的功能角色描述，負責解決什麼",
+      "mapped_contradictions": ["string — 對應的矛盾 ID"],
+      "mapped_kpis": ["string — 對應的 KPI ID"],
+      "key_requirements": ["string — 關鍵需求描述"],
+      "suggested_level": "system | module | component"
     }}
   ],
   "interfaces": [
     {{
-      "from_subsystem_id": "string",
-      "to_subsystem_id": "string",
+      "from_subsystem": "string — 來源子系統代碼，例如 G1",
+      "to_subsystem": "string — 目標子系統代碼，例如 G2",
+      "interface_type": "mechanical | electrical | thermal | signal | material",
       "description": "string — 介面內容描述",
       "criticality": "high | medium | low"
     }}
@@ -62,6 +63,9 @@ CONCEPT_ARCHITECTURE_PACK_PROMPT = """\
 <rules>
 - 必須使用繁體中文回答
 - 子系統數量 4~12 個，不要照抄模板，要根據上下文裁剪
+- 每個 subsystem 必須包含 code, name, role 三個必填欄位
+- 每個 interface 必須包含 from_subsystem, to_subsystem, interface_type, description 四個必填欄位
+- interface_type 僅限 mechanical / electrical / thermal / signal / material 五種
 - 每個 interface 必須標明 criticality (high / medium / low)
 - architecture_rationale 需引用具體的矛盾或 KPI
 - 若上下文中無明確矛盾，仍須基於 constraints 和 KPI 進行合理推導

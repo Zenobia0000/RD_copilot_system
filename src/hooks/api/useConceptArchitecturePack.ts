@@ -27,10 +27,7 @@ interface ConceptArchitecturePackRow {
   id: string;
   project_id: string;
   template_id: string;
-  subsystems: unknown;
-  interfaces: unknown;
-  architecture_rationale: string;
-  coverage_summary: string;
+  pack_json: unknown;
   source_badges: unknown;
   created_at: string;
 }
@@ -39,16 +36,19 @@ interface ConceptArchitecturePackRow {
 /*  Row → domain type mapper                                          */
 /* ------------------------------------------------------------------ */
 
-const mapRow = (r: ConceptArchitecturePackRow): ConceptArchitecturePackResponse => ({
-  pack: {
-    subsystems: (r.subsystems ?? []) as ConceptSubsystem[],
-    interfaces: (r.interfaces ?? []) as ConceptInterface[],
-    architecture_rationale: r.architecture_rationale ?? '',
-    template_id: r.template_id ?? 'generic',
-    coverage_summary: r.coverage_summary ?? '',
-  },
-  source_badges: (r.source_badges ?? {}) as Record<string, boolean>,
-});
+const mapRow = (r: ConceptArchitecturePackRow): ConceptArchitecturePackResponse => {
+  const pj = (r.pack_json ?? {}) as Record<string, unknown>;
+  return {
+    pack: {
+      subsystems: (pj.subsystems ?? []) as ConceptSubsystem[],
+      interfaces: (pj.interfaces ?? []) as ConceptInterface[],
+      architecture_rationale: (pj.architecture_rationale ?? '') as string,
+      template_id: r.template_id ?? 'generic',
+      coverage_summary: (pj.coverage_summary ?? '') as string,
+    },
+    source_badges: (r.source_badges ?? {}) as Record<string, boolean>,
+  };
+};
 
 /* ------------------------------------------------------------------ */
 /*  useQuery — read latest pack from Supabase                         */

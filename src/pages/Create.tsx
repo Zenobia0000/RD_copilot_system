@@ -34,7 +34,7 @@ import { DEFAULT_MUST_CRITERIA, PRECAD_DIMENSIONS, SCAMPER_LABELS } from "@/type
 import type { MustCriterion } from "@/types/create";
 import type { InterfaceContractMap } from "@/types/generated/subsystem";
 import { EMPTY_INTERFACE_CONTRACT } from "@/types/generated/subsystem";
-import { useSocraticQuestions } from "@/hooks/api/useExplore";
+import { useSocraticQuestions, useCldNodes, useCldEdges } from "@/hooks/api/useExplore";
 /**
  * Stage 4 of refactor/subsystem-interface-contracts: convert the manual-form
  * comma-separated "interfaces" text input into an InterfaceContractMap with
@@ -224,6 +224,8 @@ export default function Create() {
 
   // Access Socratic Q&A materials
   const { data: socraticQuestions = [] } = useSocraticQuestions(id);
+  const { data: cldNodes = [] } = useCldNodes(id);
+  const { data: cldEdges = [] } = useCldEdges(id);
 
   const briefMission = brief?.mission || '';
   const constraintStrings = useMemo(
@@ -244,6 +246,16 @@ export default function Create() {
       .map((q) => `[${q.category}] Q: ${q.text} → A: ${q.answer}`),
     [socraticQuestions],
   );
+  const cldSummaryStrings = useMemo(() => {
+    const nodeLabels = cldNodes.map((n) => n.label);
+    const edgeDescs = cldEdges.map((e) => {
+      const src = cldNodes.find((n) => n.id === e.source)?.label ?? e.source;
+      const tgt = cldNodes.find((n) => n.id === e.target)?.label ?? e.target;
+      const pol = e.feedbackType === "positive" ? "+" : "−";
+      return `${src} →(${pol}) ${tgt}`;
+    });
+    return [...nodeLabels.map((l) => `[Node] ${l}`), ...edgeDescs.map((d) => `[Edge] ${d}`)];
+  }, [cldNodes, cldEdges]);
 
   // ── API Hooks: mutations ──
   const createAntiAnchorRoute = useCreateAntiAnchorRoute();
@@ -1873,6 +1885,34 @@ export default function Create() {
     const packData = conceptPackQuery.data;
     const sourceBadges = packData?.source_badges ?? {};
 
+    const BADGE_LABELS: Record<string, string> = {
+      brief: "任務簡報",
+      constraints: "約束條件",
+      kpis: "KPI",
+      socratic: "蘇格拉底問答",
+      cld: "因果輪迴圖",
+      contradictions: "矛盾分析",
+      triz: "TRIZ 解法",
+    };
+
+    // Unified badge entries: use backend values if available, otherwise derive from frontend data
+    const badgeEntries: [string, boolean][] = Object.keys(BADGE_LABELS).map((key) => {
+      if (key in sourceBadges) {
+        return [key, !!sourceBadges[key]];
+      }
+      // Fallback: compute from current frontend data availability
+      switch (key) {
+        case "brief": return [key, !!briefMission];
+        case "constraints": return [key, constraintStrings.length > 0];
+        case "kpis": return [key, kpiStrings.length > 0];
+        case "socratic": return [key, socraticQaStrings.length > 0];
+        case "contradictions": return [key, contradictionDescs.length > 0];
+        case "triz": return [key, Object.keys(directedResults).length > 0];
+        case "cld": return [key, cldSummaryStrings.length > 0];
+        default: return [key, false];
+      }
+    });
+
     const handleGeneratePack = () => {
       if (!id) return;
       const trizSolutionSummaries = Object.values(directedResults)
@@ -1886,6 +1926,7 @@ export default function Create() {
           socratic_insights: socraticQaStrings,
           contradiction_summaries: contradictionDescs,
           triz_solution_summaries: trizSolutionSummaries,
+          cld_summary: cldSummaryStrings,
         },
         templateId: conceptTemplateId,
       });
@@ -1915,25 +1956,12 @@ export default function Create() {
           <CardContent className="p-4 space-y-4">
             <p className="text-sm font-semibold text-muted-foreground">上游資料可用性</p>
             <div className="flex flex-wrap gap-2">
-              {Object.entries(sourceBadges).length > 0
-                ? Object.entries(sourceBadges).map(([key, ok]) => (
-                    <Badge key={key} variant={ok ? "default" : "outline"} className={ok ? "bg-green-600" : "border-amber-400 text-amber-600"}>
-                      {ok ? <Check className="w-3 h-3 mr-1" /> : <AlertTriangle className="w-3 h-3 mr-1" />}
-                      {key}
-                    </Badge>
-                  ))
-                : ["Brief", "Explore", "TRIZ"].map((label) => {
-                    const ok =
-                      label === "Brief" ? !!briefMission
-                      : label === "Explore" ? contradictionDescs.length > 0
-                      : Object.keys(directedResults).length > 0;
-                    return (
-                      <Badge key={label} variant={ok ? "default" : "outline"} className={ok ? "bg-green-600" : "border-amber-400 text-amber-600"}>
-                        {ok ? <Check className="w-3 h-3 mr-1" /> : <AlertTriangle className="w-3 h-3 mr-1" />}
-                        {label}
-                      </Badge>
-                    );
-                  })}
+              {badgeEntries.map(([key, ok]) => (
+                <Badge key={key} variant={ok ? "default" : "outline"} className={ok ? "bg-green-600" : "border-amber-400 text-amber-600"}>
+                  {ok ? <Check className="w-3 h-3 mr-1" /> : <AlertTriangle className="w-3 h-3 mr-1" />}
+                  {BADGE_LABELS[key] ?? key}
+                </Badge>
+              ))}
             </div>
 
             <Separator />

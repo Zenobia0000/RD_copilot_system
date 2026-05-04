@@ -62,6 +62,7 @@ def generate_concept_architecture_pack(
             socratic_text="\n".join(upstream.socratic_insights) if upstream.socratic_insights else "(未提供)",
             contradiction_text="\n".join(upstream.contradiction_summaries) if upstream.contradiction_summaries else "(未提供)",
             triz_text="\n".join(upstream.triz_solution_summaries) if upstream.triz_solution_summaries else "(未提供)",
+            cld_text="\n".join(upstream.cld_summary) if upstream.cld_summary else "(未提供)",
             template_subsystems=template_text,
         )
 
@@ -74,7 +75,7 @@ def generate_concept_architecture_pack(
         source_badges = _compute_source_badges(upstream)
 
         # 5. persist (non-fatal)
-        _persist_concept_architecture_pack(req.project_id, pack, req.template_id)
+        _persist_concept_architecture_pack(req.project_id, pack, req.template_id, source_badges)
 
         emit_counter("concept_architecture_pack_generated", project_id=req.project_id)
 
@@ -122,6 +123,7 @@ def _compute_source_badges(upstream: UpstreamArtifactSummary) -> dict[str, bool]
         "socratic": bool(upstream.socratic_insights),
         "contradictions": bool(upstream.contradiction_summaries),
         "triz": bool(upstream.triz_solution_summaries),
+        "cld": bool(upstream.cld_summary),
     }
 
 
@@ -129,6 +131,7 @@ def _persist_concept_architecture_pack(
     project_id: str,
     pack: ConceptArchitecturePack,
     template_id: str,
+    source_badges: dict[str, bool],
 ) -> None:
     """Upsert concept architecture pack into DB. Non-fatal on failure."""
     try:
@@ -139,7 +142,7 @@ def _persist_concept_architecture_pack(
                 "pack_json": pack.model_dump(mode="json"),
                 "template_id": template_id,
                 "applied": False,
-                "source_badges": _compute_source_badges_from_pack(pack),
+                "source_badges": source_badges,
             },
             on_conflict="project_id",
         ).execute()
@@ -149,11 +152,3 @@ def _persist_concept_architecture_pack(
             project_id,
             exc_info=True,
         )
-
-
-def _compute_source_badges_from_pack(pack: ConceptArchitecturePack) -> dict[str, bool]:
-    """Derive minimal badge dict from pack content (fallback for persist)."""
-    return {
-        "architecture": bool(pack.subsystems),
-        "interfaces": bool(pack.interfaces),
-    }

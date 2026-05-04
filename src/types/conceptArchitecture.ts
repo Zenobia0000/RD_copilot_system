@@ -38,6 +38,7 @@ export interface UpstreamArtifactSummary {
   socratic_insights: string[];
   contradiction_summaries: string[];
   triz_solution_summaries: string[];
+  cld_summary: string[];
 }
 
 export interface ConceptArchitecturePackResponse {

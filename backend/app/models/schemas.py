@@ -2046,6 +2046,7 @@ class UpstreamArtifactSummary(BaseModel):
     socratic_insights: list[str] = Field(default_factory=list)
     contradiction_summaries: list[str] = Field(default_factory=list)
     triz_solution_summaries: list[str] = Field(default_factory=list)
+    cld_summary: list[str] = Field(default_factory=list)
 
 
 class ConceptArchitecturePackRequest(BaseModel):

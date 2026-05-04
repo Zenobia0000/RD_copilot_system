@@ -19,6 +19,7 @@ CONCEPT_ARCHITECTURE_PACK_PROMPT = """\
   <socratic_insights>{socratic_text}</socratic_insights>
   <contradiction_summaries>{contradiction_text}</contradiction_summaries>
   <triz_solutions>{triz_text}</triz_solutions>
+  <cld_insights>{cld_text}</cld_insights>
 </context>
 
 <template_reference>

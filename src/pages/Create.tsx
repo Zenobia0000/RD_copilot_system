@@ -1920,9 +1920,11 @@ export default function Create() {
 
     const handleGeneratePack = () => {
       if (!id) return;
-      const trizSolutionSummaries = Object.values(directedResults)
-        .filter((r) => r.top1)
-        .map((r) => r.top1!.direction_summary);
+      const trizSolutionSummaries = consolidationResult?.adopted_directions
+        ? Object.values(consolidationResult.adopted_directions).map(d => d.direction_summary)
+        : Object.values(directedResults)
+            .filter((r) => r.top1)
+            .map((r) => r.top1!.direction_summary);
       generatePackMutation.mutate({
         upstream: {
           mission: briefMission,

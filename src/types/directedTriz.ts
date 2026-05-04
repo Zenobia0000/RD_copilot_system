@@ -42,6 +42,40 @@ export interface DirectionScore {
   score_rationale: string;
 }
 
+// --- Sub-requirement decomposition (Step H-1) ---
+
+export interface SubRequirement {
+  id: string;
+  description: string;
+  priority: 'must' | 'should' | 'nice';
+  rationale: string;
+}
+
+// --- Coverage audit (Step H-2) ---
+
+export interface CoverageEntry {
+  sub_req_id: string;
+  covered: boolean;
+  note: string;
+}
+
+export interface DirectionCoverageAudit {
+  direction_id: string;
+  entries: CoverageEntry[];
+  coverage_score: number;
+  gap_summary: string;
+}
+
+// --- Combined direction (Step I) ---
+
+export interface CombinedDirection {
+  direction_ids: string[];
+  combined_summary: string;
+  combined_score: number;
+  rationale: string;
+  remaining_gaps: string[];
+}
+
 // --- Full result for ONE contradiction ---
 
 export interface ContradictionDirectionResult {
@@ -55,6 +89,9 @@ export interface ContradictionDirectionResult {
   top2: DirectionGroup | null;
   top1_score: DirectionScore | null;
   top2_score: DirectionScore | null;
+  sub_requirements?: SubRequirement[];
+  coverage_audits?: DirectionCoverageAudit[];
+  combined_direction?: CombinedDirection | null;
 }
 
 // --- Cross-contradiction consolidation ---

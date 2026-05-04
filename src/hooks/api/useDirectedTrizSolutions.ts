@@ -18,6 +18,9 @@ import type {
   DirectionSolution,
   DirectionGroup,
   DirectionScore,
+  SubRequirement,
+  DirectionCoverageAudit,
+  CombinedDirection,
 } from '@/types/directedTriz';
 
 interface DirectedTrizSolutionRow {
@@ -33,6 +36,9 @@ interface DirectedTrizSolutionRow {
   top2: unknown | null;
   top1_score: unknown | null;
   top2_score: unknown | null;
+  sub_requirements: unknown;
+  coverage_audits: unknown;
+  combined_direction: unknown | null;
 }
 
 type Severity = 'fatal' | 'major' | 'minor' | 'unknown';
@@ -52,6 +58,9 @@ const mapRow = (r: DirectedTrizSolutionRow): ContradictionDirectionResult => ({
   top2: (r.top2 ?? null) as DirectionGroup | null,
   top1_score: (r.top1_score ?? null) as DirectionScore | null,
   top2_score: (r.top2_score ?? null) as DirectionScore | null,
+  sub_requirements: (r.sub_requirements ?? []) as SubRequirement[],
+  coverage_audits: (r.coverage_audits ?? []) as DirectionCoverageAudit[],
+  combined_direction: (r.combined_direction ?? null) as CombinedDirection | null,
 });
 
 /**

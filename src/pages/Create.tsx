@@ -380,6 +380,9 @@ export default function Create() {
     } else {
       toast.error('方向求解全部失敗');
     }
+    // Invalidate React Query caches so navigating away and back rehydrates from DB
+    queryClient.invalidateQueries({ queryKey: queryKeys.directed_triz_solutions.byProject(id) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.triz_consolidation_results.byProject(id) });
     setAiLoading((p) => ({ ...p, directedTriz: false }));
   };
 

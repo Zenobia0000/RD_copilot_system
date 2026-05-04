@@ -9,6 +9,7 @@ Follows the same patterns as triz_solver.py:
 
 import json
 import logging
+import re
 from typing import Any
 
 from app.agents.base import call_llm_json
@@ -71,6 +72,9 @@ def generate_concept_architecture_pack(
         data = json.loads(raw)
         pack = ConceptArchitecturePack.model_validate(data)
 
+        # 3b. 後驗證 — 過濾 LLM 發明的無效 mapped ID
+        pack = _sanitize_mapped_ids(pack, upstream)
+
         # 4. 計算 source badges
         source_badges = _compute_source_badges(upstream)
 
@@ -113,6 +117,46 @@ def fetch_latest_pack(project_id: str) -> ConceptArchitecturePackResponse | None
 # ---------------------------------------------------------------------------
 # Internals
 # ---------------------------------------------------------------------------
+
+_KPI_TAG_RE = re.compile(r"^\[KPI-\d+\]")
+_CT_TAG_RE = re.compile(r"^\[CT-\d+\]")
+
+
+def _sanitize_mapped_ids(
+    pack: ConceptArchitecturePack,
+    upstream: UpstreamArtifactSummary,
+) -> ConceptArchitecturePack:
+    """過濾 LLM 發明的無效 mapped_kpis / mapped_contradictions 標籤.
+
+    只保留上游 kpis / contradiction_summaries 中帶有 [KPI-N] / [CT-N] 前綴
+    的有效標籤。例如上游有 ``[KPI-1] 效率: >90% %``，則 ``KPI-1`` 合法。
+    """
+    valid_kpi_tags: set[str] = set()
+    for s in (upstream.kpis or []):
+        m = _KPI_TAG_RE.match(s)
+        if m:
+            valid_kpi_tags.add(m.group(0).strip("[]"))
+
+    valid_ct_tags: set[str] = set()
+    for s in (upstream.contradiction_summaries or []):
+        m = _CT_TAG_RE.match(s)
+        if m:
+            valid_ct_tags.add(m.group(0).strip("[]"))
+
+    changed = False
+    for ss in pack.subsystems:
+        filtered_kpis = [k for k in ss.mapped_kpis if k in valid_kpi_tags]
+        filtered_cts = [c for c in ss.mapped_contradictions if c in valid_ct_tags]
+        if filtered_kpis != ss.mapped_kpis or filtered_cts != ss.mapped_contradictions:
+            changed = True
+            ss.mapped_kpis = filtered_kpis
+            ss.mapped_contradictions = filtered_cts
+
+    if changed:
+        log.info("Sanitized mapped IDs — valid KPI tags: %s, valid CT tags: %s", valid_kpi_tags, valid_ct_tags)
+
+    return pack
+
 
 def _compute_source_badges(upstream: UpstreamArtifactSummary) -> dict[str, bool]:
     """根據上游產出物的可用性計算 source badges (dict[str, bool])."""

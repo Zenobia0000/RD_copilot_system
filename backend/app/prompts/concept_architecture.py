@@ -41,8 +41,8 @@ CONCEPT_ARCHITECTURE_PACK_PROMPT = """\
       "code": "string — 子系統代碼，例如 G1, S3, CUSTOM-01",
       "name": "string",
       "role": "string — 此子系統的功能角色描述，負責解決什麼",
-      "mapped_contradictions": ["string — 對應的矛盾 ID"],
-      "mapped_kpis": ["string — 對應的 KPI ID"],
+      "mapped_contradictions": ["string — 必須使用 <contradiction_summaries> 中的標籤，如 CT-1, CT-2"],
+      "mapped_kpis": ["string — 必須使用 <kpis> 中的標籤，如 KPI-1, KPI-2"],
       "key_requirements": ["string — 關鍵需求描述"],
       "suggested_level": "system | module | component"
     }}
@@ -71,5 +71,8 @@ CONCEPT_ARCHITECTURE_PACK_PROMPT = """\
 - architecture_rationale 需引用具體的矛盾或 KPI
 - 若上下文中無明確矛盾，仍須基於 constraints 和 KPI 進行合理推導
 - JSON 輸出不得包含 trailing comma 或註解
+- mapped_contradictions 中的值必須只使用 <contradiction_summaries> 提供的 [CT-N] 標籤（例如 CT-1, CT-2），禁止自行編造 ID
+- mapped_kpis 中的值必須只使用 <kpis> 提供的 [KPI-N] 標籤（例如 KPI-1, KPI-2），禁止自行編造 ID
+- 若某子系統無法對應任何矛盾或 KPI，則該欄位留空陣列 []
 </rules>
 """

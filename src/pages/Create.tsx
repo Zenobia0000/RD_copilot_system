@@ -233,11 +233,16 @@ export default function Create() {
     [briefConstraints],
   );
   const kpiStrings = useMemo(
-    () => briefKpis.map((k) => `${k.kpiName}: ${k.targetValue} ${k.unit}`),
+    () => briefKpis.map((k, i) => `[KPI-${i + 1}] ${k.kpiName}: ${k.targetValue} ${k.unit}`),
     [briefKpis],
   );
   const contradictionDescs = useMemo(
-    () => (contradictionsQuery.data || []).map((c) => c.engineeringStatement || c.naturalDescription || '').filter(Boolean),
+    () => (contradictionsQuery.data || [])
+      .map((c, i) => {
+        const desc = c.engineeringStatement || c.naturalDescription || '';
+        return desc ? `[CT-${i + 1}] ${desc}` : '';
+      })
+      .filter(Boolean),
     [contradictionsQuery.data],
   );
   const socraticQaStrings = useMemo(
@@ -2027,16 +2032,36 @@ export default function Create() {
                           <p className="text-xs text-muted-foreground">{cs.role}</p>
                           {cs.mapped_contradictions.length > 0 && (
                             <div className="flex flex-wrap gap-1">
-                              {cs.mapped_contradictions.map((mc) => (
-                                <Badge key={mc} variant="outline" className="text-[10px]">{mc}</Badge>
-                              ))}
+                              {cs.mapped_contradictions.map((mc) => {
+                                const fullDesc = contradictionDescs.find((d) => d.startsWith(`[${mc}]`));
+                                return (
+                                  <Tooltip key={mc}>
+                                    <TooltipTrigger asChild>
+                                      <Badge variant="outline" className="text-[10px] cursor-help">{mc}</Badge>
+                                    </TooltipTrigger>
+                                    {fullDesc && (
+                                      <TooltipContent className="max-w-xs text-xs">{fullDesc}</TooltipContent>
+                                    )}
+                                  </Tooltip>
+                                );
+                              })}
                             </div>
                           )}
                           {cs.mapped_kpis.length > 0 && (
                             <div className="flex flex-wrap gap-1">
-                              {cs.mapped_kpis.map((kpi) => (
-                                <Badge key={kpi} variant="outline" className="text-[10px] border-blue-300 text-blue-600">{kpi}</Badge>
-                              ))}
+                              {cs.mapped_kpis.map((kpi) => {
+                                const fullDesc = kpiStrings.find((d) => d.startsWith(`[${kpi}]`));
+                                return (
+                                  <Tooltip key={kpi}>
+                                    <TooltipTrigger asChild>
+                                      <Badge variant="outline" className="text-[10px] border-blue-300 text-blue-600 cursor-help">{kpi}</Badge>
+                                    </TooltipTrigger>
+                                    {fullDesc && (
+                                      <TooltipContent className="max-w-xs text-xs">{fullDesc}</TooltipContent>
+                                    )}
+                                  </Tooltip>
+                                );
+                              })}
                             </div>
                           )}
                           {cs.key_requirements.length > 0 && (

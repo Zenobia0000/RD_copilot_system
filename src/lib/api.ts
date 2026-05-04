@@ -1434,4 +1434,33 @@ export function evidenceCoverage(projectId: string) {
   return requestGet<EvidenceCoverageResponse>(`/evidence/coverage/${encodeURIComponent(projectId)}`);
 }
 
+// ─── Concept Architecture Pack ──────────────────────────────────────────────
+
+import type {
+  UpstreamArtifactSummary,
+  ConceptArchitecturePackResponse,
+} from "@/types/conceptArchitecture";
+
+export interface GenerateConceptArchitecturePackRequest {
+  project_id: string;
+  template_id?: string;
+  upstream: UpstreamArtifactSummary;
+}
+
+export function generateConceptArchitecturePack(
+  body: GenerateConceptArchitecturePackRequest
+) {
+  return request<ConceptArchitecturePackResponse>(
+    "/concept-architecture/generate-pack",
+    body,
+    { timeoutMs: 120_000 }
+  );
+}
+
+export function getLatestConceptArchitecturePack(projectId: string) {
+  return requestGet<ConceptArchitecturePackResponse | null>(
+    `/concept-architecture/latest-pack/${encodeURIComponent(projectId)}`
+  );
+}
+
 export { ApiError, ApiNetworkError, type RequestOptions };

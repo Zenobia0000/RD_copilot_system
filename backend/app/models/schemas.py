@@ -1994,3 +1994,67 @@ class ComplexityCheckResponse(BaseModel):
             "increases_control_complexity, reduces_resource_efficiency"
         ),
     )
+
+
+# ── Concept Architecture Pack ────────────────────────────────────────
+
+
+class ConceptSubsystemTemplate(BaseModel):
+    """子系統模板條目 — G1-G12 or S1-S10."""
+    code: str            # e.g. "G1", "S3"
+    name_zh: str
+    name_en: str
+    description: str
+    typical_functions: list[str] = Field(default_factory=list)
+    typical_interfaces: list[str] = Field(default_factory=list)
+
+
+class ConceptInterface(BaseModel):
+    """概念級介面定義."""
+    from_subsystem: str  # code ref, e.g. "G1"
+    to_subsystem: str
+    interface_type: str  # mechanical, electrical, thermal, signal, material
+    description: str
+    criticality: str = "medium"  # low, medium, high
+
+
+class ConceptSubsystem(BaseModel):
+    """概念架構包中的一個子系統."""
+    code: str
+    name: str
+    role: str            # 功能角色描述
+    mapped_contradictions: list[str] = Field(default_factory=list)  # contradiction IDs
+    mapped_kpis: list[str] = Field(default_factory=list)            # KPI IDs
+    key_requirements: list[str] = Field(default_factory=list)
+    suggested_level: str = "module"  # system, module, component
+
+
+class ConceptArchitecturePack(BaseModel):
+    """完整的概念架構包."""
+    subsystems: list[ConceptSubsystem]
+    interfaces: list[ConceptInterface]
+    architecture_rationale: str  # 架構選擇理由
+    template_id: str = "generic"
+    coverage_summary: str = ""   # 對上游產出物的覆蓋摘要
+
+
+class UpstreamArtifactSummary(BaseModel):
+    """上游產出物快照 — 送入 LLM 的上下文."""
+    mission: str = ""
+    constraints: list[str] = Field(default_factory=list)
+    kpis: list[str] = Field(default_factory=list)
+    socratic_insights: list[str] = Field(default_factory=list)
+    contradiction_summaries: list[str] = Field(default_factory=list)
+    triz_solution_summaries: list[str] = Field(default_factory=list)
+
+
+class ConceptArchitecturePackRequest(BaseModel):
+    project_id: str
+    template_id: str = "generic"  # generic | ebike_mid_drive
+    upstream: UpstreamArtifactSummary
+
+
+class ConceptArchitecturePackResponse(BaseModel):
+    pack: ConceptArchitecturePack
+    source_badges: dict[str, bool] = Field(default_factory=dict)
+    # e.g. {"brief": true, "explore": true, "triz": false}

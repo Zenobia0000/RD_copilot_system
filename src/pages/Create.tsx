@@ -126,6 +126,8 @@ import { HumanReviewPanel } from "@/components/create/HumanReviewPanel";
 import { ArchitectureHaltOverlay } from "@/components/create/ArchitectureHaltOverlay";
 import { MultiSolutionAdoptionPanel } from "@/components/create/MultiSolutionAdoptionPanel";
 import { useConceptRoutes, useCompatibilityPairs } from "@/hooks/api/useConceptRoutes";
+import { useConceptArchitecturePack, useGenerateConceptArchitecturePack } from "@/hooks/api/useConceptArchitecturePack";
+import type { ConceptArchitecturePackResponse } from "@/types/conceptArchitecture";
 // TODO: Replace with API when available -- AI-generated adoption state, no dedicated DB table yet
 import type { ConceptRoute, MultiSolutionAdoptionState } from "@/types/conceptRoute";
 
@@ -139,6 +141,7 @@ const RADAR_COLORS = [
 const STEPS = [
   { label: "反向探索 Anti-Anchor", shortLabel: "Anti-Anchor", description: "從約束出發，AI 產出非典型架構概念，每條自帶 Validation Passport", zone: "reverse" as const },
   { label: "正向分析：TRIZ 解矛盾", shortLabel: "TRIZ", description: "從矛盾出發 → 分層 drill-down 診斷（L1 現象 / L2 根因 / L3 結構）→ 子系統分解 → SCAMPER 創意變形", zone: "forward" as const },
+  { label: "正向分析：概念架構包", shortLabel: "概念架構", description: "AI 根據上游產出自動生成概念子系統、介面、拓撲，可一鍵套用到子系統定義", zone: "forward" as const },
   { label: "正向分析：子系統定義", shortLabel: "子系統", description: "識別受矛盾影響的子系統 (System→Module→Component)，聚焦變形範圍", zone: "forward" as const },
   { label: "正向分析：SCAMPER 變形", shortLabel: "SCAMPER", description: "對每個子系統執行 7 種創意動作，產出方案候選", zone: "forward" as const },
   { label: "候選方案決策中心", shortLabel: "決策中心", description: "攤平兩條路徑的所有方案，橫向比較來源、機制、假設、驗證需求與信心等級", zone: "hub" as const },
@@ -210,6 +213,9 @@ export default function Create() {
   const directedQuery = useDirectedTrizSolutions(id);
   // v8 persistence: consolidation result (migration 012).
   const consolidationQuery = useTrizConsolidationResult(id);
+  // v9: Concept Architecture Pack
+  const conceptPackQuery = useConceptArchitecturePack(id);
+  const generatePackMutation = useGenerateConceptArchitecturePack(id);
 
   // ── Phase 1 context ──
   const { data: brief } = useBrief(id);
@@ -302,6 +308,10 @@ export default function Create() {
   const [directedStatusMap, setDirectedStatusMap] = useState<Record<string, 'pending' | 'solving' | 'done' | 'failed'>>({});
   const [directedErrors, setDirectedErrors] = useState<Record<string, string>>({});
   const [directedConsolidating, setDirectedConsolidating] = useState(false);
+
+  // v9: Concept Architecture Pack local state
+  const [conceptTemplateId, setConceptTemplateId] = useState("generic_product");
+  const [conceptPackApplied, setConceptPackApplied] = useState(false);
 
   // v8: Directed TRIZ — solve only top-level TC contradictions
   // PC and SF are derived internally by the backend from each TC
@@ -804,7 +814,13 @@ export default function Create() {
     const passedMust = alternatives.filter((a) => !getMustValues(a).includes("fail"));
     const allScored = passedMust.length > 0 && passedMust.every((a) => Object.values(a.preCadScores).every((v) => v !== null));
     const s7 = allScored ? "complete" : passedMust.some((a) => Object.values(a.preCadScores).some((v) => v !== null)) ? "in_progress" : "not_started";
-    return [s1, s2, s3, s4, s5, s6, s7];
+    // s_concept: concept architecture pack status
+    const s_concept: AccordionStepStatus = conceptPackQuery.data
+      ? "complete"
+      : generatePackMutation.isPending
+        ? "in_progress"
+        : "not_started";
+    return [s1, s2, s_concept, s3, s4, s5, s6, s7];
   }, [routes, convergenceLoop.state.status, trizSolutions, subsystems, scamperVariants, alternatives]);
 
   const autoSave = useCallback(() => {
@@ -821,7 +837,7 @@ export default function Create() {
   const gate22Items: CreateGateItem[] = useMemo(
     () => [
       { label: "≥2 方案通過 MUST 快篩", current: passedMustAlts.length, target: 2, passed: passedMustAlts.length >= 2 },
-      { label: "MUST 快篩已完成", current: stepStatuses[5] === "complete" ? 1 : 0, target: 1, passed: stepStatuses[5] === "complete" },
+      { label: "MUST 快篩已完成", current: stepStatuses[6] === "complete" ? 1 : 0, target: 1, passed: stepStatuses[6] === "complete" },
     ],
     [passedMustAlts, stepStatuses]
   );
@@ -1744,7 +1760,7 @@ export default function Create() {
   // Unified step navigation — infers track from step index when not explicit
   const inferTrack = (step: number): "reverse" | "forward" | null => {
     if (step === 0) return "reverse";
-    if (step >= 1 && step <= 3) return activeTrack === "reverse" ? "reverse" : "forward";
+    if (step >= 1 && step <= 4) return activeTrack === "reverse" ? "reverse" : "forward";
     return null; // hub, must, pre-cad
   };
   const navigateTo = (step: number, track?: "reverse" | "forward" | null) => {
@@ -1763,30 +1779,30 @@ export default function Create() {
     // Gate: block step 2 → 3 until at least one subsystem is confirmed.
     // Also mirrored on the footer button's `disabled` prop; this guard is
     // the defence-in-depth fallback in case the button is bypassed.
-    if (currentStep === 2 && !canProceedFromSubsystem) {
+    if (currentStep === 3 && !canProceedFromSubsystem) {
       toast.error("請至少確認一個子系統後再進入 SCAMPER");
       return;
     }
     if (activeTrack === "reverse") {
       // Reverse (step 0) → jump to Decision Hub
-      navigateTo(4, null);
-    } else if (activeTrack === "forward" && currentStep < 3) {
-      // Forward sub-tabs: TRIZ(1) → Subsystem(2) → SCAMPER(3)
+      navigateTo(5, null);
+    } else if (activeTrack === "forward" && currentStep < 4) {
+      // Forward sub-tabs: TRIZ(1) → ConceptArch(2) → Subsystem(3) → SCAMPER(4)
       navigateTo(currentStep + 1, "forward");
-    } else if (activeTrack === "forward" && currentStep === 3) {
+    } else if (activeTrack === "forward" && currentStep === 4) {
       // Last forward sub-tab → Decision Hub
-      navigateTo(4, null);
+      navigateTo(5, null);
     } else {
-      navigateTo(Math.min(currentStep + 1, 6));
+      navigateTo(Math.min(currentStep + 1, 7));
     }
   };
   const goPrev = () => {
     if (activeTrack === "forward" && currentStep > 1) {
       // Forward sub-tabs: SCAMPER(3) → Subsystem(2) → TRIZ(1)
       navigateTo(currentStep - 1, "forward");
-    } else if (currentStep === 4) {
+    } else if (currentStep === 5) {
       // Decision Hub → back to whichever track was last active (default forward)
-      navigateTo(3, "forward");
+      navigateTo(4, "forward");
     } else {
       navigateTo(Math.max(currentStep - 1, 0));
     }
@@ -1805,15 +1821,16 @@ export default function Create() {
 
   const renderStepContent = () => {
     // Forward track: show TRIZ/Subsystem/SCAMPER as tabbed sub-steps within one E2E view
-    if (activeTrack === "forward" && currentStep >= 1 && currentStep <= 3) {
+    if (activeTrack === "forward" && currentStep >= 1 && currentStep <= 4) {
       return (
         <div className="space-y-4">
           {/* Internal sub-step tabs */}
           <div className="flex gap-1 border-b pb-2">
             {[
               { step: 1, label: "① TRIZ 解矛盾" },
-              { step: 2, label: "② 子系統定義" },
-              { step: 3, label: "③ SCAMPER 變形" },
+              { step: 2, label: "② 概念架構包" },
+              { step: 3, label: "③ 子系統定義" },
+              { step: 4, label: "④ SCAMPER 變形" },
             ].map(({ step, label }) => (
               <button
                 key={step}
@@ -1831,8 +1848,9 @@ export default function Create() {
           </div>
           {/* Sub-step content */}
           {currentStep === 1 && renderTrizConvergence()}
-          {currentStep === 2 && renderSubsystem()}
-          {currentStep === 3 && renderScamper()}
+          {currentStep === 2 && renderConceptArchitecture()}
+          {currentStep === 3 && renderSubsystem()}
+          {currentStep === 4 && renderScamper()}
         </div>
       );
     }
@@ -1840,14 +1858,257 @@ export default function Create() {
     switch (currentStep) {
       case 0: return renderAntiAnchor();
       case 1: return renderTrizConvergence();
-      case 2: return renderSubsystem();
-      case 3: return renderScamper();
-      case 4: return renderAlternatives();
-      case 5: return renderMust();
-      case 6: return renderPreCad();
+      case 2: return renderConceptArchitecture();
+      case 3: return renderSubsystem();
+      case 4: return renderScamper();
+      case 5: return renderAlternatives();
+      case 6: return renderMust();
+      case 7: return renderPreCad();
       default: return null;
     }
   };
+
+  // ── Step 2: Concept Architecture Pack ──
+  function renderConceptArchitecture() {
+    const packData = conceptPackQuery.data;
+    const sourceBadges = packData?.source_badges ?? {};
+
+    const handleGeneratePack = () => {
+      if (!id) return;
+      const trizSolutionSummaries = Object.values(directedResults)
+        .filter((r) => r.top1)
+        .map((r) => r.top1!.direction_summary);
+      generatePackMutation.mutate({
+        upstream: {
+          mission: briefMission,
+          constraints: constraintStrings,
+          kpis: kpiStrings,
+          socratic_insights: socraticQaStrings,
+          contradiction_summaries: contradictionDescs,
+          triz_solution_summaries: trizSolutionSummaries,
+        },
+        templateId: conceptTemplateId,
+      });
+    };
+
+    const handleApplyToSubsystems = () => {
+      if (!packData) return;
+      const newSubs: Subsystem[] = packData.pack.subsystems.map((cs, i) => ({
+        id: `concept-${cs.code}-${Date.now()}-${i}`,
+        name: `${cs.code} — ${cs.name}`,
+        level: cs.suggested_level,
+        reason: cs.role,
+        relatedContradictions: cs.mapped_contradictions,
+        confirmed: false,
+        source: "ai" as const,
+      }));
+      setLocalSubsystems(newSubs);
+      setConceptPackApplied(true);
+      navigateTo(3, "forward");
+      toast.success("概念架構包已套用到子系統定義");
+    };
+
+    return (
+      <div className="space-y-6">
+        {/* Source Badges */}
+        <Card>
+          <CardContent className="p-4 space-y-4">
+            <p className="text-sm font-semibold text-muted-foreground">上游資料可用性</p>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(sourceBadges).length > 0
+                ? Object.entries(sourceBadges).map(([key, ok]) => (
+                    <Badge key={key} variant={ok ? "default" : "outline"} className={ok ? "bg-green-600" : "border-amber-400 text-amber-600"}>
+                      {ok ? <Check className="w-3 h-3 mr-1" /> : <AlertTriangle className="w-3 h-3 mr-1" />}
+                      {key}
+                    </Badge>
+                  ))
+                : ["Brief", "Explore", "TRIZ"].map((label) => {
+                    const ok =
+                      label === "Brief" ? !!briefMission
+                      : label === "Explore" ? contradictionDescs.length > 0
+                      : Object.keys(directedResults).length > 0;
+                    return (
+                      <Badge key={label} variant={ok ? "default" : "outline"} className={ok ? "bg-green-600" : "border-amber-400 text-amber-600"}>
+                        {ok ? <Check className="w-3 h-3 mr-1" /> : <AlertTriangle className="w-3 h-3 mr-1" />}
+                        {label}
+                      </Badge>
+                    );
+                  })}
+            </div>
+
+            <Separator />
+
+            {/* Template selector */}
+            <div className="flex items-center gap-3">
+              <p className="text-sm text-muted-foreground whitespace-nowrap">模板：</p>
+              <Select value={conceptTemplateId} onValueChange={setConceptTemplateId}>
+                <SelectTrigger className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="generic_product">Generic Product</SelectItem>
+                  <SelectItem value="ebike_mid_drive">E-Bike Mid Drive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Generate button */}
+            <AiButton
+              onClick={handleGeneratePack}
+              loading={generatePackMutation.isPending}
+              disabled={generatePackMutation.isPending}
+              className="w-full sm:w-auto"
+            >
+              <Sparkles className="w-4 h-4 mr-1" />
+              生成概念架構包
+            </AiButton>
+
+            {generatePackMutation.isError && (
+              <p className="text-xs text-destructive">
+                生成失敗：{generatePackMutation.error?.message || "未知錯誤"}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Pack result */}
+        {packData && (
+          <Collapsible defaultOpen>
+            <Card>
+              <CollapsibleTrigger asChild>
+                <CardContent className="p-4 cursor-pointer hover:bg-muted/30 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold">架構包結果</p>
+                    <Badge variant="outline">{packData.pack.template_id}</Badge>
+                  </div>
+                </CardContent>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="px-4 pb-4 pt-0 space-y-4 border-t">
+                  {/* Subsystems */}
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">子系統 ({packData.pack.subsystems.length})</p>
+                    {packData.pack.subsystems.map((cs) => (
+                      <Card key={cs.code} className="border-l-[3px] border-l-primary/50">
+                        <CardContent className="p-3 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="font-mono text-[10px]">{cs.code}</Badge>
+                            <span className="text-sm font-medium">{cs.name}</span>
+                            <Badge variant="secondary" className="text-[10px]">{cs.suggested_level}</Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">{cs.role}</p>
+                          {cs.mapped_contradictions.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {cs.mapped_contradictions.map((mc) => (
+                                <Badge key={mc} variant="outline" className="text-[10px]">{mc}</Badge>
+                              ))}
+                            </div>
+                          )}
+                          {cs.mapped_kpis.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {cs.mapped_kpis.map((kpi) => (
+                                <Badge key={kpi} variant="outline" className="text-[10px] border-blue-300 text-blue-600">{kpi}</Badge>
+                              ))}
+                            </div>
+                          )}
+                          {cs.key_requirements.length > 0 && (
+                            <ul className="text-xs text-muted-foreground list-disc list-inside">
+                              {cs.key_requirements.map((req, ri) => (
+                                <li key={ri}>{req}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Interfaces */}
+                  {packData.pack.interfaces.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">介面 ({packData.pack.interfaces.length})</p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead>
+                            <tr className="border-b text-left">
+                              <th className="py-1.5 px-2 text-muted-foreground">From</th>
+                              <th className="py-1.5 px-2 text-muted-foreground">To</th>
+                              <th className="py-1.5 px-2 text-muted-foreground">Type</th>
+                              <th className="py-1.5 px-2 text-muted-foreground">Criticality</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {packData.pack.interfaces.map((iface, ii) => (
+                              <tr key={ii} className="border-b hover:bg-muted/30">
+                                <td className="py-1.5 px-2 font-mono">{iface.from_subsystem}</td>
+                                <td className="py-1.5 px-2 font-mono">{iface.to_subsystem}</td>
+                                <td className="py-1.5 px-2">{iface.interface_type}</td>
+                                <td className="py-1.5 px-2">
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      iface.criticality === "high"
+                                        ? "border-red-400 text-red-600"
+                                        : iface.criticality === "medium"
+                                          ? "border-amber-400 text-amber-600"
+                                          : "border-green-400 text-green-600"
+                                    }
+                                  >
+                                    {iface.criticality}
+                                  </Badge>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Rationale */}
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">架構選擇理由</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                      {packData.pack.architecture_rationale}
+                    </p>
+                  </div>
+
+                  {/* Coverage summary */}
+                  {packData.pack.coverage_summary && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">覆蓋率摘要</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                        {packData.pack.coverage_summary}
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+        )}
+
+        {/* Bridge button */}
+        {packData && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="p-4 flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                {conceptPackApplied ? "已套用到子系統定義" : "將架構包內容套用為子系統定義的初始值"}
+              </p>
+              <Button
+                onClick={handleApplyToSubsystems}
+                disabled={conceptPackApplied}
+                className="gap-1"
+              >
+                {conceptPackApplied ? <Check className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
+                {conceptPackApplied ? "已套用" : "套用到子系統定義"}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  }
 
   // ── Step 1: Anti-Anchor (AI Generated) ──
   function renderAntiAnchor() {
@@ -3223,7 +3484,7 @@ export default function Create() {
 
   // ── Gate section ──
   function renderGates() {
-    if (currentStep < 5) return null;
+    if (currentStep < 6) return null;
 
     return (
       <div className="space-y-4 mt-2">
@@ -3248,7 +3509,7 @@ export default function Create() {
           </CardContent>
         </Card>
 
-        {currentStep === 6 && (
+        {currentStep === 7 && (
           <Card className="border-2 border-accent/30 bg-accent/5">
             <CardContent className="p-5 space-y-3">
               <div className="flex items-center gap-3">
@@ -3336,7 +3597,7 @@ export default function Create() {
           )}>
             {activeTrack === "reverse" ? "⚡" :
              activeTrack === "forward" ? "🎯" :
-             currentStep === 4 ? "⬡" : currentStep - 3}
+             currentStep === 5 ? "⬡" : currentStep - 4}
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -3383,15 +3644,15 @@ export default function Create() {
         <span className="text-xs text-muted-foreground">
           {ZONE_LABELS[STEPS[currentStep].zone].badge}
         </span>
-        {currentStep < 6 ? (
+        {currentStep < 7 ? (
           <div className="flex flex-col items-end gap-1">
             <Button
               onClick={goNext}
-              disabled={currentStep === 2 && !canProceedFromSubsystem}
+              disabled={currentStep === 3 && !canProceedFromSubsystem}
             >
               下一步 <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
-            {currentStep === 2 && !canProceedFromSubsystem && (
+            {currentStep === 3 && !canProceedFromSubsystem && (
               <span className="text-[10px] text-muted-foreground">
                 請至少確認一個子系統後再進入 SCAMPER
               </span>

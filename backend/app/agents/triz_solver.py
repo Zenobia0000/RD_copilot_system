@@ -24,6 +24,11 @@ from app.prompts.triz_solver import (
     DIFFERENTIAL_ANALYSIS_PROMPT,
     SIM_MATRIX_PROMPT,
     COMPLEXITY_CHECK_PROMPT,
+    # Engineering Spec Pipeline
+    ENGINEERING_SPEC_SYSTEM,
+    ENGINEERING_SPEC_EXPANSION,
+    ENGINEERING_SPEC_GENERATION,
+    ENGINEERING_SPEC_STRENGTHEN,
 )
 from app.tools.triz_kb import (
     build_triz_tc_context,
@@ -67,6 +72,11 @@ from app.models.schemas import (
     SolutionInteraction,
     ComplexityCheckRequest,
     ComplexityCheckResponse,
+    # Engineering Spec Pipeline
+    DraftValue,
+    EngineeringSpecDraft,
+    EngineeringSpecDraftResponse,
+    ConceptArchitecturePack,
 )
 from app.services import reference_library  # legacy direct access (kept for back-compat)
 from app.services.spatial_lookup import LookupQuery, default_resolver
@@ -1242,6 +1252,220 @@ def _serialize_layered_triz_for_f2_prompt(
             + ("\n    " + "\n    ".join(mechanism_bits) if mechanism_bits else "")
         )
     return lines
+
+
+# ---------------------------------------------------------------------------
+# Engineering Spec Pipeline — Concept Architecture Pack → Engineering Drafts
+# ---------------------------------------------------------------------------
+
+def generate_engineering_spec_drafts(
+    req: SubsystemSuggestRequest,
+) -> EngineeringSpecDraftResponse:
+    """3-step pipeline: concept architecture pack → detailed engineering spec drafts.
+
+    Step 1 — Structure Expansion:
+        Expand concept-level subsystems into a full 3-level hierarchy
+        (System → Module → Component) with spatial estimates and interface contracts.
+
+    Step 2 — AI Spec Generation:
+        For each subsystem, generate 5-15 DraftValue specs with full provenance
+        (source, confidence, needs_verification).
+
+    Step 3 — Source Strengthening:
+        Attempt to upgrade confidence levels by finding better references,
+        and produce a verification checklist for all remaining unverified items.
+
+    Requires ``req.concept_pack`` to be non-None.
+
+    Returns:
+        EngineeringSpecDraftResponse with drafts, subsystem_tree, and package_map.
+    """
+    if req.concept_pack is None:
+        raise ValueError(
+            "generate_engineering_spec_drafts requires req.concept_pack to be set. "
+            "Use suggest_subsystems() for the legacy (non-concept-pack) path."
+        )
+
+    pack = req.concept_pack
+
+    # -- Resolver & library summary (same pattern as suggest_subsystems) -----
+    resolver = default_resolver(include_web=False)
+    with phase_timer("eng_spec.summarize", project_id=req.project_id):
+        library_summary = resolver.summarize_for_prompt(project_id=req.project_id)
+
+    # Serialise concept_pack fields for prompt injection
+    concept_subsystems_json = json.dumps(
+        [cs.model_dump(mode="json") for cs in pack.subsystems],
+        ensure_ascii=False,
+        indent=2,
+    )
+    concept_interfaces_json = json.dumps(
+        [ci.model_dump(mode="json") for ci in pack.interfaces],
+        ensure_ascii=False,
+        indent=2,
+    )
+
+    # ── Step 1: Structure Expansion ─────────────────────────────────────────
+    expansion_prompt = ENGINEERING_SPEC_EXPANSION.format(
+        mission=req.mission,
+        concept_subsystems=concept_subsystems_json,
+        concept_interfaces=concept_interfaces_json,
+        reference_library=library_summary,
+    )
+    with phase_timer("eng_spec.step1_expansion", project_id=req.project_id):
+        raw_expansion = call_llm_json(ENGINEERING_SPEC_SYSTEM, expansion_prompt)
+    emit_counter("eng_spec.step1_done", value=1, project_id=req.project_id)
+
+    expansion_data = json.loads(raw_expansion)
+    tree_response = SubsystemSuggestResponse.model_validate(expansion_data)
+
+    # Validate 6-dim contracts — retry once if violations found (same as suggest_subsystems)
+    violations = _find_empty_contracts(tree_response.subsystems)
+    if violations:
+        emit_counter("eng_spec.step1_violations", value=len(violations), attempt=1)
+        logger.warning(
+            "eng_spec step1: %d interface contracts had empty 6-dim fields; retrying",
+            len(violations),
+        )
+        retry_prompt = (
+            expansion_prompt + "\n\n" + _format_violations_for_retry(violations)
+        )
+        with phase_timer("eng_spec.step1_expansion", attempt=2, project_id=req.project_id):
+            raw_expansion = call_llm_json(ENGINEERING_SPEC_SYSTEM, retry_prompt)
+        expansion_data = json.loads(raw_expansion)
+        tree_response = SubsystemSuggestResponse.model_validate(expansion_data)
+
+        violations = _find_empty_contracts(tree_response.subsystems)
+        if violations:
+            emit_counter("eng_spec.step1_incomplete", value=1, project_id=req.project_id)
+            raise IncompleteLLMResponseError(
+                "Engineering spec expansion left required 6-dim interface contract "
+                f"fields blank after retry ({len(violations)} violations remaining)",
+                violations=violations,
+            )
+
+    # Resolve spatial estimates through layered chain (web enabled)
+    full_resolver = default_resolver(include_web=True)
+    with phase_timer("eng_spec.resolve_spatial", project_id=req.project_id):
+        _resolve_spatial_via_layers(tree_response.subsystems, req.project_id, full_resolver)
+
+    # Serialise the expanded tree for downstream prompts
+    subsystem_tree_json = json.dumps(
+        [s.model_dump(mode="json") for s in tree_response.subsystems],
+        ensure_ascii=False,
+        indent=2,
+    )
+
+    # ── Step 2: AI Spec Generation ──────────────────────────────────────────
+    generation_prompt = ENGINEERING_SPEC_GENERATION.format(
+        mission=req.mission,
+        subsystem_tree=subsystem_tree_json,
+        reference_library=library_summary,
+    )
+    with phase_timer("eng_spec.step2_generation", project_id=req.project_id):
+        raw_generation = call_llm_json(ENGINEERING_SPEC_SYSTEM, generation_prompt)
+    emit_counter("eng_spec.step2_done", value=1, project_id=req.project_id)
+
+    generation_data = json.loads(raw_generation)
+    raw_drafts: list[dict] = generation_data.get("drafts", [])
+
+    # Parse and validate each draft
+    drafts: list[EngineeringSpecDraft] = []
+    for rd in raw_drafts:
+        try:
+            draft = EngineeringSpecDraft.model_validate(rd)
+            draft.recompute_stats()
+            drafts.append(draft)
+        except Exception as exc:
+            logger.warning(
+                "eng_spec step2: skipping malformed draft for %s: %s",
+                rd.get("subsystem_code", "?"),
+                exc,
+            )
+            emit_counter(
+                "eng_spec.step2_draft_skip",
+                value=1,
+                subsystem_code=rd.get("subsystem_code", "unknown"),
+            )
+
+    if not drafts:
+        emit_counter("eng_spec.step2_empty", value=1, project_id=req.project_id)
+        logger.error("eng_spec step2: LLM returned zero valid drafts")
+
+    # ── Step 3: Source Strengthening + Verification Checklist ───────────────
+    current_drafts_json = json.dumps(
+        [d.model_dump(mode="json") for d in drafts],
+        ensure_ascii=False,
+        indent=2,
+    )
+    strengthen_prompt = ENGINEERING_SPEC_STRENGTHEN.format(
+        mission=req.mission,
+        current_drafts=current_drafts_json,
+        reference_library=library_summary,
+    )
+    with phase_timer("eng_spec.step3_strengthen", project_id=req.project_id):
+        raw_strengthen = call_llm_json(ENGINEERING_SPEC_SYSTEM, strengthen_prompt)
+    emit_counter("eng_spec.step3_done", value=1, project_id=req.project_id)
+
+    strengthen_data = json.loads(raw_strengthen)
+    strengthened_raw: list[dict] = strengthen_data.get("drafts", [])
+
+    # Build a lookup from strengthened output keyed by subsystem_code
+    strengthened_map: dict[str, dict] = {
+        d["subsystem_code"]: d
+        for d in strengthened_raw
+        if "subsystem_code" in d
+    }
+
+    # Merge strengthened specs back into validated drafts
+    final_drafts: list[EngineeringSpecDraft] = []
+    for draft in drafts:
+        if draft.subsystem_code in strengthened_map:
+            try:
+                upgraded = EngineeringSpecDraft.model_validate(
+                    strengthened_map[draft.subsystem_code]
+                )
+                upgraded.recompute_stats()
+                final_drafts.append(upgraded)
+            except Exception as exc:
+                logger.warning(
+                    "eng_spec step3: strengthened draft for %s failed validation, "
+                    "keeping original: %s",
+                    draft.subsystem_code,
+                    exc,
+                )
+                final_drafts.append(draft)
+        else:
+            # LLM didn't return a strengthened version — keep original
+            final_drafts.append(draft)
+
+    # Compute package map
+    package_map = None
+    with phase_timer("eng_spec.discover_package", project_id=req.project_id) as _phase:
+        try:
+            package_map = discover_package(tree_response.subsystems)
+        except Exception as exc:
+            emit_counter(
+                "eng_spec.validator_fallback",
+                value=1,
+                error_type=type(exc).__name__,
+            )
+            logger.warning("eng_spec: spatial validator failed: %s", exc)
+            _phase["status"] = "fallback"
+
+    emit_counter(
+        "eng_spec.pipeline_complete",
+        value=1,
+        project_id=req.project_id,
+        draft_count=len(final_drafts),
+        tree_count=len(tree_response.subsystems),
+    )
+
+    return EngineeringSpecDraftResponse(
+        drafts=final_drafts,
+        subsystem_tree=tree_response.subsystems,
+        package_map=package_map,
+    )
 
 
 def suggest_subsystems(req: SubsystemSuggestRequest) -> SubsystemSuggestResponse:

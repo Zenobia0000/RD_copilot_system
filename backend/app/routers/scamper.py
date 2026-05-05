@@ -2,9 +2,10 @@
 
 SOW Module: SCAMPER (scamper)
 SOW Endpoints:
-  - POST /scamper/perform                ← 7-action transform (implemented)
-  - POST /scamper/subsystem-suggestions   ← AI suggest subsystems (implemented)
-  - POST /scamper/feedback-contradictions ← Feed new contradictions back (stub)
+  - POST /scamper/perform                    ← 7-action transform (implemented)
+  - POST /scamper/subsystem-suggestions      ← AI suggest subsystems (implemented)
+  - POST /scamper/engineering-spec-drafts    ← concept pack → eng spec drafts (implemented)
+  - POST /scamper/feedback-contradictions    ← Feed new contradictions back (stub)
 """
 
 from fastapi import APIRouter, HTTPException
@@ -14,6 +15,7 @@ from app.models.schemas import (
     ScamperResponse,
     SubsystemSuggestRequest,
     SubsystemSuggestResponse,
+    EngineeringSpecDraftResponse,
     ScamperFeedbackRequest,
     ScamperFeedbackResponse,
     SpatialOverlayRequest,
@@ -22,6 +24,7 @@ from app.models.schemas import (
 from app.agents.triz_solver import (
     scamper_transform,
     suggest_subsystems,
+    generate_engineering_spec_drafts,
     IncompleteLLMResponseError,
 )
 from app.agents.scamper_feedback import process_scamper_feedback
@@ -49,6 +52,34 @@ def scamper_subsystem_suggestions(req: SubsystemSuggestRequest):
     """
     try:
         return suggest_subsystems(req)
+    except IncompleteLLMResponseError as exc:
+        raise HTTPException(status_code=502, detail=exc.to_dict()) from exc
+
+
+@router.post("/scamper/engineering-spec-drafts", response_model=EngineeringSpecDraftResponse)
+def scamper_engineering_spec_drafts(req: SubsystemSuggestRequest):
+    """3-step pipeline: Concept Architecture Pack → detailed Engineering Spec Drafts.
+
+    Requires ``req.concept_pack`` to be populated (i.e. the user must have
+    generated a Concept Architecture Pack first). Returns per-subsystem spec
+    drafts with full provenance (DraftValue) and a verification checklist.
+
+    Raises HTTP 422 when concept_pack is missing.
+    Raises HTTP 502 when the LLM cannot produce complete 6-dim contracts.
+    """
+    if req.concept_pack is None:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "missing_concept_pack",
+                "message": (
+                    "engineering-spec-drafts requires concept_pack to be set. "
+                    "Generate a Concept Architecture Pack first."
+                ),
+            },
+        )
+    try:
+        return generate_engineering_spec_drafts(req)
     except IncompleteLLMResponseError as exc:
         raise HTTPException(status_code=502, detail=exc.to_dict()) from exc
 

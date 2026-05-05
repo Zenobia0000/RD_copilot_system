@@ -98,6 +98,10 @@ export const queryKeys = {
     all: ['concept_architecture_packs'] as const,
     byProject: (projectId: string | undefined) => ['concept_architecture_packs', k(projectId)] as const,
   },
+  engineering_spec_drafts: {
+    all: ['engineering_spec_drafts'] as const,
+    byProject: (projectId: string | undefined) => ['engineering_spec_drafts', k(projectId)] as const,
+  },
   subsystems: {
     all: ['subsystems'] as const,
     byProject: (projectId: string | undefined) => ['subsystems', k(projectId)] as const,

@@ -1043,6 +1043,17 @@ class SubsystemSuggestRequest(BaseModel):
     # `related_contradictions` primary binding; when empty, fall back to the
     # flat `contradictions` list above.
     layered_triz_solutions: list[LayeredTrizSolution] = Field(default_factory=list)
+    # v8: optional concept architecture pack input for 3-step engineering spec pipeline.
+    # When present, suggest_subsystems uses the pack's subsystems as seed for
+    # structure expansion → AI spec generation → source strengthening.
+    concept_pack: "ConceptArchitecturePack | None" = Field(
+        default=None,
+        description=(
+            "Concept Architecture Pack from the concept step. When provided, "
+            "the pipeline expands concept-level subsystems into full engineering "
+            "spec drafts with DraftValue provenance."
+        ),
+    )
 
 
 # ---- Spatial Grounding (Discovery Mode) ----------------------------------
@@ -2059,3 +2070,141 @@ class ConceptArchitecturePackResponse(BaseModel):
     pack: ConceptArchitecturePack
     source_badges: dict[str, bool] = Field(default_factory=dict)
     # e.g. {"brief": true, "explore": true, "triz": false}
+
+
+# ---------------------------------------------------------------------------
+# Engineering Spec Draft — DraftValue with full provenance (v3 dynamic fields)
+# ---------------------------------------------------------------------------
+
+class DraftValue(BaseModel):
+    """Single AI-generated spec value with full provenance.
+
+    Dynamic field design: AI decides field_name and category per subsystem type.
+    Every value carries source, confidence, and needs_verification — ensuring
+    no AI-generated number masquerades as engineering truth.
+    """
+
+    # --- Dynamic field identification ---
+    field_name: str = Field(
+        ...,
+        description=(
+            "AI-decided field name, e.g. 'dimensions', 'thermal_budget', "
+            "'gear_ratio', 'waterproof_rating', 'max_current'."
+        ),
+    )
+    category: Literal[
+        "spatial",
+        "material",
+        "thermal",
+        "electrical",
+        "mechanical",
+        "manufacturing",
+    ] = Field(
+        ...,
+        description="Spec category for UI grouping and filtering.",
+    )
+
+    # --- Value ---
+    value: str | float | int | dict | list = Field(
+        ...,
+        description=(
+            "Spec value. Can be numeric (250.0), string ('IP67'), "
+            "or structured dict ({'min': 10, 'max': 25, 'typical': 18})."
+        ),
+    )
+    unit: str | None = Field(
+        default=None,
+        description="Unit, e.g. 'mm', 'kg', 'W', '°C', 'N·m'.",
+    )
+
+    # --- Provenance triple (user's core requirement) ---
+    source: str = Field(
+        default="llm_estimate",
+        description=(
+            "Origin of this value. Canonical prefixes: "
+            "rd_override, learned, web, seed, llm_estimate, datasheet, standard."
+        ),
+    )
+    confidence: Literal["confirmed", "library", "estimate", "speculative"] = Field(
+        default="speculative",
+        description=(
+            "Confidence level. confirmed=RD verified, library=reliable ref, "
+            "estimate=reasonable but unverified, speculative=LLM guess."
+        ),
+    )
+    needs_verification: bool = Field(
+        default=True,
+        description="Whether human verification is required. Default True.",
+    )
+
+    # --- Supplementary ---
+    rationale: str | None = Field(
+        default=None,
+        description="Explanation of why this value was chosen.",
+    )
+    alternatives: list[dict] | None = Field(
+        default=None,
+        description=(
+            "Alternative options, e.g. "
+            "[{'value': 'ABS', 'reason': 'lower cost'}, {'value': 'PC', 'reason': 'higher temp'}]."
+        ),
+    )
+
+
+# Confidence-to-score mapping for overall_confidence calculation
+_CONFIDENCE_SCORES: dict[str, float] = {
+    "confirmed": 1.0,
+    "library": 0.75,
+    "estimate": 0.5,
+    "speculative": 0.25,
+}
+
+
+class EngineeringSpecDraft(BaseModel):
+    """Complete engineering spec draft for one subsystem.
+
+    Uses dynamic ``specs: list[DraftValue]`` instead of fixed fields —
+    AI decides which spec fields to generate based on subsystem type.
+    """
+
+    subsystem_code: str = Field(
+        ...,
+        description="Corresponding subsystem code (from ConceptSubsystem.code).",
+    )
+
+    specs: list[DraftValue] = Field(
+        default_factory=list,
+        description=(
+            "Dynamic spec list. AI produces appropriate fields per subsystem role. "
+            "E.g. motor → dimensions, mass, max_torque, rated_power, thermal_budget; "
+            "housing → dimensions, primary_material, waterproof_rating, surface_finish; "
+            "PCB → dimensions, layer_count, max_current, operating_temp_range."
+        ),
+    )
+
+    overall_confidence: float = Field(
+        default=0.0,
+        description="Weighted average confidence score (0.0–1.0) across all specs.",
+    )
+
+    verification_count: int = Field(
+        default=0,
+        description="Number of specs with needs_verification=True. Shown as red badge in UI.",
+    )
+
+    def recompute_stats(self) -> None:
+        """Recompute overall_confidence and verification_count from specs."""
+        if not self.specs:
+            self.overall_confidence = 0.0
+            self.verification_count = 0
+            return
+        total = sum(_CONFIDENCE_SCORES.get(s.confidence, 0.25) for s in self.specs)
+        self.overall_confidence = round(total / len(self.specs), 3)
+        self.verification_count = sum(1 for s in self.specs if s.needs_verification)
+
+
+class EngineeringSpecDraftResponse(BaseModel):
+    """Response wrapper for the engineering spec generation pipeline."""
+    drafts: list[EngineeringSpecDraft] = Field(default_factory=list)
+    subsystem_tree: list[SuggestedSubsystem] = Field(default_factory=list)
+    package_map: PackageMap | None = None

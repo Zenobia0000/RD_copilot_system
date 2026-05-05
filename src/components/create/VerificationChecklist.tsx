@@ -1,0 +1,525 @@
+/**
+ * VerificationChecklist — filters needs_verification DraftValues,
+ * groups by subsystem → category, provides checkbox tracking + CSV export.
+ *
+ * UX mockup reference: plans/concept-pack-to-engineering-specs.md §5 驗證清單 UX
+ *
+ * Layout:
+ *   • One collapsible section per subsystem (only those with verifiable items)
+ *   • Inside: items grouped by category with checkbox, value, source, suggested method
+ *   • Footer: "匯出驗證清單" (CSV) + "全部標記已驗證" buttons
+ *
+ * @see plans/concept-pack-to-engineering-specs.md
+ * @see src/types/generated/engineeringSpec.ts
+ */
+
+import { useState, useMemo, useCallback } from "react";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/components/ui/collapsible";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
+import {
+  ChevronRight,
+  ClipboardCheck,
+  Download,
+  CheckCheck,
+  AlertTriangle,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+import type {
+  EngineeringSpecDraftResponse,
+  EngineeringSpecDraft,
+  DraftValue,
+  DraftCategory,
+} from "@/types/generated/engineeringSpec";
+import {
+  CONFIDENCE_COLORS,
+  DRAFT_CATEGORIES,
+} from "@/types/generated/engineeringSpec";
+
+// ---------------------------------------------------------------------------
+// Props
+// ---------------------------------------------------------------------------
+
+export interface VerificationChecklistProps {
+  /** Pipeline response containing all subsystem drafts. */
+  data: EngineeringSpecDraftResponse;
+  className?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers (reuse patterns from EngineeringSpecDraftPanel)
+// ---------------------------------------------------------------------------
+
+/** Format a DraftValue's value for display. */
+function fmtValue(v: DraftValue): string {
+  if (v.value == null) return "—";
+  if (typeof v.value === "number") return String(v.value);
+  if (typeof v.value === "string") return v.value;
+  try {
+    return JSON.stringify(v.value);
+  } catch {
+    return String(v.value);
+  }
+}
+
+/** Human-readable field name: snake_case → Title Case. */
+function humanize(s: string): string {
+  return s
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/**
+ * Suggest a verification method based on field_name + source.
+ * Provides reasonable default suggestions; not a fixed mapping —
+ * real verification guidance would come from domain experts.
+ */
+function suggestVerificationMethod(field: string, source: string): string {
+  const fl = field.toLowerCase();
+  const sl = source.toLowerCase();
+
+  // Source-specific overrides
+  if (sl.includes("datasheet")) return "核對原廠 Datasheet";
+  if (sl.includes("standard")) return "查閱對應規範文件";
+  if (sl.includes("learned")) return "對照已驗證元件資料庫";
+
+  // Field-based suggestions
+  if (fl.includes("mass") || fl.includes("weight"))
+    return "秤重實測或 CAD 計算";
+  if (fl.includes("dimension") || fl.includes("length") || fl.includes("width") || fl.includes("height") || fl.includes("diameter"))
+    return "CAD 模型量測或實物量測";
+  if (fl.includes("torque"))
+    return "查閱馬達 Datasheet 或扭矩測試";
+  if (fl.includes("gear") || fl.includes("ratio"))
+    return "確認齒輪箱規格";
+  if (fl.includes("thermal") || fl.includes("temperature") || fl.includes("heat"))
+    return "熱模擬或實測";
+  if (fl.includes("power") || fl.includes("watt"))
+    return "電氣量測或 Datasheet 確認";
+  if (fl.includes("voltage") || fl.includes("current"))
+    return "電氣量測或 Datasheet 確認";
+  if (fl.includes("material"))
+    return "確認材料規格書或測試報告";
+  if (fl.includes("waterproof") || fl.includes("ip"))
+    return "查閱防護等級測試報告";
+  if (fl.includes("surface") || fl.includes("finish"))
+    return "確認製造工藝規格";
+  if (fl.includes("tolerance") || fl.includes("clearance"))
+    return "CAD 公差分析";
+  if (fl.includes("cost") || fl.includes("price"))
+    return "供應商報價或 BOM 確認";
+
+  // Generic fallback
+  if (sl.includes("llm") || sl.includes("estimate"))
+    return "需工程團隊驗證";
+  return "需人工確認";
+}
+
+/** Get category display info. */
+function getCategoryInfo(cat: DraftCategory) {
+  return DRAFT_CATEGORIES.find((c) => c.key === cat) ?? {
+    key: cat,
+    label: cat,
+    labelZh: cat,
+    icon: "📋",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface VerifiableItem {
+  subsystemCode: string;
+  spec: DraftValue;
+  suggestedMethod: string;
+}
+
+// ---------------------------------------------------------------------------
+// CSV Export
+// ---------------------------------------------------------------------------
+
+function exportToCsv(items: VerifiableItem[], verifiedSet: Set<string>) {
+  const BOM = "\uFEFF"; // UTF-8 BOM for Excel compatibility
+  const headers = [
+    "子系統",
+    "欄位名稱",
+    "值",
+    "單位",
+    "來源",
+    "信心等級",
+    "建議驗證方法",
+    "已驗證",
+  ];
+
+  const escCsv = (s: string) => {
+    if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+      return `"${s.replace(/"/g, '""')}"`;
+    }
+    return s;
+  };
+
+  const rows = items.map((item) => {
+    const key = `${item.subsystemCode}::${item.spec.field_name}`;
+    return [
+      item.subsystemCode,
+      humanize(item.spec.field_name),
+      fmtValue(item.spec),
+      item.spec.unit ?? "",
+      item.spec.source,
+      CONFIDENCE_COLORS[item.spec.confidence].labelZh,
+      item.suggestedMethod,
+      verifiedSet.has(key) ? "✓" : "",
+    ]
+      .map(escCsv)
+      .join(",");
+  });
+
+  const csv = BOM + [headers.join(","), ...rows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `verification-checklist-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+/** Confidence badge (same visual style as EngineeringSpecDraftPanel). */
+function ConfidenceBadge({ confidence }: { confidence: DraftValue["confidence"] }) {
+  const c = CONFIDENCE_COLORS[confidence];
+  return (
+    <Badge
+      variant="outline"
+      className={cn("text-[10px] px-1.5 py-0 h-5 font-medium", c.bg, c.text, c.border)}
+    >
+      {c.labelZh}
+    </Badge>
+  );
+}
+
+/** Single verification item row. */
+function VerificationRow({
+  item,
+  checked,
+  onToggle,
+}: {
+  item: VerifiableItem;
+  checked: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <label
+      className={cn(
+        "flex items-start gap-3 p-2.5 rounded-md cursor-pointer transition-colors",
+        "hover:bg-muted/40",
+        checked && "opacity-60 bg-green-50/50 dark:bg-green-950/20"
+      )}
+    >
+      <Checkbox
+        checked={checked}
+        onCheckedChange={onToggle}
+        className="mt-0.5 shrink-0"
+      />
+      <div className="flex-1 min-w-0 space-y-1">
+        {/* Field name + value */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={cn("text-sm font-medium", checked && "line-through")}>
+            {humanize(item.spec.field_name)}
+          </span>
+          <span className="text-sm text-muted-foreground">
+            ({fmtValue(item.spec)}{item.spec.unit ? ` ${item.spec.unit}` : ""})
+          </span>
+          <ConfidenceBadge confidence={item.spec.confidence} />
+        </div>
+        {/* Source + suggested verification method */}
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span>來源: <span className="font-medium">{item.spec.source}</span></span>
+          <span className="text-muted-foreground/50">|</span>
+          <span>建議: <span className="font-medium">{item.suggestedMethod}</span></span>
+        </div>
+      </div>
+    </label>
+  );
+}
+
+/** Category group within a subsystem. */
+function CategoryGroup({
+  category,
+  items,
+  verifiedSet,
+  onToggle,
+}: {
+  category: DraftCategory;
+  items: VerifiableItem[];
+  verifiedSet: Set<string>;
+  onToggle: (key: string) => void;
+}) {
+  const info = getCategoryInfo(category);
+  return (
+    <div className="space-y-1">
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 px-2">
+        <span>{info.icon}</span>
+        <span>{info.labelZh}</span>
+        <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 ml-1">
+          {items.length}
+        </Badge>
+      </p>
+      <div className="space-y-0.5">
+        {items.map((item) => {
+          const key = `${item.subsystemCode}::${item.spec.field_name}`;
+          return (
+            <VerificationRow
+              key={key}
+              item={item}
+              checked={verifiedSet.has(key)}
+              onToggle={() => onToggle(key)}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** One collapsible card per subsystem. */
+function SubsystemSection({
+  subsystemCode,
+  items,
+  verifiedSet,
+  onToggle,
+}: {
+  subsystemCode: string;
+  items: VerifiableItem[];
+  verifiedSet: Set<string>;
+  onToggle: (key: string) => void;
+}) {
+  const pendingCount = items.filter(
+    (i) => !verifiedSet.has(`${i.subsystemCode}::${i.spec.field_name}`)
+  ).length;
+
+  // Group by category
+  const byCategory = useMemo(() => {
+    const map = new Map<DraftCategory, VerifiableItem[]>();
+    for (const cat of DRAFT_CATEGORIES) {
+      const catItems = items.filter((i) => i.spec.category === cat.key);
+      if (catItems.length > 0) map.set(cat.key, catItems);
+    }
+    return map;
+  }, [items]);
+
+  return (
+    <Collapsible defaultOpen>
+      <Card className="border-l-[3px] border-l-orange-400/60">
+        <CollapsibleTrigger asChild>
+          <CardContent className="p-3 cursor-pointer hover:bg-muted/30 transition-colors">
+            <div className="flex items-center gap-2">
+              <ChevronRight className="w-4 h-4 text-muted-foreground transition-transform [[data-state=open]>*>&]:rotate-90" />
+              <span className="font-mono text-sm font-semibold">
+                {subsystemCode}
+              </span>
+              {pendingCount > 0 ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] px-1.5 py-0 h-5 bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-700"
+                    >
+                      <AlertTriangle className="w-3 h-3 mr-0.5" />
+                      {pendingCount} 項待驗證
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>{pendingCount} 項規格待人工驗證</TooltipContent>
+                </Tooltip>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] px-1.5 py-0 h-5 bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700"
+                >
+                  <CheckCheck className="w-3 h-3 mr-0.5" />
+                  已全部驗證
+                </Badge>
+              )}
+              <span className="text-xs text-muted-foreground ml-auto">
+                {items.length - pendingCount}/{items.length}
+              </span>
+            </div>
+          </CardContent>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <CardContent className="px-4 pb-4 pt-0 border-t space-y-3">
+            {Array.from(byCategory.entries()).map(([cat, catItems]) => (
+              <CategoryGroup
+                key={cat}
+                category={cat}
+                items={catItems}
+                verifiedSet={verifiedSet}
+                onToggle={onToggle}
+              />
+            ))}
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
+  );
+}
+
+/** Empty state when no items require verification. */
+function EmptyState() {
+  return (
+    <div className="text-center py-6 text-muted-foreground">
+      <CheckCheck className="w-8 h-8 mx-auto mb-2 text-green-500" />
+      <p className="text-sm font-medium">所有規格值已確認</p>
+      <p className="text-xs">沒有需要驗證的項目</p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main Component
+// ---------------------------------------------------------------------------
+
+export function VerificationChecklist({
+  data,
+  className,
+}: VerificationChecklistProps) {
+  // Build flat list of all verifiable items
+  const allItems = useMemo(() => {
+    const items: VerifiableItem[] = [];
+    for (const draft of data.drafts) {
+      for (const spec of draft.specs) {
+        if (spec.needs_verification) {
+          items.push({
+            subsystemCode: draft.subsystem_code,
+            spec,
+            suggestedMethod: suggestVerificationMethod(spec.field_name, spec.source),
+          });
+        }
+      }
+    }
+    return items;
+  }, [data.drafts]);
+
+  // Group by subsystem (preserving draft order)
+  const bySubsystem = useMemo(() => {
+    const map = new Map<string, VerifiableItem[]>();
+    for (const item of allItems) {
+      const list = map.get(item.subsystemCode) ?? [];
+      list.push(item);
+      map.set(item.subsystemCode, list);
+    }
+    return map;
+  }, [allItems]);
+
+  // Verified state: Set of "subsystemCode::field_name" keys
+  const [verifiedSet, setVerifiedSet] = useState<Set<string>>(new Set());
+
+  const toggleVerified = useCallback((key: string) => {
+    setVerifiedSet((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
+  const markAllVerified = useCallback(() => {
+    setVerifiedSet(
+      new Set(allItems.map((i) => `${i.subsystemCode}::${i.spec.field_name}`))
+    );
+  }, [allItems]);
+
+  const totalPending = allItems.length - verifiedSet.size;
+
+  if (allItems.length === 0) {
+    return (
+      <Card className={cn("border-green-400/30", className)}>
+        <CardContent className="p-4">
+          <EmptyState />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className={cn("border-orange-400/30", className)}>
+      {/* Header */}
+      <CardContent className="p-4 pb-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <ClipboardCheck className="w-5 h-5 text-orange-500" />
+            <h3 className="text-sm font-semibold">驗證清單</h3>
+            {totalPending > 0 ? (
+              <Badge
+                variant="outline"
+                className="text-[10px] px-1.5 py-0 h-5 bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-700"
+              >
+                {totalPending} 項待驗證
+              </Badge>
+            ) : (
+              <Badge
+                variant="outline"
+                className="text-[10px] px-1.5 py-0 h-5 bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700"
+              >
+                <CheckCheck className="w-3 h-3 mr-0.5" />
+                全部已驗證
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs h-7"
+              onClick={() => exportToCsv(allItems, verifiedSet)}
+            >
+              <Download className="w-3.5 h-3.5 mr-1" />
+              匯出驗證清單
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs h-7"
+              onClick={markAllVerified}
+              disabled={totalPending === 0}
+            >
+              <CheckCheck className="w-3.5 h-3.5 mr-1" />
+              全部標記已驗證
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+
+      {/* Subsystem sections */}
+      <CardContent className="px-4 pb-4 pt-0 space-y-2">
+        {Array.from(bySubsystem.entries()).map(([code, items]) => (
+          <SubsystemSection
+            key={code}
+            subsystemCode={code}
+            items={items}
+            verifiedSet={verifiedSet}
+            onToggle={toggleVerified}
+          />
+        ))}
+      </CardContent>
+    </Card>
+  );
+}

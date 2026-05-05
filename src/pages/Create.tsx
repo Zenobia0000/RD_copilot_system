@@ -127,7 +127,11 @@ import { ArchitectureHaltOverlay } from "@/components/create/ArchitectureHaltOve
 import { MultiSolutionAdoptionPanel } from "@/components/create/MultiSolutionAdoptionPanel";
 import { useConceptRoutes, useCompatibilityPairs } from "@/hooks/api/useConceptRoutes";
 import { useConceptArchitecturePack, useGenerateConceptArchitecturePack } from "@/hooks/api/useConceptArchitecturePack";
+import { useGenerateEngineeringSpecDrafts } from "@/hooks/api/useEngineeringSpecDrafts";
 import type { ConceptArchitecturePackResponse } from "@/types/conceptArchitecture";
+import type { EngineeringSpecDraftResponse } from "@/types/generated/engineeringSpec";
+import { EngineeringSpecDraftPanel } from "@/components/create/EngineeringSpecDraftPanel";
+import { VerificationChecklist } from "@/components/create/VerificationChecklist";
 // TODO: Replace with API when available -- AI-generated adoption state, no dedicated DB table yet
 import type { ConceptRoute, MultiSolutionAdoptionState } from "@/types/conceptRoute";
 
@@ -216,6 +220,8 @@ export default function Create() {
   // v9: Concept Architecture Pack
   const conceptPackQuery = useConceptArchitecturePack(id);
   const generatePackMutation = useGenerateConceptArchitecturePack(id);
+  // v10: Engineering Spec Drafts
+  const engSpecMutation = useGenerateEngineeringSpecDrafts(id, conceptPackQuery.data?.pack);
 
   // ── Phase 1 context ──
   const { data: brief } = useBrief(id);
@@ -329,6 +335,8 @@ export default function Create() {
   // v9: Concept Architecture Pack local state
   const [conceptTemplateId, setConceptTemplateId] = useState("generic_product");
   const [conceptPackApplied, setConceptPackApplied] = useState(false);
+  // v10: Engineering Spec Drafts result
+  const [engSpecResult, setEngSpecResult] = useState<EngineeringSpecDraftResponse | null>(null);
 
   // v8: Directed TRIZ — solve only top-level TC contradictions
   // PC and SF are derived internally by the backend from each TC
@@ -2160,6 +2168,51 @@ export default function Create() {
               </Button>
             </CardContent>
           </Card>
+        )}
+
+        {/* Engineering Spec Drafts — concept pack → detailed specs with provenance */}
+        {packData && (
+          <Card className="border-amber-400/30 bg-amber-50/5">
+            <CardContent className="p-4 flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <p className="text-sm font-medium">生成工程規格草案</p>
+                <p className="text-xs text-muted-foreground">
+                  根據概念架構包，AI 產出各子系統的尺寸 / 材料 / 規格草案，每項附帶來源與信心度
+                </p>
+              </div>
+              <AiButton
+                onClick={() => {
+                  engSpecMutation.mutate(
+                    { mission: briefMission, contradictions: contradictionDescs },
+                    {
+                      onSuccess: (data) => {
+                        setEngSpecResult(data);
+                        toast.success(`已生成 ${data.drafts.length} 個子系統的工程規格草案`);
+                      },
+                      onError: (err) => {
+                        toast.error(`工程規格草案生成失敗: ${err.message}`);
+                      },
+                    },
+                  );
+                }}
+                loading={engSpecMutation.isPending}
+                disabled={!conceptPackApplied}
+              >
+                <Sparkles className="w-4 h-4" />
+                生成規格草案
+              </AiButton>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Engineering Spec Draft results panel */}
+        {engSpecResult && (
+          <EngineeringSpecDraftPanel data={engSpecResult} />
+        )}
+
+        {/* Verification Checklist — needs_verification items + CSV export */}
+        {engSpecResult && (
+          <VerificationChecklist data={engSpecResult} />
         )}
       </div>
     );

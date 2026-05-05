@@ -184,3 +184,7 @@ export {
   useUpdateKnowledgeEntry,
 } from './useKnowledge';
 export type { KnowledgeEntry } from './useKnowledge';
+
+// --- Engineering Spec Drafts ---
+export { useGenerateEngineeringSpecDrafts } from './useEngineeringSpecDrafts';
+export type { GenerateEngineeringSpecVariables } from './useEngineeringSpecDrafts';

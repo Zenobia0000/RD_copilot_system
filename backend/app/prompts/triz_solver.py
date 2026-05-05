@@ -761,6 +761,250 @@ two modules cannot coexist, surface that as a new contradiction in `secondary_co
 
 
 # ---------------------------------------------------------------------------
+# Engineering Spec Pipeline — Concept Architecture Pack → Engineering Drafts
+# ---------------------------------------------------------------------------
+
+ENGINEERING_SPEC_SYSTEM = """\
+You are a senior mechanical / systems engineering specialist.
+Your task is to transform a concept-level architecture pack into detailed,
+traceable engineering specification drafts.
+
+**ABSOLUTE RULES**
+1. Every numeric value you produce MUST carry a `source` and `confidence` tag.
+2. If you are estimating, set source="llm_estimate" and confidence="speculative".
+3. If you are referencing a known standard or textbook value, set source to the
+   reference name and confidence="library".
+4. NEVER present an LLM-generated number as "confirmed" — that level is reserved
+   for lab-verified data that you do not have.
+5. When uncertain, prefer a conservative range over a single precise number.
+6. All outputs MUST be valid JSON matching the output_schema exactly.
+"""
+
+ENGINEERING_SPEC_EXPANSION = """\
+<task>
+Expand the concept-level subsystems from a Concept Architecture Pack into a \
+full 3-level hierarchy (System → Module → Component). For each pair of \
+coupled modules, define a structured 6-dimensional interface contract AND \
+attach a grounded spatial estimate (bbox + mass) for each module.
+</task>
+
+<context>
+<mission>{mission}</mission>
+<concept_subsystems>
+{concept_subsystems}
+</concept_subsystems>
+<concept_interfaces>
+{concept_interfaces}
+</concept_interfaces>
+<reference_library>
+{reference_library}
+</reference_library>
+</context>
+
+<instructions>
+1. Use the concept subsystems as the starting point — each concept subsystem \
+   with suggested_level="system" becomes a top-level system node.
+2. For each system node, decompose into 2-4 module-level children based on \
+   the subsystem's role and key_requirements.
+3. For each module, decompose into 1-3 component-level children where \
+   mechanical or electrical detail is needed.
+4. Preserve all mapped_contradictions and mapped_kpis from the concept pack \
+   — propagate them to the most relevant child nodes.
+5. For every pair of adjacent modules/components, produce a 6-dimensional \
+   InterfaceContract: mechanical, electrical, thermal, data, spatial, material.
+6. For every module and component, produce a SpatialEstimate with bbox \
+   (length_mm, width_mm, height_mm) and mass_g.  Mark reference_source as \
+   "llm_estimate" unless you have a concrete reference.
+7. Map concept_interfaces from the pack to the appropriate module-level \
+   InterfaceContract entries.
+8. Return valid JSON matching the output_schema below.
+</instructions>
+
+<output_schema>
+{{
+  "subsystems": [
+    {{
+      "name": "string — subsystem name",
+      "code": "string — short code, e.g. SYS-DRIVE",
+      "role": "string — functional role",
+      "level": "system | module | component",
+      "parent_code": "string | null — parent code, null for system-level",
+      "mapped_contradictions": ["contradiction_id", "..."],
+      "mapped_kpis": ["kpi_id", "..."],
+      "spatial_estimate": {{
+        "bbox": {{ "length_mm": 0, "width_mm": 0, "height_mm": 0 }},
+        "mass_g": 0,
+        "reference_source": "llm_estimate | library_name"
+      }},
+      "interface_contracts": {{
+        "neighbour_name": {{
+          "mechanical": "string",
+          "electrical": "string",
+          "thermal": "string",
+          "data": "string",
+          "spatial": "string",
+          "material": "string"
+        }}
+      }},
+      "children": ["... recursive"]
+    }}
+  ],
+  "package_map": null
+}}
+</output_schema>
+"""
+
+ENGINEERING_SPEC_GENERATION = """\
+<task>
+For each subsystem in the hierarchy, generate the most relevant engineering \
+specification values as DraftValue objects with full provenance tracking. \
+Choose the 5-15 most important specs based on the subsystem's type and role.
+</task>
+
+<context>
+<mission>{mission}</mission>
+<subsystem_tree>
+{subsystem_tree}
+</subsystem_tree>
+<reference_library>
+{reference_library}
+</reference_library>
+</context>
+
+<instructions>
+1. For EACH subsystem (system, module, and component level), produce a list \
+   of DraftValue specs.
+2. Choose fields dynamically based on the subsystem type — a motor needs \
+   torque/rpm/efficiency; a housing needs wall_thickness/material/surface_finish; \
+   a PCB needs layer_count/copper_weight/trace_width.
+3. Every DraftValue MUST include ALL required fields:
+   - field_name: descriptive name (e.g., "max_continuous_torque")
+   - category: one of "spatial", "material", "thermal", "electrical", \
+     "mechanical", "manufacturing"
+   - value: the estimated value (number, string, or structured)
+   - unit: SI unit or null if dimensionless
+   - source: default "llm_estimate"; use actual reference name if from a \
+     known standard/library
+   - confidence: one of "confirmed", "library", "estimate", "speculative"
+     - "confirmed" = lab-verified (DO NOT USE unless citing measured data)
+     - "library" = from a known datasheet, standard, or textbook
+     - "estimate" = engineering judgement with reasonable basis
+     - "speculative" = rough guess, needs verification
+   - needs_verification: true unless confidence is "confirmed"
+   - rationale: brief explanation of why this value was chosen
+   - alternatives: optional list of {{value, source}} for competing options
+4. Aim for 5-15 specs per subsystem depending on complexity.
+5. Prefer specs that are ACTIONABLE for downstream CAD or prototyping.
+6. For spatial specs (dimensions, mass), reuse values from the subsystem tree \
+   spatial estimates to maintain consistency.
+7. Return valid JSON matching the output_schema below.
+</instructions>
+
+<output_schema>
+{{
+  "drafts": [
+    {{
+      "subsystem_code": "string — matches code from subsystem tree",
+      "specs": [
+        {{
+          "field_name": "string",
+          "category": "spatial | material | thermal | electrical | mechanical | manufacturing",
+          "value": "string | number | object",
+          "unit": "string | null",
+          "source": "string — e.g. llm_estimate, NEMA_MG1, ISO_286",
+          "confidence": "confirmed | library | estimate | speculative",
+          "needs_verification": true,
+          "rationale": "string — why this value",
+          "alternatives": [
+            {{ "value": "...", "source": "..." }}
+          ]
+        }}
+      ]
+    }}
+  ]
+}}
+</output_schema>
+"""
+
+ENGINEERING_SPEC_STRENGTHEN = """\
+<task>
+Review the engineering spec drafts and strengthen their sources. For each \
+DraftValue, attempt to upgrade the confidence level by finding better \
+references. Also produce a verification checklist for all items that still \
+need verification after strengthening.
+</task>
+
+<context>
+<mission>{mission}</mission>
+<current_drafts>
+{current_drafts}
+</current_drafts>
+<reference_library>
+{reference_library}
+</reference_library>
+</context>
+
+<instructions>
+1. For each DraftValue in the drafts:
+   a. If you can cite a specific standard, datasheet, or textbook for the \
+      value, upgrade source to that reference and confidence to "library".
+   b. If you can provide a stronger engineering basis (e.g., a well-known \
+      formula or design rule), upgrade confidence to "estimate".
+   c. If the value seems unreasonable or inconsistent with other specs, \
+      flag it and suggest a corrected value.
+2. Resolution priority chain (highest to lowest):
+   - rd_override: user-provided value (do not modify)
+   - learned: from project's learned component library
+   - seed: from domain seed data
+   - web_search: from web search results
+   - llm_estimate: LLM's own estimation
+3. For each spec where needs_verification is still true after strengthening, \
+   include it in the verification_checklist with:
+   - subsystem_code: which subsystem
+   - field_name: which spec field
+   - current_confidence: the confidence level
+   - suggested_method: how to verify (e.g., "measure prototype", \
+     "check supplier datasheet", "FEA simulation", "thermal test")
+   - priority: "high" if confidence is "speculative", "medium" if "estimate", \
+     "low" if "library"
+4. Return valid JSON matching the output_schema below.
+</instructions>
+
+<output_schema>
+{{
+  "drafts": [
+    {{
+      "subsystem_code": "string",
+      "specs": [
+        {{
+          "field_name": "string",
+          "category": "spatial | material | thermal | electrical | mechanical | manufacturing",
+          "value": "string | number | object",
+          "unit": "string | null",
+          "source": "string",
+          "confidence": "confirmed | library | estimate | speculative",
+          "needs_verification": true,
+          "rationale": "string",
+          "alternatives": []
+        }}
+      ]
+    }}
+  ],
+  "verification_checklist": [
+    {{
+      "subsystem_code": "string",
+      "field_name": "string",
+      "current_confidence": "string",
+      "suggested_method": "string",
+      "priority": "high | medium | low"
+    }}
+  ]
+}}
+</output_schema>
+"""
+
+
+# ---------------------------------------------------------------------------
 # Directed TRIZ — Direction Clustering (Step E)
 # ---------------------------------------------------------------------------
 

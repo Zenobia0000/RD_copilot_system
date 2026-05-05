@@ -1030,6 +1030,7 @@ export interface SubsystemSuggestRequest {
   mission: string;
   contradictions?: string[];
   existing_subsystems?: string[];
+  concept_pack?: ConceptArchitecturePack;
 }
 
 // Subsystem suggestion types are imported from the single source of truth
@@ -1439,6 +1440,7 @@ export function evidenceCoverage(projectId: string) {
 import type {
   UpstreamArtifactSummary,
   ConceptArchitecturePackResponse,
+  ConceptArchitecturePack,
 } from "@/types/conceptArchitecture";
 
 export interface GenerateConceptArchitecturePackRequest {
@@ -1460,6 +1462,24 @@ export function generateConceptArchitecturePack(
 export function getLatestConceptArchitecturePack(projectId: string) {
   return requestGet<ConceptArchitecturePackResponse | null>(
     `/concept-architecture/latest-pack/${encodeURIComponent(projectId)}`
+  );
+}
+
+// ─── Engineering Spec Drafts ────────────────────────────────────────────────
+
+export type {
+  EngineeringSpecDraftResponse,
+  EngineeringSpecDraft,
+  DraftValue,
+} from "@/types/generated/engineeringSpec";
+
+import type { EngineeringSpecDraftResponse } from "@/types/generated/engineeringSpec";
+
+export function scamperEngineeringSpecDrafts(body: SubsystemSuggestRequest) {
+  return request<EngineeringSpecDraftResponse>(
+    "/scamper/engineering-spec-drafts",
+    body,
+    { timeoutMs: 300_000 }
   );
 }
 

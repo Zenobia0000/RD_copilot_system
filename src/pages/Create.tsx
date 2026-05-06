@@ -118,7 +118,7 @@ import { useConceptArchitecturePack, useGenerateConceptArchitecturePack } from "
 import { useEngineeringSpecDraftsPipeline } from "@/hooks/api/useEngineeringSpecDraftsPipeline";
 import type { ConceptArchitecturePackResponse } from "@/types/conceptArchitecture";
 import type { EngineeringSpecDraftResponse } from "@/types/generated/engineeringSpec";
-import { EngineeringSpecDraftPanel } from "@/components/create/EngineeringSpecDraftPanel";
+import { HierarchicalSpecView } from "@/components/create/hierarchical-spec";
 import { VerificationChecklist } from "@/components/create/VerificationChecklist";
 // TODO: Replace with API when available -- AI-generated adoption state, no dedicated DB table yet
 import type { ConceptRoute, MultiSolutionAdoptionState } from "@/types/conceptRoute";
@@ -2366,7 +2366,7 @@ export default function Create() {
 
         {/* Step 2 preview: draft specs (before source strengthening) */}
         {engSpecPipeline.step2Result && engSpecPipeline.step1Result && !engSpecResult && (
-          <EngineeringSpecDraftPanel
+          <HierarchicalSpecView
             data={{
               drafts: engSpecPipeline.step2Result.drafts,
               subsystem_tree: engSpecPipeline.step1Result.subsystems,
@@ -2380,7 +2380,7 @@ export default function Create() {
         {/* Final results: fully strengthened specs + verification checklist */}
         {engSpecResult && (
           <>
-            <EngineeringSpecDraftPanel data={engSpecResult} />
+            <HierarchicalSpecView data={engSpecResult} />
             <VerificationChecklist data={engSpecResult} />
           </>
         )}

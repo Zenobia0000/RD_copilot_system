@@ -11,11 +11,14 @@
  *   • Each DraftValue: name + value + unit, confidence badge, source tag,
  *     needs_verification warning, rationale toggle, alternatives list
  *
+ * Shared primitives (ConfidenceBadge, SpecRow, CategoryGroup, helpers) are
+ * extracted to spec-shared/ for reuse in HierarchicalSpecView.
+ *
+ * @see plans/hierarchical-spec-view.md §5 Component Reuse Strategy
  * @see plans/concept-pack-to-engineering-specs.md
  * @see src/types/generated/engineeringSpec.ts
  */
 
-import { useState } from "react";
 import {
   Collapsible,
   CollapsibleTrigger,
@@ -28,20 +31,16 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
-import { ChevronRight, AlertTriangle, ShieldCheck, Info } from "lucide-react";
+import { ChevronRight, AlertTriangle, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import type {
   EngineeringSpecDraftResponse,
   EngineeringSpecDraft,
-  DraftValue,
-  DraftCategory,
 } from "@/types/generated/engineeringSpec";
-import {
-  CONFIDENCE_COLORS,
-  CONFIDENCE_SCORES,
-  DRAFT_CATEGORIES,
-} from "@/types/generated/engineeringSpec";
+
+// Import shared primitives from spec-shared/
+import { CategoryGroup, groupByCategory, pctStr } from "./spec-shared";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -60,188 +59,8 @@ export interface EngineeringSpecDraftPanelProps {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Sub-components (panel-specific; shared ones live in spec-shared/)
 // ---------------------------------------------------------------------------
-
-/** Format a DraftValue's value for display. */
-function fmtValue(v: DraftValue): string {
-  if (v.value == null) return "—";
-  if (typeof v.value === "number") return String(v.value);
-  if (typeof v.value === "string") return v.value;
-  // Structured object/array → compact JSON
-  try {
-    return JSON.stringify(v.value);
-  } catch {
-    return String(v.value);
-  }
-}
-
-/** Human-readable field name: snake_case → Title Case. */
-function humanize(s: string): string {
-  return s
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-/** Group specs by category, preserving DRAFT_CATEGORIES order. */
-function groupByCategory(specs: DraftValue[]): Map<DraftCategory, DraftValue[]> {
-  const map = new Map<DraftCategory, DraftValue[]>();
-  for (const cat of DRAFT_CATEGORIES) {
-    const items = specs.filter((s) => s.category === cat.key);
-    if (items.length > 0) map.set(cat.key, items);
-  }
-  // Catch any uncategorized specs (shouldn't happen, but defensive)
-  const knownKeys = new Set(DRAFT_CATEGORIES.map((c) => c.key));
-  const uncategorized = specs.filter((s) => !knownKeys.has(s.category));
-  if (uncategorized.length > 0) {
-    const existing = map.get("manufacturing") ?? [];
-    map.set("manufacturing", [...existing, ...uncategorized]);
-  }
-  return map;
-}
-
-/** Overall confidence as percentage string. */
-function pctStr(score: number): string {
-  return `${Math.round(score * 100)}%`;
-}
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-/** Confidence badge with color coding. */
-function ConfidenceBadge({ confidence }: { confidence: DraftValue["confidence"] }) {
-  const c = CONFIDENCE_COLORS[confidence];
-  return (
-    <Badge
-      variant="outline"
-      className={cn("text-[10px] px-1.5 py-0 h-5 font-medium", c.bg, c.text, c.border)}
-    >
-      {c.labelZh}
-    </Badge>
-  );
-}
-
-/** Single DraftValue row inside a category group. */
-function SpecRow({ spec }: { spec: DraftValue }) {
-  const [showDetail, setShowDetail] = useState(false);
-  const hasAlternatives = spec.alternatives && spec.alternatives.length > 0;
-
-  return (
-    <div className="space-y-1">
-      {/* Main row */}
-      <div className="flex items-center gap-2 text-xs group">
-        {/* Field name */}
-        <span className="font-medium text-foreground min-w-[120px] shrink-0">
-          {humanize(spec.field_name)}
-        </span>
-
-        {/* Value + unit */}
-        <span className="font-mono text-foreground/80">
-          {fmtValue(spec)}
-          {spec.unit && (
-            <span className="ml-0.5 text-muted-foreground">{spec.unit}</span>
-          )}
-        </span>
-
-        {/* Confidence badge */}
-        <ConfidenceBadge confidence={spec.confidence} />
-
-        {/* Source tag */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 cursor-default">
-              {spec.source}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent side="top" className="max-w-xs text-xs">
-            來源：{spec.source}
-          </TooltipContent>
-        </Tooltip>
-
-        {/* Needs verification warning */}
-        {spec.needs_verification && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
-            </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">
-              需要人工驗證
-            </TooltipContent>
-          </Tooltip>
-        )}
-
-        {/* Detail toggle */}
-        {(spec.rationale || hasAlternatives) && (
-          <button
-            onClick={() => setShowDetail(!showDetail)}
-            className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity"
-          >
-            <Info className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
-          </button>
-        )}
-      </div>
-
-      {/* Detail panel */}
-      {showDetail && (
-        <div className="ml-[120px] pl-2 border-l-2 border-muted space-y-1 text-[11px] text-muted-foreground">
-          {spec.rationale && (
-            <p>
-              <span className="font-medium text-foreground/70">理由：</span>
-              {spec.rationale}
-            </p>
-          )}
-          {hasAlternatives && (
-            <div>
-              <span className="font-medium text-foreground/70">替代方案：</span>
-              <ul className="list-disc list-inside mt-0.5 space-y-0.5">
-                {spec.alternatives!.map((alt, i) => (
-                  <li key={i}>
-                    {Object.entries(alt).map(([k, v]) => (
-                      <span key={k} className="mr-2">
-                        <span className="font-medium">{k}:</span> {String(v)}
-                      </span>
-                    ))}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Category group header + spec rows. */
-function CategoryGroup({
-  categoryKey,
-  specs,
-}: {
-  categoryKey: DraftCategory;
-  specs: DraftValue[];
-}) {
-  const catDef = DRAFT_CATEGORIES.find((c) => c.key === categoryKey);
-  const icon = catDef?.icon ?? "📋";
-  const label = catDef?.labelZh ?? categoryKey;
-
-  return (
-    <div className="space-y-1.5">
-      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-        <span>{icon}</span>
-        {label}
-        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 ml-1">
-          {specs.length}
-        </Badge>
-      </p>
-      <div className="space-y-1.5 pl-1">
-        {specs.map((s) => (
-          <SpecRow key={`${s.field_name}-${s.category}`} spec={s} />
-        ))}
-      </div>
-    </div>
-  );
-}
 
 /** Single subsystem collapsible card. */
 function SubsystemDraftCard({ draft }: { draft: EngineeringSpecDraft }) {

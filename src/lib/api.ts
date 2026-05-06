@@ -1529,7 +1529,7 @@ export function engSpecStep1bEnrich(body: EngSpecStep1bRequest) {
   return request<EngSpecStep1bResponse>(
     "/scamper/engineering-spec-drafts/step1b-enrich",
     body,
-    { timeoutMs: 120_000 },  // 2 min — web spatial + package discovery
+    { timeoutMs: 280_000 },  // 2 min — web spatial + package discovery
   );
 }
 
@@ -1538,7 +1538,7 @@ export function engSpecStep2Generate(body: EngSpecStep2Request) {
   return request<EngSpecStep2Response>(
     "/scamper/engineering-spec-drafts/step2-generate",
     body,
-    { timeoutMs: 280_000 },  // ~4.7 min — LLM retry worst-case ≈247 s, Nginx ceiling 300 s
+    { timeoutMs: 560_000 },
   );
 }
 
@@ -1547,7 +1547,7 @@ export function engSpecStep3Strengthen(body: EngSpecStep3Request) {
   return request<EngSpecStep3Response>(
     "/scamper/engineering-spec-drafts/step3-strengthen",
     body,
-    { timeoutMs: 280_000 },  // ~4.7 min — match Step 2 budget; Nginx ceiling 300 s
+    { timeoutMs: 560_000 },  // ~4.7 min — match Step 2 budget; Nginx ceiling 300 s
   );
 }
 

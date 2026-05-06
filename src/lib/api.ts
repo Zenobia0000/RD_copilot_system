@@ -1471,15 +1471,59 @@ export type {
   EngineeringSpecDraftResponse,
   EngineeringSpecDraft,
   DraftValue,
+  EngSpecStep1Response,
+  EngSpecStep2Request,
+  EngSpecStep2Response,
+  EngSpecStep3Request,
+  EngSpecStep3Response,
 } from "@/types/generated/engineeringSpec";
 
-import type { EngineeringSpecDraftResponse } from "@/types/generated/engineeringSpec";
+import type {
+  EngineeringSpecDraftResponse,
+  EngSpecStep1Response,
+  EngSpecStep2Response,
+  EngSpecStep3Response,
+} from "@/types/generated/engineeringSpec";
+
+import type {
+  EngSpecStep2Request,
+  EngSpecStep3Request,
+} from "@/types/generated/engineeringSpec";
 
 export function scamperEngineeringSpecDrafts(body: SubsystemSuggestRequest) {
   return request<EngineeringSpecDraftResponse>(
     "/scamper/engineering-spec-drafts",
     body,
     { timeoutMs: 300_000 }
+  );
+}
+
+// ── Split Engineering-Spec Pipeline ──────────────────────────────────────
+
+/** Step 1: Expand concept architecture → 3-level subsystem hierarchy. */
+export function engSpecStep1Expand(body: SubsystemSuggestRequest) {
+  return request<EngSpecStep1Response>(
+    "/scamper/engineering-spec-drafts/step1-expand",
+    body,
+    { timeoutMs: 180_000 },  // 3 min — spatial resolution can be slow
+  );
+}
+
+/** Step 2: Generate per-subsystem engineering spec drafts. */
+export function engSpecStep2Generate(body: EngSpecStep2Request) {
+  return request<EngSpecStep2Response>(
+    "/scamper/engineering-spec-drafts/step2-generate",
+    body,
+    { timeoutMs: 120_000 },  // 2 min
+  );
+}
+
+/** Step 3: Strengthen sources & upgrade confidence levels. */
+export function engSpecStep3Strengthen(body: EngSpecStep3Request) {
+  return request<EngSpecStep3Response>(
+    "/scamper/engineering-spec-drafts/step3-strengthen",
+    body,
+    { timeoutMs: 120_000 },  // 2 min
   );
 }
 

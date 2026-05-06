@@ -188,3 +188,5 @@ export type { KnowledgeEntry } from './useKnowledge';
 // --- Engineering Spec Drafts ---
 export { useGenerateEngineeringSpecDrafts } from './useEngineeringSpecDrafts';
 export type { GenerateEngineeringSpecVariables } from './useEngineeringSpecDrafts';
+export { useEngineeringSpecDraftsPipeline } from './useEngineeringSpecDraftsPipeline';
+export type { PipelinePhase, PipelineState } from './useEngineeringSpecDraftsPipeline';

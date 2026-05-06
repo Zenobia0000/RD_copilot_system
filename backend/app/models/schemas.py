@@ -2208,3 +2208,57 @@ class EngineeringSpecDraftResponse(BaseModel):
     drafts: list[EngineeringSpecDraft] = Field(default_factory=list)
     subsystem_tree: list[SuggestedSubsystem] = Field(default_factory=list)
     package_map: PackageMap | None = None
+
+
+# ── Split API: Engineering Spec Drafts Pipeline ──────────────────────────────
+# These schemas support the 3-step split pipeline that avoids the 300s Nginx
+# timeout by breaking one long request into three shorter HTTP round-trips.
+# See plans/split-api-engineering-spec-drafts.md for full design rationale.
+
+
+class EngSpecStep1Response(BaseModel):
+    """Step 1 result: expanded subsystem tree with spatial estimates,
+    interface contracts, and package map."""
+    subsystems: list[SuggestedSubsystem] = Field(default_factory=list)
+    package_map: PackageMap | None = None
+
+
+class EngSpecStep2Request(BaseModel):
+    """Input for Step 2 (AI Spec Generation).
+
+    Requires the expanded subsystem tree produced by Step 1.
+    ``library_summary`` is re-resolved server-side (< 1 s) to avoid
+    passing large strings across the wire.
+    """
+    project_id: str = Field(..., description="Project identifier")
+    mission: str = Field(..., description="Design mission / objective")
+    subsystems: list[SuggestedSubsystem] = Field(
+        ..., description="Expanded subsystem tree from Step 1",
+    )
+
+
+class EngSpecStep2Response(BaseModel):
+    """Step 2 result: raw AI-generated engineering spec drafts."""
+    drafts: list[EngineeringSpecDraft] = Field(default_factory=list)
+
+
+class EngSpecStep3Request(BaseModel):
+    """Input for Step 3 (Source Strengthening).
+
+    Requires raw drafts from Step 2 **and** the expanded subsystem tree
+    from Step 1 (needed by the strengthening prompt as ``subsystem_tree_json``).
+    ``library_summary`` is re-resolved server-side.
+    """
+    project_id: str = Field(..., description="Project identifier")
+    mission: str = Field(..., description="Design mission / objective")
+    drafts: list[EngineeringSpecDraft] = Field(
+        ..., description="Raw drafts from Step 2",
+    )
+    subsystems: list[SuggestedSubsystem] = Field(
+        ..., description="Expanded subsystem tree from Step 1 (for prompt context)",
+    )
+
+
+class EngSpecStep3Response(BaseModel):
+    """Step 3 result: strengthened drafts with improved provenance."""
+    drafts: list[EngineeringSpecDraft] = Field(default_factory=list)

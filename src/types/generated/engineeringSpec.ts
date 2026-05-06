@@ -137,6 +137,44 @@ export interface EngineeringSpecDraftResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Split-API step types (mirrors EngSpecStep*Request/Response in schemas.py)
+// ---------------------------------------------------------------------------
+
+/** Response from Step 1 — Structure Expansion. */
+export interface EngSpecStep1Response {
+  /** Expanded 3-level subsystem tree. */
+  subsystems: SuggestedSubsystem[];
+  /** Discovery output. Null when validator finds no spatial data. */
+  package_map: PackageMap | null;
+}
+
+/** Request for Step 2 — AI Spec Generation. */
+export interface EngSpecStep2Request {
+  project_id: string;
+  mission: string;
+  subsystems: SuggestedSubsystem[];
+}
+
+/** Response from Step 2 — AI Spec Generation (drafts without strengthening). */
+export interface EngSpecStep2Response {
+  drafts: EngineeringSpecDraft[];
+}
+
+/** Request for Step 3 — Source Strengthening. */
+export interface EngSpecStep3Request {
+  project_id: string;
+  mission: string;
+  drafts: EngineeringSpecDraft[];
+  /** Subsystem tree for prompt context (needed by strengthening prompt). */
+  subsystems: SuggestedSubsystem[];
+}
+
+/** Response from Step 3 — Source Strengthening (final drafts). */
+export interface EngSpecStep3Response {
+  drafts: EngineeringSpecDraft[];
+}
+
+// ---------------------------------------------------------------------------
 // Confidence score mapping (mirrors _CONFIDENCE_SCORES in schemas.py)
 // ---------------------------------------------------------------------------
 

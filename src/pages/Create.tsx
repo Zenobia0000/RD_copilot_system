@@ -115,7 +115,7 @@ import { ArchitectureHaltOverlay } from "@/components/create/ArchitectureHaltOve
 import { MultiSolutionAdoptionPanel } from "@/components/create/MultiSolutionAdoptionPanel";
 import { useConceptRoutes, useCompatibilityPairs } from "@/hooks/api/useConceptRoutes";
 import { useConceptArchitecturePack, useGenerateConceptArchitecturePack } from "@/hooks/api/useConceptArchitecturePack";
-import { useGenerateEngineeringSpecDrafts } from "@/hooks/api/useEngineeringSpecDrafts";
+import { useEngineeringSpecDraftsPipeline } from "@/hooks/api/useEngineeringSpecDraftsPipeline";
 import type { ConceptArchitecturePackResponse } from "@/types/conceptArchitecture";
 import type { EngineeringSpecDraftResponse } from "@/types/generated/engineeringSpec";
 import { EngineeringSpecDraftPanel } from "@/components/create/EngineeringSpecDraftPanel";
@@ -206,8 +206,8 @@ export default function Create() {
   // v9: Concept Architecture Pack
   const conceptPackQuery = useConceptArchitecturePack(id);
   const generatePackMutation = useGenerateConceptArchitecturePack(id);
-  // v10: Engineering Spec Drafts
-  const engSpecMutation = useGenerateEngineeringSpecDrafts(id, conceptPackQuery.data?.pack);
+  // v10: Engineering Spec Drafts (3-step pipeline)
+  const engSpecPipeline = useEngineeringSpecDraftsPipeline(id, conceptPackQuery.data?.pack);
 
   // ── Phase 1 context ──
   const { data: brief } = useBrief(id);
@@ -2203,9 +2203,13 @@ export default function Create() {
     );
   }
 
-  // ── Step 3: Engineering Spec Drafts ──
+  // ── Step 3: Engineering Spec Drafts (3-step pipeline) ──
   function renderSubsystem() {
     const packData = conceptPackQuery.data;
+    const pipelineStepLabels = ["結構展開", "規格生成", "來源強化"] as const;
+    const pipelineStatus = engSpecPipeline.status;
+    const isRunning = engSpecPipeline.isRunning;
+
     return (
       <div className="space-y-6">
         {/* Engineering Spec Drafts — concept pack → detailed specs with provenance */}
@@ -2219,21 +2223,19 @@ export default function Create() {
                 </p>
               </div>
               <AiButton
-                onClick={() => {
-                  engSpecMutation.mutate(
-                    { mission: briefMission, contradictions: contradictionDescs },
-                    {
-                      onSuccess: (data) => {
-                        setEngSpecResult(data);
-                        toast.success(`已生成 ${data.drafts.length} 個子系統的工程規格草案`);
-                      },
-                      onError: (err) => {
-                        toast.error(`工程規格草案生成失敗: ${err.message}`);
-                      },
-                    },
-                  );
+                onClick={async () => {
+                  try {
+                    const data = await engSpecPipeline.run({
+                      mission: briefMission,
+                      contradictions: contradictionDescs,
+                    });
+                    setEngSpecResult(data);
+                    toast.success(`已生成 ${data.drafts.length} 個子系統的工程規格草案`);
+                  } catch (err) {
+                    toast.error(`工程規格草案生成失敗: ${(err as Error).message}`);
+                  }
                 }}
-                loading={engSpecMutation.isPending}
+                loading={isRunning}
                 disabled={!conceptPackApplied}
               >
                 <Sparkles className="w-4 h-4" />
@@ -2243,14 +2245,87 @@ export default function Create() {
           </Card>
         )}
 
-        {/* Engineering Spec Draft results panel */}
-        {engSpecResult && (
-          <EngineeringSpecDraftPanel data={engSpecResult} />
+        {/* Pipeline progress indicator */}
+        {isRunning && (
+          <Card className="border-dashed border-amber-400/40">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-3">
+                {pipelineStepLabels.map((label, i) => {
+                  const stepKey = `step${i + 1}` as "step1" | "step2" | "step3";
+                  const isCurrent = pipelineStatus === stepKey;
+                  const isDone =
+                    (stepKey === "step1" && !!engSpecPipeline.step1Result) ||
+                    (stepKey === "step2" && !!engSpecPipeline.step2Result) ||
+                    (stepKey === "step3" && !!engSpecPipeline.step3Result);
+                  return (
+                    <div key={stepKey} className="flex items-center gap-1.5 text-xs">
+                      {isDone ? (
+                        <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                      ) : isCurrent ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500" />
+                      ) : (
+                        <div className="w-3.5 h-3.5 rounded-full border border-muted-foreground/30" />
+                      )}
+                      <span className={cn(
+                        isCurrent && "font-medium text-amber-600",
+                        isDone && "text-green-600",
+                        !isCurrent && !isDone && "text-muted-foreground",
+                      )}>
+                        {label}
+                      </span>
+                      {i < pipelineStepLabels.length - 1 && (
+                        <span className="text-muted-foreground/40 mx-1">→</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
-        {/* Verification Checklist — needs_verification items + CSV export */}
+        {/* Step 1 preview: lightweight subsystem count summary */}
+        {engSpecPipeline.step1Result && !engSpecResult && (
+          <Card className="border-green-400/30 bg-green-50/5">
+            <CardContent className="p-3 flex items-center gap-3">
+              <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+              <p className="text-xs text-muted-foreground">
+                結構展開完成 —{" "}
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  {engSpecPipeline.step1Result.subsystems.length} 個子系統
+                </Badge>
+                {engSpecPipeline.step1Result.package_map && (
+                  <>
+                    {" "}·{" "}
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                      Package Map ✓
+                    </Badge>
+                  </>
+                )}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 2 preview: draft specs (before source strengthening) */}
+        {engSpecPipeline.step2Result && engSpecPipeline.step1Result && !engSpecResult && (
+          <EngineeringSpecDraftPanel
+            data={{
+              drafts: engSpecPipeline.step2Result.drafts,
+              subsystem_tree: engSpecPipeline.step1Result.subsystems,
+              package_map: engSpecPipeline.step1Result.package_map,
+            }}
+            previewMode
+            className="opacity-80"
+          />
+        )}
+
+        {/* Final results: fully strengthened specs + verification checklist */}
         {engSpecResult && (
-          <VerificationChecklist data={engSpecResult} />
+          <>
+            <EngineeringSpecDraftPanel data={engSpecResult} />
+            <VerificationChecklist data={engSpecResult} />
+          </>
         )}
       </div>
     );

@@ -51,6 +51,12 @@ export interface EngineeringSpecDraftPanelProps {
   /** Pipeline response containing all subsystem drafts. */
   data: EngineeringSpecDraftResponse;
   className?: string;
+  /**
+   * When true, the panel is showing Step-2 drafts that have NOT yet been
+   * strengthened by Step 3 (source strengthening). A subtle "Draft" banner
+   * is rendered so users know confidence/sources may still be upgraded.
+   */
+  previewMode?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -331,6 +337,7 @@ function EmptyState() {
 export function EngineeringSpecDraftPanel({
   data,
   className,
+  previewMode = false,
 }: EngineeringSpecDraftPanelProps) {
   const { drafts } = data;
   const isEmpty = drafts.length === 0;
@@ -344,12 +351,20 @@ export function EngineeringSpecDraftPanel({
       : 0;
 
   return (
-    <Card className={cn("border-amber-400/30", className)}>
+    <Card className={cn("border-amber-400/30", previewMode && "border-dashed", className)}>
+      {/* Preview mode banner */}
+      {previewMode && (
+        <CardContent className="px-4 pt-3 pb-0">
+          <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-amber-400 text-amber-600 bg-amber-50 dark:bg-amber-950/20">
+            ⏳ 草案預覽 — 來源強化進行中，信心度可能會提升
+          </Badge>
+        </CardContent>
+      )}
       {/* Header */}
       <CardContent className="p-4 pb-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
           <span>📋</span>
-          工程規格草案
+          {previewMode ? "工程規格草案（預覽）" : "工程規格草案"}
           {!isEmpty && (
             <>
               <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 ml-1">

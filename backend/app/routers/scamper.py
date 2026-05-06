@@ -2,10 +2,13 @@
 
 SOW Module: SCAMPER (scamper)
 SOW Endpoints:
-  - POST /scamper/perform                    ← 7-action transform (implemented)
-  - POST /scamper/subsystem-suggestions      ← AI suggest subsystems (implemented)
-  - POST /scamper/engineering-spec-drafts    ← concept pack → eng spec drafts (implemented)
-  - POST /scamper/feedback-contradictions    ← Feed new contradictions back (stub)
+  - POST /scamper/perform                                ← 7-action transform (implemented)
+  - POST /scamper/subsystem-suggestions                  ← AI suggest subsystems (implemented)
+  - POST /scamper/engineering-spec-drafts                ← concept pack → eng spec drafts (wrapper, implemented)
+  - POST /scamper/engineering-spec-drafts/step1-expand   ← split step 1 (implemented)
+  - POST /scamper/engineering-spec-drafts/step2-generate ← split step 2 (implemented)
+  - POST /scamper/engineering-spec-drafts/step3-strengthen ← split step 3 (implemented)
+  - POST /scamper/feedback-contradictions                ← Feed new contradictions back (stub)
 """
 
 from fastapi import APIRouter, HTTPException
@@ -16,6 +19,11 @@ from app.models.schemas import (
     SubsystemSuggestRequest,
     SubsystemSuggestResponse,
     EngineeringSpecDraftResponse,
+    EngSpecStep1Response,
+    EngSpecStep2Request,
+    EngSpecStep2Response,
+    EngSpecStep3Request,
+    EngSpecStep3Response,
     ScamperFeedbackRequest,
     ScamperFeedbackResponse,
     SpatialOverlayRequest,
@@ -25,6 +33,9 @@ from app.agents.triz_solver import (
     scamper_transform,
     suggest_subsystems,
     generate_engineering_spec_drafts,
+    eng_spec_step1_expand,
+    eng_spec_step2_generate,
+    eng_spec_step3_strengthen,
     IncompleteLLMResponseError,
 )
 from app.agents.scamper_feedback import process_scamper_feedback
@@ -82,6 +93,55 @@ def scamper_engineering_spec_drafts(req: SubsystemSuggestRequest):
         return generate_engineering_spec_drafts(req)
     except IncompleteLLMResponseError as exc:
         raise HTTPException(status_code=502, detail=exc.to_dict()) from exc
+
+
+# ── Split Engineering-Spec Pipeline Endpoints ────────────────────────────
+
+
+@router.post(
+    "/scamper/engineering-spec-drafts/step1-expand",
+    response_model=EngSpecStep1Response,
+)
+def scamper_eng_spec_step1(req: SubsystemSuggestRequest):
+    """Step 1: Expand concept architecture into 3-level subsystem hierarchy.
+
+    Requires ``req.concept_pack`` to be populated.
+    Raises HTTP 422 when concept_pack is missing.
+    Raises HTTP 502 when the LLM cannot produce complete 6-dim contracts.
+    """
+    if req.concept_pack is None:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "missing_concept_pack",
+                "message": (
+                    "step1-expand requires concept_pack to be set. "
+                    "Generate a Concept Architecture Pack first."
+                ),
+            },
+        )
+    try:
+        return eng_spec_step1_expand(req)
+    except IncompleteLLMResponseError as exc:
+        raise HTTPException(status_code=502, detail=exc.to_dict()) from exc
+
+
+@router.post(
+    "/scamper/engineering-spec-drafts/step2-generate",
+    response_model=EngSpecStep2Response,
+)
+def scamper_eng_spec_step2(req: EngSpecStep2Request):
+    """Step 2: Generate engineering spec drafts for each subsystem."""
+    return eng_spec_step2_generate(req)
+
+
+@router.post(
+    "/scamper/engineering-spec-drafts/step3-strengthen",
+    response_model=EngSpecStep3Response,
+)
+def scamper_eng_spec_step3(req: EngSpecStep3Request):
+    """Step 3: Strengthen sources and upgrade confidence levels."""
+    return eng_spec_step3_strengthen(req)
 
 
 @router.post("/scamper/spatial-overlay", response_model=SpatialOverlayResponse)

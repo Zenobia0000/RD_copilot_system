@@ -77,6 +77,13 @@ from app.models.schemas import (
     EngineeringSpecDraft,
     EngineeringSpecDraftResponse,
     ConceptArchitecturePack,
+    PackageMap,
+    # Split API: Engineering Spec Drafts Pipeline
+    EngSpecStep1Response,
+    EngSpecStep2Request,
+    EngSpecStep2Response,
+    EngSpecStep3Request,
+    EngSpecStep3Response,
 )
 from app.services import reference_library  # legacy direct access (kept for back-compat)
 from app.services.spatial_lookup import LookupQuery, default_resolver
@@ -1258,37 +1265,30 @@ def _serialize_layered_triz_for_f2_prompt(
 # Engineering Spec Pipeline — Concept Architecture Pack → Engineering Drafts
 # ---------------------------------------------------------------------------
 
-def generate_engineering_spec_drafts(
+
+# ── Split API step functions ────────────────────────────────────────────────
+
+
+def eng_spec_step1_expand(
     req: SubsystemSuggestRequest,
-) -> EngineeringSpecDraftResponse:
-    """3-step pipeline: concept architecture pack → detailed engineering spec drafts.
+) -> EngSpecStep1Response:
+    """Step 1 — Structure Expansion.
 
-    Step 1 — Structure Expansion:
-        Expand concept-level subsystems into a full 3-level hierarchy
-        (System → Module → Component) with spatial estimates and interface contracts.
-
-    Step 2 — AI Spec Generation:
-        For each subsystem, generate 5-15 DraftValue specs with full provenance
-        (source, confidence, needs_verification).
-
-    Step 3 — Source Strengthening:
-        Attempt to upgrade confidence levels by finding better references,
-        and produce a verification checklist for all remaining unverified items.
+    Expand concept-level subsystems into a full 3-level hierarchy
+    (System → Module → Component) with spatial estimates, interface contracts,
+    and a package map.
 
     Requires ``req.concept_pack`` to be non-None.
-
-    Returns:
-        EngineeringSpecDraftResponse with drafts, subsystem_tree, and package_map.
     """
     if req.concept_pack is None:
         raise ValueError(
-            "generate_engineering_spec_drafts requires req.concept_pack to be set. "
+            "eng_spec_step1_expand requires req.concept_pack to be set. "
             "Use suggest_subsystems() for the legacy (non-concept-pack) path."
         )
 
     pack = req.concept_pack
 
-    # -- Resolver & library summary (same pattern as suggest_subsystems) -----
+    # -- Resolver & library summary ------------------------------------------
     resolver = default_resolver(include_web=False)
     with phase_timer("eng_spec.summarize", project_id=req.project_id):
         library_summary = resolver.summarize_for_prompt(project_id=req.project_id)
@@ -1305,7 +1305,7 @@ def generate_engineering_spec_drafts(
         indent=2,
     )
 
-    # ── Step 1: Structure Expansion ─────────────────────────────────────────
+    # ── LLM expansion call ──────────────────────────────────────────────────
     expansion_prompt = ENGINEERING_SPEC_EXPANSION.format(
         mission=req.mission,
         concept_subsystems=concept_subsystems_json,
@@ -1338,7 +1338,7 @@ def generate_engineering_spec_drafts(
 
     tree_response = SubsystemSuggestResponse.model_validate(expansion_data)
 
-    # Validate 6-dim contracts — retry once if violations found (same as suggest_subsystems)
+    # Validate 6-dim contracts — retry once if violations found
     violations = _find_empty_contracts(tree_response.subsystems)
     if violations:
         emit_counter("eng_spec.step1_violations", value=len(violations), attempt=1)
@@ -1368,14 +1368,51 @@ def generate_engineering_spec_drafts(
     with phase_timer("eng_spec.resolve_spatial", project_id=req.project_id):
         _resolve_spatial_via_layers(tree_response.subsystems, req.project_id, full_resolver)
 
-    # Serialise the expanded tree for downstream prompts
+    # Compute package map
+    package_map: PackageMap | None = None
+    with phase_timer("eng_spec.discover_package", project_id=req.project_id) as _phase:
+        try:
+            package_map = discover_package(tree_response.subsystems)
+        except Exception as exc:
+            emit_counter(
+                "eng_spec.validator_fallback",
+                value=1,
+                error_type=type(exc).__name__,
+            )
+            logger.warning("eng_spec: spatial validator failed: %s", exc)
+            _phase["status"] = "fallback"
+
+    emit_counter(
+        "eng_spec.step1_complete",
+        value=1,
+        project_id=req.project_id,
+        tree_count=len(tree_response.subsystems),
+    )
+
+    return EngSpecStep1Response(
+        subsystems=tree_response.subsystems,
+        package_map=package_map,
+    )
+
+
+def eng_spec_step2_generate(req: EngSpecStep2Request) -> EngSpecStep2Response:
+    """Step 2 — AI Spec Generation.
+
+    For each subsystem, generate 5-15 DraftValue specs with full provenance
+    (source, confidence, needs_verification).
+    """
+    # Re-resolve library summary (< 1 s, avoids passing large string across API)
+    resolver = default_resolver(include_web=False)
+    with phase_timer("eng_spec.summarize", project_id=req.project_id):
+        library_summary = resolver.summarize_for_prompt(project_id=req.project_id)
+
+    # Serialise expanded subsystem tree for the generation prompt
     subsystem_tree_json = json.dumps(
-        [s.model_dump(mode="json") for s in tree_response.subsystems],
+        [s.model_dump(mode="json") for s in req.subsystems],
         ensure_ascii=False,
         indent=2,
     )
 
-    # ── Step 2: AI Spec Generation ──────────────────────────────────────────
     generation_prompt = ENGINEERING_SPEC_GENERATION.format(
         mission=req.mission,
         subsystem_tree=subsystem_tree_json,
@@ -1411,9 +1448,22 @@ def generate_engineering_spec_drafts(
         emit_counter("eng_spec.step2_empty", value=1, project_id=req.project_id)
         logger.error("eng_spec step2: LLM returned zero valid drafts")
 
-    # ── Step 3: Source Strengthening + Verification Checklist ───────────────
+    return EngSpecStep2Response(drafts=drafts)
+
+
+def eng_spec_step3_strengthen(req: EngSpecStep3Request) -> EngSpecStep3Response:
+    """Step 3 — Source Strengthening + Verification Checklist.
+
+    Attempt to upgrade confidence levels by finding better references,
+    and produce a verification checklist for all remaining unverified items.
+    """
+    # Re-resolve library summary (< 1 s)
+    resolver = default_resolver(include_web=False)
+    with phase_timer("eng_spec.summarize", project_id=req.project_id):
+        library_summary = resolver.summarize_for_prompt(project_id=req.project_id)
+
     current_drafts_json = json.dumps(
-        [d.model_dump(mode="json") for d in drafts],
+        [d.model_dump(mode="json") for d in req.drafts],
         ensure_ascii=False,
         indent=2,
     )
@@ -1438,7 +1488,7 @@ def generate_engineering_spec_drafts(
 
     # Merge strengthened specs back into validated drafts
     final_drafts: list[EngineeringSpecDraft] = []
-    for draft in drafts:
+    for draft in req.drafts:
         if draft.subsystem_code in strengthened_map:
             try:
                 upgraded = EngineeringSpecDraft.model_validate(
@@ -1458,32 +1508,53 @@ def generate_engineering_spec_drafts(
             # LLM didn't return a strengthened version — keep original
             final_drafts.append(draft)
 
-    # Compute package map
-    package_map = None
-    with phase_timer("eng_spec.discover_package", project_id=req.project_id) as _phase:
-        try:
-            package_map = discover_package(tree_response.subsystems)
-        except Exception as exc:
-            emit_counter(
-                "eng_spec.validator_fallback",
-                value=1,
-                error_type=type(exc).__name__,
-            )
-            logger.warning("eng_spec: spatial validator failed: %s", exc)
-            _phase["status"] = "fallback"
+    return EngSpecStep3Response(drafts=final_drafts)
+
+
+def generate_engineering_spec_drafts(
+    req: SubsystemSuggestRequest,
+) -> EngineeringSpecDraftResponse:
+    """Legacy wrapper — calls the 3 split pipeline steps sequentially.
+
+    Kept for backward compatibility so the original
+    ``/scamper/engineering-spec-drafts`` endpoint continues to work unchanged.
+
+    Requires ``req.concept_pack`` to be non-None.
+    """
+    # Step 1 — Structure Expansion + discover_package
+    step1 = eng_spec_step1_expand(req)
+
+    # Step 2 — AI Spec Generation
+    step2 = eng_spec_step2_generate(
+        EngSpecStep2Request(
+            project_id=req.project_id,
+            mission=req.mission,
+            subsystems=step1.subsystems,
+        )
+    )
+
+    # Step 3 — Source Strengthening
+    step3 = eng_spec_step3_strengthen(
+        EngSpecStep3Request(
+            project_id=req.project_id,
+            mission=req.mission,
+            drafts=step2.drafts,
+            subsystems=step1.subsystems,
+        )
+    )
 
     emit_counter(
         "eng_spec.pipeline_complete",
         value=1,
         project_id=req.project_id,
-        draft_count=len(final_drafts),
-        tree_count=len(tree_response.subsystems),
+        draft_count=len(step3.drafts),
+        tree_count=len(step1.subsystems),
     )
 
     return EngineeringSpecDraftResponse(
-        drafts=final_drafts,
-        subsystem_tree=tree_response.subsystems,
-        package_map=package_map,
+        drafts=step3.drafts,
+        subsystem_tree=step1.subsystems,
+        package_map=step1.package_map,
     )
 
 

@@ -80,6 +80,9 @@ from app.models.schemas import (
     PackageMap,
     # Split API: Engineering Spec Drafts Pipeline
     EngSpecStep1Response,
+    EngSpecStep1aResponse,
+    EngSpecStep1bRequest,
+    EngSpecStep1bResponse,
     EngSpecStep2Request,
     EngSpecStep2Response,
     EngSpecStep3Request,
@@ -1269,20 +1272,21 @@ def _serialize_layered_triz_for_f2_prompt(
 # ── Split API step functions ────────────────────────────────────────────────
 
 
-def eng_spec_step1_expand(
+def eng_spec_step1a_expand(
     req: SubsystemSuggestRequest,
-) -> EngSpecStep1Response:
-    """Step 1 — Structure Expansion.
+) -> EngSpecStep1aResponse:
+    """Step 1a — LLM Structure Expansion (≤150 s typical).
 
     Expand concept-level subsystems into a full 3-level hierarchy
-    (System → Module → Component) with spatial estimates, interface contracts,
-    and a package map.
+    (System → Module → Component) with LLM-estimated spatial info and
+    interface contracts.  Does NOT run web-based spatial resolution or
+    package-map discovery (those are deferred to Step 1b).
 
     Requires ``req.concept_pack`` to be non-None.
     """
     if req.concept_pack is None:
         raise ValueError(
-            "eng_spec_step1_expand requires req.concept_pack to be set. "
+            "eng_spec_step1a_expand requires req.concept_pack to be set. "
             "Use suggest_subsystems() for the legacy (non-concept-pack) path."
         )
 
@@ -1312,9 +1316,9 @@ def eng_spec_step1_expand(
         concept_interfaces=concept_interfaces_json,
         reference_library=library_summary,
     )
-    with phase_timer("eng_spec.step1_expansion", project_id=req.project_id):
+    with phase_timer("eng_spec.step1a_expansion", project_id=req.project_id):
         raw_expansion = call_llm_json(ENGINEERING_SPEC_SYSTEM, expansion_prompt)
-    emit_counter("eng_spec.step1_done", value=1, project_id=req.project_id)
+    emit_counter("eng_spec.step1a_done", value=1, project_id=req.project_id)
 
     expansion_data = json.loads(raw_expansion)
 
@@ -1341,38 +1345,59 @@ def eng_spec_step1_expand(
     # Validate 6-dim contracts — retry once if violations found
     violations = _find_empty_contracts(tree_response.subsystems)
     if violations:
-        emit_counter("eng_spec.step1_violations", value=len(violations), attempt=1)
+        emit_counter("eng_spec.step1a_violations", value=len(violations), attempt=1)
         logger.warning(
-            "eng_spec step1: %d interface contracts had empty 6-dim fields; retrying",
+            "eng_spec step1a: %d interface contracts had empty 6-dim fields; retrying",
             len(violations),
         )
         retry_prompt = (
             expansion_prompt + "\n\n" + _format_violations_for_retry(violations)
         )
-        with phase_timer("eng_spec.step1_expansion", attempt=2, project_id=req.project_id):
+        with phase_timer("eng_spec.step1a_expansion", attempt=2, project_id=req.project_id):
             raw_expansion = call_llm_json(ENGINEERING_SPEC_SYSTEM, retry_prompt)
         expansion_data = json.loads(raw_expansion)
         tree_response = SubsystemSuggestResponse.model_validate(expansion_data)
 
         violations = _find_empty_contracts(tree_response.subsystems)
         if violations:
-            emit_counter("eng_spec.step1_incomplete", value=1, project_id=req.project_id)
+            emit_counter("eng_spec.step1a_incomplete", value=1, project_id=req.project_id)
             raise IncompleteLLMResponseError(
                 "Engineering spec expansion left required 6-dim interface contract "
                 f"fields blank after retry ({len(violations)} violations remaining)",
                 violations=violations,
             )
 
+    emit_counter(
+        "eng_spec.step1a_complete",
+        value=1,
+        project_id=req.project_id,
+        tree_count=len(tree_response.subsystems),
+    )
+
+    return EngSpecStep1aResponse(
+        subsystems=tree_response.subsystems,
+    )
+
+
+def eng_spec_step1b_enrich(
+    req: EngSpecStep1bRequest,
+) -> EngSpecStep1bResponse:
+    """Step 1b — Spatial Enrichment + Package Map (≤80 s typical).
+
+    Takes the LLM-expanded subsystem tree from Step 1a, resolves spatial
+    estimates via the layered chain (including web lookup), and discovers
+    the package map.
+    """
     # Resolve spatial estimates through layered chain (web enabled)
     full_resolver = default_resolver(include_web=True)
     with phase_timer("eng_spec.resolve_spatial", project_id=req.project_id):
-        _resolve_spatial_via_layers(tree_response.subsystems, req.project_id, full_resolver)
+        _resolve_spatial_via_layers(req.subsystems, req.project_id, full_resolver)
 
     # Compute package map
     package_map: PackageMap | None = None
     with phase_timer("eng_spec.discover_package", project_id=req.project_id) as _phase:
         try:
-            package_map = discover_package(tree_response.subsystems)
+            package_map = discover_package(req.subsystems)
         except Exception as exc:
             emit_counter(
                 "eng_spec.validator_fallback",
@@ -1383,15 +1408,37 @@ def eng_spec_step1_expand(
             _phase["status"] = "fallback"
 
     emit_counter(
-        "eng_spec.step1_complete",
+        "eng_spec.step1b_complete",
         value=1,
         project_id=req.project_id,
-        tree_count=len(tree_response.subsystems),
+        tree_count=len(req.subsystems),
     )
 
-    return EngSpecStep1Response(
-        subsystems=tree_response.subsystems,
+    return EngSpecStep1bResponse(
+        subsystems=req.subsystems,
         package_map=package_map,
+    )
+
+
+def eng_spec_step1_expand(
+    req: SubsystemSuggestRequest,
+) -> EngSpecStep1Response:
+    """Step 1 — Structure Expansion (backward-compatible wrapper).
+
+    Calls Step 1a (LLM expansion) then Step 1b (spatial enrichment)
+    sequentially.  Kept for the legacy ``step1-expand`` endpoint and the
+    monolithic ``engineering-spec-drafts`` wrapper.
+    """
+    step1a = eng_spec_step1a_expand(req)
+    step1b = eng_spec_step1b_enrich(
+        EngSpecStep1bRequest(
+            project_id=req.project_id,
+            subsystems=step1a.subsystems,
+        )
+    )
+    return EngSpecStep1Response(
+        subsystems=step1b.subsystems,
+        package_map=step1b.package_map,
     )
 
 

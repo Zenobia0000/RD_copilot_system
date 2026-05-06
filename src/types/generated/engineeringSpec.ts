@@ -148,6 +148,27 @@ export interface EngSpecStep1Response {
   package_map: PackageMap | null;
 }
 
+/** Response from Step 1a — LLM Structure Expansion only (no spatial/package). */
+export interface EngSpecStep1aResponse {
+  /** Expanded subsystem tree (spatial estimates are LLM-guesses, not web-resolved). */
+  subsystems: SuggestedSubsystem[];
+}
+
+/** Request for Step 1b — Spatial Enrichment + Package Map. */
+export interface EngSpecStep1bRequest {
+  project_id: string;
+  /** Subsystem tree from Step 1a (pre-spatial). */
+  subsystems: SuggestedSubsystem[];
+}
+
+/** Response from Step 1b — subsystems with resolved spatial + package map. */
+export interface EngSpecStep1bResponse {
+  /** Subsystems with web-resolved spatial estimates. */
+  subsystems: SuggestedSubsystem[];
+  /** Discovery output. Null when no spatial data found. */
+  package_map: PackageMap | null;
+}
+
 /** Request for Step 2 — AI Spec Generation. */
 export interface EngSpecStep2Request {
   project_id: string;

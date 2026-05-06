@@ -1472,6 +1472,9 @@ export type {
   EngineeringSpecDraft,
   DraftValue,
   EngSpecStep1Response,
+  EngSpecStep1aResponse,
+  EngSpecStep1bRequest,
+  EngSpecStep1bResponse,
   EngSpecStep2Request,
   EngSpecStep2Response,
   EngSpecStep3Request,
@@ -1481,6 +1484,9 @@ export type {
 import type {
   EngineeringSpecDraftResponse,
   EngSpecStep1Response,
+  EngSpecStep1aResponse,
+  EngSpecStep1bRequest,
+  EngSpecStep1bResponse,
   EngSpecStep2Response,
   EngSpecStep3Response,
 } from "@/types/generated/engineeringSpec";
@@ -1506,6 +1512,24 @@ export function engSpecStep1Expand(body: SubsystemSuggestRequest) {
     "/scamper/engineering-spec-drafts/step1-expand",
     body,
     { timeoutMs: 180_000 },  // 3 min — spatial resolution can be slow
+  );
+}
+
+/** Step 1a: LLM Structure Expansion only (≤150 s). */
+export function engSpecStep1aExpand(body: SubsystemSuggestRequest) {
+  return request<EngSpecStep1aResponse>(
+    "/scamper/engineering-spec-drafts/step1a-expand",
+    body,
+    { timeoutMs: 300_000 },  // 5 min — LLM expansion (60-90s) + optional retry (60-90s) + buffer
+  );
+}
+
+/** Step 1b: Spatial Enrichment + Package Map (≤80 s). */
+export function engSpecStep1bEnrich(body: EngSpecStep1bRequest) {
+  return request<EngSpecStep1bResponse>(
+    "/scamper/engineering-spec-drafts/step1b-enrich",
+    body,
+    { timeoutMs: 120_000 },  // 2 min — web spatial + package discovery
   );
 }
 

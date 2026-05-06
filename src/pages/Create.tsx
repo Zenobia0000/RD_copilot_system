@@ -2203,10 +2203,10 @@ export default function Create() {
     );
   }
 
-  // ── Step 3: Engineering Spec Drafts (3-step pipeline) ──
+  // ── Step 3: Engineering Spec Drafts (4-step pipeline) ──
   function renderSubsystem() {
     const packData = conceptPackQuery.data;
-    const pipelineStepLabels = ["結構展開", "規格生成", "來源強化"] as const;
+    const pipelineStepLabels = ["結構展開", "空間解析", "規格生成", "來源強化"] as const;
     const pipelineStatus = engSpecPipeline.status;
     const isRunning = engSpecPipeline.isRunning;
 
@@ -2251,10 +2251,12 @@ export default function Create() {
             <CardContent className="p-3">
               <div className="flex items-center gap-3">
                 {pipelineStepLabels.map((label, i) => {
-                  const stepKey = `step${i + 1}` as "step1" | "step2" | "step3";
+                  const phaseKeys = ["step1a", "step1b", "step2", "step3"] as const;
+                  const stepKey = phaseKeys[i];
                   const isCurrent = pipelineStatus === stepKey;
                   const isDone =
-                    (stepKey === "step1" && !!engSpecPipeline.step1Result) ||
+                    (stepKey === "step1a" && !!engSpecPipeline.step1aResult) ||
+                    (stepKey === "step1b" && !!engSpecPipeline.step1bResult) ||
                     (stepKey === "step2" && !!engSpecPipeline.step2Result) ||
                     (stepKey === "step3" && !!engSpecPipeline.step3Result);
                   return (
@@ -2284,13 +2286,68 @@ export default function Create() {
           </Card>
         )}
 
-        {/* Step 1 preview: lightweight subsystem count summary */}
+        {/* Pipeline error — persistent card (replaces transient toast) */}
+        {pipelineStatus === "error" && engSpecPipeline.error && (
+          <Card className="border-red-400/60 bg-red-50/10">
+            <CardContent className="p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <XCircle className="w-4 h-4 text-red-500 shrink-0" />
+                <p className="text-sm font-medium text-red-600">
+                  管線執行失敗
+                  {engSpecPipeline.failedStep && engSpecPipeline.failedStep !== "error" && (
+                    <span className="ml-1 text-xs font-normal text-red-400">
+                      （失敗於{" "}
+                      {({
+                        step1a: "結構展開",
+                        step1b: "空間解析",
+                        step2: "規格生成",
+                        step3: "來源強化",
+                      } as Record<string, string>)[engSpecPipeline.failedStep] ?? engSpecPipeline.failedStep}
+                      ）
+                    </span>
+                  )}
+                </p>
+              </div>
+              <p className="text-xs text-red-400/90 font-mono break-all whitespace-pre-wrap">
+                {engSpecPipeline.error.message}
+              </p>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 underline underline-offset-2"
+                  onClick={() => engSpecPipeline.reset()}
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  重置管線
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 1a preview: subsystem count (before spatial enrichment) */}
+        {engSpecPipeline.step1aResult && !engSpecPipeline.step1bResult && !engSpecResult && (
+          <Card className="border-amber-400/30 bg-amber-50/5">
+            <CardContent className="p-3 flex items-center gap-3">
+              <CheckCircle className="w-4 h-4 text-amber-500 shrink-0" />
+              <p className="text-xs text-muted-foreground">
+                結構展開完成 —{" "}
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  {engSpecPipeline.step1aResult.subsystems.length} 個子系統
+                </Badge>
+                {" "}· 空間解析進行中…
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 1b preview: spatial resolved + package map */}
         {engSpecPipeline.step1Result && !engSpecResult && (
           <Card className="border-green-400/30 bg-green-50/5">
             <CardContent className="p-3 flex items-center gap-3">
               <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
               <p className="text-xs text-muted-foreground">
-                結構展開完成 —{" "}
+                結構展開 + 空間解析完成 —{" "}
                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                   {engSpecPipeline.step1Result.subsystems.length} 個子系統
                 </Badge>

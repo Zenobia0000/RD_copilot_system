@@ -2,14 +2,18 @@
 
 SOW Module: SCAMPER (scamper)
 SOW Endpoints:
-  - POST /scamper/perform                                ← 7-action transform (implemented)
-  - POST /scamper/subsystem-suggestions                  ← AI suggest subsystems (implemented)
-  - POST /scamper/engineering-spec-drafts                ← concept pack → eng spec drafts (wrapper, implemented)
-  - POST /scamper/engineering-spec-drafts/step1-expand   ← split step 1 (implemented)
-  - POST /scamper/engineering-spec-drafts/step2-generate ← split step 2 (implemented)
+  - POST /scamper/perform                                 ← 7-action transform (implemented)
+  - POST /scamper/subsystem-suggestions                   ← AI suggest subsystems (implemented)
+  - POST /scamper/engineering-spec-drafts                 ← concept pack → eng spec drafts (wrapper, implemented)
+  - POST /scamper/engineering-spec-drafts/step1-expand    ← split step 1 — backward-compat wrapper (implemented)
+  - POST /scamper/engineering-spec-drafts/step1a-expand   ← step 1a: LLM expansion only (implemented)
+  - POST /scamper/engineering-spec-drafts/step1b-enrich   ← step 1b: spatial + package map (implemented)
+  - POST /scamper/engineering-spec-drafts/step2-generate  ← split step 2 (implemented)
   - POST /scamper/engineering-spec-drafts/step3-strengthen ← split step 3 (implemented)
-  - POST /scamper/feedback-contradictions                ← Feed new contradictions back (stub)
+  - POST /scamper/feedback-contradictions                 ← Feed new contradictions back (stub)
 """
+
+import logging
 
 from fastapi import APIRouter, HTTPException
 
@@ -20,6 +24,9 @@ from app.models.schemas import (
     SubsystemSuggestResponse,
     EngineeringSpecDraftResponse,
     EngSpecStep1Response,
+    EngSpecStep1aResponse,
+    EngSpecStep1bRequest,
+    EngSpecStep1bResponse,
     EngSpecStep2Request,
     EngSpecStep2Response,
     EngSpecStep3Request,
@@ -34,6 +41,8 @@ from app.agents.triz_solver import (
     suggest_subsystems,
     generate_engineering_spec_drafts,
     eng_spec_step1_expand,
+    eng_spec_step1a_expand,
+    eng_spec_step1b_enrich,
     eng_spec_step2_generate,
     eng_spec_step3_strengthen,
     IncompleteLLMResponseError,
@@ -127,12 +136,68 @@ def scamper_eng_spec_step1(req: SubsystemSuggestRequest):
 
 
 @router.post(
+    "/scamper/engineering-spec-drafts/step1a-expand",
+    response_model=EngSpecStep1aResponse,
+)
+def scamper_eng_spec_step1a(req: SubsystemSuggestRequest):
+    """Step 1a: LLM Structure Expansion only (≤150 s typical).
+
+    Expands concept architecture into 3-level subsystem hierarchy with
+    interface contracts but *without* resolved spatial estimates or
+    package map.  This is the first half of the old step1-expand.
+
+    Requires ``req.concept_pack`` to be populated.
+    Raises HTTP 422 when concept_pack is missing.
+    Raises HTTP 502 when the LLM cannot produce complete 6-dim contracts.
+    """
+    if req.concept_pack is None:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "missing_concept_pack",
+                "message": (
+                    "step1a-expand requires concept_pack to be set. "
+                    "Generate a Concept Architecture Pack first."
+                ),
+            },
+        )
+    try:
+        return eng_spec_step1a_expand(req)
+    except IncompleteLLMResponseError as exc:
+        raise HTTPException(status_code=502, detail=exc.to_dict()) from exc
+
+
+@router.post(
+    "/scamper/engineering-spec-drafts/step1b-enrich",
+    response_model=EngSpecStep1bResponse,
+)
+def scamper_eng_spec_step1b(req: EngSpecStep1bRequest):
+    """Step 1b: Spatial Enrichment + Package Map (≤80 s typical).
+
+    Takes the subsystem tree from step1a (pre-spatial) and resolves
+    real-world spatial estimates via web lookup, then discovers the
+    package map.  This is the second half of the old step1-expand.
+    """
+    return eng_spec_step1b_enrich(req)
+
+
+@router.post(
     "/scamper/engineering-spec-drafts/step2-generate",
     response_model=EngSpecStep2Response,
 )
 def scamper_eng_spec_step2(req: EngSpecStep2Request):
     """Step 2: Generate engineering spec drafts for each subsystem."""
-    return eng_spec_step2_generate(req)
+    _logger = logging.getLogger(__name__)
+    try:
+        return eng_spec_step2_generate(req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _logger.exception("Step 2 (spec generation) failed")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Step 2 spec generation failed: {exc}",
+        ) from exc
 
 
 @router.post(
@@ -141,7 +206,17 @@ def scamper_eng_spec_step2(req: EngSpecStep2Request):
 )
 def scamper_eng_spec_step3(req: EngSpecStep3Request):
     """Step 3: Strengthen sources and upgrade confidence levels."""
-    return eng_spec_step3_strengthen(req)
+    _logger = logging.getLogger(__name__)
+    try:
+        return eng_spec_step3_strengthen(req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _logger.exception("Step 3 (source strengthening) failed")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Step 3 source strengthening failed: {exc}",
+        ) from exc
 
 
 @router.post("/scamper/spatial-overlay", response_model=SpatialOverlayResponse)

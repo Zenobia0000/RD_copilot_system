@@ -2223,6 +2223,39 @@ class EngSpecStep1Response(BaseModel):
     package_map: PackageMap | None = None
 
 
+# ── Step 1a / 1b sub-step schemas ───────────────────────────────────────
+# Step 1 was split into 1a (LLM expansion only, ≤150 s) and 1b (spatial
+# resolution + package map, ≤80 s) to stay within the frontend 180 s
+# fetch timeout.  See plans/fix-step1-timeout-split.md.
+
+
+class EngSpecStep1aResponse(BaseModel):
+    """Step 1a result: LLM-expanded subsystem tree *without* resolved
+    spatial estimates or package map.  Spatial fields may contain raw
+    LLM guesses that have not been cross-checked against web data."""
+    subsystems: list[SuggestedSubsystem] = Field(default_factory=list)
+
+
+class EngSpecStep1bRequest(BaseModel):
+    """Input for Step 1b (Spatial Enrichment + Package Map).
+
+    Accepts the subsystem tree produced by Step 1a and enriches it with
+    web-based spatial resolution and package-map discovery.
+    """
+    project_id: str = Field(..., description="Project identifier")
+    subsystems: list[SuggestedSubsystem] = Field(
+        ..., description="Subsystem tree from Step 1a (pre-spatial)",
+    )
+
+
+class EngSpecStep1bResponse(BaseModel):
+    """Step 1b result: subsystems with resolved spatial estimates and
+    a package map.  Same shape as EngSpecStep1Response for downstream
+    compatibility."""
+    subsystems: list[SuggestedSubsystem] = Field(default_factory=list)
+    package_map: PackageMap | None = None
+
+
 class EngSpecStep2Request(BaseModel):
     """Input for Step 2 (AI Spec Generation).
 

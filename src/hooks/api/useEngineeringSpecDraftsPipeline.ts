@@ -1,29 +1,32 @@
 /**
- * useEngineeringSpecDraftsPipeline — 3-step split-API pipeline hook.
+ * useEngineeringSpecDraftsPipeline — 4-step split-API pipeline hook.
  *
  * Replaces the single long-running mutation in useGenerateEngineeringSpecDrafts
- * with three sequential HTTP calls, each well within the 300 s Nginx timeout:
+ * with four sequential HTTP calls, each well within the 180 s frontend timeout:
  *
- *   Step 1: Structure Expansion    (~90-120 s)  → subsystem tree + package_map
- *   Step 2: AI Spec Generation     (~30-60 s)   → raw drafts
- *   Step 3: Source Strengthening   (~30-60 s)   → enriched drafts
+ *   Step 1a: LLM Structure Expansion   (~60-150 s) → subsystem tree (pre-spatial)
+ *   Step 1b: Spatial Enrichment         (~20-80 s)  → subsystems + package_map
+ *   Step 2:  AI Spec Generation         (~30-60 s)  → raw drafts
+ *   Step 3:  Source Strengthening       (~30-60 s)  → enriched drafts
  *
  * Progressive state is exposed so the UI can render partial results as each
- * step completes (e.g. show subsystem tree immediately after step 1).
+ * step completes (e.g. show subsystem tree immediately after step 1a).
  *
- * @see plans/split-api-engineering-spec-drafts.md  §3.3
+ * @see plans/fix-step1-timeout-split.md
  */
 
 import { useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "./useQueryConfig";
 import {
-  engSpecStep1Expand,
+  engSpecStep1aExpand,
+  engSpecStep1bEnrich,
   engSpecStep2Generate,
   engSpecStep3Strengthen,
   type SubsystemSuggestRequest,
   type EngineeringSpecDraftResponse,
-  type EngSpecStep1Response,
+  type EngSpecStep1aResponse,
+  type EngSpecStep1bResponse,
   type EngSpecStep2Response,
   type EngSpecStep3Response,
 } from "@/lib/api";
@@ -33,7 +36,8 @@ import type { GenerateEngineeringSpecVariables } from "./useEngineeringSpecDraft
 
 export type PipelinePhase =
   | "idle"
-  | "step1"
+  | "step1a"
+  | "step1b"
   | "step2"
   | "step3"
   | "done"
@@ -42,33 +46,46 @@ export type PipelinePhase =
 // ── Pipeline state ──────────────────────────────────────────────────────────
 
 export interface PipelineState {
-  /** Current phase of the 3-step pipeline. */
+  /** Current phase of the 4-step pipeline. */
   status: PipelinePhase;
-  /** Result from Step 1 (structure expansion). Available after step1 completes. */
-  step1Result: EngSpecStep1Response | null;
+  /** Result from Step 1a (LLM structure expansion). Available after step1a completes. */
+  step1aResult: EngSpecStep1aResponse | null;
+  /** Result from Step 1b (spatial enrichment + package map). Available after step1b completes. */
+  step1bResult: EngSpecStep1bResponse | null;
+  /**
+   * Assembled Step 1 result — same shape as the old EngSpecStep1Response.
+   * Available after step1b completes. Used by downstream UI that expects
+   * `step1Result.subsystems` and `step1Result.package_map`.
+   */
+  step1Result: { subsystems: EngSpecStep1bResponse["subsystems"]; package_map: EngSpecStep1bResponse["package_map"] } | null;
   /** Result from Step 2 (AI spec generation). Available after step2 completes. */
   step2Result: EngSpecStep2Response | null;
   /** Result from Step 3 (source strengthening). Available after step3 completes. */
   step3Result: EngSpecStep3Response | null;
   /** Error if the pipeline fails at any step. */
   error: Error | null;
-  /** Numeric step indicator: 0 = idle, 1-3 = running that step. */
+  /** Which pipeline phase was active when the error occurred. */
+  failedStep: PipelinePhase | null;
+  /** Numeric step indicator: 0 = idle, 1-4 = running that step. */
   currentStep: number;
 }
 
 const INITIAL_STATE: PipelineState = {
   status: "idle",
+  step1aResult: null,
+  step1bResult: null,
   step1Result: null,
   step2Result: null,
   step3Result: null,
   error: null,
+  failedStep: null,
   currentStep: 0,
 };
 
 // ── Hook ────────────────────────────────────────────────────────────────────
 
 /**
- * 3-step engineering spec drafts pipeline.
+ * 4-step engineering spec drafts pipeline.
  *
  * Usage:
  * ```ts
@@ -76,7 +93,8 @@ const INITIAL_STATE: PipelineState = {
  * // Trigger:
  * const result = await pipeline.run({ mission, contradictions, existing_subsystems });
  * // Progressive rendering:
- * if (pipeline.step1Result) renderSubsystemTree(pipeline.step1Result.subsystems);
+ * if (pipeline.step1aResult) renderSubsystemTree(pipeline.step1aResult.subsystems);
+ * if (pipeline.step1bResult) renderPackageMap(pipeline.step1bResult.package_map);
  * if (pipeline.step2Result) renderDraftPreview(pipeline.step2Result.drafts);
  * ```
  *
@@ -98,16 +116,16 @@ export function useEngineeringSpecDraftsPipeline(
       if (!projectId) throw new Error("projectId is required");
       if (!conceptPack) throw new Error("conceptPack is required");
 
-      // Reset and enter step 1
+      // Reset and enter step 1a
       setPipelineState({
         ...INITIAL_STATE,
-        status: "step1",
+        status: "step1a",
         currentStep: 1,
       });
 
       try {
-        // ── Step 1: Structure Expansion ─────────────────────────────────
-        const s1 = await engSpecStep1Expand({
+        // ── Step 1a: LLM Structure Expansion ──────────────────────────────
+        const s1a = await engSpecStep1aExpand({
           project_id: projectId,
           mission: vars.mission,
           contradictions: vars.contradictions,
@@ -116,30 +134,47 @@ export function useEngineeringSpecDraftsPipeline(
         });
         setPipelineState((s) => ({
           ...s,
-          step1Result: s1,
-          status: "step2",
+          step1aResult: s1a,
+          status: "step1b",
           currentStep: 2,
         }));
 
-        // ── Step 2: AI Spec Generation ──────────────────────────────────
+        // ── Step 1b: Spatial Enrichment + Package Map ─────────────────────
+        const s1b = await engSpecStep1bEnrich({
+          project_id: projectId,
+          subsystems: s1a.subsystems,
+        });
+        const assembledStep1 = {
+          subsystems: s1b.subsystems,
+          package_map: s1b.package_map,
+        };
+        setPipelineState((s) => ({
+          ...s,
+          step1bResult: s1b,
+          step1Result: assembledStep1,
+          status: "step2",
+          currentStep: 3,
+        }));
+
+        // ── Step 2: AI Spec Generation ────────────────────────────────────
         const s2 = await engSpecStep2Generate({
           project_id: projectId,
           mission: vars.mission,
-          subsystems: s1.subsystems,
+          subsystems: s1b.subsystems,
         });
         setPipelineState((s) => ({
           ...s,
           step2Result: s2,
           status: "step3",
-          currentStep: 3,
+          currentStep: 4,
         }));
 
-        // ── Step 3: Source Strengthening ─────────────────────────────────
+        // ── Step 3: Source Strengthening ───────────────────────────────────
         const s3 = await engSpecStep3Strengthen({
           project_id: projectId,
           mission: vars.mission,
           drafts: s2.drafts,
-          subsystems: s1.subsystems,
+          subsystems: s1b.subsystems,
         });
         setPipelineState((s) => ({
           ...s,
@@ -147,11 +182,11 @@ export function useEngineeringSpecDraftsPipeline(
           status: "done",
         }));
 
-        // ── Assemble final response ─────────────────────────────────────
+        // ── Assemble final response ───────────────────────────────────────
         const final: EngineeringSpecDraftResponse = {
           drafts: s3.drafts,
-          subsystem_tree: s1.subsystems,
-          package_map: s1.package_map,
+          subsystem_tree: s1b.subsystems,
+          package_map: s1b.package_map,
         };
 
         // Invalidate caches so downstream queries refetch
@@ -168,6 +203,7 @@ export function useEngineeringSpecDraftsPipeline(
           ...s,
           status: "error",
           error: err as Error,
+          failedStep: s.status as PipelinePhase,
         }));
         throw err;
       }
@@ -182,7 +218,8 @@ export function useEngineeringSpecDraftsPipeline(
 
   /** Whether the pipeline is currently running (any step in progress). */
   const isRunning =
-    pipelineState.status === "step1" ||
+    pipelineState.status === "step1a" ||
+    pipelineState.status === "step1b" ||
     pipelineState.status === "step2" ||
     pipelineState.status === "step3";
 

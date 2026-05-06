@@ -808,13 +808,28 @@ attach a grounded spatial estimate (bbox + mass) for each module.
    the subsystem's role and key_requirements.
 3. For each module, decompose into 1-3 component-level children where \
    mechanical or electrical detail is needed.
-4. Preserve all mapped_contradictions and mapped_kpis from the concept pack \
-   — propagate them to the most relevant child nodes.
-5. For every pair of adjacent modules/components, produce a 6-dimensional \
-   InterfaceContract: mechanical, electrical, thermal, data, spatial, material.
-6. For every module and component, produce a SpatialEstimate with bbox \
-   (length_mm, width_mm, height_mm) and mass_g.  Mark reference_source as \
-   "llm_estimate" unless you have a concrete reference.
+4. Preserve all related_contradictions from the concept pack \
+   — propagate them to the most relevant child nodes as text descriptions.
+5. For each pair of coupled modules (sharing a contradiction or physical interface), \
+define a 6-dimensional interface contract. **ALL SIX TEXT FIELDS ARE MANDATORY** \
+— never emit an empty string, never omit a field. Each must carry real \
+engineering content grounded in the physical interaction:
+   - **envelope**: physical boundary (dimensions, mounting pattern, clearance)
+   - **loadPath**: force/torque transfer path (magnitude + direction + mechanism)
+   - **thermalPath**: heat dissipation path (source → sink + expected ΔT)
+   - **signalPath**: electrical/data signals (protocol + voltage + latency)
+   - **datumTolerance**: critical dimensions and tolerances (±mm / ±degrees)
+   - **serviceability**: maintenance access and replaceability (teardown steps)
+6. **Spatial estimate (REQUIRED on every interface contract)** — attach a `spatial` block:
+   - **Prefer** citing an entry from <reference_library> via its source-prefixed \
+key. Use `reference_source: "rd_override:<key>"` / `"learned:<key>"` / `"seed:<key>"` \
+exactly as listed.
+   - If no library entry fits but you can name a likely vendor datasheet, set \
+`reference_source: "web:<short search query>"`.
+   - Last resort: set `reference_source: "llm_estimate"`, fill `bbox` and `mass_g` \
+from publicly known specs or scaling laws, and put a one-line justification in \
+`rationale`.
+   - Set `confidence` to "library" for cited entries and "estimate" for llm_estimate.
 7. Map concept_interfaces from the pack to the appropriate module-level \
    InterfaceContract entries.
 8. Return valid JSON matching the output_schema below.
@@ -824,32 +839,42 @@ attach a grounded spatial estimate (bbox + mass) for each module.
 {{
   "subsystems": [
     {{
-      "name": "string — subsystem name",
-      "code": "string — short code, e.g. SYS-DRIVE",
-      "role": "string — functional role",
-      "level": "system | module | component",
-      "parent_code": "string | null — parent code, null for system-level",
-      "mapped_contradictions": ["contradiction_id", "..."],
-      "mapped_kpis": ["kpi_id", "..."],
-      "spatial_estimate": {{
-        "bbox": {{ "length_mm": 0, "width_mm": 0, "height_mm": 0 }},
-        "mass_g": 0,
-        "reference_source": "llm_estimate | library_name"
-      }},
-      "interface_contracts": {{
-        "neighbour_name": {{
-          "mechanical": "string",
-          "electrical": "string",
-          "thermal": "string",
-          "data": "string",
-          "spatial": "string",
-          "material": "string"
+      "name": "Power Subsystem",
+      "level": "system",
+      "reason": "Contains all energy conversion components",
+      "related_contradictions": ["C1 description", "C2 description"],
+      "children": [
+        {{
+          "name": "Motor Assembly",
+          "level": "module",
+          "reason": "Primary energy converter, core of C1",
+          "related_contradictions": ["C1 description"],
+          "children": [
+            {{ "name": "Stator", "level": "component", "reason": "Winding + core" }},
+            {{ "name": "Rotor", "level": "component", "reason": "Magnet carrier" }}
+          ],
+          "interface_contracts": {{
+            "Gearbox": {{
+              "envelope": "Ø65mm shaft coupling flange",
+              "loadPath": "80Nm torque via involute spline",
+              "thermalPath": "Conductive through aluminium housing",
+              "signalPath": "3x Hall sensor + thermistor",
+              "datumTolerance": "±0.02mm shaft concentricity",
+              "serviceability": "Motor removable without gearbox disassembly",
+              "spatial": {{
+                "bbox": {{ "x_mm": 180, "y_mm": 140, "z_mm": 120, "anchor": "BB_center" }},
+                "mass_g": 3900,
+                "mounting_pattern": "BB_shell_BSA_68mm",
+                "reference_source": "seed:bafang_m600_mid_drive",
+                "confidence": "library",
+                "rationale": "Closest production analogue for the proposed mid-drive role"
+              }}
+            }}
+          }}
         }}
-      }},
-      "children": ["... recursive"]
+      ]
     }}
-  ],
-  "package_map": null
+  ]
 }}
 </output_schema>
 """

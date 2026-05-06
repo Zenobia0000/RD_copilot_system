@@ -1317,6 +1317,25 @@ def generate_engineering_spec_drafts(
     emit_counter("eng_spec.step1_done", value=1, project_id=req.project_id)
 
     expansion_data = json.loads(raw_expansion)
+
+    # ── Defensive coercion: LLM may emit "spatial": "<string>" instead of an
+    #    object or null.  Walk the tree and normalise before model_validate.
+    def _coerce_spatial(node: dict) -> None:
+        contracts = node.get("interface_contracts")
+        if isinstance(contracts, dict):
+            for _neighbour, contract in contracts.items():
+                if isinstance(contract, dict):
+                    sp = contract.get("spatial")
+                    if sp is not None and not isinstance(sp, dict):
+                        contract["spatial"] = None
+        for child in node.get("children") or []:
+            if isinstance(child, dict):
+                _coerce_spatial(child)
+
+    for _sub in expansion_data.get("subsystems") or []:
+        if isinstance(_sub, dict):
+            _coerce_spatial(_sub)
+
     tree_response = SubsystemSuggestResponse.model_validate(expansion_data)
 
     # Validate 6-dim contracts — retry once if violations found (same as suggest_subsystems)

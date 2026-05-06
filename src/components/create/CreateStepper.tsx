@@ -95,7 +95,7 @@ export function CreateStepper({ steps, statuses, currentStep, activeTrack, onSte
             )}
           </div>
           <p className="text-[10px] text-muted-foreground leading-relaxed">
-            TRIZ 矛盾解 → 子系統分解 → SCAMPER 變形 — 從矛盾出發，系統化產出候選方案
+            TRIZ 解矛盾 → 概念架構包 → 工程規格草案
           </p>
         </button>
       </div>

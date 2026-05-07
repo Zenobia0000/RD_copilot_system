@@ -47,6 +47,27 @@ import {
   CONFIDENCE_COLORS,
   DRAFT_CATEGORIES,
 } from "@/types/generated/engineeringSpec";
+import type { SuggestedSubsystem } from "@/types/generated/subsystem";
+import { Progress } from "@/components/ui/progress";
+
+// ---------------------------------------------------------------------------
+// Code → Name mapping (subsystem_tree walk)
+// ---------------------------------------------------------------------------
+
+/** 遞迴走訪 subsystem_tree，建立 concept_origin_code → name 對照表 */
+function buildCodeToNameMap(tree: SuggestedSubsystem[]): Map<string, string> {
+  const map = new Map<string, string>();
+  function walk(nodes: SuggestedSubsystem[]) {
+    for (const node of nodes) {
+      if (node.concept_origin_code) {
+        map.set(node.concept_origin_code, node.name);
+      }
+      if (node.children?.length) walk(node.children);
+    }
+  }
+  walk(tree);
+  return map;
+}
 
 // ---------------------------------------------------------------------------
 // Props
@@ -143,6 +164,8 @@ function getCategoryInfo(cat: DraftCategory) {
 
 interface VerifiableItem {
   subsystemCode: string;
+  /** Human-readable subsystem name resolved from subsystem_tree. */
+  subsystemName: string;
   spec: DraftValue;
   suggestedMethod: string;
 }
@@ -155,6 +178,7 @@ function exportToCsv(items: VerifiableItem[], verifiedSet: Set<string>) {
   const BOM = "\uFEFF"; // UTF-8 BOM for Excel compatibility
   const headers = [
     "子系統",
+    "子系統代碼",
     "欄位名稱",
     "值",
     "單位",
@@ -174,6 +198,7 @@ function exportToCsv(items: VerifiableItem[], verifiedSet: Set<string>) {
   const rows = items.map((item) => {
     const key = `${item.subsystemCode}::${item.spec.field_name}`;
     return [
+      item.subsystemName,
       item.subsystemCode,
       humanize(item.spec.field_name),
       fmtValue(item.spec),
@@ -300,21 +325,30 @@ function CategoryGroup({
   );
 }
 
-/** One collapsible card per subsystem. */
+/** One collapsible card per subsystem — card-style with progress indicator. */
 function SubsystemSection({
   subsystemCode,
+  subsystemName,
   items,
   verifiedSet,
   onToggle,
 }: {
   subsystemCode: string;
+  subsystemName: string;
   items: VerifiableItem[];
   verifiedSet: Set<string>;
   onToggle: (key: string) => void;
 }) {
-  const pendingCount = items.filter(
-    (i) => !verifiedSet.has(`${i.subsystemCode}::${i.spec.field_name}`)
+  const verifiedCount = items.filter(
+    (i) => verifiedSet.has(`${i.subsystemCode}::${i.spec.field_name}`)
   ).length;
+  const pendingCount = items.length - verifiedCount;
+  const progressPct = items.length > 0 ? (verifiedCount / items.length) * 100 : 100;
+
+  // Dynamic border color: all verified → green, else orange
+  const borderColor = pendingCount === 0
+    ? "border-l-green-500/70"
+    : "border-l-orange-400/60";
 
   // Group by category
   const byCategory = useMemo(() => {
@@ -328,12 +362,13 @@ function SubsystemSection({
 
   return (
     <Collapsible defaultOpen>
-      <Card className="border-l-[3px] border-l-orange-400/60">
+      <Card className={cn("border-l-4", borderColor)}>
         <CollapsibleTrigger asChild>
-          <CardContent className="p-3 cursor-pointer hover:bg-muted/30 transition-colors">
+          <CardContent className="p-4 cursor-pointer hover:bg-muted/30 transition-colors">
             <div className="flex items-center gap-2">
               <ChevronRight className="w-4 h-4 text-muted-foreground transition-transform [[data-state=open]>*>&]:rotate-90" />
-              <span className="font-mono text-sm font-semibold">
+              <span className="text-sm font-semibold">{subsystemName}</span>
+              <span className="text-xs text-muted-foreground font-mono">
                 {subsystemCode}
               </span>
               {pendingCount > 0 ? (
@@ -359,7 +394,17 @@ function SubsystemSection({
                 </Badge>
               )}
               <span className="text-xs text-muted-foreground ml-auto">
-                {items.length - pendingCount}/{items.length}
+                {verifiedCount}/{items.length}
+              </span>
+            </div>
+            {/* Progress bar */}
+            <div className="mt-2 flex items-center gap-2">
+              <Progress
+                value={progressPct}
+                className="h-1.5 flex-1"
+              />
+              <span className="text-[10px] text-muted-foreground font-mono w-8 text-right">
+                {Math.round(progressPct)}%
               </span>
             </div>
           </CardContent>
@@ -401,6 +446,12 @@ export function VerificationChecklist({
   data,
   className,
 }: VerificationChecklistProps) {
+  // Build code → name lookup from subsystem_tree
+  const codeToName = useMemo(
+    () => buildCodeToNameMap(data.subsystem_tree ?? []),
+    [data.subsystem_tree],
+  );
+
   // Build flat list of all verifiable items
   const allItems = useMemo(() => {
     const items: VerifiableItem[] = [];
@@ -409,6 +460,8 @@ export function VerificationChecklist({
         if (spec.needs_verification) {
           items.push({
             subsystemCode: draft.subsystem_code,
+            subsystemName:
+              codeToName.get(draft.subsystem_code) ?? draft.subsystem_code,
             spec,
             suggestedMethod: suggestVerificationMethod(spec.field_name, spec.source),
           });
@@ -416,7 +469,7 @@ export function VerificationChecklist({
       }
     }
     return items;
-  }, [data.drafts]);
+  }, [data.drafts, codeToName]);
 
   // Group by subsystem (preserving draft order)
   const bySubsystem = useMemo(() => {
@@ -510,11 +563,12 @@ export function VerificationChecklist({
 
       {/* Subsystem sections */}
       <CardContent className="px-4 pb-4 pt-0 space-y-2">
-        {Array.from(bySubsystem.entries()).map(([code, items]) => (
+        {Array.from(bySubsystem.entries()).map(([code, sItems]) => (
           <SubsystemSection
             key={code}
             subsystemCode={code}
-            items={items}
+            subsystemName={sItems[0]?.subsystemName ?? code}
+            items={sItems}
             verifiedSet={verifiedSet}
             onToggle={toggleVerified}
           />

@@ -4,8 +4,9 @@
  *
  * Features:
  * - Calls `buildSpecTree` to join drafts onto the subsystem hierarchy.
+ * - Renders Layer 1 SpecDashboardSummary (collapsible) above hierarchy.
  * - Renders 8 SystemSpecCards (one per root subsystem).
- * - Provides a view toggle: 🌲 階層視圖 / 📋 扁平視圖.
+ * - Provides a view toggle: 📊 儀表板 / 🌲 階層視圖 / 📋 扁平視圖.
  *   "Flat" mode falls back to the original EngineeringSpecDraftPanel.
  * - `previewMode` banner when showing Step-2 drafts.
  *
@@ -13,6 +14,7 @@
  * `data: EngineeringSpecDraftResponse` prop shape.
  *
  * @see plans/hierarchical-spec-view.md §7, §9
+ * @see plans/rd-friendly-spec-ux-design.md §8 Wave 1 — Layer 1 dashboard
  */
 
 import { useMemo, useState } from "react";
@@ -23,6 +25,8 @@ import {
   AlertTriangle,
   TreePine,
   List,
+  LayoutDashboard,
+  Network,
   Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -31,7 +35,8 @@ import type { EngineeringSpecDraftResponse } from "@/types/generated/engineering
 import { buildSpecTree } from "./buildSpecTree";
 import { SystemSpecCard } from "./SystemSpecCard";
 import { EngineeringSpecDraftPanel } from "../EngineeringSpecDraftPanel";
-import { pctStr } from "../spec-shared";
+import { pctStr, SpecDashboardSummary } from "../spec-shared";
+import { ArchitectureFlowView } from "./ArchitectureFlowView";
 
 // ---------------------------------------------------------------------------
 // Props — intentionally mirrors EngineeringSpecDraftPanelProps for drop-in use
@@ -48,7 +53,7 @@ export interface HierarchicalSpecViewProps {
   previewMode?: boolean;
 }
 
-type ViewMode = "hierarchy" | "flat";
+type ViewMode = "dashboard" | "architecture" | "hierarchy" | "flat";
 
 // ---------------------------------------------------------------------------
 // Component
@@ -59,7 +64,7 @@ export function HierarchicalSpecView({
   className,
   previewMode = false,
 }: HierarchicalSpecViewProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>("hierarchy");
+  const [viewMode, setViewMode] = useState<ViewMode>("dashboard");
 
   // Build the merged tree — memoised on data identity
   const specTree = useMemo(
@@ -91,6 +96,11 @@ export function HierarchicalSpecView({
   // Guard: no tree data → fall back to flat view automatically
   const canShowHierarchy =
     specTree.length > 0 && (data.subsystem_tree ?? []).length > 0;
+
+  // Callback: when user clicks a system in the dashboard, switch to hierarchy
+  const handleSystemClick = (_systemName: string) => {
+    setViewMode("hierarchy");
+  };
 
   return (
     <div className={cn("space-y-3", className)}>
@@ -138,9 +148,27 @@ export function HierarchicalSpecView({
           )}
         </div>
 
-        {/* View toggle */}
+        {/* View toggle — 3-way: dashboard / hierarchy / flat */}
         {canShowHierarchy && (
           <div className="flex rounded-md border overflow-hidden">
+            <Button
+              size="sm"
+              variant={viewMode === "dashboard" ? "default" : "ghost"}
+              className="h-7 px-2.5 text-xs rounded-none gap-1"
+              onClick={() => setViewMode("dashboard")}
+            >
+              <LayoutDashboard className="w-3.5 h-3.5" />
+              儀表板
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === "architecture" ? "default" : "ghost"}
+              className="h-7 px-2.5 text-xs rounded-none gap-1"
+              onClick={() => setViewMode("architecture")}
+            >
+              <Network className="w-3.5 h-3.5" />
+              架構圖
+            </Button>
             <Button
               size="sm"
               variant={viewMode === "hierarchy" ? "default" : "ghost"}
@@ -163,8 +191,20 @@ export function HierarchicalSpecView({
         )}
       </div>
 
-      {/* Main content: hierarchy or flat */}
-      {viewMode === "hierarchy" && canShowHierarchy ? (
+      {/* Main content: dashboard / hierarchy / flat */}
+      {viewMode === "architecture" && canShowHierarchy ? (
+        <ArchitectureFlowView
+          tree={data.subsystem_tree ?? []}
+          onNodeClick={(name) => {
+            setViewMode("hierarchy");
+          }}
+        />
+      ) : viewMode === "dashboard" && canShowHierarchy ? (
+        <SpecDashboardSummary
+          specTree={specTree}
+          onSystemClick={handleSystemClick}
+        />
+      ) : viewMode === "hierarchy" && canShowHierarchy ? (
         <div className="space-y-3">
           {specTree.map((rootNode) => (
             <SystemSpecCard key={rootNode.name} node={rootNode} />

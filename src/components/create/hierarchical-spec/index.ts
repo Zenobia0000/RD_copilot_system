@@ -2,6 +2,7 @@
  * Barrel export for hierarchical engineering spec view components.
  *
  * @see plans/hierarchical-spec-view.md §6 新增檔案清單
+ * @see plans/rd-friendly-spec-ux-design.md §8 Wave 1
  */
 
 export { HierarchicalSpecView } from "./HierarchicalSpecView";
@@ -16,5 +17,11 @@ export type { ModuleSpecCardProps } from "./ModuleSpecCard";
 export { ComponentSpecList } from "./ComponentSpecList";
 export type { ComponentSpecListProps } from "./ComponentSpecList";
 
+export { SubsystemDatasheet } from "./SubsystemDatasheet";
+export type { SubsystemDatasheetProps } from "./SubsystemDatasheet";
+
 export { buildSpecTree } from "./buildSpecTree";
 export type { SpecTreeNode, AggregatedStats } from "./buildSpecTree";
+
+export { ArchitectureFlowView } from "./ArchitectureFlowView";
+export type { ArchitectureFlowViewProps } from "./ArchitectureFlowView";

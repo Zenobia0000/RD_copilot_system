@@ -2,7 +2,8 @@
  * buildSpecTree — joins EngineeringSpecDraft[] onto SuggestedSubsystem[]
  * tree, producing a SpecTreeNode[] with bottom-up aggregated statistics.
  *
- * Join key: draft.subsystem_code ↔ node.name
+ * Join key: draft.subsystem_code ↔ node.concept_origin_code (preferred)
+ *           or draft.subsystem_code ↔ node.name (fallback)
  *
  * @see plans/hierarchical-spec-view.md §buildSpecTree helper
  */
@@ -34,6 +35,11 @@ export interface SpecTreeNode {
   reason: string;
   related_contradictions: string[];
   interface_contracts: SuggestedSubsystem["interface_contracts"];
+
+  /** Original ConceptSubsystem.code, if present (system-level only). */
+  concept_origin_code?: string | null;
+  /** KPI IDs from concept pack. */
+  mapped_kpis?: string[];
 
   /** Matched draft for this node (null if no draft exists). */
   draft: EngineeringSpecDraft | null;
@@ -73,8 +79,11 @@ export function buildSpecTree(
     // Recurse into children first (bottom-up)
     const childNodes = (sub.children ?? []).map(buildNode);
 
-    // Find matching draft
-    const draft = draftMap.get(sub.name) ?? null;
+    // Find matching draft — prefer concept_origin_code, fallback to name
+    const draft =
+      (sub.concept_origin_code ? draftMap.get(sub.concept_origin_code) : undefined) ??
+      draftMap.get(sub.name) ??
+      null;
 
     // This node's own stats
     const ownSpecs = draft?.specs.length ?? 0;
@@ -107,6 +116,8 @@ export function buildSpecTree(
       reason: sub.reason,
       related_contradictions: sub.related_contradictions,
       interface_contracts: sub.interface_contracts,
+      concept_origin_code: sub.concept_origin_code ?? null,
+      mapped_kpis: sub.mapped_kpis ?? [],
       draft,
       aggregated: { totalSpecs, verificationCount, avgConfidence },
       children: childNodes,

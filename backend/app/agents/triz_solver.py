@@ -1269,6 +1269,51 @@ def _serialize_layered_triz_for_f2_prompt(
 # ---------------------------------------------------------------------------
 
 
+def _inject_concept_origin_codes(
+    subsystems: list[SuggestedSubsystem],
+    concept_subsystems: list,
+) -> None:
+    """Defensive post-processing: ensure system-level nodes carry *concept_origin_code*.
+
+    If the LLM didn't set ``concept_origin_code``, fuzzy-match by name against
+    the original ``ConceptSubsystem`` list and inject ``code`` + ``mapped_kpis``.
+    Only top-level (system) nodes are patched; children are left as-is.
+    """
+    if not concept_subsystems:
+        return
+
+    # Build lookup: normalised name → ConceptSubsystem
+    cs_by_name: dict[str, object] = {}
+    for cs in concept_subsystems:
+        cs_by_name[cs.name.strip().lower()] = cs
+
+    for sub in subsystems:
+        if sub.concept_origin_code is not None:
+            continue  # LLM already set it — trust the value
+
+        key = sub.name.strip().lower()
+
+        # 1. Exact match
+        matched = cs_by_name.get(key)
+
+        # 2. Substring / containment match (handles minor rephrasing)
+        if matched is None:
+            for cs_name, cs in cs_by_name.items():
+                if cs_name in key or key in cs_name:
+                    matched = cs
+                    break
+
+        if matched is not None:
+            sub.concept_origin_code = matched.code  # type: ignore[union-attr]
+            if not sub.mapped_kpis:
+                sub.mapped_kpis = list(matched.mapped_kpis)  # type: ignore[union-attr]
+            logger.debug(
+                "Injected concept_origin_code=%s for subsystem '%s'",
+                sub.concept_origin_code,
+                sub.name,
+            )
+
+
 # ── Split API step functions ────────────────────────────────────────────────
 
 
@@ -1342,6 +1387,9 @@ def eng_spec_step1a_expand(
 
     tree_response = SubsystemSuggestResponse.model_validate(expansion_data)
 
+    # ── Defensive: inject concept_origin_code if the LLM missed it ──────
+    _inject_concept_origin_codes(tree_response.subsystems, pack.subsystems)
+
     # Validate 6-dim contracts — retry once if violations found
     violations = _find_empty_contracts(tree_response.subsystems)
     if violations:
@@ -1357,6 +1405,7 @@ def eng_spec_step1a_expand(
             raw_expansion = call_llm_json(ENGINEERING_SPEC_SYSTEM, retry_prompt)
         expansion_data = json.loads(raw_expansion)
         tree_response = SubsystemSuggestResponse.model_validate(expansion_data)
+        _inject_concept_origin_codes(tree_response.subsystems, pack.subsystems)
 
         violations = _find_empty_contracts(tree_response.subsystems)
         if violations:

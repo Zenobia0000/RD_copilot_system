@@ -1147,6 +1147,18 @@ class SuggestedSubsystem(BaseModel):
     related_contradictions: list[str] = Field(default_factory=list)
     children: list["SuggestedSubsystem"] = Field(default_factory=list)
     interface_contracts: dict[str, InterfaceContract] = Field(default_factory=dict)
+    # ── Traceability fields from ConceptSubsystem ──────────────────────────
+    concept_origin_code: str | None = Field(
+        default=None,
+        description=(
+            "原始 ConceptSubsystem.code（如 'A1'）。"
+            "僅系統層級節點有此欄位，子模組/元件為 None。"
+        ),
+    )
+    mapped_kpis: list[str] = Field(
+        default_factory=list,
+        description="從 ConceptSubsystem 傳遞下來的 KPI IDs",
+    )
 
 
 class SubsystemSuggestResponse(BaseModel):

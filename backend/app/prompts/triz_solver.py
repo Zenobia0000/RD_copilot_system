@@ -804,13 +804,17 @@ attach a grounded spatial estimate (bbox + mass) for each module.
 <instructions>
 1. Use the concept subsystems as the starting point — each concept subsystem \
    with suggested_level="system" becomes a top-level system node.
-2. For each system node, decompose into 2-4 module-level children based on \
+2. **CRITICAL**: Copy the `code` field from each ConceptSubsystem into the \
+   corresponding system-level node as `concept_origin_code`. Also copy \
+   `mapped_kpis` verbatim. Module/component children should set \
+   `concept_origin_code` to null and `mapped_kpis` to [].
+3. For each system node, decompose into 2-4 module-level children based on \
    the subsystem's role and key_requirements.
-3. For each module, decompose into 1-3 component-level children where \
+4. For each module, decompose into 1-3 component-level children where \
    mechanical or electrical detail is needed.
-4. Preserve all related_contradictions from the concept pack \
+5. Preserve all related_contradictions from the concept pack \
    — propagate them to the most relevant child nodes as text descriptions.
-5. For each pair of coupled modules (sharing a contradiction or physical interface), \
+6. For each pair of coupled modules (sharing a contradiction or physical interface), \
 define a 6-dimensional interface contract. **ALL SIX TEXT FIELDS ARE MANDATORY** \
 — never emit an empty string, never omit a field. Each must carry real \
 engineering content grounded in the physical interaction:
@@ -820,7 +824,7 @@ engineering content grounded in the physical interaction:
    - **signalPath**: electrical/data signals (protocol + voltage + latency)
    - **datumTolerance**: critical dimensions and tolerances (±mm / ±degrees)
    - **serviceability**: maintenance access and replaceability (teardown steps)
-6. **Spatial estimate (REQUIRED on every interface contract)** — attach a `spatial` block:
+7. **Spatial estimate (REQUIRED on every interface contract)** — attach a `spatial` block:
    - **Prefer** citing an entry from <reference_library> via its source-prefixed \
 key. Use `reference_source: "rd_override:<key>"` / `"learned:<key>"` / `"seed:<key>"` \
 exactly as listed.
@@ -830,9 +834,9 @@ exactly as listed.
 from publicly known specs or scaling laws, and put a one-line justification in \
 `rationale`.
    - Set `confidence` to "library" for cited entries and "estimate" for llm_estimate.
-7. Map concept_interfaces from the pack to the appropriate module-level \
+8. Map concept_interfaces from the pack to the appropriate module-level \
    InterfaceContract entries.
-8. Return valid JSON matching the output_schema below.
+9. Return valid JSON matching the output_schema below.
 </instructions>
 
 <output_schema>
@@ -841,12 +845,16 @@ from publicly known specs or scaling laws, and put a one-line justification in \
     {{
       "name": "Power Subsystem",
       "level": "system",
+      "concept_origin_code": "A1",
+      "mapped_kpis": ["KPI-1", "KPI-3"],
       "reason": "Contains all energy conversion components",
       "related_contradictions": ["C1 description", "C2 description"],
       "children": [
         {{
           "name": "Motor Assembly",
           "level": "module",
+          "concept_origin_code": null,
+          "mapped_kpis": [],
           "reason": "Primary energy converter, core of C1",
           "related_contradictions": ["C1 description"],
           "children": [
@@ -929,7 +937,7 @@ Choose the 5-15 most important specs based on the subsystem's type and role.
 {{
   "drafts": [
     {{
-      "subsystem_code": "string — matches code from subsystem tree",
+      "subsystem_code": "string — the subsystem name (e.g. 'Motor Assembly'); for system-level nodes use concept_origin_code if available (e.g. 'A1')",
       "specs": [
         {{
           "field_name": "string",

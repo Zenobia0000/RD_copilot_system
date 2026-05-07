@@ -146,6 +146,13 @@ export interface SuggestedSubsystem {
   children: SuggestedSubsystem[];
   /** Map keyed by neighbour name. Only present on coupled modules. */
   interface_contracts: InterfaceContractMap;
+  /**
+   * Original ConceptSubsystem.code (e.g. 'A1').
+   * Only system-level nodes carry this; module/component children are null.
+   */
+  concept_origin_code?: string | null;
+  /** KPI IDs propagated from the concept pack. */
+  mapped_kpis?: string[];
 }
 
 /** Response from POST /scamper/subsystem-suggestions. */

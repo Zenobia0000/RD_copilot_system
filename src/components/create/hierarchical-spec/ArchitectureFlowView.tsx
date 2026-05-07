@@ -1,22 +1,24 @@
 /**
  * ArchitectureFlowView — interactive system architecture diagram using
- * ReactFlow + dagre, showing the 3-level subsystem topology and interface
- * contracts between coupled modules.
+ * ReactFlow group nodes (parentId), showing the 3-level subsystem topology
+ * as a **nested block diagram**: systems visually contain modules, modules
+ * visually contain components. Interface contracts render as cross-module
+ * dashed edges.
  *
  * Node types:
- *   - SystemFlowNode  (system level)  — large card, thick border, blue accent
- *   - ModuleFlowNode  (module level)  — medium card, thin border, slate accent
- *   - ComponentFlowNode (component)   — small card, dashed border, gray accent
+ *   - systemGroup  (system level)  — large container, thick blue border
+ *   - moduleGroup  (module level)  — medium container, slate border
+ *   - component    (component)     — small leaf card, dashed border
  *
  * Edge types:
- *   - hierarchy — solid gray arrow, parent → child
- *   - interface — dashed animated line, cross-system contract + tooltip
+ *   - interface — dashed animated smoothstep, cross-module contract + tooltip
  *
- * @see plans/wave2-verification-checklist-and-architecture-diagram.md §2
- * @see src/components/solution/ConvergenceGraph.tsx (dagre pattern reference)
+ * Layout: custom bottom-up sizing + top-down positioning (replaces dagre).
+ *
+ * @see plans/nested-block-diagram-architecture.md
  */
 
-import { useMemo, useState, useCallback, type CSSProperties } from "react";
+import { useMemo, useState, useCallback } from "react";
 import {
   ReactFlow,
   Background,
@@ -27,12 +29,10 @@ import {
   type NodeChange,
   type NodeProps,
   applyNodeChanges,
-  MarkerType,
   Handle,
   Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import Dagre from "@dagrejs/dagre";
 import { cn } from "@/lib/utils";
 import type {
   SuggestedSubsystem,
@@ -61,17 +61,37 @@ interface FlowNodeData {
   level: SubsystemLevel;
   childCount: number;
   contractCount: number;
+  /** Total component count across all modules (system-level summary). */
+  totalComponentCount?: number;
   [key: string]: unknown;
 }
 
 // ---------------------------------------------------------------------------
-// Constants
+// Layout constants
 // ---------------------------------------------------------------------------
 
-const NODE_SIZES: Record<SubsystemLevel, { w: number; h: number }> = {
-  system: { w: 220, h: 70 },
-  module: { w: 180, h: 56 },
-  component: { w: 150, h: 44 },
+const LAYOUT = {
+  // Component leaf
+  COMP_W: 140,
+  COMP_H: 36,
+  COMP_GAP: 8,
+
+  // Module container padding
+  MOD_PADDING_TOP: 36,
+  MOD_PADDING_X: 12,
+  MOD_PADDING_BOTTOM: 12,
+  MOD_GAP: 16, // gap between modules inside a system
+
+  // System container padding
+  SYS_PADDING_TOP: 44,
+  SYS_PADDING_X: 16,
+  SYS_PADDING_BOTTOM: 20,
+  SYS_GAP: 32, // horizontal gap between systems
+  SYS_ROW_GAP: 32, // vertical gap between system rows
+
+  // Grid limits
+  MODULES_PER_ROW: 3, // max modules per row inside a system
+  SYSTEMS_PER_ROW: 2, // max systems per row on the canvas
 };
 
 // ---------------------------------------------------------------------------
@@ -107,113 +127,161 @@ const flowStyles = `
 `;
 
 // ---------------------------------------------------------------------------
-// Custom Node components
+// Custom Node components — group containers + leaf
 // ---------------------------------------------------------------------------
 
-const nodeBaseStyle: CSSProperties = {
-  fontFamily: "inherit",
-  cursor: "pointer",
-  display: "flex",
-  flexDirection: "column",
-  justifyContent: "center",
-  alignItems: "center",
-  textAlign: "center",
-  padding: "8px 12px",
-  boxSizing: "border-box",
-};
-
-function SystemFlowNode({ data }: NodeProps<Node<FlowNodeData>>) {
+/** System-level group container — thick blue border, title bar at top. */
+function SystemGroupNode({ data }: NodeProps<Node<FlowNodeData>>) {
   return (
     <div
       style={{
-        ...nodeBaseStyle,
-        width: NODE_SIZES.system.w,
-        minHeight: NODE_SIZES.system.h,
-        borderRadius: 10,
+        width: "100%",
+        height: "100%",
+        borderRadius: 12,
         border: "3px solid #3B82F6",
-        background: "rgba(59, 130, 246, 0.08)",
+        background: "rgba(59, 130, 246, 0.04)",
+        position: "relative",
       }}
     >
+      {/* Invisible handles for potential system-level edges */}
       <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
-      <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>
-        {data.label}
-      </div>
-      {data.code && (
-        <div style={{ fontSize: 10, opacity: 0.6, marginTop: 2 }}>
-          {data.code}
-        </div>
-      )}
-      <div style={{ fontSize: 9, opacity: 0.5, marginTop: 2 }}>
-        {data.childCount > 0 && `${data.childCount} 子模組`}
-        {data.childCount > 0 && data.contractCount > 0 && " · "}
-        {data.contractCount > 0 && `${data.contractCount} 介面`}
-      </div>
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
+
+      {/* Title bar */}
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: LAYOUT.SYS_PADDING_TOP - 4,
+          padding: "8px 14px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          borderBottom: "1px solid rgba(59, 130, 246, 0.15)",
+          borderRadius: "12px 12px 0 0",
+          background: "rgba(59, 130, 246, 0.06)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 14, fontWeight: 700 }}>{data.label}</span>
+          {data.code && (
+            <span style={{ fontSize: 10, opacity: 0.5, fontWeight: 500 }}>
+              {data.code}
+            </span>
+          )}
+        </div>
+        <div style={{ fontSize: 9, opacity: 0.5 }}>
+          {data.childCount > 0 && `${data.childCount} 模組`}
+          {data.childCount > 0 &&
+            (data.totalComponentCount ?? 0) > 0 &&
+            " · "}
+          {(data.totalComponentCount ?? 0) > 0 &&
+            `${data.totalComponentCount} 元件`}
+          {(data.childCount > 0 || (data.totalComponentCount ?? 0) > 0) &&
+            data.contractCount > 0 &&
+            " · "}
+          {data.contractCount > 0 && `${data.contractCount} 介面`}
+        </div>
+      </div>
     </div>
   );
 }
 
-function ModuleFlowNode({ data }: NodeProps<Node<FlowNodeData>>) {
+/** Module-level group container — slate border, title bar, holds components. */
+function ModuleGroupNode({ data }: NodeProps<Node<FlowNodeData>>) {
   return (
     <div
       style={{
-        ...nodeBaseStyle,
-        width: NODE_SIZES.module.w,
-        minHeight: NODE_SIZES.module.h,
+        width: "100%",
+        height: "100%",
         borderRadius: 8,
         border: "2px solid #64748B",
-        background: "rgba(100, 116, 139, 0.06)",
+        background: "rgba(100, 116, 139, 0.04)",
+        position: "relative",
       }}
     >
+      {/* Handles for interface-contract edges */}
       <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
-      <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.3 }}>
-        {data.label}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        style={{ opacity: 0 }}
+      />
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="left-target"
+        style={{ opacity: 0 }}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="right-source"
+        style={{ opacity: 0 }}
+      />
+
+      {/* Title bar */}
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: LAYOUT.MOD_PADDING_TOP - 4,
+          padding: "6px 10px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          borderBottom: "1px solid rgba(100, 116, 139, 0.15)",
+          borderRadius: "8px 8px 0 0",
+          background: "rgba(100, 116, 139, 0.06)",
+        }}
+      >
+        <span style={{ fontSize: 12, fontWeight: 600 }}>{data.label}</span>
+        {data.contractCount > 0 && (
+          <span style={{ fontSize: 9, opacity: 0.5 }}>
+            {data.contractCount} 介面
+          </span>
+        )}
       </div>
-      {data.contractCount > 0 && (
-        <div style={{ fontSize: 9, opacity: 0.5, marginTop: 2 }}>
-          {data.contractCount} 介面合約
-        </div>
-      )}
-      <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
     </div>
   );
 }
 
+/** Component leaf node — small dashed-border card (non-container). */
 function ComponentFlowNode({ data }: NodeProps<Node<FlowNodeData>>) {
   return (
     <div
       style={{
-        ...nodeBaseStyle,
-        width: NODE_SIZES.component.w,
-        minHeight: NODE_SIZES.component.h,
+        width: LAYOUT.COMP_W,
+        height: LAYOUT.COMP_H,
         borderRadius: 6,
         border: "1.5px dashed #9CA3AF",
         background: "rgba(156, 163, 175, 0.05)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 11,
+        fontWeight: 500,
+        cursor: "pointer",
       }}
     >
-      <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
-      <div style={{ fontSize: 11, fontWeight: 500, lineHeight: 1.3 }}>
-        {data.label}
-      </div>
-      <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
+      {data.label}
     </div>
   );
 }
 
 const nodeTypes = {
-  system: SystemFlowNode,
-  module: ModuleFlowNode,
+  systemGroup: SystemGroupNode,
+  moduleGroup: ModuleGroupNode,
   component: ComponentFlowNode,
 };
 
 // ---------------------------------------------------------------------------
-// Build flow elements from subsystem tree
+// Contract helpers (preserved from original implementation)
 // ---------------------------------------------------------------------------
-
-interface FlowElements {
-  nodes: Node<FlowNodeData>[];
-  edges: Edge[];
-}
 
 function nodeId(node: SuggestedSubsystem): string {
   return node.concept_origin_code ?? node.name;
@@ -244,13 +312,107 @@ function contractTooltip(
   return lines.join("\n");
 }
 
-function buildFlowElements(tree: SuggestedSubsystem[]): FlowElements {
-  const nodes: Node<FlowNodeData>[] = [];
+// ---------------------------------------------------------------------------
+// Nested layout algorithm — bottom-up sizing, top-down positioning
+// ---------------------------------------------------------------------------
+
+interface SizeInfo {
+  w: number;
+  h: number;
+}
+
+interface ModuleLayoutInfo {
+  id: string;
+  size: SizeInfo;
+}
+
+interface SystemLayoutInfo {
+  id: string;
+  size: SizeInfo;
+  modules: ModuleLayoutInfo[];
+  /** Max height of each row of modules inside this system. */
+  moduleRowMaxHeights: number[];
+}
+
+/** Compute module container size from its children count. */
+function computeModuleSize(compCount: number): SizeInfo {
+  if (compCount === 0) {
+    return {
+      w: LAYOUT.COMP_W + LAYOUT.MOD_PADDING_X * 2,
+      h: LAYOUT.MOD_PADDING_TOP + LAYOUT.MOD_PADDING_BOTTOM + 24,
+    };
+  }
+  return {
+    w: LAYOUT.COMP_W + LAYOUT.MOD_PADDING_X * 2,
+    h:
+      LAYOUT.MOD_PADDING_TOP +
+      compCount * LAYOUT.COMP_H +
+      Math.max(0, compCount - 1) * LAYOUT.COMP_GAP +
+      LAYOUT.MOD_PADDING_BOTTOM,
+  };
+}
+
+/** Compute system container size from its module layouts. */
+function computeSystemSize(modules: ModuleLayoutInfo[]): {
+  size: SizeInfo;
+  moduleRowMaxHeights: number[];
+} {
+  if (modules.length === 0) {
+    return {
+      size: {
+        w: 200,
+        h: LAYOUT.SYS_PADDING_TOP + LAYOUT.SYS_PADDING_BOTTOM + 40,
+      },
+      moduleRowMaxHeights: [],
+    };
+  }
+
+  const modulesPerRow = Math.min(LAYOUT.MODULES_PER_ROW, modules.length);
+  const rows = Math.ceil(modules.length / modulesPerRow);
+  const maxModW = Math.max(...modules.map((m) => m.size.w));
+
+  // Max height per row
+  const moduleRowMaxHeights: number[] = [];
+  for (let r = 0; r < rows; r++) {
+    const rowModules = modules.slice(
+      r * modulesPerRow,
+      (r + 1) * modulesPerRow,
+    );
+    moduleRowMaxHeights.push(Math.max(...rowModules.map((m) => m.size.h)));
+  }
+
+  const totalW =
+    modulesPerRow * maxModW +
+    Math.max(0, modulesPerRow - 1) * LAYOUT.MOD_GAP +
+    LAYOUT.SYS_PADDING_X * 2;
+
+  const totalH =
+    LAYOUT.SYS_PADDING_TOP +
+    moduleRowMaxHeights.reduce((a, b) => a + b, 0) +
+    Math.max(0, rows - 1) * LAYOUT.MOD_GAP +
+    LAYOUT.SYS_PADDING_BOTTOM;
+
+  return { size: { w: totalW, h: totalH }, moduleRowMaxHeights };
+}
+
+// ---------------------------------------------------------------------------
+// Build flow elements — nested nodes + interface-contract edges
+// ---------------------------------------------------------------------------
+
+interface FlowElements {
+  nodes: Node<FlowNodeData>[];
+  edges: Edge[];
+}
+
+function buildNestedFlowElements(tree: SuggestedSubsystem[]): FlowElements {
+  // Separate arrays — parents MUST precede children in final array
+  const systemNodes: Node<FlowNodeData>[] = [];
+  const moduleNodes: Node<FlowNodeData>[] = [];
+  const componentNodes: Node<FlowNodeData>[] = [];
   const edges: Edge[] = [];
-  // Track which interface edges we already created (avoid duplicates A→B and B→A)
   const interfaceEdgeSet = new Set<string>();
 
-  // Build a name → id lookup for resolving interface_contracts neighbours
+  // ── name → id lookup for resolving interface_contracts neighbours ──
   const nameToId = new Map<string, string>();
   function registerNames(subtree: SuggestedSubsystem[]) {
     for (const s of subtree) {
@@ -260,62 +422,85 @@ function buildFlowElements(tree: SuggestedSubsystem[]): FlowElements {
   }
   registerNames(tree);
 
-  function walk(
-    subtree: SuggestedSubsystem[],
-    parentId: string | null,
-  ) {
-    for (const s of subtree) {
-      const id = nodeId(s);
-      const contractKeys = Object.keys(s.interface_contracts ?? {});
+  // ── Phase 1: bottom-up sizing + node creation ──
+  const systemLayouts: SystemLayoutInfo[] = [];
 
-      nodes.push({
-        id,
-        type: s.level,
-        position: { x: 0, y: 0 }, // dagre will reposition
-        data: {
-          label: s.name,
-          code: s.concept_origin_code ?? "",
-          level: s.level,
-          childCount: s.children?.length ?? 0,
-          contractCount: contractKeys.length,
-        },
-      });
+  for (const system of tree) {
+    const sysId = nodeId(system);
+    const modules = system.children ?? [];
+    const moduleLayouts: ModuleLayoutInfo[] = [];
+    let systemContractCount = 0;
+    let totalComponentCount = 0;
 
-      // Hierarchy edge: parent → child
-      if (parentId) {
-        edges.push({
-          id: `h-${parentId}-${id}`,
-          source: parentId,
-          target: id,
-          type: "default",
-          style: { stroke: "#9CA3AF", strokeWidth: 1.5 },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            color: "#9CA3AF",
-            width: 12,
-            height: 12,
+    for (const mod of modules) {
+      const modId = nodeId(mod);
+      const components = mod.children ?? [];
+      totalComponentCount += components.length;
+      const modSize = computeModuleSize(components.length);
+      moduleLayouts.push({ id: modId, size: modSize });
+
+      const modContractKeys = Object.keys(mod.interface_contracts ?? {});
+      systemContractCount += modContractKeys.length;
+
+      // ── Component leaf nodes ──
+      for (let ci = 0; ci < components.length; ci++) {
+        const comp = components[ci];
+        componentNodes.push({
+          id: nodeId(comp),
+          type: "component",
+          parentId: modId,
+          extent: "parent",
+          position: {
+            x: LAYOUT.MOD_PADDING_X,
+            y:
+              LAYOUT.MOD_PADDING_TOP +
+              ci * (LAYOUT.COMP_H + LAYOUT.COMP_GAP),
+          },
+          data: {
+            label: comp.name,
+            code: comp.concept_origin_code ?? "",
+            level: "component",
+            childCount: 0,
+            contractCount: 0,
           },
         });
       }
 
-      // Interface contract edges (dashed, animated)
-      if (s.interface_contracts) {
+      // ── Module group node (position set in Phase 2) ──
+      moduleNodes.push({
+        id: modId,
+        type: "moduleGroup",
+        parentId: sysId,
+        extent: "parent",
+        position: { x: 0, y: 0 },
+        style: { width: modSize.w, height: modSize.h },
+        data: {
+          label: mod.name,
+          code: mod.concept_origin_code ?? "",
+          level: "module",
+          childCount: components.length,
+          contractCount: modContractKeys.length,
+        },
+      });
+
+      // ── Interface contract edges (module ↔ module) ──
+      if (mod.interface_contracts) {
         for (const [neighbourName, contract] of Object.entries(
-          s.interface_contracts,
+          mod.interface_contracts,
         )) {
           const targetId = nameToId.get(neighbourName);
           if (!targetId) continue;
 
-          // Deduplicate: canonical key is sorted pair
-          const canonKey = [id, targetId].sort().join("↔");
+          const canonKey = [modId, targetId].sort().join("↔");
           if (interfaceEdgeSet.has(canonKey)) continue;
           interfaceEdgeSet.add(canonKey);
 
           edges.push({
-            id: `i-${id}-${targetId}`,
-            source: id,
+            id: `i-${modId}-${targetId}`,
+            source: modId,
             target: targetId,
             animated: true,
+            type: "smoothstep",
             style: {
               stroke: "#6366F1",
               strokeWidth: 1.5,
@@ -329,55 +514,145 @@ function buildFlowElements(tree: SuggestedSubsystem[]): FlowElements {
               strokeWidth: 0.5,
               borderRadius: 3,
             },
-            // Store tooltip data in edge data for potential use
             data: {
-              tooltip: contractTooltip(s.name, neighbourName, contract),
+              tooltip: contractTooltip(mod.name, neighbourName, contract),
             },
           });
         }
       }
+    }
 
-      // Recurse children
-      if (s.children?.length) {
-        walk(s.children, id);
+    // System-level contracts (if any)
+    if (system.interface_contracts) {
+      systemContractCount += Object.keys(system.interface_contracts).length;
+
+      for (const [neighbourName, contract] of Object.entries(
+        system.interface_contracts,
+      )) {
+        const targetId = nameToId.get(neighbourName);
+        if (!targetId) continue;
+
+        const canonKey = [sysId, targetId].sort().join("↔");
+        if (interfaceEdgeSet.has(canonKey)) continue;
+        interfaceEdgeSet.add(canonKey);
+
+        edges.push({
+          id: `i-${sysId}-${targetId}`,
+          source: sysId,
+          target: targetId,
+          animated: true,
+          type: "smoothstep",
+          style: {
+            stroke: "#6366F1",
+            strokeWidth: 1.5,
+            strokeDasharray: "6 3",
+          },
+          label: contractSummaryLabel(contract),
+          labelStyle: { fontSize: 9, fill: "#6366F1", fontWeight: 600 },
+          labelBgStyle: {
+            fill: "rgba(255,255,255,0.85)",
+            stroke: "#6366F1",
+            strokeWidth: 0.5,
+            borderRadius: 3,
+          },
+          data: {
+            tooltip: contractTooltip(system.name, neighbourName, contract),
+          },
+        });
       }
     }
+
+    // ── Compute system container size ──
+    const { size: sysSize, moduleRowMaxHeights } =
+      computeSystemSize(moduleLayouts);
+    systemLayouts.push({
+      id: sysId,
+      size: sysSize,
+      modules: moduleLayouts,
+      moduleRowMaxHeights,
+    });
+
+    // ── System group node (position set in Phase 2) ──
+    systemNodes.push({
+      id: sysId,
+      type: "systemGroup",
+      position: { x: 0, y: 0 },
+      style: { width: sysSize.w, height: sysSize.h },
+      data: {
+        label: system.name,
+        code: system.concept_origin_code ?? "",
+        level: "system",
+        childCount: modules.length,
+        contractCount: systemContractCount,
+        totalComponentCount,
+      },
+    });
   }
 
-  walk(tree, null);
+  // ── Phase 2: top-down positioning ──
+
+  // Position systems in a grid (left → right, wrapping)
+  const systemsPerRow = Math.min(
+    LAYOUT.SYSTEMS_PER_ROW,
+    systemLayouts.length || 1,
+  );
+  let cursorX = 0;
+  let cursorY = 0;
+  let rowMaxH = 0;
+
+  for (let si = 0; si < systemLayouts.length; si++) {
+    const sysLayout = systemLayouts[si];
+
+    // Wrap to next row
+    if (si > 0 && si % systemsPerRow === 0) {
+      cursorX = 0;
+      cursorY += rowMaxH + LAYOUT.SYS_ROW_GAP;
+      rowMaxH = 0;
+    }
+
+    // Set system position
+    const sysNode = systemNodes.find((n) => n.id === sysLayout.id);
+    if (sysNode) {
+      sysNode.position = { x: cursorX, y: cursorY };
+    }
+
+    // Position modules within system (grid layout)
+    const modulesPerRow = Math.min(
+      LAYOUT.MODULES_PER_ROW,
+      sysLayout.modules.length || 1,
+    );
+    const maxModW =
+      sysLayout.modules.length > 0
+        ? Math.max(...sysLayout.modules.map((m) => m.size.w))
+        : 0;
+
+    for (let mi = 0; mi < sysLayout.modules.length; mi++) {
+      const modLayout = sysLayout.modules[mi];
+      const col = mi % modulesPerRow;
+      const row = Math.floor(mi / modulesPerRow);
+
+      // Compute y from cumulative row heights
+      let yOffset = LAYOUT.SYS_PADDING_TOP;
+      for (let r = 0; r < row; r++) {
+        yOffset += sysLayout.moduleRowMaxHeights[r] + LAYOUT.MOD_GAP;
+      }
+
+      const modNode = moduleNodes.find((n) => n.id === modLayout.id);
+      if (modNode) {
+        modNode.position = {
+          x: LAYOUT.SYS_PADDING_X + col * (maxModW + LAYOUT.MOD_GAP),
+          y: yOffset,
+        };
+      }
+    }
+
+    cursorX += sysLayout.size.w + LAYOUT.SYS_GAP;
+    rowMaxH = Math.max(rowMaxH, sysLayout.size.h);
+  }
+
+  // Merge in correct order: parents before children
+  const nodes = [...systemNodes, ...moduleNodes, ...componentNodes];
   return { nodes, edges };
-}
-
-// ---------------------------------------------------------------------------
-// Dagre layout
-// ---------------------------------------------------------------------------
-
-function layoutWithDagre(nodes: Node[], edges: Edge[]): Node[] {
-  if (nodes.length === 0) return nodes;
-
-  const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: "TB", nodesep: 40, ranksep: 60 });
-
-  for (const node of nodes) {
-    const level = (node.data as FlowNodeData).level ?? "module";
-    const size = NODE_SIZES[level] ?? NODE_SIZES.module;
-    g.setNode(node.id, { width: size.w, height: size.h });
-  }
-  for (const edge of edges) {
-    g.setEdge(edge.source, edge.target);
-  }
-
-  Dagre.layout(g);
-
-  return nodes.map((node) => {
-    const pos = g.node(node.id);
-    const level = (node.data as FlowNodeData).level ?? "module";
-    const size = NODE_SIZES[level] ?? NODE_SIZES.module;
-    return {
-      ...node,
-      position: { x: pos.x - size.w / 2, y: pos.y - size.h / 2 },
-    };
-  });
 }
 
 // ---------------------------------------------------------------------------
@@ -407,11 +682,10 @@ export function ArchitectureFlowView({
   onNodeClick,
   className,
 }: ArchitectureFlowViewProps) {
-  // Build + layout flow elements
+  // Build nested layout
   const { initialNodes, flowEdges } = useMemo(() => {
-    const { nodes: rawNodes, edges } = buildFlowElements(tree);
-    const positioned = layoutWithDagre(rawNodes, edges);
-    return { initialNodes: positioned, flowEdges: edges };
+    const { nodes, edges } = buildNestedFlowElements(tree);
+    return { initialNodes: nodes, flowEdges: edges };
   }, [tree]);
 
   const [localNodes, setLocalNodes] = useState<Node[]>(initialNodes);
@@ -421,12 +695,9 @@ export function ArchitectureFlowView({
     setLocalNodes(initialNodes);
   }, [initialNodes]);
 
-  const onNodesChange = useCallback(
-    (changes: NodeChange[]) => {
-      setLocalNodes((prev) => applyNodeChanges(changes, prev));
-    },
-    [],
-  );
+  const onNodesChange = useCallback((changes: NodeChange[]) => {
+    setLocalNodes((prev) => applyNodeChanges(changes, prev));
+  }, []);
 
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
@@ -436,12 +707,27 @@ export function ArchitectureFlowView({
     [onNodeClick],
   );
 
-  // Dynamic height based on node count
-  const graphHeight = Math.max(300, Math.min(600, localNodes.length * 60 + 120));
+  // Dynamic height: find bottom-most system node
+  const graphHeight = useMemo(() => {
+    if (initialNodes.length === 0) return 300;
+    let maxBottom = 0;
+    for (const node of initialNodes) {
+      if (node.type === "systemGroup") {
+        const h = (node.style?.height as number) ?? 200;
+        maxBottom = Math.max(maxBottom, (node.position?.y ?? 0) + h);
+      }
+    }
+    return Math.max(400, Math.min(800, maxBottom + 80));
+  }, [initialNodes]);
 
   if (tree.length === 0) {
     return (
-      <div className={cn("text-center py-8 text-muted-foreground text-sm", className)}>
+      <div
+        className={cn(
+          "text-center py-8 text-muted-foreground text-sm",
+          className,
+        )}
+      >
         尚無子系統架構資料
       </div>
     );
@@ -478,27 +764,32 @@ export function ArchitectureFlowView({
         <span className="flex items-center gap-1">
           <span
             className="w-3 h-3 rounded"
-            style={{ border: "2px solid #3B82F6", background: "rgba(59,130,246,0.08)" }}
+            style={{
+              border: "3px solid #3B82F6",
+              background: "rgba(59,130,246,0.04)",
+            }}
           />
-          系統
+          系統（容器）
         </span>
         <span className="flex items-center gap-1">
           <span
             className="w-3 h-3 rounded"
-            style={{ border: "1.5px solid #64748B", background: "rgba(100,116,139,0.06)" }}
+            style={{
+              border: "2px solid #64748B",
+              background: "rgba(100,116,139,0.04)",
+            }}
           />
-          模組
+          模組（容器）
         </span>
         <span className="flex items-center gap-1">
           <span
             className="w-3 h-3 rounded"
-            style={{ border: "1.5px dashed #9CA3AF", background: "rgba(156,163,175,0.05)" }}
+            style={{
+              border: "1.5px dashed #9CA3AF",
+              background: "rgba(156,163,175,0.05)",
+            }}
           />
           元件
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="w-4 border-t border-gray-400" />
-          階層
         </span>
         <span className="flex items-center gap-1">
           <span className="w-4 border-t border-dashed border-indigo-500" />

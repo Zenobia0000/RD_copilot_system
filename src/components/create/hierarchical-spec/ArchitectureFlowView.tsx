@@ -63,6 +63,10 @@ interface FlowNodeData {
   contractCount: number;
   /** Total component count across all modules (system-level summary). */
   totalComponentCount?: number;
+  /** Callback injected at render-time to notify hover on module nodes. */
+  onHoverModule?: (moduleId: string | null) => void;
+  /** The module node's own ID (set during node data patching). */
+  moduleId?: string;
   [key: string]: unknown;
 }
 
@@ -182,7 +186,7 @@ function SystemGroupNode({ data }: NodeProps<Node<FlowNodeData>>) {
           {(data.childCount > 0 || (data.totalComponentCount ?? 0) > 0) &&
             data.contractCount > 0 &&
             " · "}
-          {data.contractCount > 0 && `${data.contractCount} 介面`}
+          {data.contractCount > 0 && `${data.contractCount} 關聯`}
         </div>
       </div>
     </div>
@@ -190,7 +194,7 @@ function SystemGroupNode({ data }: NodeProps<Node<FlowNodeData>>) {
 }
 
 /** Module-level group container — slate border, title bar, holds components. */
-function ModuleGroupNode({ data }: NodeProps<Node<FlowNodeData>>) {
+function ModuleGroupNode({ data, id }: NodeProps<Node<FlowNodeData>>) {
   return (
     <div
       style={{
@@ -201,6 +205,8 @@ function ModuleGroupNode({ data }: NodeProps<Node<FlowNodeData>>) {
         background: "rgba(100, 116, 139, 0.04)",
         position: "relative",
       }}
+      onMouseEnter={() => data.onHoverModule?.(id)}
+      onMouseLeave={() => data.onHoverModule?.(null)}
     >
       {/* Handles for interface-contract edges */}
       <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
@@ -241,8 +247,17 @@ function ModuleGroupNode({ data }: NodeProps<Node<FlowNodeData>>) {
       >
         <span style={{ fontSize: 12, fontWeight: 600 }}>{data.label}</span>
         {data.contractCount > 0 && (
-          <span style={{ fontSize: 9, opacity: 0.5 }}>
-            {data.contractCount} 介面
+          <span
+            style={{
+              fontSize: 9,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 3,
+              color: "#6366F1",
+              opacity: 0.8,
+            }}
+          >
+            🔗 {data.contractCount} 關聯
           </span>
         )}
       </div>
@@ -293,6 +308,16 @@ function contractSummaryLabel(contract: InterfaceContract): string {
     (d) => contract[d.key]?.trim(),
   ).length;
   return `${filled}/6 維`;
+}
+
+/** Map contract completeness (filled dims out of 6) to a colour. */
+function completenessColor(contract: InterfaceContract): string {
+  const filled = INTERFACE_CONTRACT_DIMS.filter(
+    (d) => contract[d.key]?.trim(),
+  ).length;
+  if (filled >= 5) return "#22C55E"; // green  — 完整
+  if (filled >= 3) return "#EAB308"; // yellow — 部分
+  return "#EF4444";                  // red    — 薄弱
 }
 
 /** Build tooltip text for an interface contract edge. */
@@ -495,27 +520,31 @@ function buildNestedFlowElements(tree: SuggestedSubsystem[]): FlowElements {
           if (interfaceEdgeSet.has(canonKey)) continue;
           interfaceEdgeSet.add(canonKey);
 
+          const edgeColor = completenessColor(contract);
           edges.push({
             id: `i-${modId}-${targetId}`,
             source: modId,
             target: targetId,
+            hidden: true,
             animated: true,
             type: "smoothstep",
             style: {
-              stroke: "#6366F1",
+              stroke: edgeColor,
               strokeWidth: 1.5,
               strokeDasharray: "6 3",
             },
             label: contractSummaryLabel(contract),
-            labelStyle: { fontSize: 9, fill: "#6366F1", fontWeight: 600 },
+            labelStyle: { fontSize: 9, fill: edgeColor, fontWeight: 600 },
             labelBgStyle: {
               fill: "rgba(255,255,255,0.85)",
-              stroke: "#6366F1",
+              stroke: edgeColor,
               strokeWidth: 0.5,
               borderRadius: 3,
             },
             data: {
               tooltip: contractTooltip(mod.name, neighbourName, contract),
+              sourceModuleId: modId,
+              targetModuleId: targetId,
             },
           });
         }
@@ -536,27 +565,31 @@ function buildNestedFlowElements(tree: SuggestedSubsystem[]): FlowElements {
         if (interfaceEdgeSet.has(canonKey)) continue;
         interfaceEdgeSet.add(canonKey);
 
+        const sysEdgeColor = completenessColor(contract);
         edges.push({
           id: `i-${sysId}-${targetId}`,
           source: sysId,
           target: targetId,
+          hidden: true,
           animated: true,
           type: "smoothstep",
           style: {
-            stroke: "#6366F1",
+            stroke: sysEdgeColor,
             strokeWidth: 1.5,
             strokeDasharray: "6 3",
           },
           label: contractSummaryLabel(contract),
-          labelStyle: { fontSize: 9, fill: "#6366F1", fontWeight: 600 },
+          labelStyle: { fontSize: 9, fill: sysEdgeColor, fontWeight: 600 },
           labelBgStyle: {
             fill: "rgba(255,255,255,0.85)",
-            stroke: "#6366F1",
+            stroke: sysEdgeColor,
             strokeWidth: 0.5,
             borderRadius: 3,
           },
           data: {
             tooltip: contractTooltip(system.name, neighbourName, contract),
+            sourceModuleId: sysId,
+            targetModuleId: targetId,
           },
         });
       }
@@ -688,12 +721,48 @@ export function ArchitectureFlowView({
     return { initialNodes: nodes, flowEdges: edges };
   }, [tree]);
 
-  const [localNodes, setLocalNodes] = useState<Node[]>(initialNodes);
+  // ── Edge visibility state ──
+  const [hoveredModuleId, setHoveredModuleId] = useState<string | null>(null);
+  const [showAllEdges, setShowAllEdges] = useState(false);
+
+  // Inject onHoverModule callback into moduleGroup nodes (pure build fn can't access state)
+  const patchedNodes = useMemo(() => {
+    return initialNodes.map((node) => {
+      if (node.type === "moduleGroup") {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            onHoverModule: setHoveredModuleId,
+            moduleId: node.id,
+          },
+        };
+      }
+      return node;
+    });
+  }, [initialNodes]);
+
+  // Compute visible edges based on hover / toggle state
+  const visibleEdges = useMemo(() => {
+    if (showAllEdges) {
+      return flowEdges.map((e) => ({ ...e, hidden: false }));
+    }
+    if (!hoveredModuleId) {
+      return flowEdges; // all hidden by default from build
+    }
+    return flowEdges.map((e) => ({
+      ...e,
+      hidden:
+        e.source !== hoveredModuleId && e.target !== hoveredModuleId,
+    }));
+  }, [flowEdges, hoveredModuleId, showAllEdges]);
+
+  const [localNodes, setLocalNodes] = useState<Node[]>(patchedNodes);
 
   // Sync when tree changes
   useMemo(() => {
-    setLocalNodes(initialNodes);
-  }, [initialNodes]);
+    setLocalNodes(patchedNodes);
+  }, [patchedNodes]);
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     setLocalNodes((prev) => applyNodeChanges(changes, prev));
@@ -739,7 +808,7 @@ export function ArchitectureFlowView({
       <div style={{ height: graphHeight }} className="rounded-lg border">
         <ReactFlow
           nodes={localNodes}
-          edges={flowEdges}
+          edges={visibleEdges}
           nodeTypes={nodeTypes}
           onNodesChange={onNodesChange}
           onNodeClick={handleNodeClick}
@@ -760,7 +829,7 @@ export function ArchitectureFlowView({
       </div>
 
       {/* Legend */}
-      <div className="mt-2 flex gap-4 flex-wrap text-[10px] text-muted-foreground">
+      <div className="mt-2 flex gap-4 flex-wrap items-center text-[10px] text-muted-foreground">
         <span className="flex items-center gap-1">
           <span
             className="w-3 h-3 rounded"
@@ -791,10 +860,32 @@ export function ArchitectureFlowView({
           />
           元件
         </span>
-        <span className="flex items-center gap-1">
-          <span className="w-4 border-t border-dashed border-indigo-500" />
-          介面合約
+
+        {/* Completeness colour legend */}
+        <span className="flex items-center gap-1 ml-2 pl-2 border-l border-muted">
+          模組關聯：
         </span>
+        <span className="flex items-center gap-1">
+          <span className="w-4 border-t-2 border-dashed" style={{ borderColor: "#22C55E" }} />
+          完整 5-6/6
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-4 border-t-2 border-dashed" style={{ borderColor: "#EAB308" }} />
+          部分 3-4/6
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-4 border-t-2 border-dashed" style={{ borderColor: "#EF4444" }} />
+          薄弱 0-2/6
+        </span>
+
+        {/* Toggle button */}
+        <button
+          type="button"
+          onClick={() => setShowAllEdges((prev) => !prev)}
+          className="text-[10px] px-2 py-0.5 rounded border hover:bg-muted transition ml-auto"
+        >
+          {showAllEdges ? "隱藏關聯" : "顯示全部關聯"}
+        </button>
       </div>
     </div>
   );

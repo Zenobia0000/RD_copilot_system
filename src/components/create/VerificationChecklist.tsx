@@ -1,13 +1,10 @@
 /**
  * VerificationChecklist — filters needs_verification DraftValues,
- * groups by subsystem → category, provides checkbox tracking + CSV export.
+ * groups by top-level system → module/component sub-codes,
+ * provides checkbox tracking + CSV export.
  *
- * UX mockup reference: plans/concept-pack-to-engineering-specs.md §5 驗證清單 UX
- *
- * Layout:
- *   • One collapsible section per subsystem (only those with verifiable items)
- *   • Inside: items grouped by category with checkbox, value, source, suggested method
- *   • Footer: "匯出驗證清單" (CSV) + "全部標記已驗證" buttons
+ * Wave 2C: Cards are grouped by root system code (e.g. A1, B1).
+ * Expanding a system card reveals module/component sub-groups inside.
  *
  * @see plans/concept-pack-to-engineering-specs.md
  * @see src/types/generated/engineeringSpec.ts
@@ -39,7 +36,6 @@ import { cn } from "@/lib/utils";
 
 import type {
   EngineeringSpecDraftResponse,
-  EngineeringSpecDraft,
   DraftValue,
   DraftCategory,
 } from "@/types/generated/engineeringSpec";
@@ -54,18 +50,58 @@ import { Progress } from "@/components/ui/progress";
 // Code → Name mapping (subsystem_tree walk)
 // ---------------------------------------------------------------------------
 
-/** 遞迴走訪 subsystem_tree，建立 concept_origin_code → name 對照表 */
+/**
+ * 遞迴走訪 subsystem_tree，建立 code → name 對照表。
+ * 系統節點使用 concept_origin_code；模組/元件子節點使用位置碼
+ * (parentCode.1, parentCode.2, ...) 以匹配 EngineeringSpecDraft.subsystem_code。
+ */
 function buildCodeToNameMap(tree: SuggestedSubsystem[]): Map<string, string> {
   const map = new Map<string, string>();
-  function walk(nodes: SuggestedSubsystem[]) {
-    for (const node of nodes) {
-      if (node.concept_origin_code) {
-        map.set(node.concept_origin_code, node.name);
+  function walk(nodes: SuggestedSubsystem[], parentCode: string | null) {
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      const code =
+        node.concept_origin_code ??
+        (parentCode ? `${parentCode}.${i + 1}` : null);
+      if (code) {
+        map.set(code, node.name);
       }
-      if (node.children?.length) walk(node.children);
+      // Also register name → name so that name-based subsystem_codes can resolve
+      map.set(node.name, node.name);
+      if (node.children?.length) walk(node.children, code ?? null);
     }
   }
-  walk(tree);
+  walk(tree, null);
+  return map;
+}
+
+/**
+ * 走訪 subsystem_tree，建立 (concept_origin_code | name) → 根系統 code 的映射。
+ * 由於 module/component 層級的 draft.subsystem_code 使用 **name**（非點記法），
+ * 故需要以 name 做為查詢 key，才能正確歸屬到其所屬的頂層系統。
+ */
+function buildCodeToRootMap(tree: SuggestedSubsystem[]): Map<string, string> {
+  const map = new Map<string, string>();
+  function walk(nodes: SuggestedSubsystem[], rootCode: string | null) {
+    for (const node of nodes) {
+      // When we encounter a system-level node, use its code as the new root
+      const currentRoot =
+        node.level === "system" && node.concept_origin_code
+          ? node.concept_origin_code
+          : rootCode;
+      // Register concept_origin_code → root (for system-level drafts)
+      if (node.concept_origin_code && currentRoot) {
+        map.set(node.concept_origin_code, currentRoot);
+      }
+      // Register name → root (for module/component-level drafts whose
+      // subsystem_code is the node name rather than dot-notation)
+      if (currentRoot) {
+        map.set(node.name, currentRoot);
+      }
+      if (node.children?.length) walk(node.children, currentRoot);
+    }
+  }
+  walk(tree, null);
   return map;
 }
 
@@ -286,7 +322,7 @@ function VerificationRow({
   );
 }
 
-/** Category group within a subsystem. */
+/** Category group within a subsystem section. */
 function CategoryGroup({
   category,
   items,
@@ -325,16 +361,19 @@ function CategoryGroup({
   );
 }
 
-/** One collapsible card per subsystem — card-style with progress indicator. */
-function SubsystemSection({
-  subsystemCode,
-  subsystemName,
+/**
+ * 模組/元件子群組 — 系統卡片展開後的第二層摺疊區段。
+ * 顯示單一 subsystem_code（模組或元件）下的驗證項目。
+ */
+function ModuleSubGroup({
+  subCode,
+  subName,
   items,
   verifiedSet,
   onToggle,
 }: {
-  subsystemCode: string;
-  subsystemName: string;
+  subCode: string;
+  subName: string;
   items: VerifiableItem[];
   verifiedSet: Set<string>;
   onToggle: (key: string) => void;
@@ -342,15 +381,8 @@ function SubsystemSection({
   const verifiedCount = items.filter(
     (i) => verifiedSet.has(`${i.subsystemCode}::${i.spec.field_name}`)
   ).length;
-  const pendingCount = items.length - verifiedCount;
-  const progressPct = items.length > 0 ? (verifiedCount / items.length) * 100 : 100;
+  const total = items.length;
 
-  // Dynamic border color: all verified → green, else orange
-  const borderColor = pendingCount === 0
-    ? "border-l-green-500/70"
-    : "border-l-orange-400/60";
-
-  // Group by category
   const byCategory = useMemo(() => {
     const map = new Map<DraftCategory, VerifiableItem[]>();
     for (const cat of DRAFT_CATEGORIES) {
@@ -362,14 +394,117 @@ function SubsystemSection({
 
   return (
     <Collapsible defaultOpen>
+      <div className="rounded-md border bg-muted/20">
+        <CollapsibleTrigger className="w-full px-3 py-2 flex items-center gap-2 hover:bg-muted/40 transition-colors text-left">
+          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground transition-transform [[data-state=open]>*>&]:rotate-90" />
+          <span className="text-xs font-semibold">{subName}</span>
+          <span className="text-[10px] text-muted-foreground font-mono">{subCode}</span>
+          {verifiedCount === total ? (
+            <Badge
+              variant="outline"
+              className="text-[10px] px-1 py-0 h-4 bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700"
+            >
+              <CheckCheck className="w-2.5 h-2.5 mr-0.5" />
+              完成
+            </Badge>
+          ) : (
+            <Badge
+              variant="outline"
+              className="text-[10px] px-1 py-0 h-4 bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-700"
+            >
+              {total - verifiedCount} 待驗證
+            </Badge>
+          )}
+          <span className="text-[10px] text-muted-foreground ml-auto">
+            {verifiedCount}/{total}
+          </span>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="px-3 pb-3 pt-1 space-y-2 border-t">
+            {Array.from(byCategory.entries()).map(([cat, catItems]) => (
+              <CategoryGroup
+                key={cat}
+                category={cat}
+                items={catItems}
+                verifiedSet={verifiedSet}
+                onToggle={onToggle}
+              />
+            ))}
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
+}
+
+/**
+ * 頂層系統卡片 — 聚合某根系統代碼（如 A1）下所有子系統/模組/元件的驗證進度。
+ * 預設折疊（defaultOpen=false）；展開後按 subsystem_code 分群顯示 ModuleSubGroup。
+ * 若該系統只有一個 sub-code（即自身），則直接展示 CategoryGroup，避免多餘層級。
+ */
+function SystemSection({
+  systemCode,
+  systemName,
+  subGroups,
+  codeToName,
+  verifiedSet,
+  onToggle,
+}: {
+  systemCode: string;
+  systemName: string;
+  /** Map<subsystem_code, items[]> — 此根系統下所有子代碼的驗證項目。 */
+  subGroups: Map<string, VerifiableItem[]>;
+  codeToName: Map<string, string>;
+  verifiedSet: Set<string>;
+  onToggle: (key: string) => void;
+}) {
+  // Aggregate all items across sub-groups for progress calculation
+  const allSystemItems = useMemo(() => {
+    const items: VerifiableItem[] = [];
+    for (const list of subGroups.values()) items.push(...list);
+    return items;
+  }, [subGroups]);
+
+  const verifiedCount = allSystemItems.filter(
+    (i) => verifiedSet.has(`${i.subsystemCode}::${i.spec.field_name}`)
+  ).length;
+  const pendingCount = allSystemItems.length - verifiedCount;
+  const progressPct =
+    allSystemItems.length > 0
+      ? (verifiedCount / allSystemItems.length) * 100
+      : 100;
+
+  // Dynamic border color: all verified → green, else orange
+  const borderColor =
+    pendingCount === 0 ? "border-l-green-500/70" : "border-l-orange-400/60";
+
+  // If all items belong to the system code itself (no child modules), render categories directly
+  const subCodes = Array.from(subGroups.keys());
+  const isSingleLevel = subCodes.length === 1 && subCodes[0] === systemCode;
+
+  // Category grouping for single-level fallback
+  const directCategories = useMemo(() => {
+    if (!isSingleLevel) return null;
+    const map = new Map<DraftCategory, VerifiableItem[]>();
+    for (const cat of DRAFT_CATEGORIES) {
+      const catItems = allSystemItems.filter(
+        (i) => i.spec.category === cat.key
+      );
+      if (catItems.length > 0) map.set(cat.key, catItems);
+    }
+    return map;
+  }, [allSystemItems, isSingleLevel]);
+
+  return (
+    <Collapsible defaultOpen={false}>
       <Card className={cn("border-l-4", borderColor)}>
         <CollapsibleTrigger asChild>
           <CardContent className="p-4 cursor-pointer hover:bg-muted/30 transition-colors">
             <div className="flex items-center gap-2">
               <ChevronRight className="w-4 h-4 text-muted-foreground transition-transform [[data-state=open]>*>&]:rotate-90" />
-              <span className="text-sm font-semibold">{subsystemName}</span>
+              <span className="text-sm font-semibold">{systemName}</span>
               <span className="text-xs text-muted-foreground font-mono">
-                {subsystemCode}
+                {systemCode}
               </span>
               {pendingCount > 0 ? (
                 <Tooltip>
@@ -382,7 +517,9 @@ function SubsystemSection({
                       {pendingCount} 項待驗證
                     </Badge>
                   </TooltipTrigger>
-                  <TooltipContent>{pendingCount} 項規格待人工驗證</TooltipContent>
+                  <TooltipContent>
+                    {pendingCount} 項規格待人工驗證
+                  </TooltipContent>
                 </Tooltip>
               ) : (
                 <Badge
@@ -394,15 +531,12 @@ function SubsystemSection({
                 </Badge>
               )}
               <span className="text-xs text-muted-foreground ml-auto">
-                {verifiedCount}/{items.length}
+                {verifiedCount}/{allSystemItems.length}
               </span>
             </div>
             {/* Progress bar */}
             <div className="mt-2 flex items-center gap-2">
-              <Progress
-                value={progressPct}
-                className="h-1.5 flex-1"
-              />
+              <Progress value={progressPct} className="h-1.5 flex-1" />
               <span className="text-[10px] text-muted-foreground font-mono w-8 text-right">
                 {Math.round(progressPct)}%
               </span>
@@ -410,16 +544,33 @@ function SubsystemSection({
           </CardContent>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <CardContent className="px-4 pb-4 pt-0 border-t space-y-3">
-            {Array.from(byCategory.entries()).map(([cat, catItems]) => (
-              <CategoryGroup
-                key={cat}
-                category={cat}
-                items={catItems}
-                verifiedSet={verifiedSet}
-                onToggle={onToggle}
-              />
-            ))}
+          <CardContent className="px-4 pb-4 pt-0 border-t space-y-2">
+            {directCategories
+              ? /* Single-level: render category groups directly */
+                Array.from(directCategories.entries()).map(
+                  ([cat, catItems]) => (
+                    <CategoryGroup
+                      key={cat}
+                      category={cat}
+                      items={catItems}
+                      verifiedSet={verifiedSet}
+                      onToggle={onToggle}
+                    />
+                  )
+                )
+              : /* Multi-level: render ModuleSubGroup per sub-code */
+                Array.from(subGroups.entries()).map(
+                  ([subCode, subItems]) => (
+                    <ModuleSubGroup
+                      key={subCode}
+                      subCode={subCode}
+                      subName={codeToName.get(subCode) ?? subCode}
+                      items={subItems}
+                      verifiedSet={verifiedSet}
+                      onToggle={onToggle}
+                    />
+                  )
+                )}
           </CardContent>
         </CollapsibleContent>
       </Card>
@@ -452,6 +603,12 @@ export function VerificationChecklist({
     [data.subsystem_tree],
   );
 
+  // Build subsystem_code → root system code lookup from subsystem_tree
+  const codeToRoot = useMemo(
+    () => buildCodeToRootMap(data.subsystem_tree ?? []),
+    [data.subsystem_tree],
+  );
+
   // Build flat list of all verifiable items
   const allItems = useMemo(() => {
     const items: VerifiableItem[] = [];
@@ -471,16 +628,20 @@ export function VerificationChecklist({
     return items;
   }, [data.drafts, codeToName]);
 
-  // Group by subsystem (preserving draft order)
-  const bySubsystem = useMemo(() => {
-    const map = new Map<string, VerifiableItem[]>();
+  // Group by root system code → sub-code → items (two-level Map)
+  // Uses codeToRoot to resolve name-based subsystem_codes to their root system
+  const bySystem = useMemo(() => {
+    const map = new Map<string, Map<string, VerifiableItem[]>>();
     for (const item of allItems) {
-      const list = map.get(item.subsystemCode) ?? [];
+      const root = codeToRoot.get(item.subsystemCode) ?? item.subsystemCode;
+      if (!map.has(root)) map.set(root, new Map());
+      const inner = map.get(root)!;
+      const list = inner.get(item.subsystemCode) ?? [];
       list.push(item);
-      map.set(item.subsystemCode, list);
+      inner.set(item.subsystemCode, list);
     }
     return map;
-  }, [allItems]);
+  }, [allItems, codeToRoot]);
 
   // Verified state: Set of "subsystemCode::field_name" keys
   const [verifiedSet, setVerifiedSet] = useState<Set<string>>(new Set());
@@ -561,14 +722,15 @@ export function VerificationChecklist({
         </div>
       </CardContent>
 
-      {/* Subsystem sections */}
+      {/* System-level sections (one card per root system code) */}
       <CardContent className="px-4 pb-4 pt-0 space-y-2">
-        {Array.from(bySubsystem.entries()).map(([code, sItems]) => (
-          <SubsystemSection
-            key={code}
-            subsystemCode={code}
-            subsystemName={sItems[0]?.subsystemName ?? code}
-            items={sItems}
+        {Array.from(bySystem.entries()).map(([rootCode, subGroups]) => (
+          <SystemSection
+            key={rootCode}
+            systemCode={rootCode}
+            systemName={codeToName.get(rootCode) ?? rootCode}
+            subGroups={subGroups}
+            codeToName={codeToName}
             verifiedSet={verifiedSet}
             onToggle={toggleVerified}
           />

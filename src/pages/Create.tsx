@@ -116,6 +116,7 @@ import { MultiSolutionAdoptionPanel } from "@/components/create/MultiSolutionAdo
 import { useConceptRoutes, useCompatibilityPairs } from "@/hooks/api/useConceptRoutes";
 import { useConceptArchitecturePack, useGenerateConceptArchitecturePack } from "@/hooks/api/useConceptArchitecturePack";
 import { useEngineeringSpecDraftsPipeline } from "@/hooks/api/useEngineeringSpecDraftsPipeline";
+import { useEngineeringSpecDraftPack } from "@/hooks/api/useEngineeringSpecDraftPack";
 import type { ConceptArchitecturePackResponse } from "@/types/conceptArchitecture";
 import type { EngineeringSpecDraftResponse } from "@/types/generated/engineeringSpec";
 import { HierarchicalSpecView } from "@/components/create/hierarchical-spec";
@@ -208,6 +209,8 @@ export default function Create() {
   const generatePackMutation = useGenerateConceptArchitecturePack(id);
   // v10: Engineering Spec Drafts (3-step pipeline)
   const engSpecPipeline = useEngineeringSpecDraftsPipeline(id, conceptPackQuery.data?.pack);
+  // v10: Engineering Spec Draft Pack — persisted in DB (migration 016)
+  const engSpecDraftPackQuery = useEngineeringSpecDraftPack(id);
 
   // ── Phase 1 context ──
   const { data: brief } = useBrief(id);
@@ -321,6 +324,13 @@ export default function Create() {
   const [conceptPackApplied, setConceptPackApplied] = useState(false);
   // v10: Engineering Spec Drafts result
   const [engSpecResult, setEngSpecResult] = useState<EngineeringSpecDraftResponse | null>(null);
+
+  // v10: Hydrate engSpecResult from DB on mount (local optimistic wins)
+  useEffect(() => {
+    if (engSpecDraftPackQuery.data && !engSpecResult) {
+      setEngSpecResult(engSpecDraftPackQuery.data);
+    }
+  }, [engSpecDraftPackQuery.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // v8: Directed TRIZ — solve only top-level TC contradictions
   // PC and SF are derived internally by the backend from each TC

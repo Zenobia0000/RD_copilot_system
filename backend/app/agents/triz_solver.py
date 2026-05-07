@@ -92,6 +92,7 @@ from app.services import reference_library  # legacy direct access (kept for bac
 from app.services.spatial_lookup import LookupQuery, default_resolver
 from app.services.spatial_validator import discover_package
 from app.observability import emit_counter, phase_timer
+from app.core.supabase import get_supabase
 
 
 def solve_triz(req: TrizLookupRequest) -> TrizLookupResponse:
@@ -1652,6 +1653,61 @@ def generate_engineering_spec_drafts(
         subsystem_tree=step1.subsystems,
         package_map=step1.package_map,
     )
+
+
+# ---------------------------------------------------------------------------
+# Engineering Spec Draft Pack — persistence helpers
+# ---------------------------------------------------------------------------
+
+def _persist_engineering_spec_draft_pack(
+    project_id: str,
+    response: EngineeringSpecDraftResponse,
+) -> None:
+    """Upsert engineering spec draft pack into DB. Non-fatal on failure."""
+    try:
+        sb = get_supabase()
+        sb.table("engineering_spec_draft_packs").upsert(
+            {
+                "project_id": project_id,
+                "drafts_json": response.model_dump(mode="json"),
+                "pipeline_version": "v2-4step",
+                "step_count": len(response.drafts),
+            },
+            on_conflict="project_id",
+        ).execute()
+    except Exception:
+        log.warning(
+            "Failed to persist engineering spec draft pack for project %s",
+            project_id,
+            exc_info=True,
+        )
+
+
+def fetch_latest_engineering_spec_draft_pack(
+    project_id: str,
+) -> EngineeringSpecDraftResponse | None:
+    """從資料庫讀取最新的工程規格草案包."""
+    try:
+        sb = get_supabase()
+        result = (
+            sb.table("engineering_spec_draft_packs")
+            .select("*")
+            .eq("project_id", project_id)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if not result.data:
+            return None
+        row = result.data[0]
+        return EngineeringSpecDraftResponse.model_validate(row["drafts_json"])
+    except Exception:
+        log.warning(
+            "fetch_latest_engineering_spec_draft_pack failed for project %s",
+            project_id,
+            exc_info=True,
+        )
+        return None
 
 
 def suggest_subsystems(req: SubsystemSuggestRequest) -> SubsystemSuggestResponse:

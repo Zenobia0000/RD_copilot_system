@@ -45,6 +45,8 @@ from app.agents.triz_solver import (
     eng_spec_step1b_enrich,
     eng_spec_step2_generate,
     eng_spec_step3_strengthen,
+    _persist_engineering_spec_draft_pack,
+    fetch_latest_engineering_spec_draft_pack,
     IncompleteLLMResponseError,
 )
 from app.agents.scamper_feedback import process_scamper_feedback
@@ -99,7 +101,9 @@ def scamper_engineering_spec_drafts(req: SubsystemSuggestRequest):
             },
         )
     try:
-        return generate_engineering_spec_drafts(req)
+        result = generate_engineering_spec_drafts(req)
+        _persist_engineering_spec_draft_pack(req.project_id, result)
+        return result
     except IncompleteLLMResponseError as exc:
         raise HTTPException(status_code=502, detail=exc.to_dict()) from exc
 
@@ -208,7 +212,15 @@ def scamper_eng_spec_step3(req: EngSpecStep3Request):
     """Step 3: Strengthen sources and upgrade confidence levels."""
     _logger = logging.getLogger(__name__)
     try:
-        return eng_spec_step3_strengthen(req)
+        result = eng_spec_step3_strengthen(req)
+        # Persist the complete response (subsystem_tree from req, package_map unavailable here)
+        full_response = EngineeringSpecDraftResponse(
+            drafts=result.drafts,
+            subsystem_tree=req.subsystems,
+            package_map=None,
+        )
+        _persist_engineering_spec_draft_pack(req.project_id, full_response)
+        return result
     except HTTPException:
         raise
     except Exception as exc:
@@ -217,6 +229,18 @@ def scamper_eng_spec_step3(req: EngSpecStep3Request):
             status_code=502,
             detail=f"Step 3 source strengthening failed: {exc}",
         ) from exc
+
+
+@router.get(
+    "/scamper/engineering-spec-drafts/{project_id}",
+    response_model=EngineeringSpecDraftResponse,
+)
+def scamper_get_engineering_spec_drafts(project_id: str):
+    """Fetch the latest persisted engineering spec draft pack for a project."""
+    result = fetch_latest_engineering_spec_draft_pack(project_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="No engineering spec draft pack found")
+    return result
 
 
 @router.post("/scamper/spatial-overlay", response_model=SpatialOverlayResponse)

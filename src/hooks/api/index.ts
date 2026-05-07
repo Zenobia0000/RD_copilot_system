@@ -190,3 +190,4 @@ export { useGenerateEngineeringSpecDrafts } from './useEngineeringSpecDrafts';
 export type { GenerateEngineeringSpecVariables } from './useEngineeringSpecDrafts';
 export { useEngineeringSpecDraftsPipeline } from './useEngineeringSpecDraftsPipeline';
 export type { PipelinePhase, PipelineState } from './useEngineeringSpecDraftsPipeline';
+export { useEngineeringSpecDraftPack } from './useEngineeringSpecDraftPack';

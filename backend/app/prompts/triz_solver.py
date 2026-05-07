@@ -778,6 +778,15 @@ traceable engineering specification drafts.
    for lab-verified data that you do not have.
 5. When uncertain, prefer a conservative range over a single precise number.
 6. All outputs MUST be valid JSON matching the output_schema exactly.
+7. The response MUST be a single, complete JSON object with NO text before or
+   after it. No comments, no trailing commas, no JavaScript-style syntax.
+8. Because the output is large and deeply nested, pay extra attention to:
+   - Every array element and every object property MUST be separated by a comma.
+   - Do NOT place a comma after the LAST item in an array or object.
+   - All string values must use proper JSON escaping (\\" for quotes, \\\\ for
+     backslash, \\n for newlines inside strings).
+   - Every opening {{ must have a matching }}, every [ must have a matching ].
+   - Before finalising, mentally verify bracket/brace balance and comma placement.
 """
 
 ENGINEERING_SPEC_EXPANSION = """\
@@ -836,7 +845,12 @@ from publicly known specs or scaling laws, and put a one-line justification in \
    - Set `confidence` to "library" for cited entries and "estimate" for llm_estimate.
 8. Map concept_interfaces from the pack to the appropriate module-level \
    InterfaceContract entries.
-9. Return valid JSON matching the output_schema below.
+9. Return a SINGLE valid JSON object matching the output_schema below.
+   ⚠️ JSON validity checklist — verify EACH point before responding:
+   • Commas between EVERY sibling item in arrays and objects (but NOT after the last item).
+   • All string values properly escaped — no raw newlines or unescaped quotes inside strings.
+   • All brackets and braces matched: count your {{ }} and [ ] pairs.
+   • No trailing text, no explanations, no markdown — output ONLY the JSON object.
 </instructions>
 
 <output_schema>

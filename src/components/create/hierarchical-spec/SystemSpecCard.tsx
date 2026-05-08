@@ -78,11 +78,11 @@ export function SystemSpecCard({ node, defaultOpen = true }: SystemSpecCardProps
 
               {/* System name */}
               <div className="flex flex-col min-w-0">
-                <span className="font-semibold text-sm truncate">
+                <span className="font-semibold text-sm max-h-[3.5rem] overflow-y-auto">
                   {node.name}
                 </span>
                 {node.reason && (
-                  <span className="text-[11px] text-muted-foreground truncate">
+                  <span className="text-[11px] text-muted-foreground max-h-[3rem] overflow-y-auto block">
                     {node.reason}
                   </span>
                 )}

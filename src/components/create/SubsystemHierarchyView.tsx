@@ -201,7 +201,7 @@ function ModuleCard({
             </Badge>
           </div>
           {module.reason && (
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-2">
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed max-h-[3rem] overflow-y-auto">
               {module.reason}
             </p>
           )}
@@ -315,7 +315,7 @@ function SystemCard({
                 </Badge>
               </div>
               {system.reason && (
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-2">
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed max-h-[3rem] overflow-y-auto">
                   {system.reason}
                 </p>
               )}

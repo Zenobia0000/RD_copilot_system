@@ -51,7 +51,7 @@ export function InterfaceContractsPanel({
         <button className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors group mt-2">
           <ChevronRight className="h-3 w-3 transition-transform group-data-[state=open]:rotate-90" />
           <Link2 className="h-3 w-3" />
-          <span>Interface Contracts ({entries.length})</span>
+          <span>關聯 ({entries.length})</span>
         </button>
       </CollapsibleTrigger>
       <CollapsibleContent>
@@ -119,7 +119,7 @@ function ContractCard({
                   <span className="text-[10px] font-semibold text-muted-foreground uppercase">
                     {d.labelZh}
                   </span>
-                  <p className="text-muted-foreground leading-relaxed line-clamp-2">
+                  <p className="text-muted-foreground leading-relaxed max-h-[3.5rem] overflow-y-auto">
                     {contract[d.key]}
                   </p>
                 </div>
@@ -228,8 +228,8 @@ function SpatialBlock({
           {confLabel}
         </span>
         {source && !isLlmEstimate && (
-          <span className="text-muted-foreground truncate max-w-[220px]" title={source}>
-            src: {source.length > 32 ? `${source.slice(0, 32)}…` : source}
+          <span className="text-muted-foreground break-all">
+            src: {source}
           </span>
         )}
         {spatial.mounting_pattern && (

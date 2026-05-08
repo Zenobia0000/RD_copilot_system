@@ -320,7 +320,7 @@ export function SpecDashboardSummary({
             />
 
             {/* System name */}
-            <span className="font-medium min-w-[100px] shrink-0 truncate">
+            <span className="font-medium min-w-[100px] shrink-0 max-h-[3.5rem] overflow-y-auto">
               {sys.name}
             </span>
 
@@ -363,7 +363,7 @@ export function SpecDashboardSummary({
             )}
 
             {/* Action hint */}
-            <span className="text-muted-foreground ml-auto truncate max-w-[120px]">
+            <span className="text-muted-foreground ml-auto max-h-[3rem] overflow-y-auto">
               {sys.actionHint}
             </span>
           </button>

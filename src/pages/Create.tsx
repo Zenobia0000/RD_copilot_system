@@ -2382,6 +2382,8 @@ export default function Create() {
               subsystem_tree: engSpecPipeline.step1Result.subsystems,
               package_map: engSpecPipeline.step1Result.package_map,
             }}
+            projectId={id}
+            conceptInterfaces={packData?.pack?.interfaces}
             previewMode
             className="opacity-80"
           />
@@ -2390,7 +2392,7 @@ export default function Create() {
         {/* Final results: fully strengthened specs + verification checklist */}
         {engSpecResult && (
           <>
-            <HierarchicalSpecView data={engSpecResult} />
+            <HierarchicalSpecView data={engSpecResult} projectId={id} conceptInterfaces={packData?.pack?.interfaces} />
             <VerificationChecklist data={engSpecResult} />
           </>
         )}

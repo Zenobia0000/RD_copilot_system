@@ -191,3 +191,7 @@ export type { GenerateEngineeringSpecVariables } from './useEngineeringSpecDraft
 export { useEngineeringSpecDraftsPipeline } from './useEngineeringSpecDraftsPipeline';
 export type { PipelinePhase, PipelineState } from './useEngineeringSpecDraftsPipeline';
 export { useEngineeringSpecDraftPack } from './useEngineeringSpecDraftPack';
+
+// --- USDA Export ---
+export { useUsdaExport } from './useUsdaExport';
+export type { UsdaExportVariables } from './useUsdaExport';

@@ -1,8 +1,9 @@
-"""Export: project artifact export to Markdown/JSON.
+"""Export: project artifact export to Markdown/JSON/USDA.
 
 SOW Module: 匯出 (export)
 SOW Endpoints:
   - POST /export
+  - POST /export/usda
 """
 
 import json
@@ -10,8 +11,14 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
 
-from app.models.schemas import ExportRequest, ExportResponse
+from app.models.schemas import (
+    ExportRequest,
+    ExportResponse,
+    UsdaExportRequest,
+    UsdaExportResponse,
+)
 from app.core.supabase import get_supabase
+from app.services.usda_serializer import serialize_to_usda
 
 router = APIRouter()
 
@@ -231,3 +238,34 @@ def export_project(req: ExportRequest):
         format=req.format,
         filename=filename,
     )
+
+
+@router.post("/export/usda", response_model=UsdaExportResponse)
+def export_usda(req: UsdaExportRequest):
+    """Export subsystem hierarchy as a USD ASCII (.usda) scene file.
+
+    The caller provides the subsystem tree, optional engineering spec drafts,
+    and optional PackageMap directly in the request body — no Supabase round-trip
+    needed. This keeps the endpoint stateless and testable.
+    """
+    if not req.subsystems:
+        raise HTTPException(
+            status_code=422,
+            detail="At least one subsystem is required for USDA export.",
+        )
+
+    project_name = req.project_name or req.project_id or "Project"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    content = serialize_to_usda(
+        req.subsystems,
+        project_id=req.project_id,
+        project_name=project_name,
+        drafts=req.drafts or None,
+        package_map=req.package_map,
+    )
+
+    safe_name = project_name.replace(" ", "_")
+    filename = f"{safe_name}_{timestamp}.usda"
+
+    return UsdaExportResponse(content=content, filename=filename)

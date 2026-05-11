@@ -1419,6 +1419,34 @@ class ExportResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# USDA Export (POST /export/usda)
+# ---------------------------------------------------------------------------
+
+class UsdaExportRequest(BaseModel):
+    """Request body for USDA scene export."""
+    project_id: str
+    project_name: str = ""
+    subsystems: list["SuggestedSubsystem"] = Field(
+        default_factory=list,
+        description="Full subsystem tree (system→module→component).",
+    )
+    drafts: list["EngineeringSpecDraft"] = Field(
+        default_factory=list,
+        description="Engineering spec drafts, indexed by subsystem_code.",
+    )
+    package_map: "PackageMap | None" = Field(
+        default=None,
+        description="Optional PackageMap for clash information.",
+    )
+
+
+class UsdaExportResponse(BaseModel):
+    """USDA export result."""
+    content: str = Field(description="Complete .usda text content.")
+    filename: str = Field(description="Suggested download filename.")
+
+
+# ---------------------------------------------------------------------------
 # Knowledge Writeback (SOW: POST /knowledge/writeback)
 # ---------------------------------------------------------------------------
 
@@ -2117,7 +2145,7 @@ class DraftValue(BaseModel):
     )
 
     # --- Value ---
-    value: str | float | int | dict | list = Field(
+    value: bool | str | float | int | dict | list = Field(
         ...,
         description=(
             "Spec value. Can be numeric (250.0), string ('IP67'), "

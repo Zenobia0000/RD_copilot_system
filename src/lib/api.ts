@@ -6,7 +6,11 @@
  */
 
 import type { ZodType } from "zod";
-import type { InterfaceContractMap } from "@/types/generated/subsystem";
+import type {
+  InterfaceContractMap,
+  SuggestedSubsystem,
+  PackageMap,
+} from "@/types/generated/subsystem";
 import type {
   SolveTrizLayeredRequest,
   SolveTrizLayeredResponse,
@@ -1482,6 +1486,7 @@ export type {
 } from "@/types/generated/engineeringSpec";
 
 import type {
+  EngineeringSpecDraft,
   EngineeringSpecDraftResponse,
   EngSpecStep1Response,
   EngSpecStep1aResponse,
@@ -1549,6 +1554,29 @@ export function engSpecStep3Strengthen(body: EngSpecStep3Request) {
     body,
     { timeoutMs: 600_000 },  // ~4.7 min — match Step 2 budget; Nginx ceiling 300 s
   );
+}
+
+// ─── USDA Export ────────────────────────────────────────────────────────────
+
+export interface UsdaExportRequest {
+  project_id: string;
+  project_name?: string;
+  subsystems: SuggestedSubsystem[];
+  drafts: EngineeringSpecDraft[];
+  package_map?: PackageMap | null;
+}
+
+export interface UsdaExportResponse {
+  content: string;
+  filename: string;
+}
+
+/**
+ * Export subsystem tree + engineering spec drafts as a `.usda` scene file.
+ * Stateless endpoint — all data is provided in the request body.
+ */
+export function exportUsda(body: UsdaExportRequest) {
+  return request<UsdaExportResponse>("/export/usda", body);
 }
 
 export { ApiError, ApiNetworkError, type RequestOptions };

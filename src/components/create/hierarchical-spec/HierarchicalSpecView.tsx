@@ -28,15 +28,19 @@ import {
   LayoutDashboard,
   Network,
   Info,
+  Download,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useUsdaExport } from "@/hooks/api";
 
 import type { EngineeringSpecDraftResponse } from "@/types/generated/engineeringSpec";
+import type { ConceptInterface } from "@/types/conceptArchitecture";
 import { buildSpecTree } from "./buildSpecTree";
 import { SystemSpecCard } from "./SystemSpecCard";
 import { EngineeringSpecDraftPanel } from "../EngineeringSpecDraftPanel";
 import { pctStr, SpecDashboardSummary } from "../spec-shared";
-import { ArchitectureFlowView } from "./ArchitectureFlowView";
+import { StructuralSchematicView } from "./schematic";
 
 // ---------------------------------------------------------------------------
 // Props — intentionally mirrors EngineeringSpecDraftPanelProps for drop-in use
@@ -45,6 +49,10 @@ import { ArchitectureFlowView } from "./ArchitectureFlowView";
 export interface HierarchicalSpecViewProps {
   /** Pipeline response containing drafts + subsystem_tree. */
   data: EngineeringSpecDraftResponse;
+  /** Concept interfaces from the architecture pack — fed to StructuralSchematicView for relation inference. */
+  conceptInterfaces?: ConceptInterface[];
+  /** Project UUID — required for USDA export endpoint. */
+  projectId?: string;
   className?: string;
   /**
    * When true, shows a "Draft" banner — Step-2 results that haven't been
@@ -61,10 +69,15 @@ type ViewMode = "dashboard" | "architecture" | "hierarchy" | "flat";
 
 export function HierarchicalSpecView({
   data,
+  conceptInterfaces,
+  projectId,
   className,
   previewMode = false,
 }: HierarchicalSpecViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("dashboard");
+
+  // USDA export mutation
+  const usdaExport = useUsdaExport();
 
   // Build the merged tree — memoised on data identity
   const specTree = useMemo(
@@ -148,9 +161,36 @@ export function HierarchicalSpecView({
           )}
         </div>
 
-        {/* View toggle — 3-way: dashboard / hierarchy / flat */}
-        {canShowHierarchy && (
-          <div className="flex rounded-md border overflow-hidden">
+        {/* USDA Export + View toggle */}
+        <div className="flex items-center gap-2">
+          {/* USDA export button */}
+          {canShowHierarchy && projectId && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2.5 text-xs gap-1"
+              disabled={usdaExport.isPending}
+              onClick={() => {
+                usdaExport.mutate({
+                  project_id: projectId,
+                  subsystems: data.subsystem_tree ?? [],
+                  drafts: data.drafts ?? [],
+                  package_map: data.package_map,
+                });
+              }}
+            >
+              {usdaExport.isPending ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Download className="w-3.5 h-3.5" />
+              )}
+              匯出 USDA
+            </Button>
+          )}
+
+          {/* View toggle — 4-way: dashboard / architecture / hierarchy / flat */}
+          {canShowHierarchy && (
+            <div className="flex rounded-md border overflow-hidden">
             <Button
               size="sm"
               variant={viewMode === "dashboard" ? "default" : "ghost"}
@@ -167,7 +207,7 @@ export function HierarchicalSpecView({
               onClick={() => setViewMode("architecture")}
             >
               <Network className="w-3.5 h-3.5" />
-              架構圖
+              結構示意圖
             </Button>
             <Button
               size="sm"
@@ -187,14 +227,18 @@ export function HierarchicalSpecView({
               <List className="w-3.5 h-3.5" />
               扁平視圖
             </Button>
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Main content: dashboard / hierarchy / flat */}
       {viewMode === "architecture" && canShowHierarchy ? (
-        <ArchitectureFlowView
+        <StructuralSchematicView
           tree={data.subsystem_tree ?? []}
+          drafts={data.drafts ?? []}
+          packageMap={data.package_map}
+          conceptInterfaces={conceptInterfaces}
           onNodeClick={(name) => {
             setViewMode("hierarchy");
           }}

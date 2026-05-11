@@ -25,3 +25,6 @@ export type { SpecTreeNode, AggregatedStats } from "./buildSpecTree";
 
 export { ArchitectureFlowView } from "./ArchitectureFlowView";
 export type { ArchitectureFlowViewProps } from "./ArchitectureFlowView";
+
+export { StructuralSchematicView } from "./schematic";
+export type { StructuralSchematicViewProps } from "./schematic";

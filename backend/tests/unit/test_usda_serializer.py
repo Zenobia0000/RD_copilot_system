@@ -32,6 +32,7 @@ from app.models.schemas import (
 from app.services.usda_serializer import (
     _build_clash_map,
     _build_drafts_by_code,
+    _infer_shape,
     _sanitize_name,
     serialize_to_usda,
 )
@@ -137,8 +138,9 @@ class TestDefaultPrim:
 def test_empty_subsystems_produces_valid_header_only():
     usda = serialize_to_usda([], project_id="empty")
     assert usda.startswith("#usda 1.0")
-    # No `def Xform` should appear
-    assert "def Xform" not in usda
+    # Wrapper prim is emitted (len != 1), but no subsystem children
+    assert 'def Xform "Project"' in usda
+    assert usda.count("def Xform") == 1
 
 
 # ---------------------------------------------------------------------------
@@ -241,10 +243,17 @@ class TestCustomData:
         assert '"TC-01"' in usda
         assert '"TC-02"' in usda
 
-    def test_no_customdata_block_when_all_empty(self):
+    def test_display_name_always_emitted_in_customdata(self):
+        """display_name is always emitted so customData is never absent."""
         node = SuggestedSubsystem(name="Motor", level="module")
         usda = serialize_to_usda([node])
-        assert "customData" not in usda
+        assert "customData" in usda
+        assert 'string display_name = "Motor"' in usda
+        # No other customData fields when optional fields are empty
+        assert "concept_origin" not in usda
+        assert "mapped_kpis" not in usda
+        assert "reason" not in usda
+        assert "related_contradictions" not in usda
 
 
 # ---------------------------------------------------------------------------
@@ -312,7 +321,7 @@ class TestBBoxEmission:
             origin_mm=(5.0, 0.0, 0.0),
         )
         usda = serialize_to_usda([node])
-        assert 'xformOpOrder = ["xformOp:translate"]' in usda
+        assert 'xformOpOrder = ["xformOp:translate", "xformOp:scale"]' in usda
 
     def test_no_spatial_no_bbox_lines(self):
         node = SuggestedSubsystem(
@@ -764,12 +773,12 @@ def test_realistic_tree_produces_valid_usda():
     # Hierarchy
     assert 'def Xform "DriveSystem"' in usda
     assert 'kind = "assembly"' in usda
-    assert 'def Xform "Motor"' in usda
+    assert 'def Xform "S1_M1"' in usda
     assert 'kind = "group"' in usda
     assert 'def Xform "Stator"' in usda
     assert 'kind = "component"' in usda
     assert 'def Xform "Rotor"' in usda
-    assert 'def Xform "Battery"' in usda
+    assert 'def Xform "S1_M2"' in usda
 
     # Spatial
     assert "xformOp:translate = (10.0, 0.0, 0.0)" in usda
@@ -987,3 +996,276 @@ class TestEdgeCases:
         )
         usda = serialize_to_usda([node])
         assert 'spatial_confidence = "library"' in usda
+
+
+# ---------------------------------------------------------------------------
+# Chinese / CJK name scenarios  (Blender-import regression guard)
+# ---------------------------------------------------------------------------
+
+class TestChineseNameScenarios:
+    """Guard against Blender-import failures when subsystem names are CJK-only."""
+
+    def test_chinese_only_name_without_code_uses_unnamed(self):
+        """A pure-Chinese name with no concept_origin_code → prim = '_unnamed'."""
+        node = SuggestedSubsystem(name="馬達模組", level="module")
+        usda = serialize_to_usda([node])
+        assert 'def Xform "_unnamed"' in usda
+        # Original Chinese name preserved in customData
+        assert 'string display_name = "馬達模組"' in usda
+
+    def test_chinese_name_with_concept_origin_code(self):
+        """concept_origin_code takes priority so the prim is ASCII-safe."""
+        node = SuggestedSubsystem(
+            name="馬達模組", level="module", concept_origin_code="S1.M1",
+        )
+        usda = serialize_to_usda([node])
+        assert 'def Xform "S1_M1"' in usda
+        assert 'string display_name = "馬達模組"' in usda
+
+    def test_multiple_chinese_siblings_get_unique_names(self):
+        """Three CJK-only siblings without codes → _unnamed, _unnamed_1, _unnamed_2."""
+        children = [
+            SuggestedSubsystem(name="定子", level="component"),
+            SuggestedSubsystem(name="轉子", level="component"),
+            SuggestedSubsystem(name="軸承", level="component"),
+        ]
+        parent = SuggestedSubsystem(
+            name="Motor", level="system", children=children,
+        )
+        usda = serialize_to_usda([parent])
+        assert 'def Xform "_unnamed"' in usda
+        assert 'def Xform "_unnamed_1"' in usda
+        assert 'def Xform "_unnamed_2"' in usda
+        # All display_names preserved
+        assert 'string display_name = "定子"' in usda
+        assert 'string display_name = "轉子"' in usda
+        assert 'string display_name = "軸承"' in usda
+
+    def test_mixed_cjk_ascii_name_keeps_ascii_part(self):
+        """'馬達Motor' → only ASCII part 'Motor' is kept as prim name."""
+        node = SuggestedSubsystem(name="馬達Motor", level="module")
+        usda = serialize_to_usda([node])
+        assert 'def Xform "Motor"' in usda
+        assert 'string display_name = "馬達Motor"' in usda
+
+    def test_chinese_system_with_coded_children(self):
+        """Full tree: Chinese system name + children with concept_origin_code."""
+        children = [
+            SuggestedSubsystem(
+                name="傳動齒輪", level="module", concept_origin_code="S2.G1",
+            ),
+            SuggestedSubsystem(
+                name="控制電路", level="module", concept_origin_code="S2.C1",
+            ),
+        ]
+        root = SuggestedSubsystem(
+            name="驅動系統", level="system", children=children,
+        )
+        usda = serialize_to_usda([root])
+        # Root has no code → falls back to _unnamed
+        assert 'def Xform "_unnamed"' in usda
+        assert 'string display_name = "驅動系統"' in usda
+        # Children use their codes
+        assert 'def Xform "S2_G1"' in usda
+        assert 'string display_name = "傳動齒輪"' in usda
+        assert 'def Xform "S2_C1"' in usda
+        assert 'string display_name = "控制電路"' in usda
+        # Braces still balanced
+        assert usda.count("{") == usda.count("}")
+
+    def test_duplicate_concept_origin_codes_get_suffix(self):
+        """Two siblings sharing the same concept_origin_code get unique prim names."""
+        children = [
+            SuggestedSubsystem(
+                name="元件A", level="component", concept_origin_code="X.1",
+            ),
+            SuggestedSubsystem(
+                name="元件B", level="component", concept_origin_code="X.1",
+            ),
+        ]
+        parent = SuggestedSubsystem(
+            name="Parent", level="system", children=children,
+        )
+        usda = serialize_to_usda([parent])
+        assert 'def Xform "X_1"' in usda
+        assert 'def Xform "X_1_1"' in usda
+
+
+# ---------------------------------------------------------------------------
+# Proxy geometry — _infer_shape unit tests
+# ---------------------------------------------------------------------------
+
+class TestInferShape:
+    """Direct tests for the _infer_shape helper."""
+
+    def test_default_is_cube(self):
+        assert _infer_shape("Motor") == "Cube"
+
+    def test_generic_name_is_cube(self):
+        assert _infer_shape("Gearbox Module") == "Cube"
+
+    def test_shaft_keyword_returns_cylinder(self):
+        assert _infer_shape("Main Shaft Assembly") == "Cylinder"
+
+    def test_spindle_keyword_returns_cylinder(self):
+        assert _infer_shape("spindle") == "Cylinder"
+
+    def test_rotor_keyword_returns_cylinder(self):
+        assert _infer_shape("Rotor Unit") == "Cylinder"
+
+    def test_stator_keyword_returns_cylinder(self):
+        assert _infer_shape("Inner Stator") == "Cylinder"
+
+    def test_housing_keyword_returns_cylinder(self):
+        assert _infer_shape("Housing Cover") == "Cylinder"
+
+    def test_shell_keyword_returns_cylinder(self):
+        assert _infer_shape("Outer Shell") == "Cylinder"
+
+    def test_bb_keyword_returns_cylinder(self):
+        assert _infer_shape("BB Cartridge") == "Cylinder"
+
+    def test_chinese_shaft_returns_cylinder(self):
+        assert _infer_shape("主軸模組") == "Cylinder"
+
+    def test_chinese_rotor_returns_cylinder(self):
+        assert _infer_shape("轉子") == "Cylinder"
+
+    def test_chinese_stator_returns_cylinder(self):
+        assert _infer_shape("定子組件") == "Cylinder"
+
+    def test_chinese_housing_returns_cylinder(self):
+        assert _infer_shape("殼體") == "Cylinder"
+
+    def test_chinese_outer_shell_returns_cylinder(self):
+        assert _infer_shape("外殼") == "Cylinder"
+
+    def test_case_insensitive_match(self):
+        assert _infer_shape("SHAFT") == "Cylinder"
+        assert _infer_shape("sHaFt") == "Cylinder"
+
+
+# ---------------------------------------------------------------------------
+# Proxy geometry — integration tests
+# ---------------------------------------------------------------------------
+
+class TestProxyGeometry:
+    """Tests for proxy geometry emission in serialize_to_usda."""
+
+    def _spatial_node(
+        self, name: str = "Motor", level: str = "module",
+    ) -> SuggestedSubsystem:
+        """Helper: create a node with spatial data for proxy geometry tests."""
+        return SuggestedSubsystem(
+            name=name,
+            level=level,
+            interface_contracts={
+                "Target": InterfaceContract(
+                    spatial=SpatialEstimate(
+                        bbox=BBox(
+                            x_mm=100.0, y_mm=80.0, z_mm=60.0,
+                            origin_mm=(10.0, 20.0, 30.0),
+                        ),
+                    )
+                )
+            },
+        )
+
+    def test_cube_proxy_emitted_by_default(self):
+        """Default settings emit a Cube proxy for non-cylinder names."""
+        node = self._spatial_node("Motor")
+        usda = serialize_to_usda([node])
+        assert 'def Cube "proxy_Cube"' in usda
+        assert "double size = 1.0" in usda
+        assert "primvars:displayColor" in usda
+
+    def test_cylinder_proxy_for_shaft_keyword(self):
+        """Inferred mode emits Cylinder for shaft-like names."""
+        node = self._spatial_node("Main Shaft")
+        usda = serialize_to_usda([node])
+        assert 'def Cylinder "proxy_Cylinder"' in usda
+        assert "double radius" in usda
+        assert "double height" in usda
+        assert "primvars:displayColor" in usda
+
+    def test_proxy_cube_mode_forces_cube_for_cylinder_name(self):
+        """proxy_geometry_mode='cube' forces Cube even for shaft names."""
+        node = self._spatial_node("Main Shaft")
+        usda = serialize_to_usda([node], proxy_geometry_mode="cube")
+        assert 'def Cube "proxy_Cube"' in usda
+        assert 'def Cylinder' not in usda
+
+    def test_include_proxy_geometry_false_suppresses(self):
+        """include_proxy_geometry=False suppresses all proxy geometry."""
+        node = self._spatial_node("Motor")
+        usda = serialize_to_usda([node], include_proxy_geometry=False)
+        assert "def Cube" not in usda
+        assert "def Cylinder" not in usda
+        assert "primvars:displayColor" not in usda
+
+    def test_proxy_mode_none_suppresses(self):
+        """proxy_geometry_mode='none' suppresses proxy even if flag is True."""
+        node = self._spatial_node("Motor")
+        usda = serialize_to_usda(
+            [node], include_proxy_geometry=True, proxy_geometry_mode="none",
+        )
+        assert "def Cube" not in usda
+        assert "def Cylinder" not in usda
+
+    def test_no_spatial_no_proxy(self):
+        """Nodes without spatial data never get proxy geometry."""
+        node = SuggestedSubsystem(name="Motor", level="module")
+        usda = serialize_to_usda([node])
+        assert "def Cube" not in usda
+        assert "def Cylinder" not in usda
+
+    def test_proxy_cylinder_dimensions(self):
+        """Cylinder proxy radius and height are derived from BBox."""
+        node = self._spatial_node("Spindle")
+        usda = serialize_to_usda([node])
+        # radius = max(x_mm=100, y_mm=80) / 2 = 50.0
+        assert "double radius = 50.0" in usda
+        # height = z_mm = 60.0
+        assert "double height = 60.0" in usda
+
+    def test_proxy_cube_scale_from_bbox(self):
+        """Cube proxy xformOp:scale matches BBox extents."""
+        node = self._spatial_node("Gearbox")
+        usda = serialize_to_usda([node])
+        # The cube's own xformOp:scale inside the Cube prim
+        # should contain bbox dimensions
+        assert "def Cube" in usda
+        assert "xformOp:scale = (100.0, 80.0, 60.0)" in usda
+
+    def test_color_assignment_for_assembly(self):
+        """Proxy gets colour from _ASSEMBLY_COLORS palette."""
+        node = self._spatial_node("Motor")
+        usda = serialize_to_usda([node])
+        # First assembly should use first colour: (0.216, 0.494, 0.722)
+        assert "primvars:displayColor = [(0.216, 0.494, 0.722)]" in usda
+
+    def test_second_assembly_gets_different_color(self):
+        """Two root assemblies get different colours from the palette."""
+        n1 = self._spatial_node("Motor")
+        n2 = self._spatial_node("Gearbox")
+        usda = serialize_to_usda([n1, n2])
+        # First: (0.216, 0.494, 0.722)
+        assert "primvars:displayColor = [(0.216, 0.494, 0.722)]" in usda
+        # Second: (0.894, 0.102, 0.110)
+        assert "primvars:displayColor = [(0.894, 0.102, 0.11)]" in usda
+
+    def test_braces_balanced_with_proxy(self):
+        """Output with proxy geometry still has balanced braces."""
+        node = self._spatial_node("Motor")
+        usda = serialize_to_usda([node])
+        assert usda.count("{") == usda.count("}")
+
+    def test_semantic_data_preserved_with_proxy(self):
+        """Proxy geometry doesn't replace semantic spatial properties."""
+        node = self._spatial_node("Motor")
+        usda = serialize_to_usda([node])
+        # Semantic BBox data still present
+        assert "extent_mm = (100.0, 80.0, 60.0)" in usda
+        assert "xformOp:translate = (10.0, 20.0, 30.0)" in usda
+        # Proxy also present
+        assert "def Cube" in usda

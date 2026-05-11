@@ -1564,6 +1564,10 @@ export interface UsdaExportRequest {
   subsystems: SuggestedSubsystem[];
   drafts: EngineeringSpecDraft[];
   package_map?: PackageMap | null;
+  /** When true, emit visual proxy geometry (Cube/Cylinder) for nodes with spatial data. */
+  include_proxy_geometry?: boolean;
+  /** Geometry mode: 'none' = no proxy, 'cube' = always Cube, 'inferred' = Cylinder for shaft/housing keywords, Cube otherwise. */
+  proxy_geometry_mode?: "none" | "cube" | "inferred";
 }
 
 export interface UsdaExportResponse {

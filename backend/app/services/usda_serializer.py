@@ -1,14 +1,23 @@
 """USDA Serializer — Pure Python string renderer for USD ASCII (.usda) export.
 
 Converts the Create-phase subsystem tree, engineering spec drafts, and
-interface contracts into a valid `.usda` text file. No binary dependencies
+interface contracts into a valid ``.usda`` text file. No binary dependencies
 required — follows the same string-list concatenation pattern used in
 ``package_svg.py``.
 
 USD Hierarchy mapping:
+    Project   → ``def Xform`` root wrapper (kind = "assembly")
     System    → ``def Xform`` (kind = "assembly")
     Module    → ``def Xform`` (kind = "group")
     Component → ``def Xform`` (kind = "component")
+
+Proxy geometry: When ``include_proxy_geometry=True``, nodes with spatial
+data (``extent_mm``) emit a child ``Cube`` or ``Cylinder`` prim so that
+Blender/usdview show visible shapes instead of empty transforms.
+
+Shape inference: ``proxy_geometry_mode="inferred"`` uses keyword matching
+against the node name — terms like shaft/spindle/housing/shell map to
+``Cylinder``; everything else defaults to ``Cube``.
 
 See ``plans/usda-export-feasibility.md`` §3 for full specification.
 """
@@ -17,7 +26,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from app.models.schemas import (
@@ -46,6 +55,29 @@ _CONFIDENCE_FLOAT: dict[str, float] = {
     "speculative": 0.4,
 }
 
+# Keywords that map to Cylinder proxy geometry (case-insensitive).
+_CYLINDER_KEYWORDS: set[str] = {
+    "shaft", "spindle", "rotor", "stator", "housing", "shell",
+    "bb",
+    # CJK equivalents
+    "軸", "踏軸", "轉子", "定子", "殼體", "外殼",
+}
+
+# Color palette for per-assembly coloring (sRGB float triples).
+# Cycles through this list for each top-level subsystem.
+_ASSEMBLY_COLORS: list[tuple[float, float, float]] = [
+    (0.216, 0.494, 0.722),   # Steel-blue
+    (0.894, 0.102, 0.110),   # Crimson
+    (0.302, 0.686, 0.290),   # Green
+    (0.596, 0.306, 0.639),   # Purple
+    (1.000, 0.498, 0.000),   # Orange
+    (0.651, 0.337, 0.157),   # Brown
+    (0.969, 0.506, 0.749),   # Pink
+    (0.600, 0.600, 0.600),   # Grey
+    (0.737, 0.741, 0.133),   # Olive
+    (0.090, 0.745, 0.812),   # Teal
+]
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
@@ -64,6 +96,22 @@ def _sanitize_name(name: str) -> str:
     if s and s[0].isdigit():
         s = f"_{s}"
     return s or "_unnamed"
+
+
+def _compute_prim_name(node: "SuggestedSubsystem") -> str:
+    """Derive a USD-safe prim name for *node*.
+
+    Priority:
+      1. ``concept_origin_code`` (e.g. "A1", "S1_M1") — always ASCII-safe
+      2. ``_sanitize_name(node.name)`` when it yields a real result
+      3. Fallback ``_unnamed``
+    """
+    if node.concept_origin_code:
+        candidate = _sanitize_name(node.concept_origin_code)
+        if candidate and candidate != "_unnamed":
+            return candidate
+    candidate = _sanitize_name(node.name)
+    return candidate
 
 
 def _indent(level: int) -> str:
@@ -96,6 +144,19 @@ def _usd_value_repr(value: object) -> str:
     return _usd_string(str(value))
 
 
+def _infer_shape(name: str) -> Literal["Cube", "Cylinder"]:
+    """Infer proxy geometry shape from a subsystem name.
+
+    Returns ``"Cylinder"`` when the name contains any keyword from
+    ``_CYLINDER_KEYWORDS`` (case-insensitive match), ``"Cube"`` otherwise.
+    """
+    lower = name.lower()
+    for kw in _CYLINDER_KEYWORDS:
+        if kw.lower() in lower:
+            return "Cylinder"
+    return "Cube"
+
+
 # ---------------------------------------------------------------------------
 # Emitters
 # ---------------------------------------------------------------------------
@@ -114,8 +175,10 @@ def _emit_bbox(
     if bbox is not None:
         ox, oy, oz = bbox.origin_mm
         lines.append(f"{pad}double3 xformOp:translate = ({ox}, {oy}, {oz})")
+        sx, sy, sz = bbox.x_mm, bbox.y_mm, bbox.z_mm
+        lines.append(f"{pad}double3 xformOp:scale = ({sx}, {sy}, {sz})")
         lines.append(
-            f'{pad}uniform token[] xformOpOrder = ["xformOp:translate"]'
+            f'{pad}uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]'
         )
         lines.append("")
         lines.append(
@@ -133,6 +196,57 @@ def _emit_bbox(
         lines.append(
             f"{pad}custom string spatial_confidence = {_usd_string(confidence)}"
         )
+
+
+def _emit_proxy_geometry(
+    bbox: "BBox",
+    shape: Literal["Cube", "Cylinder"],
+    color: tuple[float, float, float],
+    indent: int,
+    lines: list[str],
+) -> None:
+    """Emit a child proxy geometry prim (Cube or Cylinder) under the current Xform.
+
+    The proxy prim is named ``proxy_<shape>`` and sized using xformOp:scale
+    derived from the BBox extents.  ``primvars:displayColor`` is set so
+    Blender renders the shape with the assembly colour.
+    """
+    pad = _indent(indent)
+    prim_name = f"proxy_{shape}"
+
+    if shape == "Cylinder":
+        # Cylinder in USD: default radius=1, height=2, axis=Z
+        # We scale so that diameter = max(x_mm, y_mm) and height = z_mm
+        r = max(bbox.x_mm, bbox.y_mm) / 2.0
+        h = bbox.z_mm / 2.0  # half-height because default height=2
+        lines.append("")
+        lines.append(f'{pad}def Cylinder "{prim_name}"')
+        lines.append(f"{pad}{{")
+        inner = _indent(indent + 1)
+        lines.append(f"{inner}double radius = {r}")
+        lines.append(f"{inner}double height = {bbox.z_mm}")
+        lines.append(
+            f"{inner}color3f[] primvars:displayColor = [({color[0]}, {color[1]}, {color[2]})]"
+        )
+        lines.append(f"{pad}}}")
+    else:
+        # Cube in USD: default size=2 (±1 on each axis)
+        # Scale by half-extents so cube matches the BBox
+        lines.append("")
+        lines.append(f'{pad}def Cube "{prim_name}"')
+        lines.append(f"{pad}{{")
+        inner = _indent(indent + 1)
+        lines.append(f"{inner}double size = 1.0")
+        lines.append(
+            f"{inner}double3 xformOp:scale = ({bbox.x_mm}, {bbox.y_mm}, {bbox.z_mm})"
+        )
+        lines.append(
+            f'{inner}uniform token[] xformOpOrder = ["xformOp:scale"]'
+        )
+        lines.append(
+            f"{inner}color3f[] primvars:displayColor = [({color[0]}, {color[1]}, {color[2]})]"
+        )
+        lines.append(f"{pad}}}")
 
 
 def _emit_clashes(
@@ -173,11 +287,16 @@ def _emit_relationships(
         "datumTolerance",
         "serviceability",
     ]
+    seen: set[tuple[str, str]] = set()
     for target_name, contract in contracts.items():
         safe_target = _sanitize_name(target_name)
         for dim in dimensions:
             val = getattr(contract, dim, "")
             if val:
+                key = (dim, safe_target)
+                if key in seen:
+                    continue
+                seen.add(key)
                 lines.append(
                     f"{pad}rel interface:{dim} = </{root_prim_name}/{safe_target}>"
                 )
@@ -260,14 +379,30 @@ def _emit_subsystem(
     clash_map: dict[str, list[str]],
     indent: int,
     lines: list[str],
+    used_names: set[str] | None = None,
+    *,
+    proxy_mode: Literal["none", "cube", "inferred"] = "none",
+    assembly_color: tuple[float, float, float] = (0.5, 0.5, 0.5),
 ) -> None:
     """Recursively emit a SuggestedSubsystem as a USD ``def Xform``."""
     pad = _indent(indent)
-    safe_name = _sanitize_name(node.name)
+    safe_name = _compute_prim_name(node)
+    # Ensure sibling uniqueness — avoids duplicate prim names at the same level
+    if used_names is not None:
+        base = safe_name
+        counter = 1
+        while safe_name in used_names:
+            safe_name = f"{base}_{counter}"
+            counter += 1
+        used_names.add(safe_name)
     kind = _LEVEL_KIND.get(node.level, "group")
 
     # --- customData block ---
     custom_data_items: list[str] = []
+    # Always store the original human-readable name (may contain CJK / Unicode)
+    custom_data_items.append(
+        f'{_indent(indent + 2)}string display_name = {_usd_string(node.name)}'
+    )
     if node.concept_origin_code:
         custom_data_items.append(
             f'{_indent(indent + 2)}string concept_origin = {_usd_string(node.concept_origin_code)}'
@@ -313,6 +448,15 @@ def _emit_subsystem(
             body_indent,
             lines,
         )
+        # --- Proxy geometry ---
+        if proxy_mode != "none" and spatial.bbox is not None:
+            if proxy_mode == "inferred":
+                shape = _infer_shape(node.name)
+            else:
+                shape = "Cube"
+            _emit_proxy_geometry(
+                spatial.bbox, shape, assembly_color, body_indent, lines,
+            )
 
     # --- Clashes ---
     clashes = clash_map.get(node.name, [])
@@ -328,10 +472,14 @@ def _emit_subsystem(
         _emit_specs(draft.specs, body_indent, lines)
 
     # --- Children (recursive) ---
+    child_used_names: set[str] = set()
     for child in node.children:
         lines.append("")
         _emit_subsystem(
-            child, root_prim_name, drafts_by_code, clash_map, body_indent, lines
+            child, root_prim_name, drafts_by_code, clash_map, body_indent, lines,
+            child_used_names,
+            proxy_mode=proxy_mode,
+            assembly_color=assembly_color,
         )
 
     lines.append(f"{pad}}}")
@@ -378,6 +526,8 @@ def serialize_to_usda(
     project_name: str = "",
     drafts: list["EngineeringSpecDraft"] | None = None,
     package_map: "PackageMap | None" = None,
+    include_proxy_geometry: bool = True,
+    proxy_geometry_mode: Literal["none", "cube", "inferred"] = "inferred",
 ) -> str:
     """Serialize the full subsystem tree into a ``.usda`` text string.
 
@@ -394,6 +544,14 @@ def serialize_to_usda(
         Engineering spec drafts indexed by subsystem_code.
     package_map:
         Optional PackageMap for clash information.
+    include_proxy_geometry:
+        When *True* (default), emit visual proxy geometry (Cube/Cylinder)
+        for nodes that have spatial data (``extent_mm``).
+    proxy_geometry_mode:
+        ``"none"`` — no proxy geometry regardless of *include_proxy_geometry*.
+        ``"cube"`` — always use Cube for all nodes.
+        ``"inferred"`` (default) — Cylinder for shaft/housing keywords,
+        Cube otherwise.
 
     Returns
     -------
@@ -403,9 +561,17 @@ def serialize_to_usda(
     drafts_by_code = _build_drafts_by_code(drafts)
     clash_map = _build_clash_map(package_map)
 
-    # Determine root prim name
+    # Effective proxy mode
+    effective_proxy: Literal["none", "cube", "inferred"]
+    if not include_proxy_geometry or proxy_geometry_mode == "none":
+        effective_proxy = "none"
+    else:
+        effective_proxy = proxy_geometry_mode
+
+    # Root wrapper prim name — always create a wrapper so defaultPrim
+    # always points to an existing prim (Req #1).
     if len(subsystems) == 1:
-        root_name = _sanitize_name(subsystems[0].name)
+        root_name = _compute_prim_name(subsystems[0])
     elif project_name:
         root_name = _sanitize_name(project_name)
     else:
@@ -429,11 +595,31 @@ def serialize_to_usda(
     lines.append(")")
     lines.append("")
 
+    # --- Root wrapper prim (Req #1) ---
+    # When there are multiple subsystems we emit a wrapper Xform named
+    # ``root_name`` so that ``defaultPrim`` always resolves.  For a single
+    # subsystem the subsystem itself *is* the root prim (backward compat).
+    if len(subsystems) != 1:
+        lines.append(f'def Xform "{root_name}" (kind = "assembly")')
+        lines.append("{")
+
     # --- Emit each top-level subsystem ---
+    top_used_names: set[str] = set()
+    base_indent = 1 if len(subsystems) != 1 else 0
     for i, sub in enumerate(subsystems):
         if i > 0:
             lines.append("")
-        _emit_subsystem(sub, root_name, drafts_by_code, clash_map, 0, lines)
+        color = _ASSEMBLY_COLORS[i % len(_ASSEMBLY_COLORS)]
+        _emit_subsystem(
+            sub, root_name, drafts_by_code, clash_map, base_indent, lines,
+            top_used_names,
+            proxy_mode=effective_proxy,
+            assembly_color=color,
+        )
+
+    # Close root wrapper if we opened one
+    if len(subsystems) != 1:
+        lines.append("}")
 
     # Ensure trailing newline
     lines.append("")

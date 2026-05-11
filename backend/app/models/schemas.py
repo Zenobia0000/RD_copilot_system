@@ -1438,6 +1438,17 @@ class UsdaExportRequest(BaseModel):
         default=None,
         description="Optional PackageMap for clash information.",
     )
+    include_proxy_geometry: bool = Field(
+        default=True,
+        description="When True, emit visual proxy geometry (Cube/Cylinder) for nodes with spatial data.",
+    )
+    proxy_geometry_mode: Literal["none", "cube", "inferred"] = Field(
+        default="inferred",
+        description=(
+            "Geometry mode: 'none' = no proxy, 'cube' = always Cube, "
+            "'inferred' = Cylinder for shaft/housing keywords, Cube otherwise."
+        ),
+    )
 
 
 class UsdaExportResponse(BaseModel):

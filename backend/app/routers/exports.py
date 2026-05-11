@@ -263,6 +263,8 @@ def export_usda(req: UsdaExportRequest):
         project_name=project_name,
         drafts=req.drafts or None,
         package_map=req.package_map,
+        include_proxy_geometry=req.include_proxy_geometry,
+        proxy_geometry_mode=req.proxy_geometry_mode,
     )
 
     safe_name = project_name.replace(" ", "_")

@@ -678,6 +678,10 @@ grounded spatial estimate (bbox + mass) for each module.
 </context>
 
 <instructions>
+- COORDINATE SYSTEM: Right-hand rule. X=right, Y=up, Z=front. \
+Origin at product geometric center. All dimensions in mm. \
+Each origin_mm is the CENTER of the component's bounding box in the global frame. \
+anchor describes the semantic reference point, e.g. BB_center, downtube_top.
 1. Identify 2–4 **system-level** subsystems (e.g., Power, Control, Structure).
 2. Break each system into 2–4 **modules** (e.g., Power → Motor, Gearbox, Inverter).
 3. For each module, list 2–5 **components** (e.g., Motor → Stator, Rotor, Bearing).
@@ -742,11 +746,13 @@ two modules cannot coexist, surface that as a new contradiction in `secondary_co
               "datumTolerance": "±0.02mm shaft concentricity",
               "serviceability": "Motor removable without gearbox disassembly",
               "spatial": {{
-                "bbox": {{ "x_mm": 180, "y_mm": 140, "z_mm": 120, "anchor": "BB_center" }},
+                "bbox": {{ "x_mm": 180, "y_mm": 140, "z_mm": 120, "anchor": "BB_center", "geometry_archetype": "cylinder" }},
                 "mass_g": 3900,
                 "mounting_pattern": "BB_shell_BSA_68mm",
                 "reference_source": "seed:bafang_m600_mid_drive",
                 "confidence": "library",
+                "lod_hint": "concept | envelope | preliminary | detailed",
+                "geometry_is_placeholder": true,
                 "rationale": "Closest production analogue for the proposed mid-drive role"
               }}
             }}
@@ -811,6 +817,11 @@ attach a grounded spatial estimate (bbox + mass) for each module.
 </context>
 
 <instructions>
+- COORDINATE SYSTEM: Right-hand rule. X=right, Y=up, Z=front. \
+Origin at product geometric center. All dimensions in mm. \
+Each origin_mm is the CENTER of the component's bounding box in the global frame. \
+anchor describes the semantic reference point, e.g. BB_center, downtube_top.
+
 1. Use the concept subsystems as the starting point — each concept subsystem \
    with suggested_level="system" becomes a top-level system node.
 2. **CRITICAL**: Copy the `code` field from each ConceptSubsystem into the \
@@ -833,7 +844,13 @@ engineering content grounded in the physical interaction:
    - **signalPath**: electrical/data signals (protocol + voltage + latency)
    - **datumTolerance**: critical dimensions and tolerances (±mm / ±degrees)
    - **serviceability**: maintenance access and replaceability (teardown steps)
-7. **Spatial estimate (REQUIRED on every interface contract)** — attach a `spatial` block:
+7. **Port locations** — if two modules connect via discrete physical ports \
+(connectors, flanges, pipe stubs), include a `"ports"` array on the contract. \
+Each port has `position_mm` (3-float global coordinate), `normal` (outward face \
+vector), and `port_type` (`"mechanical"`, `"electrical"`, `"thermal"`, or `"fluid"`). \
+Omit the array (or leave it `[]`) when the interface is distributed (e.g. a \
+full-face bonded joint) rather than point-like.
+8. **Spatial estimate (REQUIRED on every interface contract)** — attach a `spatial` block:
    - **Prefer** citing an entry from <reference_library> via its source-prefixed \
 key. Use `reference_source: "rd_override:<key>"` / `"learned:<key>"` / `"seed:<key>"` \
 exactly as listed.
@@ -843,9 +860,9 @@ exactly as listed.
 from publicly known specs or scaling laws, and put a one-line justification in \
 `rationale`.
    - Set `confidence` to "library" for cited entries and "estimate" for llm_estimate.
-8. Map concept_interfaces from the pack to the appropriate module-level \
+9. Map concept_interfaces from the pack to the appropriate module-level \
    InterfaceContract entries.
-9. Return a SINGLE valid JSON object matching the output_schema below.
+10. Return a SINGLE valid JSON object matching the output_schema below.
    ⚠️ JSON validity checklist — verify EACH point before responding:
    • Commas between EVERY sibling item in arrays and objects (but NOT after the last item).
    • All string values properly escaped — no raw newlines or unescaped quotes inside strings.
@@ -883,12 +900,21 @@ from publicly known specs or scaling laws, and put a one-line justification in \
               "signalPath": "3x Hall sensor + thermistor",
               "datumTolerance": "±0.02mm shaft concentricity",
               "serviceability": "Motor removable without gearbox disassembly",
+              "ports": [
+                {{
+                  "position_mm": [90, 0, 0],
+                  "normal": [1, 0, 0],
+                  "port_type": "mechanical"
+                }}
+              ],
               "spatial": {{
-                "bbox": {{ "x_mm": 180, "y_mm": 140, "z_mm": 120, "anchor": "BB_center" }},
+                "bbox": {{ "x_mm": 180, "y_mm": 140, "z_mm": 120, "anchor": "BB_center", "geometry_archetype": "cylinder" }},
                 "mass_g": 3900,
                 "mounting_pattern": "BB_shell_BSA_68mm",
                 "reference_source": "seed:bafang_m600_mid_drive",
                 "confidence": "library",
+                "lod_hint": "concept | envelope | preliminary | detailed",
+                "geometry_is_placeholder": true,
                 "rationale": "Closest production analogue for the proposed mid-drive role"
               }}
             }}
@@ -1116,6 +1142,7 @@ You are converting a field plan into actionable DraftValue entries.
   "drafts": [
     {{
       "subsystem_code": "string — component name exactly matching field_plan",
+      "component_type_hint": "string — CAD-oriented type, e.g. motor, housing, pcb, gear, sensor, battery",
       "specs": [
         {{
           "field_name": "string",

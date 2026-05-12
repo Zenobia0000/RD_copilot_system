@@ -23,7 +23,35 @@
 // Spatial primitives
 // ---------------------------------------------------------------------------
 
-/** Axis-aligned bounding box in millimeters. */
+/** Coarse shape tag chosen by the LLM to drive proxy-geometry selection. */
+export type GeometryArchetype =
+  | 'cube'
+  | 'cylinder'
+  | 'disc'
+  | 'l_bracket'
+  | 'sphere'
+  | 'flat_plate'
+  | 'custom';
+
+/**
+ * Level-of-detail hint (LOD 0–3) indicating how trustworthy spatial data is
+ * for downstream CAD consumption.
+ */
+export type LodHint = 'concept' | 'envelope' | 'preliminary' | 'detailed';
+
+/**
+ * Axis-aligned bounding box in millimeters.
+ *
+ * Coordinate convention (matches USD/OpenGL right-hand rule):
+ *   - Origin: product-level geometric center (0, 0, 0)
+ *   - X: right (+) / left (-)
+ *   - Y: up (+) / down (-)
+ *   - Z: front (+) / back (-)
+ *   - All values in millimeters
+ *
+ * `origin_mm` is the center of THIS bbox in the global frame.
+ * `anchor` names the reference point semantically (e.g. "BB_center").
+ */
 export interface BBox {
   x_mm: number;
   y_mm: number;
@@ -32,6 +60,8 @@ export interface BBox {
   origin_mm?: [number, number, number];
   /** Frame-relative anchor name, e.g. "BB_center" / "downtube_top". */
   anchor?: string;
+  /** Coarse shape hint for proxy geometry. */
+  geometry_archetype?: GeometryArchetype;
 }
 
 /** Per-module structured dimensional estimate (discovery mode). */
@@ -49,6 +79,10 @@ export interface SpatialEstimate {
   reference_source?: string;
   /** "library" | "estimate" | "rd_confirmed" */
   confidence?: 'library' | 'estimate' | 'rd_confirmed';
+  /** LOD hint auto-derived from confidence when not set explicitly. */
+  lod_hint?: LodHint;
+  /** True when geometry is AI-estimated; False when sourced from real data. */
+  geometry_is_placeholder?: boolean;
   /** One-line justification when reference_source is llm_estimate. */
   rationale?: string;
 }
@@ -56,6 +90,19 @@ export interface SpatialEstimate {
 // ---------------------------------------------------------------------------
 // Interface Contract — 6 dimensions + optional spatial
 // ---------------------------------------------------------------------------
+
+/**
+ * 3D port location for a physical interface connection point.
+ * Used for CAD pipe / harness routing between coupled modules.
+ */
+export interface PortLocation {
+  /** Port center position in global coordinate frame (mm). */
+  position_mm: [number, number, number];
+  /** Outward-facing normal vector of the port face. */
+  normal: [number, number, number];
+  /** Port type hint: 'mechanical', 'electrical', 'thermal', 'fluid'. */
+  port_type?: string;
+}
 
 /**
  * 6-dimensional interface contract between two coupled modules.
@@ -82,6 +129,8 @@ export interface InterfaceContract {
   datumTolerance: string;
   /** Maintenance access and replaceability. */
   serviceability: string;
+  /** Structured 3D port locations for CAD routing. */
+  ports?: PortLocation[];
   /** Optional machine-readable spatial estimate. */
   spatial?: SpatialEstimate | null;
 }

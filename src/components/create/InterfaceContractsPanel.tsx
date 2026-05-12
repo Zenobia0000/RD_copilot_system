@@ -135,6 +135,30 @@ function ContractCard({
               onPromote={onPromote}
             />
           )}
+
+          {contract.ports && contract.ports.length > 0 && (
+            <div className="mt-1.5 space-y-1">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase">
+                端口位置 (Ports)
+              </span>
+              <div className="grid gap-1 grid-cols-1 sm:grid-cols-2">
+                {contract.ports.map((port, idx) => (
+                  <div
+                    key={idx}
+                    className="text-[10px] text-muted-foreground bg-muted/40 rounded px-2 py-1"
+                  >
+                    <span className="font-medium">
+                      #{idx}{port.port_type ? ` (${port.port_type})` : ""}
+                    </span>
+                    {" — "}
+                    pos=[{port.position_mm.join(", ")}]
+                    {" "}
+                    n=[{port.normal.join(", ")}]
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

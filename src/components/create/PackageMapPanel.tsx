@@ -59,6 +59,9 @@ export function PackageMapPanel({ packageMap, className }: PackageMapPanelProps)
             <TotalsReadout required={packageMap!.required} />
             <SvgViewport svg={packageMap!.svg} />
             <NotesList notes={packageMap!.notes} />
+            <p className="text-[10px] text-muted-foreground/60 text-right select-none">
+              {COORD_HINT}
+            </p>
           </>
         )}
       </CardContent>
@@ -69,6 +72,10 @@ export function PackageMapPanel({ packageMap, className }: PackageMapPanelProps)
 // ---------------------------------------------------------------------------
 // Empty state
 // ---------------------------------------------------------------------------
+
+/** Global coordinate convention shared with backend prompts & USDA export. */
+const COORD_HINT =
+  "座標系：右手定則 X=右, Y=上, Z=前 · 原點=產品幾何中心 · 單位 mm";
 
 function EmptyState() {
   return (

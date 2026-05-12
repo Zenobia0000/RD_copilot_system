@@ -1134,6 +1134,124 @@ def _override_with_reference_library(subsystems: list[SuggestedSubsystem]) -> No
     _resolve_spatial_via_layers(subsystems, project_id="")
 
 
+# ── Enum constant sets for defensive coercion ────────────────────────
+_VALID_ARCHETYPES: set[str] = {
+    "cube", "cylinder", "disc", "l_bracket", "sphere", "flat_plate", "custom",
+}
+_VALID_CONFIDENCES: set[str] = {"library", "estimate", "rd_confirmed"}
+_VALID_LOD_HINTS: set[str] = {"concept", "envelope", "preliminary", "detailed"}
+
+
+def _unwrap_value(v: object) -> object:
+    """Extract bare value from an LLM provenance dict.
+
+    LLM sometimes wraps numeric fields in::
+
+        {"value": 28, "source": "llm_estimate", "confidence": "speculative"}
+
+    This helper extracts the ``"value"`` key; if *v* is not a dict or has no
+    ``"value"`` key, returns *v* unchanged.
+    """
+    if isinstance(v, dict) and "value" in v:
+        return v["value"]
+    return v
+
+
+def _coerce_bbox(bbox: dict) -> None:
+    """In-place coercion for a raw BBox dict."""
+    for dim in ("x_mm", "y_mm", "z_mm"):
+        if dim in bbox:
+            raw = _unwrap_value(bbox[dim])
+            try:
+                bbox[dim] = float(raw)  # type: ignore[arg-type]
+            except (TypeError, ValueError):
+                pass  # leave as-is; Pydantic will report
+    origin = bbox.get("origin_mm")
+    if isinstance(origin, (list, tuple)):
+        bbox["origin_mm"] = [
+            float(_unwrap_value(e)) if _unwrap_value(e) is not None else 0.0
+            for e in origin
+        ]
+    archetype = _unwrap_value(bbox.get("geometry_archetype"))
+    if archetype is not None and archetype not in _VALID_ARCHETYPES:
+        archetype = None
+    bbox["geometry_archetype"] = archetype
+
+
+def _coerce_spatial_estimate(spatial: dict) -> None:
+    """In-place coercion for a raw SpatialEstimate dict."""
+    bbox = spatial.get("bbox")
+    if isinstance(bbox, dict):
+        _coerce_bbox(bbox)
+    mass = spatial.get("mass_g")
+    if mass is not None:
+        raw = _unwrap_value(mass)
+        try:
+            spatial["mass_g"] = float(raw)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            pass
+    conf = _unwrap_value(spatial.get("confidence"))
+    if conf is not None and conf not in _VALID_CONFIDENCES:
+        spatial["confidence"] = "estimate"
+    elif conf is not None:
+        spatial["confidence"] = conf
+    lod = _unwrap_value(spatial.get("lod_hint"))
+    if lod is not None and lod not in _VALID_LOD_HINTS:
+        spatial["lod_hint"] = "concept"
+    elif lod is not None:
+        spatial["lod_hint"] = lod
+
+
+def _coerce_ports(ports: list) -> None:  # type: ignore[type-arg]
+    """In-place coercion for a raw ports list."""
+    for port in ports:
+        if not isinstance(port, dict):
+            continue
+        for field in ("position_mm", "normal"):
+            vec = port.get(field)
+            if isinstance(vec, (list, tuple)):
+                port[field] = [
+                    float(_unwrap_value(e)) if _unwrap_value(e) is not None else 0.0
+                    for e in vec
+                ]
+
+
+def _coerce_contract(contract: dict) -> None:
+    """In-place coercion for a raw InterfaceContract dict."""
+    sp = contract.get("spatial")
+    if sp is not None and isinstance(sp, dict):
+        _coerce_spatial_estimate(sp)
+    elif sp is not None and not isinstance(sp, dict):
+        contract["spatial"] = None
+    ports = contract.get("ports")
+    if isinstance(ports, list):
+        _coerce_ports(ports)
+
+
+def _coerce_node(node: dict) -> None:
+    """Recursively coerce a single subsystem node dict."""
+    contracts = node.get("interface_contracts")
+    if isinstance(contracts, dict):
+        for _neighbour, contract in contracts.items():
+            if isinstance(contract, dict):
+                _coerce_contract(contract)
+    for child in node.get("children") or []:
+        if isinstance(child, dict):
+            _coerce_node(child)
+
+
+def _coerce_subsystem_tree(data: dict) -> None:
+    """Walk every subsystem in *data* and coerce LLM provenance dicts.
+
+    Must be called **before** ``SubsystemSuggestResponse.model_validate(data)``
+    so that wrapped numeric values and invalid enum strings are normalised to
+    types that Pydantic can accept.
+    """
+    for sub in data.get("subsystems") or []:
+        if isinstance(sub, dict):
+            _coerce_node(sub)
+
+
 _SIX_DIM_FIELDS = (
     "envelope", "loadPath", "thermalPath", "signalPath",
     "datumTolerance", "serviceability",
@@ -1375,23 +1493,10 @@ def eng_spec_step1a_expand(
 
     expansion_data = json.loads(raw_expansion)
 
-    # ── Defensive coercion: LLM may emit "spatial": "<string>" instead of an
-    #    object or null.  Walk the tree and normalise before model_validate.
-    def _coerce_spatial(node: dict) -> None:
-        contracts = node.get("interface_contracts")
-        if isinstance(contracts, dict):
-            for _neighbour, contract in contracts.items():
-                if isinstance(contract, dict):
-                    sp = contract.get("spatial")
-                    if sp is not None and not isinstance(sp, dict):
-                        contract["spatial"] = None
-        for child in node.get("children") or []:
-            if isinstance(child, dict):
-                _coerce_spatial(child)
-
-    for _sub in expansion_data.get("subsystems") or []:
-        if isinstance(_sub, dict):
-            _coerce_spatial(_sub)
+    # ── Defensive coercion: LLM may wrap values in provenance dicts,
+    #    emit invalid enums, or return "spatial": "<string>".
+    #    Normalise the entire tree before model_validate.
+    _coerce_subsystem_tree(expansion_data)
 
     tree_response = SubsystemSuggestResponse.model_validate(expansion_data)
 
@@ -1412,6 +1517,7 @@ def eng_spec_step1a_expand(
         with phase_timer("eng_spec.step1a_expansion", attempt=2, project_id=req.project_id):
             raw_expansion = call_llm_json(ENGINEERING_SPEC_SYSTEM, retry_prompt)
         expansion_data = json.loads(raw_expansion)
+        _coerce_subsystem_tree(expansion_data)
         tree_response = SubsystemSuggestResponse.model_validate(expansion_data)
         _inject_concept_origin_codes(tree_response.subsystems, pack.subsystems)
 
@@ -1691,6 +1797,17 @@ def _generate_module_specs(
         ):
             raw_drafts = call_llm_json(ENGINEERING_SPEC_SYSTEM, fill_prompt)
         drafts = _parse_and_validate_drafts(raw_drafts)
+
+        # ── Backfill component_type_hint from Stage 2a field plan ──
+        hint_map: dict[str, str] = {
+            c.subsystem_code: c.component_type_hint
+            for c in field_plan.components
+            if c.component_type_hint
+        }
+        for draft in drafts:
+            if draft.component_type_hint is None and draft.subsystem_code in hint_map:
+                draft.component_type_hint = hint_map[draft.subsystem_code]
+
         emit_counter(
             "eng_spec.step2b_done",
             value=1,
@@ -2123,6 +2240,7 @@ def suggest_subsystems(req: SubsystemSuggestRequest) -> SubsystemSuggestResponse
     with phase_timer("uc1.llm_suggest", attempt=1, project_id=req.project_id):
         raw = call_llm_json(TRIZ_SOLVER_SYSTEM, base_prompt)
     data = json.loads(raw)
+    _coerce_subsystem_tree(data)
     response = SubsystemSuggestResponse.model_validate(data)
 
     # Fail-loud 6-dim validation — part of Stage 6 of
@@ -2146,6 +2264,7 @@ def suggest_subsystems(req: SubsystemSuggestRequest) -> SubsystemSuggestResponse
         with phase_timer("uc1.llm_suggest", attempt=2, project_id=req.project_id):
             raw = call_llm_json(TRIZ_SOLVER_SYSTEM, retry_prompt)
         data = json.loads(raw)
+        _coerce_subsystem_tree(data)
         response = SubsystemSuggestResponse.model_validate(data)
 
         violations = _find_empty_contracts(response.subsystems)

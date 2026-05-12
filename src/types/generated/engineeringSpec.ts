@@ -107,6 +107,13 @@ export interface EngineeringSpecDraft {
   subsystem_code: string;
 
   /**
+   * CAD-oriented type hint from Stage 2a field planning.
+   * e.g. 'motor', 'housing', 'pcb', 'gear', 'sensor', 'battery'.
+   * Used downstream for proxy-geometry archetype selection and USDA metadata.
+   */
+  component_type_hint?: string | null;
+
+  /**
    * Dynamic spec list. AI produces appropriate fields per subsystem role.
    * E.g. motor → dimensions, mass, max_torque, rated_power, thermal_budget;
    * housing → dimensions, primary_material, waterproof_rating, surface_finish.

@@ -63,10 +63,15 @@ export function ComponentSpecList({ node }: ComponentSpecListProps) {
           )}
         />
 
-        {/* Component name */}
+        {/* Component name + type hint */}
         <span className="font-medium text-foreground min-w-[100px] shrink-0">
           {node.name}
         </span>
+        {draft.component_type_hint && (
+          <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 text-muted-foreground border-muted-foreground/30 shrink-0">
+            {draft.component_type_hint}
+          </Badge>
+        )}
 
         {/* Key spec badges (compact) */}
         <div className="flex items-center gap-1 flex-wrap">

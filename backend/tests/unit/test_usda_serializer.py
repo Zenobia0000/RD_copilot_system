@@ -20,11 +20,13 @@ import pytest
 
 from app.models.schemas import (
     BBox,
+    COORDINATE_CONVENTION,
     DraftValue,
     EngineeringSpecDraft,
     InterfaceContract,
     PackageMap,
     PackageNode,
+    PortLocation,
     RequiredEnvelope,
     SpatialEstimate,
     SuggestedSubsystem,
@@ -33,6 +35,7 @@ from app.services.usda_serializer import (
     _build_clash_map,
     _build_drafts_by_code,
     _infer_shape,
+    _resolve_shape,
     _sanitize_name,
     serialize_to_usda,
 )
@@ -997,6 +1000,98 @@ class TestEdgeCases:
         usda = serialize_to_usda([node])
         assert 'spatial_confidence = "library"' in usda
 
+    def test_lod_hint_auto_derived_from_confidence(self):
+        """confidence='library' → lod_hint='envelope' auto-derivation."""
+        from app.models.schemas import SpatialEstimate
+        s = SpatialEstimate(confidence="library")
+        assert s.lod_hint == "envelope"
+        s2 = SpatialEstimate(confidence="rd_confirmed")
+        assert s2.lod_hint == "preliminary"
+        s3 = SpatialEstimate(confidence="estimate")
+        assert s3.lod_hint == "concept"
+
+    def test_lod_hint_explicit_not_overridden(self):
+        """Explicit lod_hint should not be auto-overridden by validator."""
+        from app.models.schemas import SpatialEstimate
+        s = SpatialEstimate(confidence="library", lod_hint="detailed")
+        assert s.lod_hint == "detailed"
+
+    def test_lod_hint_emitted_in_usda(self):
+        """lod_hint should appear as a custom string attribute in USDA output."""
+        node = _module_with_spatial(
+            x_mm=100, y_mm=50, z_mm=50,
+            confidence="library",
+        )
+        usda = serialize_to_usda([node])
+        assert 'lod_hint = "envelope"' in usda
+
+    # --- geometry_is_placeholder tests (Gap B) ---
+
+    def test_geometry_is_placeholder_default_true(self):
+        """SpatialEstimate defaults geometry_is_placeholder to True."""
+        from app.models.schemas import SpatialEstimate
+        s = SpatialEstimate()
+        assert s.geometry_is_placeholder is True
+
+    def test_placeholder_false_for_learned_source(self):
+        """reference_source='learned:…' → geometry_is_placeholder=False."""
+        from app.models.schemas import SpatialEstimate
+        s = SpatialEstimate(reference_source="learned:bafang_m600")
+        assert s.geometry_is_placeholder is False
+
+    def test_placeholder_false_for_rd_override_source(self):
+        """reference_source='rd_override:…' → geometry_is_placeholder=False."""
+        from app.models.schemas import SpatialEstimate
+        s = SpatialEstimate(reference_source="rd_override:motor_v2")
+        assert s.geometry_is_placeholder is False
+
+    def test_placeholder_false_for_web_source(self):
+        """reference_source='web:…' → geometry_is_placeholder=False."""
+        from app.models.schemas import SpatialEstimate
+        s = SpatialEstimate(reference_source="web:shimano_ep8_dimensions")
+        assert s.geometry_is_placeholder is False
+
+    def test_placeholder_true_for_seed_source(self):
+        """reference_source='seed:…' remains placeholder=True."""
+        from app.models.schemas import SpatialEstimate
+        s = SpatialEstimate(reference_source="seed:bafang_m600_mid_drive")
+        assert s.geometry_is_placeholder is True
+
+    def test_placeholder_true_for_llm_estimate(self):
+        """reference_source='llm_estimate' remains placeholder=True."""
+        from app.models.schemas import SpatialEstimate
+        s = SpatialEstimate(reference_source="llm_estimate")
+        assert s.geometry_is_placeholder is True
+
+    def test_placeholder_explicit_override_not_clobbered(self):
+        """Explicit geometry_is_placeholder=False with seed source stays False."""
+        from app.models.schemas import SpatialEstimate
+        s = SpatialEstimate(
+            reference_source="seed:some_part",
+            geometry_is_placeholder=False,
+        )
+        # Validator only flips True→False for real prefixes; it never flips
+        # False→True, so explicit False is preserved.
+        assert s.geometry_is_placeholder is False
+
+    def test_placeholder_emitted_in_usda(self):
+        """is_placeholder should appear as a custom string in USDA output."""
+        node = _module_with_spatial(
+            x_mm=100, y_mm=50, z_mm=50,
+            reference_source="seed:test",
+        )
+        usda = serialize_to_usda([node])
+        assert 'is_placeholder = "True"' in usda
+
+    def test_placeholder_false_emitted_in_usda(self):
+        """is_placeholder='False' when source is learned."""
+        node = _module_with_spatial(
+            x_mm=100, y_mm=50, z_mm=50,
+            reference_source="learned:real_part",
+        )
+        usda = serialize_to_usda([node])
+        assert 'is_placeholder = "False"' in usda
+
 
 # ---------------------------------------------------------------------------
 # Chinese / CJK name scenarios  (Blender-import regression guard)
@@ -1145,6 +1240,44 @@ class TestInferShape:
         assert _infer_shape("sHaFt") == "Cylinder"
 
 
+class TestResolveShape:
+    """Tests for _resolve_shape() which reads geometry_archetype first."""
+
+    def test_archetype_cube(self):
+        bbox = BBox(x_mm=10, y_mm=10, z_mm=10, geometry_archetype="cube")
+        assert _resolve_shape(bbox, "Shaft") == "Cube"
+
+    def test_archetype_cylinder(self):
+        bbox = BBox(x_mm=10, y_mm=10, z_mm=10, geometry_archetype="cylinder")
+        assert _resolve_shape(bbox, "Frame") == "Cylinder"
+
+    def test_archetype_disc_maps_to_cylinder(self):
+        bbox = BBox(x_mm=10, y_mm=10, z_mm=10, geometry_archetype="disc")
+        assert _resolve_shape(bbox, "Frame") == "Cylinder"
+
+    def test_archetype_sphere(self):
+        bbox = BBox(x_mm=10, y_mm=10, z_mm=10, geometry_archetype="sphere")
+        assert _resolve_shape(bbox, "Frame") == "Sphere"
+
+    def test_archetype_flat_plate_maps_to_cube(self):
+        bbox = BBox(x_mm=10, y_mm=10, z_mm=10, geometry_archetype="flat_plate")
+        assert _resolve_shape(bbox, "Shaft") == "Cube"
+
+    def test_archetype_l_bracket_maps_to_cube(self):
+        bbox = BBox(x_mm=10, y_mm=10, z_mm=10, geometry_archetype="l_bracket")
+        assert _resolve_shape(bbox, "Shaft") == "Cube"
+
+    def test_archetype_custom_maps_to_cube(self):
+        bbox = BBox(x_mm=10, y_mm=10, z_mm=10, geometry_archetype="custom")
+        assert _resolve_shape(bbox, "Shaft") == "Cube"
+
+    def test_no_archetype_falls_back_to_infer(self):
+        """When geometry_archetype is None, _infer_shape is used."""
+        bbox = BBox(x_mm=10, y_mm=10, z_mm=10)
+        assert _resolve_shape(bbox, "Shaft") == "Cylinder"  # shaft → Cylinder
+        assert _resolve_shape(bbox, "Frame") == "Cube"       # frame → Cube
+
+
 # ---------------------------------------------------------------------------
 # Proxy geometry — integration tests
 # ---------------------------------------------------------------------------
@@ -1269,3 +1402,161 @@ class TestProxyGeometry:
         assert "xformOp:translate = (10.0, 20.0, 30.0)" in usda
         # Proxy also present
         assert "def Cube" in usda
+
+
+# ---------------------------------------------------------------------------
+# Gap E — Coordinate convention tests
+# ---------------------------------------------------------------------------
+
+
+class TestCoordinateConvention:
+    """Verify the global coordinate convention constant and its integration."""
+
+    def test_coordinate_convention_constant_exists(self):
+        """COORDINATE_CONVENTION is a non-empty string with key terms."""
+        assert isinstance(COORDINATE_CONVENTION, str)
+        assert len(COORDINATE_CONVENTION) > 0
+        for keyword in ("Right-hand", "X=right", "Y=up", "Z=front", "mm"):
+            assert keyword in COORDINATE_CONVENTION, f"Missing '{keyword}' in COORDINATE_CONVENTION"
+
+    def test_bbox_docstring_mentions_convention(self):
+        """BBox docstring references the coordinate convention."""
+        doc = BBox.__doc__ or ""
+        assert "X: right" in doc
+        assert "Y: up" in doc
+        assert "Z: front" in doc
+        assert "origin" in doc.lower()
+
+    def test_prompt_step1a_contains_coordinate_instruction(self):
+        """Step 1a (SUBSYSTEM_SUGGESTION) prompt includes coordinate system rule."""
+        from app.prompts.triz_solver import SUBSYSTEM_SUGGESTION
+        assert "COORDINATE SYSTEM" in SUBSYSTEM_SUGGESTION
+        assert "X=right" in SUBSYSTEM_SUGGESTION
+        assert "origin_mm" in SUBSYSTEM_SUGGESTION
+
+    def test_prompt_step1b_contains_coordinate_instruction(self):
+        """Step 1b (ENGINEERING_SPEC_EXPANSION) prompt includes coordinate system rule."""
+        from app.prompts.triz_solver import ENGINEERING_SPEC_EXPANSION
+        assert "COORDINATE SYSTEM" in ENGINEERING_SPEC_EXPANSION
+        assert "X=right" in ENGINEERING_SPEC_EXPANSION
+        assert "origin_mm" in ENGINEERING_SPEC_EXPANSION
+
+    def test_nonzero_origin_emitted_in_usda(self):
+        """origin_mm != (0,0,0) produces a non-zero xformOp:translate."""
+        node = _module_with_spatial(
+            name="Battery",
+            target="Frame",
+            x_mm=200, y_mm=100, z_mm=80,
+            origin_mm=(50.0, -30.0, 120.0),
+            mass_g=450.0,
+        )
+        node.reason = "power storage"
+        usda = serialize_to_usda([node])
+        assert "xformOp:translate = (50.0, -30.0, 120.0)" in usda
+
+
+# ---------------------------------------------------------------------------
+# Port Locations (Gap F)
+# ---------------------------------------------------------------------------
+
+
+class TestPortLocations:
+    """Verify PortLocation schema defaults + USDA emission."""
+
+    def test_port_location_defaults(self):
+        """PortLocation has sensible defaults."""
+        port = PortLocation()
+        assert port.position_mm == (0.0, 0.0, 0.0)
+        assert port.normal == (0.0, 0.0, 1.0)
+        assert port.port_type == ""
+
+    def test_port_location_custom_values(self):
+        """PortLocation accepts custom values."""
+        port = PortLocation(
+            position_mm=(10.0, 20.0, 30.0),
+            normal=(1.0, 0.0, 0.0),
+            port_type="fluid",
+        )
+        assert port.position_mm == (10.0, 20.0, 30.0)
+        assert port.normal == (1.0, 0.0, 0.0)
+        assert port.port_type == "fluid"
+
+    def test_interface_contract_ports_default_empty(self):
+        """InterfaceContract.ports defaults to an empty list (backward compat)."""
+        contract = InterfaceContract()
+        assert contract.ports == []
+
+    def test_interface_contract_with_ports(self):
+        """InterfaceContract accepts a ports list."""
+        contract = InterfaceContract(
+            ports=[
+                PortLocation(
+                    position_mm=(90.0, 0.0, 0.0),
+                    normal=(1.0, 0.0, 0.0),
+                    port_type="mechanical",
+                ),
+            ],
+        )
+        assert len(contract.ports) == 1
+        assert contract.ports[0].port_type == "mechanical"
+
+    def test_ports_emitted_in_usda(self):
+        """Ports produce custom properties in the USDA output."""
+        node = SuggestedSubsystem(
+            name="Pump",
+            level="module",
+            reason="fluid transfer",
+            interface_contracts={
+                "Reservoir": InterfaceContract(
+                    envelope="DN25 flange",
+                    ports=[
+                        PortLocation(
+                            position_mm=(90.0, 0.0, 0.0),
+                            normal=(1.0, 0.0, 0.0),
+                            port_type="fluid",
+                        ),
+                        PortLocation(
+                            position_mm=(-90.0, 0.0, 0.0),
+                            normal=(-1.0, 0.0, 0.0),
+                            port_type="fluid",
+                        ),
+                    ],
+                ),
+            },
+        )
+        usda = serialize_to_usda([node])
+        assert "# --- Port Locations ---" in usda
+        assert "ports:Reservoir:0:position_mm = (90.0, 0.0, 0.0)" in usda
+        assert "ports:Reservoir:0:normal = (1.0, 0.0, 0.0)" in usda
+        assert 'ports:Reservoir:0:port_type = "fluid"' in usda
+        assert "ports:Reservoir:1:position_mm = (-90.0, 0.0, 0.0)" in usda
+        assert "ports:Reservoir:1:normal = (-1.0, 0.0, 0.0)" in usda
+
+    def test_empty_ports_no_section_in_usda(self):
+        """Empty ports list produces no port section (backward compat)."""
+        node = SuggestedSubsystem(
+            name="Bracket",
+            level="module",
+            reason="structural",
+            interface_contracts={
+                "Frame": InterfaceContract(envelope="M6 bolts"),
+            },
+        )
+        usda = serialize_to_usda([node])
+        assert "Port Locations" not in usda
+
+    def test_port_type_omitted_when_empty(self):
+        """port_type='' should not produce a port_type line."""
+        node = SuggestedSubsystem(
+            name="Valve",
+            level="module",
+            reason="flow control",
+            interface_contracts={
+                "Pipe": InterfaceContract(
+                    ports=[PortLocation(position_mm=(5.0, 0.0, 0.0))],
+                ),
+            },
+        )
+        usda = serialize_to_usda([node])
+        assert "ports:Pipe:0:position_mm" in usda
+        assert "port_type" not in usda

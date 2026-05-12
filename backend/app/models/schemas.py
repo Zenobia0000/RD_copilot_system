@@ -1061,13 +1061,43 @@ class SubsystemSuggestRequest(BaseModel):
 # alongside the legacy free-text fields. They are OPTIONAL — RD discovery mode
 # never requires upfront spatial budgets.
 
+GeometryArchetype = Literal[
+    "cube", "cylinder", "disc", "l_bracket", "sphere", "flat_plate", "custom",
+]
+"""Coarse shape tag chosen by the LLM to drive proxy-geometry selection."""
+
+LodHint = Literal["concept", "envelope", "preliminary", "detailed"]
+"""Level-of-detail hint (LOD 0–3) indicating how trustworthy spatial data is
+for downstream CAD consumption.  Auto-derived from *confidence* when not set
+explicitly by the LLM or caller."""
+
+
+COORDINATE_CONVENTION = (
+    "Right-hand coordinate system: X=right, Y=up, Z=front. "
+    "Origin at product geometric center. All dimensions in mm."
+)
+"""Global coordinate convention string for prompt injection and documentation."""
+
+
 class BBox(BaseModel):
-    """Axis-aligned bounding box in millimeters."""
+    """Axis-aligned bounding box in millimeters.
+
+    Coordinate convention (matches USD/OpenGL right-hand rule):
+      - Origin: product-level geometric center (0, 0, 0)
+      - X: right (+) / left (-)
+      - Y: up (+) / down (-)
+      - Z: front (+) / back (-)
+      - All values in millimeters
+
+    ``origin_mm`` is the center of THIS bbox in the global frame.
+    ``anchor`` names the reference point semantically (e.g. "BB_center").
+    """
     x_mm: float
     y_mm: float
     z_mm: float
     origin_mm: tuple[float, float, float] = (0.0, 0.0, 0.0)
     anchor: str = ""  # e.g. "BB_center" / "downtube_top" — frame-relative anchor name
+    geometry_archetype: GeometryArchetype | None = None
 
 
 class SpatialEstimate(BaseModel):
@@ -1086,7 +1116,61 @@ class SpatialEstimate(BaseModel):
     # will raise ValidationError (desired: drift must be loud). rd_confirmed
     # is RESERVED for RD inline override writes; see Three_Tier_Tree_Review_Checklist.md.
     confidence: Literal["library", "estimate", "rd_confirmed"] = "estimate"
+    lod_hint: LodHint = "concept"
+    geometry_is_placeholder: bool = True
     rationale: str = ""                  # one-line justification when llm_estimate
+
+    @model_validator(mode="after")
+    def _derive_lod_from_confidence(self) -> "SpatialEstimate":
+        """Auto-upgrade *lod_hint* when the caller leaves it at the default
+        ``"concept"`` but supplies a higher-fidelity *confidence*.
+
+        * ``rd_confirmed`` → ``preliminary`` (LOD 2)
+        * ``library``      → ``envelope``    (LOD 1)
+        * ``estimate``     → keep ``concept`` (LOD 0)
+        """
+        if self.lod_hint == "concept":
+            _CONF_TO_LOD: dict[str, LodHint] = {
+                "rd_confirmed": "preliminary",
+                "library": "envelope",
+            }
+            derived = _CONF_TO_LOD.get(self.confidence)
+            if derived is not None:
+                object.__setattr__(self, "lod_hint", derived)
+        return self
+
+    @model_validator(mode="after")
+    def _derive_placeholder_flag(self) -> "SpatialEstimate":
+        """Auto-clear *geometry_is_placeholder* when *reference_source*
+        indicates real-world data (learned component, RD override, or web).
+
+        Recognised prefixes that flip the flag to ``False``:
+        ``learned:``, ``rd_override:``, ``web:``.
+        """
+        _REAL_PREFIXES = ("learned:", "rd_override:", "web:")
+        if self.reference_source and self.reference_source.startswith(_REAL_PREFIXES):
+            object.__setattr__(self, "geometry_is_placeholder", False)
+        return self
+
+
+class PortLocation(BaseModel):
+    """3D port location for a physical interface connection point.
+
+    Used by CAD/harness-routing tools to place connectors, pipe stubs, or
+    cable entry points on each module boundary.
+    """
+    position_mm: tuple[float, float, float] = Field(
+        default=(0.0, 0.0, 0.0),
+        description="Port center position in global coordinate frame (mm).",
+    )
+    normal: tuple[float, float, float] = Field(
+        default=(0.0, 0.0, 1.0),
+        description="Outward-facing normal vector of the port face.",
+    )
+    port_type: str = Field(
+        default="",
+        description="Port type hint: 'mechanical', 'electrical', 'thermal', 'fluid'.",
+    )
 
 
 class InterfaceContract(BaseModel):
@@ -1103,6 +1187,8 @@ class InterfaceContract(BaseModel):
     signalPath: str = ""
     datumTolerance: str = ""
     serviceability: str = ""
+    # Optional structured port locations for CAD pipe/harness routing.
+    ports: list[PortLocation] = Field(default_factory=list)
     # Optional structured spatial estimate. None when LLM omits it; existing
     # contracts without spatial data remain valid.
     spatial: SpatialEstimate | None = None
@@ -2221,6 +2307,16 @@ class EngineeringSpecDraft(BaseModel):
     subsystem_code: str = Field(
         ...,
         description="Corresponding subsystem code (from ConceptSubsystem.code).",
+    )
+
+    component_type_hint: str | None = Field(
+        default=None,
+        description=(
+            "CAD-oriented type hint from Stage 2a field planning. "
+            "e.g. 'motor', 'housing', 'pcb', 'gear', 'sensor', 'battery'. "
+            "Used downstream for proxy-geometry archetype selection and "
+            "USDA metadata."
+        ),
     )
 
     specs: list[DraftValue] = Field(

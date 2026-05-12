@@ -35,6 +35,7 @@ if TYPE_CHECKING:
         EngineeringSpecDraft,
         InterfaceContract,
         PackageMap,
+        SpatialEstimate,
         SuggestedSubsystem,
     )
 
@@ -61,6 +62,17 @@ _CYLINDER_KEYWORDS: set[str] = {
     "bb",
     # CJK equivalents
     "軸", "踏軸", "轉子", "定子", "殼體", "外殼",
+}
+
+# Mapping from geometry_archetype → USD prim type used by _resolve_shape().
+_ARCHETYPE_TO_USD_PRIM: dict[str, str] = {
+    "cube": "Cube",
+    "cylinder": "Cylinder",
+    "disc": "Cylinder",       # disc ≈ flat cylinder
+    "l_bracket": "Cube",      # approximate with box
+    "sphere": "Sphere",
+    "flat_plate": "Cube",     # approximate with flat box
+    "custom": "Cube",         # safe fallback
 }
 
 # Color palette for per-assembly coloring (sRGB float triples).
@@ -157,6 +169,18 @@ def _infer_shape(name: str) -> Literal["Cube", "Cylinder"]:
     return "Cube"
 
 
+def _resolve_shape(bbox: "BBox", name: str) -> str:
+    """Pick a USD prim type from *bbox.geometry_archetype*, falling back to
+    ``_infer_shape(name)`` when the archetype is not set.
+
+    Returns one of ``"Cube"``, ``"Cylinder"``, or ``"Sphere"``.
+    """
+    archetype = getattr(bbox, "geometry_archetype", None)
+    if archetype and archetype in _ARCHETYPE_TO_USD_PRIM:
+        return _ARCHETYPE_TO_USD_PRIM[archetype]
+    return _infer_shape(name)
+
+
 # ---------------------------------------------------------------------------
 # Emitters
 # ---------------------------------------------------------------------------
@@ -167,6 +191,8 @@ def _emit_bbox(
     mass_g: float | None,
     mounting_pattern: str,
     confidence: str,
+    lod_hint: str,
+    geometry_is_placeholder: bool,
     indent: int,
     lines: list[str],
 ) -> None:
@@ -196,16 +222,23 @@ def _emit_bbox(
         lines.append(
             f"{pad}custom string spatial_confidence = {_usd_string(confidence)}"
         )
+    if lod_hint:
+        lines.append(
+            f"{pad}custom string lod_hint = {_usd_string(lod_hint)}"
+        )
+    lines.append(
+        f"{pad}custom string is_placeholder = {_usd_string(str(geometry_is_placeholder))}"
+    )
 
 
 def _emit_proxy_geometry(
     bbox: "BBox",
-    shape: Literal["Cube", "Cylinder"],
+    shape: str,
     color: tuple[float, float, float],
     indent: int,
     lines: list[str],
 ) -> None:
-    """Emit a child proxy geometry prim (Cube or Cylinder) under the current Xform.
+    """Emit a child proxy geometry prim (Cube, Cylinder or Sphere) under the current Xform.
 
     The proxy prim is named ``proxy_<shape>`` and sized using xformOp:scale
     derived from the BBox extents.  ``primvars:displayColor`` is set so
@@ -225,6 +258,18 @@ def _emit_proxy_geometry(
         inner = _indent(indent + 1)
         lines.append(f"{inner}double radius = {r}")
         lines.append(f"{inner}double height = {bbox.z_mm}")
+        lines.append(
+            f"{inner}color3f[] primvars:displayColor = [({color[0]}, {color[1]}, {color[2]})]"
+        )
+        lines.append(f"{pad}}}")
+    elif shape == "Sphere":
+        # Sphere in USD: default radius=1
+        r = max(bbox.x_mm, bbox.y_mm, bbox.z_mm) / 2.0
+        lines.append("")
+        lines.append(f'{pad}def Sphere "{prim_name}"')
+        lines.append(f"{pad}{{")
+        inner = _indent(indent + 1)
+        lines.append(f"{inner}double radius = {r}")
         lines.append(
             f"{inner}color3f[] primvars:displayColor = [({color[0]}, {color[1]}, {color[2]})]"
         )
@@ -299,6 +344,46 @@ def _emit_relationships(
                 seen.add(key)
                 lines.append(
                     f"{pad}rel interface:{dim} = </{root_prim_name}/{safe_target}>"
+                )
+
+
+def _emit_ports(
+    contracts: dict[str, "InterfaceContract"],
+    indent: int,
+    lines: list[str],
+) -> None:
+    """Emit port locations from InterfaceContract dicts as USD custom properties.
+
+    Each port becomes a group of custom properties under a ``ports`` section:
+        custom double3 ports:<target>:<index>:position_mm = (x, y, z)
+        custom double3 ports:<target>:<index>:normal = (nx, ny, nz)
+        custom string  ports:<target>:<index>:port_type = "..."
+    """
+    if not contracts:
+        return
+    pad = _indent(indent)
+    any_ports = False
+    for target_name, contract in contracts.items():
+        if not contract.ports:
+            continue
+        if not any_ports:
+            lines.append("")
+            lines.append(f"{pad}# --- Port Locations ---")
+            any_ports = True
+        safe_target = _sanitize_name(target_name)
+        for idx, port in enumerate(contract.ports):
+            prefix = f"ports:{safe_target}:{idx}"
+            px, py, pz = port.position_mm
+            nx, ny, nz = port.normal
+            lines.append(
+                f"{pad}custom double3 {prefix}:position_mm = ({px}, {py}, {pz})"
+            )
+            lines.append(
+                f"{pad}custom double3 {prefix}:normal = ({nx}, {ny}, {nz})"
+            )
+            if port.port_type:
+                lines.append(
+                    f"{pad}custom string {prefix}:port_type = {_usd_string(port.port_type)}"
                 )
 
 
@@ -445,13 +530,15 @@ def _emit_subsystem(
             spatial.mass_g,
             spatial.mounting_pattern,
             spatial.confidence if hasattr(spatial, "confidence") else "",
+            spatial.lod_hint if hasattr(spatial, "lod_hint") else "",
+            spatial.geometry_is_placeholder if hasattr(spatial, "geometry_is_placeholder") else True,
             body_indent,
             lines,
         )
         # --- Proxy geometry ---
         if proxy_mode != "none" and spatial.bbox is not None:
             if proxy_mode == "inferred":
-                shape = _infer_shape(node.name)
+                shape = _resolve_shape(spatial.bbox, node.name)
             else:
                 shape = "Cube"
             _emit_proxy_geometry(
@@ -465,10 +552,18 @@ def _emit_subsystem(
     # --- Interface relationships ---
     _emit_relationships(node.interface_contracts, root_prim_name, body_indent, lines)
 
+    # --- Port locations ---
+    _emit_ports(node.interface_contracts, body_indent, lines)
+
     # --- Engineering Spec Drafts ---
     draft_key = node.concept_origin_code or _sanitize_name(node.name)
     draft = drafts_by_code.get(draft_key)
     if draft:
+        if draft.component_type_hint:
+            lines.append(
+                f'{body_indent}custom string component_type_hint = '
+                f'{_usd_string(draft.component_type_hint)}'
+            )
         _emit_specs(draft.specs, body_indent, lines)
 
     # --- Children (recursive) ---

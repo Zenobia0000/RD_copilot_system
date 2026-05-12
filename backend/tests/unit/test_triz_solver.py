@@ -317,3 +317,269 @@ class TestSuFieldEndpoint:
     def test_post_triz_sufield_missing_fields_422(self, client):
         resp = client.post("/api/v1/triz/sufield", json={})
         assert resp.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# TestCoerceSubsystemTree — provenance-dict unwrapping & enum sanitisation
+# ---------------------------------------------------------------------------
+
+import copy
+
+from app.agents.triz_solver import (
+    _unwrap_value,
+    _coerce_bbox,
+    _coerce_spatial_estimate,
+    _coerce_ports,
+    _coerce_contract,
+    _coerce_node,
+    _coerce_subsystem_tree,
+)
+from app.models.schemas import SubsystemSuggestResponse
+
+
+def _make_clean_tree() -> dict:
+    """Return a minimal but fully valid SubsystemSuggestResponse dict."""
+    return {
+        "subsystems": [
+            {
+                "name": "Motor",
+                "level": "module",
+                "reason": "drives shaft",
+                "interface_contracts": {
+                    "Gearbox": {
+                        "envelope": "Ø30×40 mm cylinder",
+                        "loadPath": "shaft torque 0.5 Nm",
+                        "thermalPath": "conduction via housing",
+                        "signalPath": "PWM from driver PCB",
+                        "fastenerPattern": "M3×4 on PCD 25",
+                        "toleranceClass": "H7/g6",
+                        "spatial": {
+                            "bbox": {
+                                "x_mm": 30.0,
+                                "y_mm": 30.0,
+                                "z_mm": 40.0,
+                                "origin_mm": [0.0, 0.0, 0.0],
+                                "geometry_archetype": "cylinder",
+                            },
+                            "mass_g": 55.0,
+                            "confidence": "estimate",
+                        },
+                        "ports": [],
+                    },
+                },
+                "children": [],
+            },
+        ],
+    }
+
+
+class TestCoerceSubsystemTree:
+    """Unit tests for LLM provenance-dict coercion helpers."""
+
+    # ── _unwrap_value ──────────────────────────────────────────────────────
+
+    def test_unwrap_value_extracts_from_provenance_dict(self):
+        """Provenance dict → bare value."""
+        v = {"value": 28, "source": "llm_estimate", "confidence": "speculative"}
+        assert _unwrap_value(v) == 28
+
+    def test_unwrap_value_passthrough_bare_number(self):
+        """Plain int/float passes through unchanged."""
+        assert _unwrap_value(42) == 42
+        assert _unwrap_value(3.14) == 3.14
+
+    def test_unwrap_value_passthrough_none(self):
+        """None passes through unchanged."""
+        assert _unwrap_value(None) is None
+
+    # ── _coerce_bbox ───────────────────────────────────────────────────────
+
+    def test_coerce_bbox_unwraps_dimensions(self):
+        """bbox x/y/z wrapped in provenance dicts are extracted."""
+        bbox = {
+            "x_mm": {"value": 28, "source": "llm_estimate", "confidence": "speculative"},
+            "y_mm": {"value": 12, "source": "llm_estimate"},
+            "z_mm": 40.0,
+            "origin_mm": [0.0, 0.0, 0.0],
+            "geometry_archetype": "cylinder",
+        }
+        _coerce_bbox(bbox)
+        assert bbox["x_mm"] == 28.0
+        assert bbox["y_mm"] == 12.0
+        assert bbox["z_mm"] == 40.0
+
+    def test_coerce_bbox_unwraps_origin_mm(self):
+        """origin_mm tuple elements wrapped in provenance dicts are extracted."""
+        bbox = {
+            "x_mm": 10.0,
+            "y_mm": 10.0,
+            "z_mm": 10.0,
+            "origin_mm": [
+                {"value": 5.0, "source": "llm"},
+                0.0,
+                {"value": -3.0, "source": "llm"},
+            ],
+            "geometry_archetype": "cube",
+        }
+        _coerce_bbox(bbox)
+        assert bbox["origin_mm"] == [5.0, 0.0, -3.0]
+
+    def test_coerce_bbox_invalid_archetype_to_none(self):
+        """Invalid geometry_archetype like 'bulkhead_connector' → None."""
+        bbox = {
+            "x_mm": 10.0,
+            "y_mm": 10.0,
+            "z_mm": 10.0,
+            "origin_mm": [0.0, 0.0, 0.0],
+            "geometry_archetype": "bulkhead_connector",
+        }
+        _coerce_bbox(bbox)
+        assert bbox["geometry_archetype"] is None
+
+    def test_coerce_bbox_valid_archetype_unchanged(self):
+        """Valid archetype 'cylinder' stays 'cylinder'."""
+        bbox = {
+            "x_mm": 10.0,
+            "y_mm": 10.0,
+            "z_mm": 10.0,
+            "origin_mm": [0.0, 0.0, 0.0],
+            "geometry_archetype": "cylinder",
+        }
+        _coerce_bbox(bbox)
+        assert bbox["geometry_archetype"] == "cylinder"
+
+    # ── _coerce_spatial_estimate ───────────────────────────────────────────
+
+    def test_coerce_spatial_unwraps_mass_g(self):
+        """mass_g wrapped in provenance dict is extracted."""
+        spatial = {
+            "bbox": {
+                "x_mm": 10.0, "y_mm": 10.0, "z_mm": 10.0,
+                "origin_mm": [0, 0, 0], "geometry_archetype": "cube",
+            },
+            "mass_g": {"value": 55, "source": "llm_estimate", "confidence": "speculative"},
+            "confidence": "estimate",
+        }
+        _coerce_spatial_estimate(spatial)
+        assert spatial["mass_g"] == 55.0
+
+    def test_coerce_spatial_invalid_confidence_fallback(self):
+        """Invalid confidence 'speculative' → 'estimate'."""
+        spatial = {
+            "bbox": {
+                "x_mm": 10.0, "y_mm": 10.0, "z_mm": 10.0,
+                "origin_mm": [0, 0, 0], "geometry_archetype": "cube",
+            },
+            "mass_g": 50.0,
+            "confidence": "speculative",
+        }
+        _coerce_spatial_estimate(spatial)
+        assert spatial["confidence"] == "estimate"
+
+    def test_coerce_spatial_invalid_lod_hint_fallback(self):
+        """Invalid lod_hint → 'concept'."""
+        spatial = {
+            "bbox": {
+                "x_mm": 10.0, "y_mm": 10.0, "z_mm": 10.0,
+                "origin_mm": [0, 0, 0], "geometry_archetype": "cube",
+            },
+            "mass_g": 50.0,
+            "confidence": "estimate",
+            "lod_hint": "rough_guess",
+        }
+        _coerce_spatial_estimate(spatial)
+        assert spatial["lod_hint"] == "concept"
+
+    # ── _coerce_ports ──────────────────────────────────────────────────────
+
+    def test_coerce_ports_unwraps_position_and_normal(self):
+        """Port position_mm / normal elements wrapped in provenance dicts."""
+        ports = [
+            {
+                "position_mm": [
+                    {"value": 1.0, "source": "llm"},
+                    2.0,
+                    {"value": 3.0, "source": "llm"},
+                ],
+                "normal": [0.0, {"value": 1.0, "source": "llm"}, 0.0],
+            },
+        ]
+        _coerce_ports(ports)
+        assert ports[0]["position_mm"] == [1.0, 2.0, 3.0]
+        assert ports[0]["normal"] == [0.0, 1.0, 0.0]
+
+    # ── _coerce_contract — spatial string → None ──────────────────────────
+
+    def test_coerce_spatial_string_becomes_none(self):
+        """spatial = "<string>" (not dict) → None — preserves legacy behaviour."""
+        contract = {
+            "envelope": "box",
+            "loadPath": "bolt",
+            "thermalPath": "air",
+            "signalPath": "wire",
+            "fastenerPattern": "M3",
+            "toleranceClass": "H7",
+            "spatial": "TBD — estimate later",
+            "ports": [],
+        }
+        _coerce_contract(contract)
+        assert contract["spatial"] is None
+
+    # ── Full tree integration ──────────────────────────────────────────────
+
+    def test_coerce_full_tree_model_validates(self):
+        """A tree with provenance-wrapped values passes model_validate after coercion."""
+        data = {
+            "subsystems": [
+                {
+                    "name": "Motor",
+                    "level": "module",
+                    "reason": "drives shaft",
+                    "interface_contracts": {
+                        "Gearbox": {
+                            "envelope": "Ø30×40",
+                            "loadPath": "torque",
+                            "thermalPath": "conduction",
+                            "signalPath": "PWM",
+                            "fastenerPattern": "M3×4",
+                            "toleranceClass": "H7/g6",
+                            "spatial": {
+                                "bbox": {
+                                    "x_mm": {"value": 28, "source": "llm_estimate", "confidence": "speculative"},
+                                    "y_mm": {"value": 12, "source": "llm_estimate"},
+                                    "z_mm": 40.0,
+                                    "origin_mm": [0, 0, 0],
+                                    "geometry_archetype": "bulkhead_connector",
+                                },
+                                "mass_g": {"value": 55, "source": "llm_estimate", "confidence": "speculative"},
+                                "confidence": "speculative",
+                                "lod_hint": "rough_guess",
+                            },
+                            "ports": [
+                                {
+                                    "position_mm": [{"value": 1.0, "source": "llm"}, 0.0, 0.0],
+                                    "normal": [0.0, {"value": 1.0, "source": "llm"}, 0.0],
+                                },
+                            ],
+                        },
+                    },
+                    "children": [],
+                },
+            ],
+        }
+        _coerce_subsystem_tree(data)
+        resp = SubsystemSuggestResponse.model_validate(data)
+        motor = resp.subsystems[0]
+        contract = motor.interface_contracts["Gearbox"]
+        assert contract.spatial is not None
+        assert contract.spatial.bbox.x_mm == 28.0
+        assert contract.spatial.bbox.geometry_archetype is None  # bulkhead_connector → None
+        assert contract.spatial.mass_g == 55.0
+        assert contract.spatial.confidence == "estimate"  # speculative → estimate
+
+    def test_already_clean_data_unchanged(self):
+        """Clean (non-wrapped) data is not mutated by coercion."""
+        data = _make_clean_tree()
+        expected = copy.deepcopy(data)
+        _coerce_subsystem_tree(data)
+        assert data == expected

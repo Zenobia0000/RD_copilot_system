@@ -2326,6 +2326,48 @@ class EngSpecStep2Response(BaseModel):
     drafts: list[EngineeringSpecDraft] = Field(default_factory=list)
 
 
+class EngSpecStep2ModuleRequest(BaseModel):
+    """Input for Step 2 — single-module spec generation.
+
+    The frontend calls this endpoint once per module to avoid the
+    Nginx 300 s gateway timeout.
+    """
+    project_id: str = Field(..., description="Project identifier")
+    mission: str = Field(..., description="Design mission / objective")
+    module_name: str = Field(
+        ..., description="Name of the module-level node to process",
+    )
+    module_node: SuggestedSubsystem = Field(
+        ..., description="The module-level subsystem node (with children)",
+    )
+    subsystems: list[SuggestedSubsystem] = Field(
+        ..., description="Full subsystem tree (for context in prompts)",
+    )
+
+
+class EngSpecStep2ModuleResponse(BaseModel):
+    """Step 2 result for a single module."""
+    module_name: str = Field(..., description="Module name that was processed")
+    drafts: list[EngineeringSpecDraft] = Field(default_factory=list)
+
+
+class EngSpecStep2SystemRequest(BaseModel):
+    """Input for Step 2 — system-level node spec generation.
+
+    Generates specs for system-level (non-module) nodes only.
+    """
+    project_id: str = Field(..., description="Project identifier")
+    mission: str = Field(..., description="Design mission / objective")
+    subsystems: list[SuggestedSubsystem] = Field(
+        ..., description="Full subsystem tree from Step 1",
+    )
+
+
+class EngSpecStep2SystemResponse(BaseModel):
+    """Step 2 result for system-level nodes."""
+    drafts: list[EngineeringSpecDraft] = Field(default_factory=list)
+
+
 class EngSpecStep3Request(BaseModel):
     """Input for Step 3 (Source Strengthening).
 
@@ -2346,3 +2388,17 @@ class EngSpecStep3Request(BaseModel):
 class EngSpecStep3Response(BaseModel):
     """Step 3 result: strengthened drafts with improved provenance."""
     drafts: list[EngineeringSpecDraft] = Field(default_factory=list)
+
+
+class EngSpecPersistRequest(BaseModel):
+    """Request to persist an engineering-spec draft pack without running Step 3."""
+    project_id: str = Field(..., description="Project identifier")
+    drafts: list[EngineeringSpecDraft] = Field(
+        ..., description="Drafts from Step 2 (or any stage)",
+    )
+    subsystem_tree: list[SuggestedSubsystem] = Field(
+        ..., description="Expanded subsystem tree from Step 1",
+    )
+    package_map: "PackageMap | None" = Field(
+        default=None, description="Optional package map from Step 1b",
+    )

@@ -1481,6 +1481,10 @@ export type {
   EngSpecStep1bResponse,
   EngSpecStep2Request,
   EngSpecStep2Response,
+  EngSpecStep2ModuleRequest,
+  EngSpecStep2ModuleResponse,
+  EngSpecStep2SystemRequest,
+  EngSpecStep2SystemResponse,
   EngSpecStep3Request,
   EngSpecStep3Response,
 } from "@/types/generated/engineeringSpec";
@@ -1493,11 +1497,15 @@ import type {
   EngSpecStep1bRequest,
   EngSpecStep1bResponse,
   EngSpecStep2Response,
+  EngSpecStep2ModuleResponse,
+  EngSpecStep2SystemResponse,
   EngSpecStep3Response,
 } from "@/types/generated/engineeringSpec";
 
 import type {
   EngSpecStep2Request,
+  EngSpecStep2ModuleRequest,
+  EngSpecStep2SystemRequest,
   EngSpecStep3Request,
 } from "@/types/generated/engineeringSpec";
 
@@ -1547,12 +1555,43 @@ export function engSpecStep2Generate(body: EngSpecStep2Request) {
   );
 }
 
+/** Step 2 (incremental): Generate specs for ONE module. */
+export function engSpecStep2GenerateModule(body: EngSpecStep2ModuleRequest) {
+  return request<EngSpecStep2ModuleResponse>(
+    "/scamper/engineering-spec-drafts/step2-generate-module",
+    body,
+    { timeoutMs: 300_000 },
+  );
+}
+
+/** Step 2 (incremental): Generate specs for system-level nodes. */
+export function engSpecStep2GenerateSystem(body: EngSpecStep2SystemRequest) {
+  return request<EngSpecStep2SystemResponse>(
+    "/scamper/engineering-spec-drafts/step2-generate-system",
+    body,
+    { timeoutMs: 300_000 },
+  );
+}
+
 /** Step 3: Strengthen sources & upgrade confidence levels. */
 export function engSpecStep3Strengthen(body: EngSpecStep3Request) {
   return request<EngSpecStep3Response>(
     "/scamper/engineering-spec-drafts/step3-strengthen",
     body,
     { timeoutMs: 600_000 },  // ~4.7 min — match Step 2 budget; Nginx ceiling 300 s
+  );
+}
+
+/** Persist engineering-spec draft pack to DB (no LLM call). */
+export function engSpecPersist(body: {
+  project_id: string;
+  drafts: EngineeringSpecDraft[];
+  subsystem_tree: SuggestedSubsystem[];
+  package_map?: PackageMap | null;
+}) {
+  return request<EngineeringSpecDraftResponse>(
+    "/scamper/engineering-spec-drafts/persist",
+    body,
   );
 }
 

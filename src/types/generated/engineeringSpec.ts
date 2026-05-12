@@ -195,6 +195,33 @@ export interface EngSpecStep3Response {
   drafts: EngineeringSpecDraft[];
 }
 
+/** Request for Step 2 (incremental) — single module spec generation. */
+export interface EngSpecStep2ModuleRequest {
+  project_id: string;
+  mission: string;
+  module_name: string;
+  module_node: SuggestedSubsystem;
+  subsystems: SuggestedSubsystem[];
+}
+
+/** Response from Step 2 (incremental) — single module result. */
+export interface EngSpecStep2ModuleResponse {
+  module_name: string;
+  drafts: EngineeringSpecDraft[];
+}
+
+/** Request for Step 2 (incremental) — system-level nodes spec generation. */
+export interface EngSpecStep2SystemRequest {
+  project_id: string;
+  mission: string;
+  subsystems: SuggestedSubsystem[];
+}
+
+/** Response from Step 2 (incremental) — system-level nodes result. */
+export interface EngSpecStep2SystemResponse {
+  drafts: EngineeringSpecDraft[];
+}
+
 // ---------------------------------------------------------------------------
 // Confidence score mapping (mirrors _CONFIDENCE_SCORES in schemas.py)
 // ---------------------------------------------------------------------------

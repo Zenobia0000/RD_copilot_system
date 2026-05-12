@@ -29,8 +29,13 @@ from app.models.schemas import (
     EngSpecStep1bResponse,
     EngSpecStep2Request,
     EngSpecStep2Response,
+    EngSpecStep2ModuleRequest,
+    EngSpecStep2ModuleResponse,
+    EngSpecStep2SystemRequest,
+    EngSpecStep2SystemResponse,
     EngSpecStep3Request,
     EngSpecStep3Response,
+    EngSpecPersistRequest,
     ScamperFeedbackRequest,
     ScamperFeedbackResponse,
     SpatialOverlayRequest,
@@ -44,6 +49,8 @@ from app.agents.triz_solver import (
     eng_spec_step1a_expand,
     eng_spec_step1b_enrich,
     eng_spec_step2_generate,
+    eng_spec_step2_generate_module,
+    eng_spec_step2_generate_system,
     eng_spec_step3_strengthen,
     _persist_engineering_spec_draft_pack,
     fetch_latest_engineering_spec_draft_pack,
@@ -205,6 +212,44 @@ def scamper_eng_spec_step2(req: EngSpecStep2Request):
 
 
 @router.post(
+    "/scamper/engineering-spec-drafts/step2-generate-module",
+    response_model=EngSpecStep2ModuleResponse,
+)
+def scamper_eng_spec_step2_module(req: EngSpecStep2ModuleRequest):
+    """Step 2 (incremental): Generate specs for ONE module."""
+    _logger = logging.getLogger(__name__)
+    try:
+        return eng_spec_step2_generate_module(req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _logger.exception("Step 2 module (%s) failed", req.module_name)
+        raise HTTPException(
+            status_code=502,
+            detail=f"Step 2 module spec generation failed ({req.module_name}): {exc}",
+        ) from exc
+
+
+@router.post(
+    "/scamper/engineering-spec-drafts/step2-generate-system",
+    response_model=EngSpecStep2SystemResponse,
+)
+def scamper_eng_spec_step2_system(req: EngSpecStep2SystemRequest):
+    """Step 2 (incremental): Generate specs for system-level nodes."""
+    _logger = logging.getLogger(__name__)
+    try:
+        return eng_spec_step2_generate_system(req)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        _logger.exception("Step 2 system-level spec generation failed")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Step 2 system-level spec generation failed: {exc}",
+        ) from exc
+
+
+@router.post(
     "/scamper/engineering-spec-drafts/step3-strengthen",
     response_model=EngSpecStep3Response,
 )
@@ -228,6 +273,33 @@ def scamper_eng_spec_step3(req: EngSpecStep3Request):
         raise HTTPException(
             status_code=502,
             detail=f"Step 3 source strengthening failed: {exc}",
+        ) from exc
+
+
+@router.post(
+    "/scamper/engineering-spec-drafts/persist",
+    response_model=EngineeringSpecDraftResponse,
+)
+def scamper_persist_engineering_spec_drafts(req: EngSpecPersistRequest):
+    """Persist an engineering-spec draft pack (no LLM call).
+
+    Called by the frontend pipeline after Step 2 when Step 3 is skipped,
+    so that the drafts are saved to the DB for later retrieval.
+    """
+    _logger = logging.getLogger(__name__)
+    try:
+        full_response = EngineeringSpecDraftResponse(
+            drafts=req.drafts,
+            subsystem_tree=req.subsystem_tree,
+            package_map=req.package_map,
+        )
+        _persist_engineering_spec_draft_pack(req.project_id, full_response)
+        return full_response
+    except Exception as exc:
+        _logger.exception("Persist engineering spec drafts failed")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Persist engineering spec drafts failed: {exc}",
         ) from exc
 
 

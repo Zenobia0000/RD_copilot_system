@@ -973,6 +973,170 @@ Choose the 5-15 most important specs based on the subsystem's type and role.
 </output_schema>
 """
 
+# ---------------------------------------------------------------------------
+# Stage 2a — Field Planning (per-module)
+# ---------------------------------------------------------------------------
+
+ENGINEERING_SPEC_FIELD_PLANNING = """\
+<task>
+You are a senior domain engineer performing a design review. For each \
+component inside the given module, reason about what engineering specification \
+fields an RD engineer would need to verify during a design review.
+
+Do NOT fill in values — only plan the field list.
+</task>
+
+<context>
+<mission>{mission}</mission>
+<module_tree>
+{module_tree}
+</module_tree>
+</context>
+
+<instructions>
+1. Examine each component under this module (level="component").
+   Also produce a field plan for the module node itself (level="module").
+2. For each node, first infer its **component_type_hint** — a short \
+   snake_case label describing what kind of part it is (e.g. \
+   "lamination_iron_core", "brushless_dc_motor", "aluminum_heat_sink", \
+   "four_layer_pcb", "ball_bearing").
+3. Then, considering the component's role within the module, its upstream / \
+   downstream interface_contracts, and industry best practices, list ALL \
+   specification fields that an RD engineer would check.
+4. Organise fields into the 6 standard categories:
+   - **spatial**: physical dimensions, tolerances, mass, volume, clearances
+   - **material**: material grade, composition, surface treatment, coating
+   - **thermal**: operating temperature, thermal conductivity, Tg, max temp
+   - **electrical**: voltage, current, resistance, insulation, EMC
+   - **mechanical**: torque, force, hardness, fatigue life, vibration
+   - **manufacturing**: process type, tolerance class, minimum order qty, \
+     lead time, cost driver
+5. For each category, include **at least 1–3 fields** unless the category is \
+   genuinely irrelevant for that component (e.g. "electrical" for a pure \
+   mechanical spacer). If you skip a category, add a brief reason in the \
+   "skipped_categories" array.
+6. Each field entry must include:
+   - field_name: descriptive snake_case (e.g. "outer_diameter", "silicon_steel_grade")
+   - category: one of the 6 categories above
+   - why: one-sentence reason this field matters for design review
+   - expected_unit: SI unit string or null if dimensionless
+7. Aim for **10–25 fields per component** depending on complexity. \
+   Simple fasteners may have ~8; complex sub-assemblies may have 20+.
+8. Return valid JSON matching the output_schema below.
+</instructions>
+
+<output_schema>
+{{
+  "module_name": "string — name of the module node",
+  "components": [
+    {{
+      "subsystem_code": "string — component name exactly as in the tree",
+      "component_type_hint": "string — inferred part type (snake_case)",
+      "fields": [
+        {{
+          "field_name": "string",
+          "category": "spatial | material | thermal | electrical | mechanical | manufacturing",
+          "why": "string — why this field matters",
+          "expected_unit": "string | null"
+        }}
+      ],
+      "skipped_categories": [
+        {{
+          "category": "string",
+          "reason": "string — why this category is not applicable"
+        }}
+      ]
+    }}
+  ]
+}}
+</output_schema>
+"""
+
+# ---------------------------------------------------------------------------
+# Stage 2b — Value Filling (per-module, uses field plan from 2a)
+# ---------------------------------------------------------------------------
+
+ENGINEERING_SPEC_VALUE_FILLING = """\
+<task>
+Fill in concrete engineering specification values for each planned field. \
+Every value must carry full provenance (source, confidence, rationale). \
+You are converting a field plan into actionable DraftValue entries.
+</task>
+
+<context>
+<mission>{mission}</mission>
+<module_name>{module_name}</module_name>
+<field_plan>
+{field_plan}
+</field_plan>
+<reference_library>
+{reference_library}
+</reference_library>
+</context>
+
+<instructions>
+1. For EACH field in the field_plan, produce a DraftValue with ALL required keys:
+   - field_name: MUST match the planned field_name exactly
+   - category: MUST match the planned category exactly
+   - value: the estimated value (number, string, boolean, or structured dict/list)
+   - unit: SI unit string or null — prefer the expected_unit from the plan
+   - source: where this value comes from. Use one of:
+     * A specific standard/datasheet name (e.g. "IEC_60034", "JIS_C_2552")
+     * "reference_library" if taken from the reference library above
+     * "llm_estimate" if based on your engineering judgement
+   - confidence: one of "confirmed", "library", "estimate", "speculative"
+     * "confirmed" = lab-verified — DO NOT USE unless citing measured data
+     * "library" = from a known datasheet, standard, or textbook
+     * "estimate" = engineering judgement with reasonable basis
+     * "speculative" = rough guess, needs verification
+   - needs_verification: true unless confidence is "confirmed"
+   - rationale: brief explanation of HOW you arrived at this value
+   - alternatives: optional list of {{"value": "...", "source": "..."}} for \
+     competing options (e.g. different material grades)
+
+2. For spatial specs (dimensions, mass), reuse values from the module tree's \
+   spatial_estimate or interface_contracts to maintain consistency.
+
+3. If you discover important fields that Stage 2a missed, you MAY add them. \
+   Mark any added field with rationale starting with "[ADDED] ".
+
+4. Quality guidelines:
+   - Prefer SPECIFIC values over ranges when possible
+   - Include tolerances where engineering practice requires them \
+     (e.g. "outer_diameter": 45.0 with rationale mentioning ±0.02)
+   - For material specs, cite the grade/standard (e.g. "35H210" not just \
+     "silicon steel")
+   - For manufacturing specs, be concrete (e.g. "stamping" not just "forming")
+
+5. Return valid JSON matching the output_schema below.
+</instructions>
+
+<output_schema>
+{{
+  "drafts": [
+    {{
+      "subsystem_code": "string — component name exactly matching field_plan",
+      "specs": [
+        {{
+          "field_name": "string",
+          "category": "spatial | material | thermal | electrical | mechanical | manufacturing",
+          "value": "string | number | boolean | object",
+          "unit": "string | null",
+          "source": "string — e.g. llm_estimate, IEC_60034, reference_library",
+          "confidence": "confirmed | library | estimate | speculative",
+          "needs_verification": true,
+          "rationale": "string — how you arrived at this value",
+          "alternatives": [
+            {{ "value": "...", "source": "..." }}
+          ]
+        }}
+      ]
+    }}
+  ]
+}}
+</output_schema>
+"""
+
 ENGINEERING_SPEC_STRENGTHEN = """\
 <task>
 Review the engineering spec drafts and strengthen their sources. For each \

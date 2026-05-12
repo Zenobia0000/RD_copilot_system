@@ -5,7 +5,8 @@ Ref: AI_Agent_Architecture.md §1.1 TRIZ Solver Agent + §6.2 triz_solver_agent 
 
 import json
 import logging
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass, field as dc_field
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,8 @@ from app.prompts.triz_solver import (
     ENGINEERING_SPEC_SYSTEM,
     ENGINEERING_SPEC_EXPANSION,
     ENGINEERING_SPEC_GENERATION,
+    ENGINEERING_SPEC_FIELD_PLANNING,
+    ENGINEERING_SPEC_VALUE_FILLING,
     ENGINEERING_SPEC_STRENGTHEN,
 )
 from app.tools.triz_kb import (
@@ -85,6 +88,10 @@ from app.models.schemas import (
     EngSpecStep1bResponse,
     EngSpecStep2Request,
     EngSpecStep2Response,
+    EngSpecStep2ModuleRequest,
+    EngSpecStep2ModuleResponse,
+    EngSpecStep2SystemRequest,
+    EngSpecStep2SystemResponse,
     EngSpecStep3Request,
     EngSpecStep3Response,
 )
@@ -1492,37 +1499,117 @@ def eng_spec_step1_expand(
     )
 
 
-def eng_spec_step2_generate(req: EngSpecStep2Request) -> EngSpecStep2Response:
-    """Step 2 — AI Spec Generation.
+# ---------------------------------------------------------------------------
+# Internal dataclasses for two-stage field planning (§3.1 of plan)
+# ---------------------------------------------------------------------------
 
-    For each subsystem, generate 5-15 DraftValue specs with full provenance
-    (source, confidence, needs_verification).
-    """
-    # Re-resolve library summary (< 1 s, avoids passing large string across API)
-    resolver = default_resolver(include_web=False)
-    with phase_timer("eng_spec.summarize", project_id=req.project_id):
-        library_summary = resolver.summarize_for_prompt(project_id=req.project_id)
+@dataclass
+class PlannedField:
+    """Stage 2a output: a single recommended spec field."""
+    field_name: str
+    category: str
+    why: str
+    expected_unit: str | None = None
 
-    # Serialise expanded subsystem tree for the generation prompt
-    subsystem_tree_json = json.dumps(
-        [s.model_dump(mode="json") for s in req.subsystems],
-        ensure_ascii=False,
-        indent=2,
+
+@dataclass
+class ComponentFieldPlan:
+    """Stage 2a output: field plan for one component."""
+    subsystem_code: str
+    component_type_hint: str
+    fields: list[PlannedField] = dc_field(default_factory=list)
+
+
+@dataclass
+class ModuleFieldPlan:
+    """Stage 2a output: field plans for all components under one module."""
+    module_name: str
+    components: list[ComponentFieldPlan] = dc_field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Helper: extract module-level nodes from the subsystem tree
+# ---------------------------------------------------------------------------
+
+def _extract_modules(
+    subsystems: list[SuggestedSubsystem],
+) -> list[SuggestedSubsystem]:
+    """Walk the subsystem tree and collect all ``level='module'`` nodes (with children)."""
+    modules: list[SuggestedSubsystem] = []
+
+    def visit(node: SuggestedSubsystem) -> None:
+        if node.level == "module":
+            modules.append(node)
+        for child in node.children:
+            visit(child)
+
+    for s in subsystems:
+        visit(s)
+    return modules
+
+
+# ---------------------------------------------------------------------------
+# Helper: parse Stage 2a LLM JSON → ModuleFieldPlan
+# ---------------------------------------------------------------------------
+
+def _parse_field_plan(raw_json: str) -> ModuleFieldPlan:
+    """Parse and validate the Stage 2a (field planning) LLM response."""
+    data = json.loads(raw_json)
+    components: list[ComponentFieldPlan] = []
+    for comp in data.get("components", []):
+        fields = [
+            PlannedField(
+                field_name=f.get("field_name", "unknown"),
+                category=f.get("category", "spatial"),
+                why=f.get("why", ""),
+                expected_unit=f.get("expected_unit"),
+            )
+            for f in comp.get("fields", [])
+        ]
+        components.append(
+            ComponentFieldPlan(
+                subsystem_code=comp.get("subsystem_code", ""),
+                component_type_hint=comp.get("component_type_hint", "generic"),
+                fields=fields,
+            )
+        )
+    return ModuleFieldPlan(
+        module_name=data.get("module_name", "unknown"),
+        components=components,
     )
 
-    generation_prompt = ENGINEERING_SPEC_GENERATION.format(
-        mission=req.mission,
-        subsystem_tree=subsystem_tree_json,
-        reference_library=library_summary,
-    )
-    with phase_timer("eng_spec.step2_generation", project_id=req.project_id):
-        raw_generation = call_llm_json(ENGINEERING_SPEC_SYSTEM, generation_prompt)
-    emit_counter("eng_spec.step2_done", value=1, project_id=req.project_id)
 
-    generation_data = json.loads(raw_generation)
-    raw_drafts: list[dict] = generation_data.get("drafts", [])
+def _field_plan_to_dict(plan: ModuleFieldPlan) -> dict:
+    """Serialise a ModuleFieldPlan to a JSON-serialisable dict for prompt injection."""
+    return {
+        "module_name": plan.module_name,
+        "components": [
+            {
+                "subsystem_code": c.subsystem_code,
+                "component_type_hint": c.component_type_hint,
+                "fields": [
+                    {
+                        "field_name": f.field_name,
+                        "category": f.category,
+                        "why": f.why,
+                        "expected_unit": f.expected_unit,
+                    }
+                    for f in c.fields
+                ],
+            }
+            for c in plan.components
+        ],
+    }
 
-    # Parse and validate each draft
+
+# ---------------------------------------------------------------------------
+# Helper: parse and validate raw LLM drafts → list[EngineeringSpecDraft]
+# ---------------------------------------------------------------------------
+
+def _parse_and_validate_drafts(raw_json: str) -> list[EngineeringSpecDraft]:
+    """Parse LLM JSON output into validated EngineeringSpecDraft objects."""
+    data = json.loads(raw_json)
+    raw_drafts: list[dict] = data.get("drafts", [])
     drafts: list[EngineeringSpecDraft] = []
     for rd in raw_drafts:
         try:
@@ -1540,12 +1627,295 @@ def eng_spec_step2_generate(req: EngSpecStep2Request) -> EngSpecStep2Response:
                 value=1,
                 subsystem_code=rd.get("subsystem_code", "unknown"),
             )
+    return drafts
 
-    if not drafts:
+
+# ---------------------------------------------------------------------------
+# Helper: two-stage spec generation for a single module
+# ---------------------------------------------------------------------------
+
+def _generate_module_specs(
+    module: SuggestedSubsystem,
+    mission: str,
+    library_summary: str,
+    project_id: str,
+) -> list[EngineeringSpecDraft]:
+    """Execute Stage 2a (field planning) + Stage 2b (value filling) for one module.
+
+    If any stage fails, falls back to the legacy single-call approach using
+    ENGINEERING_SPEC_GENERATION so the module still produces *some* output.
+    """
+    module_json = json.dumps(
+        module.model_dump(mode="json"),
+        ensure_ascii=False,
+        indent=2,
+    )
+
+    try:
+        # ── Stage 2a: Field Planning ──────────────────────────────────────
+        plan_prompt = ENGINEERING_SPEC_FIELD_PLANNING.format(
+            mission=mission,
+            module_tree=module_json,
+        )
+        with phase_timer(
+            "eng_spec.step2a_field_plan",
+            project_id=project_id,
+            module=module.name,
+        ):
+            raw_plan = call_llm_json(ENGINEERING_SPEC_SYSTEM, plan_prompt)
+        field_plan = _parse_field_plan(raw_plan)
+        emit_counter(
+            "eng_spec.step2a_done",
+            value=1,
+            project_id=project_id,
+            module=module.name,
+            planned_fields=sum(len(c.fields) for c in field_plan.components),
+        )
+
+        # ── Stage 2b: Value Filling ───────────────────────────────────────
+        field_plan_json = json.dumps(
+            _field_plan_to_dict(field_plan),
+            ensure_ascii=False,
+            indent=2,
+        )
+        fill_prompt = ENGINEERING_SPEC_VALUE_FILLING.format(
+            mission=mission,
+            module_name=module.name,
+            field_plan=field_plan_json,
+            reference_library=library_summary,
+        )
+        with phase_timer(
+            "eng_spec.step2b_value_fill",
+            project_id=project_id,
+            module=module.name,
+        ):
+            raw_drafts = call_llm_json(ENGINEERING_SPEC_SYSTEM, fill_prompt)
+        drafts = _parse_and_validate_drafts(raw_drafts)
+        emit_counter(
+            "eng_spec.step2b_done",
+            value=1,
+            project_id=project_id,
+            module=module.name,
+            draft_count=len(drafts),
+        )
+        return drafts
+
+    except Exception as exc:
+        # ── Fallback: legacy single-call for this module ──────────────────
+        logger.warning(
+            "eng_spec step2: two-stage failed for module '%s', "
+            "falling back to single-call: %s",
+            module.name,
+            exc,
+        )
+        emit_counter(
+            "eng_spec.step2_module_fallback",
+            value=1,
+            project_id=project_id,
+            module=module.name,
+        )
+        fallback_tree = json.dumps(
+            [module.model_dump(mode="json")],
+            ensure_ascii=False,
+            indent=2,
+        )
+        fallback_prompt = ENGINEERING_SPEC_GENERATION.format(
+            mission=mission,
+            subsystem_tree=fallback_tree,
+            reference_library=library_summary,
+        )
+        with phase_timer(
+            "eng_spec.step2_fallback",
+            project_id=project_id,
+            module=module.name,
+        ):
+            raw_fallback = call_llm_json(ENGINEERING_SPEC_SYSTEM, fallback_prompt)
+        return _parse_and_validate_drafts(raw_fallback)
+
+
+# ---------------------------------------------------------------------------
+# Helper: generate specs for system-level nodes (simplified single call)
+# ---------------------------------------------------------------------------
+
+def _generate_system_level_specs(
+    systems: list[SuggestedSubsystem],
+    mission: str,
+    library_summary: str,
+    project_id: str,
+) -> list[EngineeringSpecDraft]:
+    """Generate specs for system-level nodes using the legacy single-call approach.
+
+    System nodes are high-level (e.g. "風扇馬達系統") and don't have the deep
+    component detail that benefits from two-stage planning, so a single
+    ENGINEERING_SPEC_GENERATION call is sufficient.
+    """
+    if not systems:
+        return []
+
+    # Build a shallow tree containing only the system nodes (no children)
+    shallow = []
+    for s in systems:
+        d = s.model_dump(mode="json")
+        d["children"] = []  # strip module/component subtree
+        shallow.append(d)
+
+    tree_json = json.dumps(shallow, ensure_ascii=False, indent=2)
+    prompt = ENGINEERING_SPEC_GENERATION.format(
+        mission=mission,
+        subsystem_tree=tree_json,
+        reference_library=library_summary,
+    )
+    with phase_timer("eng_spec.step2_system_level", project_id=project_id):
+        raw = call_llm_json(ENGINEERING_SPEC_SYSTEM, prompt)
+    return _parse_and_validate_drafts(raw)
+
+
+# ---------------------------------------------------------------------------
+# Step 2 — Two-stage per-module AI Spec Generation
+# ---------------------------------------------------------------------------
+
+def eng_spec_step2_generate(req: EngSpecStep2Request) -> EngSpecStep2Response:
+    """Step 2 — Two-stage per-module AI Spec Generation.
+
+    Architecture (see plans/eng-spec-quality-gap.md §5):
+      Stage 2a — Field Planning:  LLM reasons about *what* fields each component
+                                  in a module needs (10-25 per component).
+      Stage 2b — Value Filling:   LLM fills concrete values with full provenance
+                                  for each planned field.
+
+    Modules are processed in parallel (up to 4 workers). If a module's two-stage
+    pipeline fails, it degrades to the legacy single-call approach so the overall
+    response is never empty.
+    """
+    # Re-resolve library summary (< 1 s, avoids passing large string across API)
+    resolver = default_resolver(include_web=False)
+    with phase_timer("eng_spec.summarize", project_id=req.project_id):
+        library_summary = resolver.summarize_for_prompt(project_id=req.project_id)
+
+    # 1. Extract module-level nodes from the tree
+    modules = _extract_modules(req.subsystems)
+
+    all_drafts: list[EngineeringSpecDraft] = []
+
+    # 2. Per-module two-stage generation (parallel)
+    if modules:
+        with ThreadPoolExecutor(max_workers=min(len(modules), 4)) as pool:
+            futures = {
+                pool.submit(
+                    _generate_module_specs,
+                    module=mod,
+                    mission=req.mission,
+                    library_summary=library_summary,
+                    project_id=req.project_id,
+                ): mod.name
+                for mod in modules
+            }
+            for future in as_completed(futures):
+                mod_name = futures[future]
+                try:
+                    module_drafts = future.result()
+                    all_drafts.extend(module_drafts)
+                except Exception as exc:
+                    logger.error(
+                        "eng_spec step2: module '%s' failed entirely: %s",
+                        mod_name,
+                        exc,
+                    )
+                    emit_counter(
+                        "eng_spec.step2_module_error",
+                        value=1,
+                        project_id=req.project_id,
+                        module=mod_name,
+                    )
+
+    # 3. System-level nodes get a simplified single-call pass
+    system_nodes = [s for s in req.subsystems if s.level == "system"]
+    system_drafts = _generate_system_level_specs(
+        systems=system_nodes,
+        mission=req.mission,
+        library_summary=library_summary,
+        project_id=req.project_id,
+    )
+    all_drafts.extend(system_drafts)
+
+    emit_counter(
+        "eng_spec.step2_done",
+        value=1,
+        project_id=req.project_id,
+        total_drafts=len(all_drafts),
+    )
+
+    if not all_drafts:
         emit_counter("eng_spec.step2_empty", value=1, project_id=req.project_id)
-        logger.error("eng_spec step2: LLM returned zero valid drafts")
+        logger.error("eng_spec step2: pipeline returned zero valid drafts")
 
-    return EngSpecStep2Response(drafts=drafts)
+    return EngSpecStep2Response(drafts=all_drafts)
+
+
+# ── Incremental per-module endpoints ────────────────────────────────────────
+
+
+def eng_spec_step2_generate_module(
+    req: EngSpecStep2ModuleRequest,
+) -> EngSpecStep2ModuleResponse:
+    """Generate specs for ONE module (Stage 2a + 2b).
+
+    Called once per module by the frontend to stay within Nginx 300 s.
+    Typically finishes in 30-60 s per module.
+    """
+    # Re-resolve library summary (< 1 s)
+    resolver = default_resolver(include_web=False)
+    with phase_timer("eng_spec.summarize", project_id=req.project_id):
+        lib_summary = resolver.summarize_for_prompt(project_id=req.project_id)
+
+    drafts = _generate_module_specs(
+        module=req.module_node,
+        mission=req.mission,
+        library_summary=lib_summary,
+        project_id=req.project_id,
+    )
+
+    emit_counter(
+        "eng_spec.step2_module_done",
+        value=1,
+        project_id=req.project_id,
+        module=req.module_name,
+        draft_count=len(drafts),
+    )
+
+    return EngSpecStep2ModuleResponse(
+        module_name=req.module_name,
+        drafts=drafts,
+    )
+
+
+def eng_spec_step2_generate_system(
+    req: EngSpecStep2SystemRequest,
+) -> EngSpecStep2SystemResponse:
+    """Generate specs for system-level (non-module) nodes only.
+
+    Typically fast (< 30 s) because system nodes are few.
+    """
+    # Re-resolve library summary (< 1 s)
+    resolver = default_resolver(include_web=False)
+    with phase_timer("eng_spec.summarize", project_id=req.project_id):
+        lib_summary = resolver.summarize_for_prompt(project_id=req.project_id)
+
+    drafts = _generate_system_level_specs(
+        systems=req.subsystems,
+        mission=req.mission,
+        library_summary=lib_summary,
+        project_id=req.project_id,
+    )
+
+    emit_counter(
+        "eng_spec.step2_system_done",
+        value=1,
+        project_id=req.project_id,
+        draft_count=len(drafts),
+    )
+
+    return EngSpecStep2SystemResponse(drafts=drafts)
 
 
 def eng_spec_step3_strengthen(req: EngSpecStep3Request) -> EngSpecStep3Response:

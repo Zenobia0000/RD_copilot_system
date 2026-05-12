@@ -2216,7 +2216,7 @@ export default function Create() {
   // ── Step 3: Engineering Spec Drafts (4-step pipeline) ──
   function renderSubsystem() {
     const packData = conceptPackQuery.data;
-    const pipelineStepLabels = ["結構展開", "空間解析", "規格生成", "來源強化"] as const;
+    const pipelineStepLabels = ["結構展開", "空間解析", "規格生成"] as const;
     const pipelineStatus = engSpecPipeline.status;
     const isRunning = engSpecPipeline.isRunning;
 
@@ -2234,6 +2234,7 @@ export default function Create() {
               </div>
               <AiButton
                 onClick={async () => {
+                  setEngSpecResult(null);
                   try {
                     const data = await engSpecPipeline.run({
                       mission: briefMission,
@@ -2261,14 +2262,13 @@ export default function Create() {
             <CardContent className="p-3">
               <div className="flex items-center gap-3">
                 {pipelineStepLabels.map((label, i) => {
-                  const phaseKeys = ["step1a", "step1b", "step2", "step3"] as const;
+                  const phaseKeys = ["step1a", "step1b", "step2"] as const;
                   const stepKey = phaseKeys[i];
                   const isCurrent = pipelineStatus === stepKey;
                   const isDone =
                     (stepKey === "step1a" && !!engSpecPipeline.step1aResult) ||
                     (stepKey === "step1b" && !!engSpecPipeline.step1bResult) ||
-                    (stepKey === "step2" && !!engSpecPipeline.step2Result) ||
-                    (stepKey === "step3" && !!engSpecPipeline.step3Result);
+                    (stepKey === "step2" && !!engSpecPipeline.step2Result);
                   return (
                     <div key={stepKey} className="flex items-center gap-1.5 text-xs">
                       {isDone ? (
@@ -2284,6 +2284,11 @@ export default function Create() {
                         !isCurrent && !isDone && "text-muted-foreground",
                       )}>
                         {label}
+                        {stepKey === "step2" && isCurrent && engSpecPipeline.step2ModuleTotal > 0 && (
+                          <span className="ml-1 text-[10px] font-normal">
+                            ({engSpecPipeline.step2ModuleDone}/{engSpecPipeline.step2ModuleTotal})
+                          </span>
+                        )}
                       </span>
                       {i < pipelineStepLabels.length - 1 && (
                         <span className="text-muted-foreground/40 mx-1">→</span>
@@ -2311,7 +2316,6 @@ export default function Create() {
                         step1a: "結構展開",
                         step1b: "空間解析",
                         step2: "規格生成",
-                        step3: "來源強化",
                       } as Record<string, string>)[engSpecPipeline.failedStep] ?? engSpecPipeline.failedStep}
                       ）
                     </span>
@@ -2372,6 +2376,21 @@ export default function Create() {
               </p>
             </CardContent>
           </Card>
+        )}
+
+        {/* Step 2 incremental preview: show partial drafts as each module completes */}
+        {!engSpecPipeline.step2Result && engSpecPipeline.step2PartialDrafts.length > 0 && engSpecPipeline.step1Result && !engSpecResult && (
+          <HierarchicalSpecView
+            data={{
+              drafts: engSpecPipeline.step2PartialDrafts,
+              subsystem_tree: engSpecPipeline.step1Result.subsystems,
+              package_map: engSpecPipeline.step1Result.package_map,
+            }}
+            projectId={id}
+            conceptInterfaces={packData?.pack?.interfaces}
+            previewMode
+            className="opacity-70"
+          />
         )}
 
         {/* Step 2 preview: draft specs (before source strengthening) */}

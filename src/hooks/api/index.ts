@@ -195,3 +195,7 @@ export { useEngineeringSpecDraftPack } from './useEngineeringSpecDraftPack';
 // --- USDA Export ---
 export { useUsdaExport } from './useUsdaExport';
 export type { UsdaExportVariables } from './useUsdaExport';
+
+// --- Per-Node LLM USDA Export ---
+export { useNodeUsdaExport } from './useNodeUsdaExport';
+export type { NodeUsdaExportVariables } from './useNodeUsdaExport';

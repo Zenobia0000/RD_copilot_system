@@ -1543,6 +1543,31 @@ class UsdaExportResponse(BaseModel):
     filename: str = Field(description="Suggested download filename.")
 
 
+class NodeUsdaLlmRequest(BaseModel):
+    """Request body for per-node LLM-based USDA generation."""
+
+    node_name: str = Field(..., description="節點名稱，如 Drive System")
+    node_level: Literal["system", "module", "component"]
+
+    # 該節點的 context — 前端從 SpecTreeNode 組裝
+    node_description: str = Field(
+        ...,
+        description="節點 reason + 所有子節點 reason 的組合文字描述",
+    )
+    specs_summary: list[dict] = Field(
+        default_factory=list,
+        description="該節點含子節點的 DraftValue specs 摘要 — field_name, value, unit, category",
+    )
+    interface_contracts: dict[str, dict] = Field(
+        default_factory=dict,
+        description="該節點的 interface_contracts 簡化版",
+    )
+    children_names: list[str] = Field(
+        default_factory=list,
+        description="子節點名稱列表，用於 USDA 結構生成",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Knowledge Writeback (SOW: POST /knowledge/writeback)
 # ---------------------------------------------------------------------------

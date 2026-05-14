@@ -1622,4 +1622,23 @@ export function exportUsda(body: UsdaExportRequest) {
   return request<UsdaExportResponse>("/export/usda", body);
 }
 
+// ─── Per-Node LLM USDA Export ───────────────────────────────────────────────
+
+export interface NodeUsdaLlmRequest {
+  node_name: string;
+  node_level: "system" | "module" | "component";
+  node_description: string;
+  specs_summary: Array<Record<string, unknown>>;
+  interface_contracts: Record<string, Record<string, unknown>>;
+  children_names: string[];
+}
+
+/**
+ * Generate a USD ASCII file for a single hierarchy node via LLM.
+ * Stateless endpoint — all context is provided in the request body.
+ */
+export function exportUsdaLlm(body: NodeUsdaLlmRequest) {
+  return request<UsdaExportResponse>("/export/usda-llm", body);
+}
+
 export { ApiError, ApiNetworkError, type RequestOptions };

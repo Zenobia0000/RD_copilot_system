@@ -14,11 +14,13 @@ from fastapi import APIRouter, HTTPException
 from app.models.schemas import (
     ExportRequest,
     ExportResponse,
+    NodeUsdaLlmRequest,
     UsdaExportRequest,
     UsdaExportResponse,
 )
 from app.core.supabase import get_supabase
 from app.services.usda_serializer import serialize_to_usda
+from app.services.usda_llm_generator import generate_node_usda
 
 router = APIRouter()
 
@@ -268,6 +270,25 @@ def export_usda(req: UsdaExportRequest):
     )
 
     safe_name = project_name.replace(" ", "_")
+    filename = f"{safe_name}_{timestamp}.usda"
+
+    return UsdaExportResponse(content=content, filename=filename)
+
+
+@router.post("/export/usda-llm", response_model=UsdaExportResponse)
+def export_usda_llm(req: NodeUsdaLlmRequest):
+    """Generate a USD ASCII file for a single hierarchy node via LLM.
+
+    Unlike ``/export/usda`` which uses deterministic rule-based serialization,
+    this endpoint delegates generation to an LLM for quick concept previews.
+    """
+    try:
+        content = generate_node_usda(req)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    safe_name = req.node_name.replace(" ", "_")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"{safe_name}_{timestamp}.usda"
 
     return UsdaExportResponse(content=content, filename=filename)

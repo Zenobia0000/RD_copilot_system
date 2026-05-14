@@ -19,6 +19,7 @@ import { ChevronRight, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import type { SpecTreeNode } from "./buildSpecTree";
+import { GenerateUsdaButton } from "./GenerateUsdaButton";
 import { ConfidenceBadge, CategoryGroup, groupByCategory, pctStr } from "../spec-shared";
 
 export interface ComponentSpecListProps {
@@ -121,6 +122,7 @@ export function ComponentSpecList({ node }: ComponentSpecListProps) {
               </TooltipContent>
             </Tooltip>
           )}
+          <GenerateUsdaButton node={node} />
         </span>
       </button>
 

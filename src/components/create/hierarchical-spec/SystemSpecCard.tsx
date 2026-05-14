@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 
 import type { SpecTreeNode } from "./buildSpecTree";
 import { ModuleSpecCard } from "./ModuleSpecCard";
+import { GenerateUsdaButton } from "./GenerateUsdaButton";
 import { pctStr } from "../spec-shared";
 
 export interface SystemSpecCardProps {
@@ -144,6 +145,9 @@ export function SystemSpecCard({ node, defaultOpen = true }: SystemSpecCardProps
                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">
                   {children.length} 模組
                 </Badge>
+
+                {/* Generate USDA via LLM */}
+                <GenerateUsdaButton node={node} variant="sm" />
 
                 {/* Collapse chevron */}
                 <ChevronDown

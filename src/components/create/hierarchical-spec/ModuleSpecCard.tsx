@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 
 import type { SpecTreeNode } from "./buildSpecTree";
 import { ComponentSpecList } from "./ComponentSpecList";
+import { GenerateUsdaButton } from "./GenerateUsdaButton";
 import { InterfaceContractsPanel } from "../InterfaceContractsPanel";
 import { CategoryGroup, ConfidenceBadge, groupByCategory, pctStr } from "../spec-shared";
 
@@ -109,6 +110,9 @@ export function ModuleSpecCard({ node, defaultOpen = false }: ModuleSpecCardProp
                 {children.length}
               </Badge>
             )}
+
+            {/* Generate USDA via LLM */}
+            <GenerateUsdaButton node={node} />
           </div>
         </button>
       </CollapsibleTrigger>

@@ -40,7 +40,7 @@ def generate_node_usda(req: "NodeUsdaLlmRequest") -> str:
     ValueError
         If bracket balance validation fails after LLM generation.
     """
-    print("req: ", req)
+    #print("req: ", req)
     user_message = build_usda_user_message(
         node_name=req.node_name,
         node_level=req.node_level,
@@ -52,19 +52,32 @@ def generate_node_usda(req: "NodeUsdaLlmRequest") -> str:
 
     # 1. Call LLM
     print("USDA_SYSTEM_PROMPT: ", USDA_SYSTEM_PROMPT)
+    print("="*20)
+    print("="*20)
     print("user_message: ", user_message)
-    print(a)
+    print("="*20)
+    print("="*20)
+    # print(a)
     raw = call_llm_structured(USDA_SYSTEM_PROMPT, user_message)
-
+    print("1 raw: ", raw)
+    print("="*20)
+    print("="*20)
     # 2. Strip markdown code fences (if LLM added ```usda … ```)
     raw = strip_code_fences(raw)
-
+    print("2 raw: ", raw)
+    print("="*20)
+    print("="*20)
     # 3. Ensure #usda 1.0 header
     if not raw.strip().startswith("#usda 1.0"):
         raw = "#usda 1.0\n" + raw
-
+    print("3 raw: ", raw)
+    print("="*20)
+    print("="*20)
     # 4. Basic syntax validation — bracket balance
     validate_bracket_balance(raw)
+    print("4 raw: ", raw)
+    print("="*20)
+    print("="*20)
 
     return raw
 

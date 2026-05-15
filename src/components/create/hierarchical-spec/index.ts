@@ -28,3 +28,6 @@ export type { ArchitectureFlowViewProps } from "./ArchitectureFlowView";
 
 export { StructuralSchematicView } from "./schematic";
 export type { StructuralSchematicViewProps } from "./schematic";
+
+export { generateHierarchyText } from "./generateHierarchyText";
+export type { HierarchyTextOptions } from "./generateHierarchyText";

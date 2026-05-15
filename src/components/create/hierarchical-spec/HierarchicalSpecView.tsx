@@ -30,6 +30,7 @@ import {
   Info,
   Download,
   Loader2,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUsdaExport } from "@/hooks/api";
@@ -37,6 +38,7 @@ import { useUsdaExport } from "@/hooks/api";
 import type { EngineeringSpecDraftResponse } from "@/types/generated/engineeringSpec";
 import type { ConceptInterface } from "@/types/conceptArchitecture";
 import { buildSpecTree } from "./buildSpecTree";
+import { generateHierarchyText } from "./generateHierarchyText";
 import { SystemSpecCard } from "./SystemSpecCard";
 import { EngineeringSpecDraftPanel } from "../EngineeringSpecDraftPanel";
 import { pctStr, SpecDashboardSummary } from "../spec-shared";
@@ -164,6 +166,33 @@ export function HierarchicalSpecView({
         {/* USDA Export + View toggle */}
         <div className="flex items-center gap-2">
           {/* USDA export button */}
+          {canShowHierarchy && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2.5 text-xs gap-1"
+              onClick={() => {
+                const text = generateHierarchyText({
+                  specTree,
+                  conceptInterfaces,
+                });
+                const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `hierarchy-structure-${Date.now()}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                }, 100);
+              }}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              匯出階層文字檔
+            </Button>
+          )}
           {canShowHierarchy && projectId && (
             <Button
               size="sm"

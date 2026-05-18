@@ -517,6 +517,10 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
               improving_param: tc.improving_param,
               worsening_param: tc.worsening_param,
               severity: DEFAULT_SEVERITY,
+              // 3-Stage Pipeline new fields
+              linked_kpis: tc.linked_kpis ?? [],
+              why_selected: tc.why_selected ?? null,
+              priority: tc.priority ?? null,
               created_at: now,
               updated_at: now,
             })

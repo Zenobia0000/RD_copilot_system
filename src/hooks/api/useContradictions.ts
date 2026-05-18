@@ -48,6 +48,10 @@ interface ContradictionRow {
   separation_rationale: string | null;
   pc_attribute_a: string | null;
   pc_attribute_not_a: string | null;
+  // 3-Stage TC Pipeline fields
+  linked_kpis: string[] | null;
+  why_selected: string | null;
+  priority: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -80,6 +84,9 @@ const mapRow = (r: ContradictionRow): Contradiction => ({
   separationRationale: r.separation_rationale ?? null,
   pcAttributeA: r.pc_attribute_a ?? null,
   pcAttributeNotA: r.pc_attribute_not_a ?? null,
+  linkedKpis: r.linked_kpis ?? [],
+  whySelected: r.why_selected ?? null,
+  priority: r.priority ?? null,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 });

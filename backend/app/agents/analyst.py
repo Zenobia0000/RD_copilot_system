@@ -30,6 +30,9 @@ from app.prompts.analyst import (
     SOCRATIC_INSIGHT_EXTRACTION,
     CONTRADICTION_FORMALIZATION,
     MULTI_TC_IDENTIFICATION,
+    FRAME_PROBLEM_PROMPT,
+    DISCOVER_CANDIDATE_TCS_PROMPT,
+    RANK_AND_SELECT_TCS_PROMPT,
     SU_FIELD_DERIVATION_FROM_TC,
     ASSUMPTION_EXTRACTION,
     UNKNOWN_FACTOR_DISCOVERY,
@@ -83,6 +86,8 @@ from app.models.schemas import (
     MultiTcIdentifyRequest,
     MultiTcIdentifyResponse,
     IdentifiedTC,
+    ProblemFrame,
+    CandidateTC,
     SuFieldModel,
     ContradictionDecomposeRequest,
     ContradictionDecomposeResponse,
@@ -486,23 +491,51 @@ def formalize_contradiction(req: ContradictionFormalizeRequest) -> Contradiction
 
 # ---------------------------------------------------------------------------
 # Multi-TC Identification (POST /contradictions/identify-multi)
+# — 3-Stage Pipeline: Frame → Discover → Rank
 # ---------------------------------------------------------------------------
 MAX_IDENTIFIED_TCS = 5
+_MAX_CANDIDATES = 10  # Stage 2 upper bound
 
 
-def identify_multiple_tcs(req: MultiTcIdentifyRequest) -> MultiTcIdentifyResponse:
-    """Identify multiple TCs from project context in one LLM call.
+def _stage1_frame_problem(
+    req: MultiTcIdentifyRequest,
+    socratic_insights: str,
+) -> ProblemFrame:
+    """Stage 1: Understand the engineering problem and infer design tensions.
 
-    ADR-007: Explore stage always emits TC. Non-TC items are coerced to
-    type=null and filtered out by the frontend.
+    On failure: logs warning, returns empty ProblemFrame so Stage 2 can proceed.
     """
-    # Step 1: Extract socratic insights (reuse existing helper)
-    socratic_insights = _extract_socratic_insights(
-        req.socraticAnswers, purpose=PURPOSE_CONTRADICTION,
+    prompt = FRAME_PROBLEM_PROMPT.format(
+        mission=req.mission or "（未提供）",
+        constraints="\n".join(f"- {c}" for c in req.constraints) or "（尚無）",
+        kpis="\n".join(f"- {k}" for k in req.kpis) or "（尚無）",
+        socratic_insights=socratic_insights,
     )
+    try:
+        if settings.use_harness_agents:
+            from app.harness.agent_base import harness_call
+            return harness_call(
+                "analyst_frame_problem", ANALYST_SYSTEM, prompt, ProblemFrame,
+            )
+        raw = call_llm_json(ANALYST_SYSTEM, prompt)
+        data = json.loads(raw)
+        return ProblemFrame.model_validate(data)
+    except Exception:
+        logger.warning("Stage1 (frame_problem) failed — continuing with empty ProblemFrame", exc_info=True)
+        return ProblemFrame()
 
-    # Step 2: Assemble prompt
-    prompt = MULTI_TC_IDENTIFICATION.format(
+
+def _stage2_discover_candidates(
+    req: MultiTcIdentifyRequest,
+    socratic_insights: str,
+    problem_frame: ProblemFrame,
+) -> list[CandidateTC]:
+    """Stage 2: Generate 5-10 candidate TCs grounded in Stage 1.
+
+    This is the core stage — failure raises so the caller returns 502.
+    """
+    prompt = DISCOVER_CANDIDATE_TCS_PROMPT.format(
+        problem_frame=problem_frame.model_dump_json(indent=2),
         mission=req.mission or "（未提供）",
         constraints="\n".join(f"- {c}" for c in req.constraints) or "（尚無）",
         kpis="\n".join(f"- {k}" for k in req.kpis) or "（尚無）",
@@ -510,21 +543,20 @@ def identify_multiple_tcs(req: MultiTcIdentifyRequest) -> MultiTcIdentifyRespons
         existing_descriptions="\n".join(f"- {d}" for d in req.existing_descriptions) or "（無）",
     )
 
-    # Step 3: Call LLM → parse JSON
     if settings.use_harness_agents:
         from app.harness.agent_base import HarnessAgent
         from pydantic import BaseModel as _BM
 
-        class _MultiTcRaw(_BM):
+        class _CandidateListRaw(_BM):
             class Config:
                 extra = "allow"
 
         agent = HarnessAgent(
-            name="analyst_multi_tc", system_prompt=ANALYST_SYSTEM, output_type=_MultiTcRaw,
+            name="analyst_discover_tcs", system_prompt=ANALYST_SYSTEM,
+            output_type=_CandidateListRaw,
         )
         raw_result = agent.run_sync(prompt)
         data = raw_result.model_dump()
-        # HarnessAgent may return the wrapper; extract the list
         if isinstance(data, dict) and "items" in data:
             data = data["items"]
         elif isinstance(data, dict):
@@ -533,17 +565,91 @@ def identify_multiple_tcs(req: MultiTcIdentifyRequest) -> MultiTcIdentifyRespons
         raw = call_llm_json(ANALYST_SYSTEM, prompt)
         data = json.loads(raw)
 
-    # Step 4: Normalise — if LLM returns single object instead of list
+    # Normalise
     if isinstance(data, dict):
         if "items" in data and isinstance(data["items"], list):
             data = data["items"]
         else:
             data = [data]
 
-    # Step 5: Truncate to MAX_IDENTIFIED_TCS
-    data = data[:MAX_IDENTIFIED_TCS]
+    candidates: list[CandidateTC] = []
+    for item in data[:_MAX_CANDIDATES]:
+        if not isinstance(item, dict):
+            continue
+        try:
+            candidates.append(CandidateTC.model_validate(item))
+        except Exception:
+            logger.warning("Stage2: skipping invalid candidate: %s", item)
 
-    # Step 6: ADR-007 coercion per item + dedup
+    return candidates
+
+
+def _stage3_rank_and_select(
+    problem_frame: ProblemFrame,
+    candidates: list[CandidateTC],
+) -> list[dict]:
+    """Stage 3: Rank candidates and select 2-5 most mission-critical TCs.
+
+    On failure: falls back to top-5 by confidence (no why_selected / priority).
+    """
+    if not candidates:
+        return []
+
+    prompt = RANK_AND_SELECT_TCS_PROMPT.format(
+        problem_frame=problem_frame.model_dump_json(indent=2),
+        candidates=json.dumps(
+            [c.model_dump() for c in candidates], ensure_ascii=False, indent=2,
+        ),
+    )
+    try:
+        if settings.use_harness_agents:
+            from app.harness.agent_base import HarnessAgent
+            from pydantic import BaseModel as _BM
+
+            class _RankRaw(_BM):
+                class Config:
+                    extra = "allow"
+
+            agent = HarnessAgent(
+                name="analyst_rank_tcs", system_prompt=ANALYST_SYSTEM,
+                output_type=_RankRaw,
+            )
+            raw_result = agent.run_sync(prompt)
+            data = raw_result.model_dump()
+            if isinstance(data, dict) and "items" in data:
+                data = data["items"]
+            elif isinstance(data, dict):
+                data = [data]
+        else:
+            raw = call_llm_json(ANALYST_SYSTEM, prompt)
+            data = json.loads(raw)
+
+        # Normalise
+        if isinstance(data, dict):
+            if "items" in data and isinstance(data["items"], list):
+                data = data["items"]
+            else:
+                data = [data]
+
+        return [d for d in data if isinstance(d, dict)]
+
+    except Exception:
+        logger.warning(
+            "Stage3 (rank_and_select) failed — falling back to top-%d by confidence",
+            MAX_IDENTIFIED_TCS, exc_info=True,
+        )
+        # Graceful degradation: take top-N by confidence, no enrichment
+        sorted_candidates = sorted(candidates, key=lambda c: c.confidence, reverse=True)
+        return [c.model_dump() for c in sorted_candidates[:MAX_IDENTIFIED_TCS]]
+
+
+def _apply_adr007_and_dedup(data: list[dict]) -> list[IdentifiedTC]:
+    """ADR-007 coercion + dedup logic extracted from original identify_multiple_tcs.
+
+    - Non-TC types → coerced to type=null
+    - Invalid param ranges → coerced to type=null
+    - Duplicate (improving_param, worsening_param) pairs → skipped
+    """
     items: list[IdentifiedTC] = []
     seen_pairs: set[tuple[int | None, int | None]] = set()
     for item in data:
@@ -599,6 +705,37 @@ def identify_multiple_tcs(req: MultiTcIdentifyRequest) -> MultiTcIdentifyRespons
             items.append(IdentifiedTC(**item))
         except Exception:
             logger.warning("MultiTC: failed to parse item %s — skipping", item)
+
+    return items
+
+
+def identify_multiple_tcs(req: MultiTcIdentifyRequest) -> MultiTcIdentifyResponse:
+    """Identify multiple TCs via 3-stage LLM pipeline.
+
+    Stage 1 — Frame Problem: understand the engineering context
+    Stage 2 — Discover Candidates: generate 5-10 candidate TCs
+    Stage 3 — Rank & Select: pick 2-5 most mission-critical TCs
+
+    ADR-007: Explore stage always emits TC. Non-TC items are coerced to
+    type=null and filtered out by the frontend.
+    """
+    # Step 0: Extract socratic insights (unchanged)
+    socratic_insights = _extract_socratic_insights(
+        req.socraticAnswers, purpose=PURPOSE_CONTRADICTION,
+    )
+
+    # Step 1: Frame Problem
+    problem_frame = _stage1_frame_problem(req, socratic_insights)
+
+    # Step 2: Discover Candidates
+    candidates = _stage2_discover_candidates(req, socratic_insights, problem_frame)
+
+    # Step 3: Rank & Select
+    selected = _stage3_rank_and_select(problem_frame, candidates)
+
+    # Step 4: ADR-007 coercion + dedup (preserved from original)
+    selected = selected[:MAX_IDENTIFIED_TCS]
+    items = _apply_adr007_and_dedup(selected)
 
     return MultiTcIdentifyResponse(items=items)
 

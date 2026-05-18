@@ -38,6 +38,10 @@ export interface Contradiction {
   separationRationale: string | null;
   pcAttributeA: string | null;
   pcAttributeNotA: string | null;
+  // 3-Stage TC Pipeline fields
+  linkedKpis: string[];
+  whySelected: string | null;
+  priority: number | null;
   createdAt: string;
   updatedAt: string;
 }

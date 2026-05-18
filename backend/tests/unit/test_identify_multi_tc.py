@@ -1,14 +1,18 @@
-"""Unit + router tests for identify_multiple_tcs (Multi-TC identification).
+"""Unit + router tests for identify_multiple_tcs (3-stage TC pipeline).
 
 Covers:
-- Normal multi-TC happy path
+- 3-stage pipeline happy path (Stage 1 → 2 → 3)
 - ADR-007 coercion (non-TC → type=null, invalid params → type=null)
 - Dedup by (improving_param, worsening_param) pair
 - Truncation to MAX_IDENTIFIED_TCS (5)
-- Single-object normalization (LLM returns dict instead of list)
+- Single-object normalization (Stage 2 LLM returns dict instead of list)
 - LLM returns items wrapped in {"items": [...]}
-- LLM exception → empty response
-- Malformed JSON → empty response
+- LLM exception → propagates from Stage 2
+- Malformed JSON → propagates from Stage 2
+- Stage 1 failure → graceful degradation (empty ProblemFrame)
+- Stage 3 failure → fallback to top-5 candidates by confidence
+- New fields (linked_kpis, why_selected, priority) pass through
+- Backward compat when new fields missing
 - Router 200 happy path
 - Router 502 on agent exception
 """
@@ -72,19 +76,60 @@ _VALID_TC_3 = {
 }
 
 
+def _stage1_response(**overrides) -> str:
+    """Build a Stage 1 (ProblemFrame) JSON response string."""
+    data = {
+        "system_boundary": "e-Bike drive unit",
+        "kpi_priorities": [
+            {"kpi": "torque >= 125 Nm", "severity": "hard", "failure_mode": "cannot climb"},
+        ],
+        "inferred_engineering_actions": [
+            {
+                "action": "increase magnet volume",
+                "driven_by": "torque KPI",
+                "likely_side_effects": ["weight increase"],
+            },
+        ],
+        "critical_constraints": ["weight < 2500g"],
+        "design_tensions": ["torque density vs weight"],
+    }
+    data.update(overrides)
+    return json.dumps(data, ensure_ascii=False)
+
+
+def _stage2_response(items: list[dict] | None = None) -> str:
+    """Build a Stage 2 (candidates) JSON response string."""
+    if items is None:
+        items = [_VALID_TC_1, _VALID_TC_2, _VALID_TC_3]
+    return json.dumps(items, ensure_ascii=False)
+
+
+def _stage3_response(items: list[dict] | None = None) -> str:
+    """Build a Stage 3 (selected / ranked) JSON response string."""
+    if items is None:
+        items = [
+            {**_VALID_TC_1, "linked_kpis": ["torque >= 125 Nm"], "why_selected": "core tension", "priority": 1},
+            {**_VALID_TC_2, "linked_kpis": ["efficiency > 92%"], "why_selected": "secondary", "priority": 2},
+            {**_VALID_TC_3, "linked_kpis": [], "why_selected": "tertiary", "priority": 3},
+        ]
+    return json.dumps(items, ensure_ascii=False)
+
+
 # ---------------------------------------------------------------------------
-# Agent-level tests
+# Agent-level tests — 3-stage pipeline
 # ---------------------------------------------------------------------------
 
 @patch("app.agents.analyst._extract_socratic_insights", return_value="- insight 1\n- insight 2")
 @patch("app.agents.analyst.call_llm_json")
 def test_happy_path_multiple_tcs(mock_llm, mock_insights):
-    """Normal case: LLM returns 3 valid TCs."""
+    """3-stage pipeline: all stages succeed, 3 valid TCs returned."""
     from app.agents.analyst import identify_multiple_tcs
 
-    mock_llm.return_value = json.dumps({
-        "items": [_VALID_TC_1, _VALID_TC_2, _VALID_TC_3],
-    })
+    mock_llm.side_effect = [
+        _stage1_response(),
+        _stage2_response(),
+        _stage3_response(),
+    ]
 
     resp = identify_multiple_tcs(_make_req())
     assert isinstance(resp, MultiTcIdentifyResponse)
@@ -95,6 +140,11 @@ def test_happy_path_multiple_tcs(mock_llm, mock_insights):
     assert resp.items[0].worsening_param == 1
     assert resp.items[1].improving_param == 22
     assert resp.items[2].improving_param == 13
+    # Verify 3-stage enrichment fields
+    assert resp.items[0].priority == 1
+    assert resp.items[0].linked_kpis == ["torque >= 125 Nm"]
+    assert resp.items[0].why_selected == "core tension"
+    assert mock_llm.call_count == 3
 
 
 @patch("app.agents.analyst._extract_socratic_insights", return_value="insights")
@@ -110,7 +160,15 @@ def test_adr007_coercion_non_tc_type(mock_llm, mock_insights):
         "improving_param": 10,
         "worsening_param": 1,
     }
-    mock_llm.return_value = json.dumps({"items": [_VALID_TC_1, pc_item]})
+    # Stage 3 returns the PC item as-is; ADR-007 coercion happens in _apply_adr007_and_dedup
+    mock_llm.side_effect = [
+        _stage1_response(),
+        _stage2_response([_VALID_TC_1, pc_item]),
+        _stage3_response([
+            {**_VALID_TC_1, "priority": 1, "why_selected": "main", "linked_kpis": []},
+            {**pc_item, "priority": 2, "why_selected": "secondary", "linked_kpis": []},
+        ]),
+    ]
 
     resp = identify_multiple_tcs(_make_req())
     assert len(resp.items) == 2
@@ -129,7 +187,7 @@ def test_adr007_coercion_non_tc_type(mock_llm, mock_insights):
 @patch("app.agents.analyst._extract_socratic_insights", return_value="insights")
 @patch("app.agents.analyst.call_llm_json")
 def test_adr007_coercion_invalid_params(mock_llm, mock_insights):
-    """ADR-007: type=TC but params out of range (0-39) → coerce to null."""
+    """ADR-007: type=TC but params out of range (1-39) → coerce to null."""
     from app.agents.analyst import identify_multiple_tcs
 
     bad_params = {
@@ -139,7 +197,11 @@ def test_adr007_coercion_invalid_params(mock_llm, mock_insights):
         "improving_param": 99,  # invalid: > 39
         "worsening_param": 0,   # invalid: < 1
     }
-    mock_llm.return_value = json.dumps({"items": [bad_params]})
+    mock_llm.side_effect = [
+        _stage1_response(),
+        _stage2_response([bad_params]),
+        _stage3_response([{**bad_params, "priority": 1, "why_selected": "test", "linked_kpis": []}]),
+    ]
 
     resp = identify_multiple_tcs(_make_req())
     assert len(resp.items) == 1
@@ -162,7 +224,11 @@ def test_adr007_coercion_params_none(mock_llm, mock_insights):
         "improving_param": None,
         "worsening_param": 5,
     }
-    mock_llm.return_value = json.dumps({"items": [null_params]})
+    mock_llm.side_effect = [
+        _stage1_response(),
+        _stage2_response([null_params]),
+        _stage3_response([{**null_params, "priority": 1, "why_selected": "test", "linked_kpis": []}]),
+    ]
 
     resp = identify_multiple_tcs(_make_req())
     assert len(resp.items) == 1
@@ -178,7 +244,15 @@ def test_dedup_same_param_pair(mock_llm, mock_insights):
     dup = dict(_VALID_TC_1)
     dup["engineering_statement"] = "重複的矛盾描述"
     dup["confidence"] = 0.70
-    mock_llm.return_value = json.dumps({"items": [_VALID_TC_1, dup, _VALID_TC_2]})
+    mock_llm.side_effect = [
+        _stage1_response(),
+        _stage2_response([_VALID_TC_1, dup, _VALID_TC_2]),
+        _stage3_response([
+            {**_VALID_TC_1, "priority": 1, "why_selected": "first", "linked_kpis": []},
+            {**dup, "priority": 2, "why_selected": "dup", "linked_kpis": []},
+            {**_VALID_TC_2, "priority": 3, "why_selected": "second", "linked_kpis": []},
+        ]),
+    ]
 
     resp = identify_multiple_tcs(_make_req())
     assert len(resp.items) == 2
@@ -205,7 +279,14 @@ def test_dedup_null_pair_not_deduped(mock_llm, mock_insights):
         "improving_param": None,
         "worsening_param": None,
     }
-    mock_llm.return_value = json.dumps({"items": [null_tc_1, null_tc_2]})
+    mock_llm.side_effect = [
+        _stage1_response(),
+        _stage2_response([null_tc_1, null_tc_2]),
+        _stage3_response([
+            {**null_tc_1, "priority": 1, "why_selected": "a", "linked_kpis": []},
+            {**null_tc_2, "priority": 2, "why_selected": "b", "linked_kpis": []},
+        ]),
+    ]
 
     resp = identify_multiple_tcs(_make_req())
     assert len(resp.items) == 2  # both kept
@@ -225,8 +306,15 @@ def test_truncation_to_max_identified_tcs(mock_llm, mock_insights):
             "confidence": 0.80,
             "improving_param": i + 1,
             "worsening_param": i + 10 if i + 10 <= 39 else 39,
+            "priority": i + 1,
+            "why_selected": f"reason {i}",
+            "linked_kpis": [],
         })
-    mock_llm.return_value = json.dumps({"items": items})
+    mock_llm.side_effect = [
+        _stage1_response(),
+        _stage2_response(items),
+        _stage3_response(items),  # Stage 3 returns all 8
+    ]
 
     resp = identify_multiple_tcs(_make_req())
     assert len(resp.items) <= 5
@@ -235,10 +323,14 @@ def test_truncation_to_max_identified_tcs(mock_llm, mock_insights):
 @patch("app.agents.analyst._extract_socratic_insights", return_value="insights")
 @patch("app.agents.analyst.call_llm_json")
 def test_single_object_normalization(mock_llm, mock_insights):
-    """LLM returns a single dict (not wrapped in list or {"items": [...]})."""
+    """Stage 2 LLM returns a single dict (not wrapped in list) → normalized."""
     from app.agents.analyst import identify_multiple_tcs
 
-    mock_llm.return_value = json.dumps(_VALID_TC_1)
+    mock_llm.side_effect = [
+        _stage1_response(),
+        json.dumps(_VALID_TC_1),  # Stage 2: single dict, not a list
+        _stage3_response([{**_VALID_TC_1, "priority": 1, "why_selected": "only", "linked_kpis": []}]),
+    ]
 
     resp = identify_multiple_tcs(_make_req())
     assert len(resp.items) == 1
@@ -249,10 +341,17 @@ def test_single_object_normalization(mock_llm, mock_insights):
 @patch("app.agents.analyst._extract_socratic_insights", return_value="insights")
 @patch("app.agents.analyst.call_llm_json")
 def test_items_wrapper_normalization(mock_llm, mock_insights):
-    """LLM returns {"items": [...]} — should unwrap correctly."""
+    """Stage 2 LLM returns {"items": [...]} — should unwrap correctly."""
     from app.agents.analyst import identify_multiple_tcs
 
-    mock_llm.return_value = json.dumps({"items": [_VALID_TC_1, _VALID_TC_2]})
+    mock_llm.side_effect = [
+        _stage1_response(),
+        json.dumps({"items": [_VALID_TC_1, _VALID_TC_2]}),  # Stage 2: items wrapper
+        _stage3_response([
+            {**_VALID_TC_1, "priority": 1, "why_selected": "a", "linked_kpis": []},
+            {**_VALID_TC_2, "priority": 2, "why_selected": "b", "linked_kpis": []},
+        ]),
+    ]
 
     resp = identify_multiple_tcs(_make_req())
     assert len(resp.items) == 2
@@ -261,19 +360,24 @@ def test_items_wrapper_normalization(mock_llm, mock_insights):
 @patch("app.agents.analyst._extract_socratic_insights", return_value="insights")
 @patch("app.agents.analyst.call_llm_json")
 def test_empty_list_returns_empty(mock_llm, mock_insights):
-    """LLM returns empty list → empty response (not error)."""
+    """Stage 2 returns empty list → empty response (Stage 3 skipped)."""
     from app.agents.analyst import identify_multiple_tcs
 
-    mock_llm.return_value = json.dumps({"items": []})
+    # Stage 3 is never called because candidates list is empty
+    mock_llm.side_effect = [
+        _stage1_response(),
+        json.dumps([]),  # Stage 2: empty candidates
+    ]
 
     resp = identify_multiple_tcs(_make_req())
     assert resp.items == []
+    assert mock_llm.call_count == 2  # Stage 3 skipped
 
 
 @patch("app.agents.analyst._extract_socratic_insights", return_value="insights")
 @patch("app.agents.analyst.call_llm_json", side_effect=RuntimeError("LLM service unavailable"))
 def test_llm_exception_returns_empty(mock_llm, mock_insights):
-    """LLM throws exception → should propagate (router catches it)."""
+    """LLM throws exception → Stage 1 recovers gracefully, Stage 2 propagates."""
     from app.agents.analyst import identify_multiple_tcs
 
     with pytest.raises(RuntimeError, match="LLM service unavailable"):
@@ -283,7 +387,7 @@ def test_llm_exception_returns_empty(mock_llm, mock_insights):
 @patch("app.agents.analyst._extract_socratic_insights", return_value="insights")
 @patch("app.agents.analyst.call_llm_json", return_value="not valid json {{")
 def test_llm_malformed_json(mock_llm, mock_insights):
-    """LLM returns invalid JSON → json.loads raises."""
+    """LLM returns invalid JSON → Stage 1 recovers, Stage 2 raises."""
     from app.agents.analyst import identify_multiple_tcs
 
     with pytest.raises(json.JSONDecodeError):
@@ -297,7 +401,11 @@ def test_socratic_insights_injected(mock_llm, mock_insights):
     from app.agents.analyst import identify_multiple_tcs
 
     mock_insights.return_value = "- clarified insight"
-    mock_llm.return_value = json.dumps({"items": []})
+    # Stage 2 returns empty → Stage 3 skipped
+    mock_llm.side_effect = [
+        _stage1_response(),
+        json.dumps([]),
+    ]
 
     req = _make_req(socraticAnswers=["answer A", "answer B"])
     identify_multiple_tcs(req)
@@ -313,16 +421,117 @@ def test_non_dict_items_skipped(mock_llm, mock_insights):
     """Items that are not dicts (e.g. strings, ints) should be skipped."""
     from app.agents.analyst import identify_multiple_tcs
 
-    mock_llm.return_value = json.dumps({
-        "items": [_VALID_TC_1, "garbage string", 42, _VALID_TC_2],
-    })
+    # Stage 3 returns a mix of dicts and non-dicts;
+    # _stage3_rank_and_select filters non-dicts before _apply_adr007_and_dedup
+    stage3_mixed = [
+        {**_VALID_TC_1, "priority": 1, "why_selected": "a", "linked_kpis": []},
+        "garbage string",
+        42,
+        {**_VALID_TC_2, "priority": 2, "why_selected": "b", "linked_kpis": []},
+    ]
+    mock_llm.side_effect = [
+        _stage1_response(),
+        _stage2_response([_VALID_TC_1, _VALID_TC_2]),
+        json.dumps(stage3_mixed),
+    ]
 
     resp = identify_multiple_tcs(_make_req())
     assert len(resp.items) == 2
 
 
 # ---------------------------------------------------------------------------
-# Router-level tests
+# New 3-stage pipeline specific tests
+# ---------------------------------------------------------------------------
+
+@patch("app.agents.analyst._extract_socratic_insights", return_value="insights")
+@patch("app.agents.analyst.call_llm_json")
+def test_stage1_failure_graceful_degradation(mock_llm, mock_insights):
+    """Stage 1 failure → Stage 2 still proceeds with empty ProblemFrame."""
+    from app.agents.analyst import identify_multiple_tcs
+
+    mock_llm.side_effect = [
+        "INVALID JSON FOR STAGE 1",  # Stage 1 fails gracefully
+        _stage2_response([_VALID_TC_1]),
+        _stage3_response([
+            {**_VALID_TC_1, "priority": 1, "why_selected": "main", "linked_kpis": ["torque"]},
+        ]),
+    ]
+
+    resp = identify_multiple_tcs(_make_req())
+    assert len(resp.items) == 1
+    assert resp.items[0].type == "TC"
+    assert mock_llm.call_count == 3  # all 3 stages called
+
+
+@patch("app.agents.analyst._extract_socratic_insights", return_value="insights")
+@patch("app.agents.analyst.call_llm_json")
+def test_stage3_failure_fallback_to_candidates(mock_llm, mock_insights):
+    """Stage 3 failure → fallback to top-5 candidates by confidence."""
+    from app.agents.analyst import identify_multiple_tcs
+
+    mock_llm.side_effect = [
+        _stage1_response(),
+        _stage2_response([_VALID_TC_1, _VALID_TC_2, _VALID_TC_3]),
+        "INVALID JSON FOR STAGE 3",  # Stage 3 fails → fallback
+    ]
+
+    resp = identify_multiple_tcs(_make_req())
+    # Should fall back to candidates sorted by confidence desc
+    assert len(resp.items) == 3
+    assert resp.items[0].confidence == 0.90   # TC_1
+    assert resp.items[1].confidence == 0.85   # TC_2
+    assert resp.items[2].confidence == 0.78   # TC_3
+    # Fallback items should NOT have enrichment fields
+    assert resp.items[0].why_selected is None
+    assert resp.items[0].priority is None
+
+
+@patch("app.agents.analyst._extract_socratic_insights", return_value="insights")
+@patch("app.agents.analyst.call_llm_json")
+def test_new_fields_pass_through(mock_llm, mock_insights):
+    """linked_kpis, why_selected, priority are correctly passed through."""
+    from app.agents.analyst import identify_multiple_tcs
+
+    mock_llm.side_effect = [
+        _stage1_response(),
+        _stage2_response([_VALID_TC_1]),
+        _stage3_response([{
+            **_VALID_TC_1,
+            "linked_kpis": ["torque >= 125 Nm", "efficiency > 92%"],
+            "why_selected": "核心任務張力，直接影響產品可行性",
+            "priority": 1,
+        }]),
+    ]
+
+    resp = identify_multiple_tcs(_make_req())
+    assert len(resp.items) == 1
+    assert resp.items[0].linked_kpis == ["torque >= 125 Nm", "efficiency > 92%"]
+    assert resp.items[0].why_selected == "核心任務張力，直接影響產品可行性"
+    assert resp.items[0].priority == 1
+
+
+@patch("app.agents.analyst._extract_socratic_insights", return_value="insights")
+@patch("app.agents.analyst.call_llm_json")
+def test_backward_compat_no_new_fields(mock_llm, mock_insights):
+    """Stage 3 doesn't return new fields → IdentifiedTC uses defaults."""
+    from app.agents.analyst import identify_multiple_tcs
+
+    # Stage 3 returns items WITHOUT linked_kpis, why_selected, priority
+    mock_llm.side_effect = [
+        _stage1_response(),
+        _stage2_response([_VALID_TC_1]),
+        _stage3_response([_VALID_TC_1]),  # no enrichment fields
+    ]
+
+    resp = identify_multiple_tcs(_make_req())
+    assert len(resp.items) == 1
+    assert resp.items[0].linked_kpis == []
+    assert resp.items[0].why_selected is None
+    assert resp.items[0].priority is None
+
+
+# ---------------------------------------------------------------------------
+# Router-level tests (unchanged — mock at identify_multiple_tcs level)
 # ---------------------------------------------------------------------------
 
 def _sample_request_payload() -> dict:

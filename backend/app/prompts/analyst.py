@@ -844,23 +844,29 @@ metric definitions, acceptable tradeoffs, non-goals, and evaluation ambiguity.
 MULTI_TC_IDENTIFICATION = """\
 <task>
 Based on the project context below, identify 2–5 distinct TRIZ Technical
-Contradictions (TC). A TC means "improving one engineering parameter worsens
+Contradictions (TCs). A TC means "improving one engineering parameter worsens
 another". You MUST map each contradiction onto TWO distinct TRIZ 39
-engineering parameters (integers 1–39).
+engineering parameters (integers 1–39) whenever possible.
+
+Important: do NOT behave like a simple text extractor. Behave like a senior
+systems engineer performing contradiction discovery.
+
+Internally, before producing the final TCs, you should:
+1. infer the true system boundary and design objective,
+2. identify the most critical KPIs and hard constraints,
+3. infer the likely engineering actions needed to satisfy those targets,
+4. identify what each such action would worsen,
+5. output only the strongest distinct TCs.
+
+A valid TC may come from either:
+- an explicit trade-off stated in the context, or
+- an implicit but causally grounded trade-off inferred from the mission,
+  constraints, KPI severity, and clarified insights.
 
 Analyze the mission, constraints, KPIs, and Socratic insights to discover
 ALL meaningful trade-offs in the system — do NOT stop after finding one.
-
-Rules:
-- Each TC must be genuinely distinct: different (improving_param, worsening_param) pairs.
-  Two TCs with the same pair but different wording are considered duplicates — keep only one.
-- Do NOT output PC (Physical Contradiction) or SF (Su-Field) — those are derived
-  separately from each TC in a later step.
-- If you absolutely CANNOT identify two distinct TRIZ 39 parameters for a given
-  trade-off, include it with type = null and explain in rationale.
-- If fewer than 2 genuinely distinct TCs exist in the context, output only 1.
-- Maximum 5 TCs. Prioritize by confidence (highest first).
-- If the project context is too vague to identify any TC, return an empty array [].
+Prefer contradictions that are most likely to determine whether the mission
+can actually succeed.
 </task>
 
 <context>
@@ -895,51 +901,98 @@ If no prior contradictions exist, this section will be empty.
 1. Use this priority order to resolve ambiguity:
    clarified_insights > known_kpis > known_constraints > mission.
 
-2. Each TC must be derived from a genuine trade-off visible in the context.
-   Do NOT fabricate contradictions that are not supported by the given information.
+2. First reason about the engineering problem itself, not the wording.
+   The goal is contradiction discovery, not merely contradiction extraction.
 
-3. Preserve the direction of each contradiction.
-   If the context states or implies "improving X worsens Y", map X to
+3. You MAY infer likely engineering measures required to satisfy severe KPIs
+   or hard constraints, such as:
+   - increasing sensitivity or safety margin,
+   - adding verification stages,
+   - increasing torque density or power density,
+   - increasing reduction ratio or structural support,
+   - increasing input resolution or local inspection,
+   - simplifying architecture for latency or size,
+   - optimizing for compactness, low noise, low weight, or efficiency.
+   If such inferred measures are strongly grounded in the context, they are
+   valid sources of TCs.
+
+4. Do NOT fabricate unsupported contradictions. However, an implicit
+   contradiction is allowed if it is causally supported by the combination of
+   mission, constraints, KPIs, and clarified insights.
+
+5. Preserve the direction of each contradiction.
+   If the context states or strongly implies "improving X worsens Y", map X to
    improving_param and Y to worsening_param. Do NOT invert.
 
-4. Do not treat a constraint, threshold, limit, or requirement as the improving
-   parameter merely because it is mentioned. Use the causal framing to decide.
+6. Do not treat a constraint, threshold, limit, or requirement as the improving
+   parameter merely because it is mentioned. Use causal engineering logic.
 
-5. If FNR, FPR, precision, recall, or similar metrics are mentioned, identify
-   what the positive class or critical error means in this specific context.
-   If unclear, lower confidence and explain in rationale.
+7. Prefer mission-critical contradictions over generic textbook trade-offs.
+   If several candidate TCs are possible, prioritize those tied to:
+   - likely failure modes,
+   - hardest constraints,
+   - strongest KPI couplings,
+   - architecture-defining design decisions.
 
-6. Preserve asymmetric KPI importance. If the context says one error type or
-   tradeoff is unconstrained or acceptable, do not force it into a TC.
+8. Each TC must be genuinely distinct: different
+   (improving_param, worsening_param) pairs.
+   Two TCs with the same pair but different wording are duplicates.
 
-7. Look for contradictions across different dimensions:
-   - Performance vs. resource consumption
-   - Accuracy vs. speed
-   - Reliability vs. complexity
-   - Cost vs. capability
-   - Size/weight vs. functionality
-   - Durability vs. manufacturability
-   - Safety vs. performance
-   But only include a dimension if the context genuinely supports it.
+9. If a trade-off is real but cannot be confidently mapped to two TRIZ 39
+   parameters, include it with type = null and explain why in rationale.
+
+10. If performance metrics such as FNR, FPR, precision, recall, efficiency,
+    torque, noise, weight, size, durability, reliability, or manufacturability
+    appear, interpret them in the context of the actual system objective rather
+    than by generic textbook meaning.
 </interpretation_rules>
 
+<selection_policy>
+Select contradictions that best capture the design tension of the system.
+
+Strong TCs usually have these properties:
+- directly affect mission success or failure,
+- linked to hard constraints or severe KPIs,
+- causally grounded in realistic engineering actions,
+- not merely restating a requirement,
+- not overly generic if a more mission-specific contradiction exists.
+
+When context includes multiple interacting numeric targets, infer the likely
+design pressure created by their combination and use that to identify deeper,
+more meaningful contradictions.
+</selection_policy>
+
 <instructions>
-1. Read all context sections carefully. Identify the system boundary, key
-   objectives, constraints, and known trade-offs.
+1. Read all context sections carefully.
 
-2. For each potential trade-off discovered:
-   a. Formulate a one-sentence engineering_statement describing the contradiction.
-   b. Map onto TWO distinct TRIZ 39 parameters (1–39).
+2. Internally construct a brief engineering model of the system:
+   - what the system is,
+   - what success requires,
+   - what will likely fail first,
+   - what engineering moves would likely be taken to prevent that failure.
+   Do NOT output this intermediate model.
+
+3. From that internal model, identify candidate trade-offs.
+
+4. For each selected TC:
+   a. Formulate a one-sentence engineering_statement describing the
+      contradiction in causal engineering language.
+   b. Map it onto TWO distinct TRIZ 39 parameters.
    c. Assign confidence in [0, 1].
-   d. If mapping is uncertain, set type = null with rationale.
+   d. If mapping is uncertain, set type = null and explain in rationale.
 
-3. Deduplicate: if two TCs share the same (improving_param, worsening_param)
-   pair, keep only the one with higher confidence.
+5. Deduplicate: if two TCs share the same
+   (improving_param, worsening_param) pair, keep only the one with higher
+   confidence.
 
-4. Sort output by confidence descending. Cap at 5 items.
+6. Sort output by confidence descending.
 
-5. Output ONLY a JSON array matching the output_schema. No markdown, no
-   comments, no explanations, no extra keys.
+7. Return 2–5 items when supported by the context.
+   If fewer than 2 genuinely distinct TCs exist, output only 1.
+   If the project context is too vague to identify any TC, return [].
+
+8. Output ONLY a JSON array matching the output_schema.
+   No markdown, no comments, no explanations, no extra keys.
 </instructions>
 
 <output_schema>
@@ -964,7 +1017,6 @@ If no prior contradictions exist, this section will be empty.
 </output_schema>
 
 <example_single_tc>
-When only one genuine trade-off exists:
 [
   {{
     "engineering_statement": "Improving classifier reliability by adding ensemble verification worsens inference speed due to increased computational overhead.",
@@ -978,7 +1030,6 @@ When only one genuine trade-off exists:
 </example_single_tc>
 
 <example_mixed_confidence>
-When some TCs are confident and others are ambiguous:
 [
   {{
     "engineering_statement": "Increasing battery capacity extends range but worsens device weight.",
@@ -989,10 +1040,10 @@ When some TCs are confident and others are ambiguous:
     "worsening_param": 1
   }},
   {{
-    "engineering_statement": "The context mentions a cost-durability tension but does not specify which durability aspect is affected.",
+    "engineering_statement": "The context suggests a cost-durability trade-off, but the durability mode is too ambiguous to map confidently.",
     "type": null,
     "confidence": 0.30,
-    "rationale": "The context implies a cost-durability trade-off but does not clarify whether durability refers to mechanical wear, chemical degradation, or thermal cycling. Cannot confidently map to two TRIZ 39 parameters.",
+    "rationale": "The trade-off is plausible, but the affected durability dimension is not specific enough to map to two TRIZ 39 parameters with confidence.",
     "improving_param": null,
     "worsening_param": null
   }}
@@ -1000,9 +1051,401 @@ When some TCs are confident and others are ambiguous:
 </example_mixed_confidence>
 
 <example_empty>
-When context is too vague:
 []
 </example_empty>
+"""
+
+
+# ---------------------------------------------------------------------------
+# 3-Stage TC Pipeline — Stage 1: Problem Framing
+# ---------------------------------------------------------------------------
+
+FRAME_PROBLEM_PROMPT = """\
+<task>
+You are a senior systems engineer. Given the project mission, constraints,
+KPIs, and Socratic insights, produce a structured engineering problem frame.
+
+The goal is NOT to find contradictions yet. Instead, build a clear mental model
+of the engineering problem so that later stages can discover mission-critical
+contradictions rather than generic trade-offs.
+</task>
+
+<context>
+<mission>{mission}</mission>
+
+<known_constraints>
+{constraints}
+</known_constraints>
+
+<known_kpis>
+{kpis}
+</known_kpis>
+
+<clarified_insights>
+{socratic_insights}
+</clarified_insights>
+</context>
+
+<instructions>
+1. Identify the system boundary — what is being designed and what is the
+   overall design objective.
+
+2. For each KPI, classify its severity as "hard" (must-meet, mission fails
+   without it) or "soft" (nice-to-have, can be traded off). Describe the
+   failure mode if this KPI is not met.
+
+3. Infer the likely engineering actions that would be taken to satisfy the
+   hardest KPIs and constraints. For each action, identify what it is
+   driven by and what side-effects it is likely to cause.
+
+4. List the critical constraints that are non-negotiable.
+
+5. Identify the top design tensions — pairs of objectives that are likely
+   to fight each other based on the engineering actions above.
+
+6. Output ONLY a JSON object matching the output_schema.
+   No markdown, no comments, no explanations, no extra keys.
+</instructions>
+
+<output_schema>
+{{
+  "system_boundary": "A concise description of the system boundary and design objective",
+  "kpi_priorities": [
+    {{
+      "kpi": "string — the KPI statement",
+      "severity": "hard | soft",
+      "failure_mode": "What happens if this KPI is not met"
+    }}
+  ],
+  "inferred_engineering_actions": [
+    {{
+      "action": "string — an engineering measure likely needed",
+      "driven_by": "string — which KPI or constraint drives this action",
+      "likely_side_effects": ["string — what this action might worsen"]
+    }}
+  ],
+  "critical_constraints": ["string — non-negotiable constraints"],
+  "design_tensions": ["string — pairs of objectives likely to conflict"]
+}}
+</output_schema>
+"""
+
+
+# ---------------------------------------------------------------------------
+# 3-Stage TC Pipeline — Stage 2: Candidate TC Discovery
+# ---------------------------------------------------------------------------
+
+DISCOVER_CANDIDATE_TCS_PROMPT = """\
+<task>
+Based on the problem frame and project context below, discover 5–10 candidate
+TRIZ Technical Contradictions (TCs). A TC means "improving one engineering
+parameter worsens another". You MUST map each contradiction onto TWO distinct
+TRIZ 39 engineering parameters (integers 1–39) whenever possible.
+
+Important: do NOT behave like a simple text extractor. Behave like a senior
+systems engineer performing contradiction discovery. Use the problem frame
+(Stage 1 output) to ground your analysis in the actual engineering problem.
+</task>
+
+<problem_frame>
+{problem_frame}
+</problem_frame>
+
+<context>
+<mission>{mission}</mission>
+
+<known_constraints>
+{constraints}
+</known_constraints>
+
+<known_kpis>
+{kpis}
+</known_kpis>
+
+<clarified_insights>
+{socratic_insights}
+</clarified_insights>
+
+<already_identified>
+The following contradictions have already been identified. Do NOT repeat them.
+If no prior contradictions exist, this section will be empty.
+
+{existing_descriptions}
+</already_identified>
+</context>
+
+<interpretation_rules>
+1. Use this priority order to resolve ambiguity:
+   problem_frame > clarified_insights > known_kpis > known_constraints > mission.
+
+2. First reason about the engineering problem itself, not the wording.
+   The goal is contradiction discovery, not merely contradiction extraction.
+
+3. Use the inferred_engineering_actions from the problem frame as primary
+   sources of contradictions. Each action that worsens something is a
+   candidate TC.
+
+4. You MAY infer additional engineering measures not in the problem frame
+   if they are strongly grounded in the context.
+
+5. Do NOT fabricate unsupported contradictions. However, an implicit
+   contradiction is allowed if it is causally supported by the combination of
+   mission, constraints, KPIs, and clarified insights.
+
+6. Preserve the direction of each contradiction.
+   If the context states or strongly implies "improving X worsens Y", map X to
+   improving_param and Y to worsening_param. Do NOT invert.
+
+7. Do not treat a constraint, threshold, limit, or requirement as the improving
+   parameter merely because it is mentioned. Use causal engineering logic.
+
+8. Prefer mission-critical contradictions over generic textbook trade-offs.
+
+9. Each TC must be genuinely distinct: different
+   (improving_param, worsening_param) pairs.
+   Two TCs with the same pair but different wording are duplicates.
+
+10. If a trade-off is real but cannot be confidently mapped to two TRIZ 39
+    parameters, include it with type = null and explain why in rationale.
+</interpretation_rules>
+
+<instructions>
+1. Read the problem frame and all context sections carefully.
+
+2. For each inferred_engineering_action in the problem frame, determine what
+   TRIZ parameter it improves and what it worsens. This is your primary
+   source of candidate TCs.
+
+3. Look for additional contradictions from design tensions and KPI conflicts
+   not already covered by the engineering actions.
+
+4. For each candidate TC:
+   a. Formulate a one-sentence engineering_statement describing the
+      contradiction in causal engineering language.
+   b. Map it onto TWO distinct TRIZ 39 parameters.
+   c. Assign confidence in [0, 1].
+   d. If mapping is uncertain, set type = null and explain in rationale.
+   e. Reference which engineering action or design tension it comes from
+      in source_action.
+   f. List which KPIs are directly affected in linked_kpis.
+
+5. Output 5–10 candidates. More is better at this stage — ranking comes later.
+   If fewer than 5 genuinely distinct TCs exist, output as many as you can.
+   If the project context is too vague to identify any TC, return [].
+
+6. Sort output by confidence descending.
+
+7. Output ONLY a JSON array matching the output_schema.
+   No markdown, no comments, no explanations, no extra keys.
+</instructions>
+
+<output_schema>
+[
+  {{
+    "engineering_statement": "Increasing motor torque density by enlarging magnets improves power output but worsens device weight.",
+    "type": "TC",
+    "confidence": 0.88,
+    "rationale": null,
+    "improving_param": 21,
+    "worsening_param": 1,
+    "source_action": "Enlarge magnets to increase torque density",
+    "linked_kpis": ["Torque >= 125 Nm"]
+  }},
+  {{
+    "engineering_statement": "The context suggests a cost-durability trade-off, but the durability mode is too ambiguous to map confidently.",
+    "type": null,
+    "confidence": 0.30,
+    "rationale": "The trade-off is plausible, but the affected durability dimension is not specific enough to map to two TRIZ 39 parameters.",
+    "improving_param": null,
+    "worsening_param": null,
+    "source_action": "Reduce material cost",
+    "linked_kpis": []
+  }}
+]
+</output_schema>
+"""
+
+
+# ---------------------------------------------------------------------------
+# 3-Stage TC Pipeline — Stage 3: Rank & Select
+# ---------------------------------------------------------------------------
+
+RANK_AND_SELECT_TCS_PROMPT = """\
+<task>
+You are a senior systems engineer performing final contradiction prioritization.
+
+Given:
+1. an engineering problem frame, and
+2. a list of candidate Technical Contradictions (TCs),
+
+select the 2–5 contradictions that are MOST important to resolve for mission success.
+
+Your goal is not to preserve every reasonable trade-off.
+Your goal is to identify the contradictions that most strongly determine whether
+the engineering objective can actually be achieved within the stated constraints.
+</task>
+
+<problem_frame>
+{problem_frame}
+</problem_frame>
+
+<candidates>
+{candidates}
+</candidates>
+
+<core_principle>
+Prioritize contradictions based on mission impact, not surface diversity.
+A contradiction should rank higher if failing to resolve it is more likely to
+cause mission failure, violation of a hard KPI, or breakdown of the intended
+system value.
+</core_principle>
+
+<ranking_priority_order>
+Rank contradictions using this priority order:
+
+1. Mission-criticality
+   - Does this contradiction directly determine whether the mission can succeed?
+   - If unresolved, would the system fail its core purpose?
+
+2. Directness to hard KPIs or hard constraints
+   - Contradictions directly linking hard KPIs or hard constraints rank higher
+     than contradictions that mainly reflect implementation burden, effort,
+     complexity, controllability, or evaluation inconvenience.
+
+3. Failure impact
+   - If unresolved, how severe are the consequences?
+   - Mission-ending or deployment-blocking consequences rank highest.
+
+4. Contradiction-family distinctness
+   - Prefer one strongest representative from each major contradiction family.
+   - Near-duplicates and reverse-direction formulations should not both be kept
+     unless they clearly expose different actionable design levers.
+
+5. Solution guidance value
+   - Prefer contradictions that are likely to guide meaningful downstream design
+     choices, architecture decisions, control strategies, or solution concepts.
+
+6. Confidence
+   - Prefer candidates with stronger causal grounding when higher-priority
+     factors are otherwise similar.
+
+7. TRIZ mapping quality
+   - Use mapping quality only as a tie-breaker.
+   - Do not reject a mission-critical contradiction solely because its mapping
+     is less elegant or less conventional.
+</ranking_priority_order>
+
+<deduplication_rules>
+Before selecting final contradictions, group candidates into contradiction
+families.
+
+Treat candidates as belonging to the same family if they express the same core
+trade-off, including:
+- reverse-direction forms of the same trade-off,
+- wording variants with the same engineering logic,
+- parameter variants that differ superficially but not strategically.
+
+Keep only the strongest representative from each family unless two candidates
+within the same family clearly support different design actions and both are
+mission-critical.
+</deduplication_rules>
+
+<selection_rules>
+1. Select 2–5 final contradictions only.
+
+2. Do not select weak contradictions just to increase diversity.
+
+3. If the most important contradictions are concentrated around the same KPI or
+   system bottleneck, that is acceptable. However, do not allow one tightly
+   related contradiction cluster to occupy too many slots if this causes another
+   major hard-KPI- or hard-constraint-linked contradiction family to be omitted.
+
+4. Contradictions tied directly to mission success should generally outrank
+   contradictions tied mainly to development effort, validation effort, process
+   burden, or secondary optimization.
+
+5. The final selected set must collectively cover the major mission-critical
+   contradiction families implied by the hardest KPIs and hard constraints.
+   Do not simply keep the top-N individual candidates if this would leave a
+   major KPI or constraint family unrepresented.
+
+6. When the number of strong contradiction families exceeds the output limit,
+   prefer a set that preserves coverage across the main design bottlenecks over
+   a set that over-represents one family while excluding another equally
+   mission-critical family.
+
+7. A candidate with type = null may still be selected if it is clearly
+   mission-critical.
+
+8. Prefer wording that best exposes a real engineering decision lever.
+</selection_rules>
+
+<instructions>
+1. Read the problem frame carefully to understand:
+   - the mission,
+   - the hardest KPIs,
+   - the hard constraints,
+   - the main failure modes,
+   - the likely engineering actions.
+
+2. Group the candidates into contradiction families before ranking them.
+
+3. Rank contradiction families first, not just individual candidates.
+
+4. Build the final set by selecting the strongest representatives from the
+   highest-priority families while preserving coverage across the major
+   mission-critical KPI/constraint bottlenecks.
+
+5. Before finalizing the output, perform a coverage check:
+   - Are the hardest KPIs and hard constraints meaningfully represented?
+   - Has one contradiction family or tightly related bottleneck cluster taken
+     too many slots?
+   - Has another major mission-critical family been omitted as a result?
+
+6. If a major hard-KPI- or hard-constraint-linked family is missing, replace a
+   lower-value duplicate, overrepresented-family item, or secondary-importance
+   item with a representative from the missing family.
+
+7. For each selected contradiction:
+   a. keep engineering_statement, type, rationale, improving_param,
+      worsening_param, and linked_kpis from the candidate;
+   b. you may adjust confidence if justified;
+   c. add why_selected as a concise explanation of why this contradiction is
+      more important than omitted alternatives;
+   d. add priority as an integer starting from 1.
+
+8. Sort the final output by priority ascending.
+
+9. Output ONLY a JSON array matching the output schema.
+   No markdown, no comments, no explanations, no extra keys.
+</instructions>
+
+<output_schema>
+[
+  {{
+    "engineering_statement": "Increasing output power improves system performance but worsens energy consumption.",
+    "type": "TC",
+    "confidence": 0.90,
+    "rationale": null,
+    "improving_param": 21,
+    "worsening_param": 19,
+    "linked_kpis": ["Performance target"],
+    "why_selected": "This contradiction directly determines whether the system can achieve its core functional objective within operational limits.",
+    "priority": 1
+  }},
+  {{
+    "engineering_statement": "Reducing system size improves compactness but worsens heat dissipation.",
+    "type": "TC",
+    "confidence": 0.84,
+    "rationale": null,
+    "improving_param": 7,
+    "worsening_param": 17,
+    "linked_kpis": ["Compactness target"],
+    "why_selected": "This contradiction is a distinct mission-relevant bottleneck that affects feasibility of the target architecture.",
+    "priority": 2
+  }}
+]
+</output_schema>
 """
 
 

@@ -2,7 +2,8 @@ import { memo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Check, Pencil, Trash2, Undo2 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Check, Pencil, Trash2, Undo2, Lightbulb } from "lucide-react";
 import { trizParameters } from "@/data/trizParameters";
 import type { ExploreContradiction } from "@/types/explore";
 
@@ -43,6 +44,9 @@ function ContradictionDisplayCardImpl({
           >
             {c.type}
           </Badge>
+          {c.type === "TC" && c.priority != null && (
+            <Badge className="text-[10px] text-white bg-indigo-600">#{c.priority}</Badge>
+          )}
           <Badge
             className="text-[10px] text-white"
             style={{ backgroundColor: severityColor }}
@@ -63,16 +67,43 @@ function ContradictionDisplayCardImpl({
 
         {/* Type-specific parameters */}
         {c.type === "TC" ? (
-          <div className="flex flex-wrap gap-2">
-            <div className="bg-muted rounded px-2 py-1 text-xs">
-              <span className="text-muted-foreground">改善: </span>
-              <span className="font-medium">{getParamLabel(c.improvingParam)}</span>
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-2">
+              <div className="bg-muted rounded px-2 py-1 text-xs">
+                <span className="text-muted-foreground">改善: </span>
+                <span className="font-medium">{getParamLabel(c.improvingParam)}</span>
+              </div>
+              <span className="text-muted-foreground text-xs self-center">→</span>
+              <div className="bg-muted rounded px-2 py-1 text-xs">
+                <span className="text-muted-foreground">惡化: </span>
+                <span className="font-medium">{getParamLabel(c.worseningParam)}</span>
+              </div>
             </div>
-            <span className="text-muted-foreground text-xs self-center">→</span>
-            <div className="bg-muted rounded px-2 py-1 text-xs">
-              <span className="text-muted-foreground">惡化: </span>
-              <span className="font-medium">{getParamLabel(c.worseningParam)}</span>
-            </div>
+            {/* 3-Stage Pipeline: Linked KPIs */}
+            {c.linkedKpis && c.linkedKpis.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1">
+                <span className="text-muted-foreground text-[10px]">🔗 KPIs:</span>
+                {c.linkedKpis.map((kpi, i) => (
+                  <Badge key={i} variant="outline" className="text-[10px] font-normal">{kpi}</Badge>
+                ))}
+              </div>
+            )}
+            {/* 3-Stage Pipeline: Why Selected */}
+            {c.whySelected && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground cursor-help">
+                      <Lightbulb className="h-3 w-3 text-amber-500 shrink-0" />
+                      <span className="truncate max-w-[300px]">{c.whySelected}</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-sm whitespace-pre-wrap">
+                    <p className="text-xs">{c.whySelected}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </div>
         ) : c.type === "SF" ? (
           c.sfSubstance1 ? (

@@ -62,6 +62,10 @@ export interface ExploreContradiction {
   separationPrincipleId?: string | null;
   separationCategory?: 'time' | 'space' | 'condition' | 'whole_part' | null;
   separationRationale?: string | null;
+  // 3-Stage TC Pipeline fields
+  linkedKpis?: string[];
+  whySelected?: string | null;
+  priority?: number | null;
 }
 
 // CLD types

@@ -961,6 +961,45 @@ class ContradictionFormalizeResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# 3-Stage TC Pipeline — intermediate models (internal only, not API-exposed)
+# ---------------------------------------------------------------------------
+
+class KpiPriority(BaseModel):
+    """Stage 1 sub-model: a single KPI with severity classification."""
+    kpi: str
+    severity: Literal["hard", "soft"] = "soft"
+    failure_mode: str = ""
+
+
+class InferredAction(BaseModel):
+    """Stage 1 sub-model: an engineering action inferred from KPIs/constraints."""
+    action: str
+    driven_by: str = ""
+    likely_side_effects: list[str] = Field(default_factory=list)
+
+
+class ProblemFrame(BaseModel):
+    """Stage 1 output: structured engineering problem framing."""
+    system_boundary: str = ""
+    kpi_priorities: list[KpiPriority] = Field(default_factory=list)
+    inferred_engineering_actions: list[InferredAction] = Field(default_factory=list)
+    critical_constraints: list[str] = Field(default_factory=list)
+    design_tensions: list[str] = Field(default_factory=list)
+
+
+class CandidateTC(BaseModel):
+    """Stage 2 output: a single candidate TC before ranking."""
+    engineering_statement: str
+    type: Literal["TC"] | None = "TC"
+    confidence: float = Field(ge=0, le=1, default=0.7)
+    rationale: str | None = None
+    improving_param: int | None = None
+    worsening_param: int | None = None
+    source_action: str = ""
+    linked_kpis: list[str] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
 # Multi-TC Identification (POST /contradictions/identify-multi)
 # ---------------------------------------------------------------------------
 
@@ -983,6 +1022,10 @@ class IdentifiedTC(BaseModel):
     rationale: str | None = None
     improving_param: int | None = None
     worsening_param: int | None = None
+    # --- 3-Stage Pipeline new fields ---
+    linked_kpis: list[str] = Field(default_factory=list)
+    why_selected: str | None = None
+    priority: int | None = None
 
 
 class MultiTcIdentifyResponse(BaseModel):

@@ -919,6 +919,10 @@ export interface IdentifiedTC {
   rationale: string | null;
   improving_param: number | null;
   worsening_param: number | null;
+  // 3-Stage Pipeline new fields
+  linked_kpis?: string[];
+  why_selected?: string | null;
+  priority?: number | null;
 }
 
 export interface MultiTcIdentifyResponse {

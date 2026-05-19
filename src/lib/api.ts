@@ -898,7 +898,7 @@ export interface ContradictionFormalizeResponse {
 }
 
 export function contradictionFormalize(body: ContradictionFormalizeRequest) {
-  return request<ContradictionFormalizeResponse>(`/contradictions/${body.contradiction_id}/formalize`, body);
+  return request<ContradictionFormalizeResponse>(`/contradictions/${body.contradiction_id}/formalize`, body, { timeoutMs: 180_000 });
 }
 
 // ─── Multi-TC Identification (one-shot identify multiple TCs) ──────────────
@@ -932,7 +932,7 @@ export interface MultiTcIdentifyResponse {
 export function contradictionIdentifyMulti(
   body: MultiTcIdentifyRequest,
 ): Promise<MultiTcIdentifyResponse> {
-  return request("/contradictions/identify-multi", body);
+  return request("/contradictions/identify-multi", body, { timeoutMs: 300_000 });
 }
 
 // ─── Contradiction PC Decomposition (L2 WBS 5.1) ───────────────────────────
@@ -975,7 +975,7 @@ export function contradictionDecompose(
   cid: string,
   body: ContradictionDecomposeRequest,
 ) {
-  return request<ContradictionDecomposeResponse>(`/contradictions/${cid}/decompose`, body);
+  return request<ContradictionDecomposeResponse>(`/contradictions/${cid}/decompose`, body, { timeoutMs: 300_000 });
 }
 
 // ─── Contradiction SF Derivation (Plan B hierarchical tree) ────────────────
@@ -1002,7 +1002,7 @@ export function contradictionDeriveSF(
   cid: string,
   body: ContradictionDeriveSFRequest,
 ) {
-  return request<ContradictionDeriveSFResponse>(`/contradictions/${cid}/derive-sf`, body);
+  return request<ContradictionDeriveSFResponse>(`/contradictions/${cid}/derive-sf`, body, { timeoutMs: 180_000 });
 }
 
 // ─── Assumption Extraction ─────────────────────────────────────────────────

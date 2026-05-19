@@ -1283,6 +1283,10 @@ select the 2–5 contradictions that are MOST important to resolve for mission s
 Your goal is not to preserve every reasonable trade-off.
 Your goal is to identify the contradictions that most strongly determine whether
 the engineering objective can actually be achieved within the stated constraints.
+
+A high-quality final answer is not just a list of individually strong candidates.
+It must also work well as a set: it should cover the main mission-critical
+bottlenecks without being crowded by near-duplicates or mitigation-side trade-offs.
 </task>
 
 <problem_frame>
@@ -1296,117 +1300,162 @@ the engineering objective can actually be achieved within the stated constraints
 <core_principle>
 Prioritize contradictions based on mission impact, not surface diversity.
 A contradiction should rank higher if failing to resolve it is more likely to
-cause mission failure, violation of a hard KPI, or breakdown of the intended
-system value.
+cause mission failure, violation of a hard KPI or hard constraint, or breakdown
+of the intended system value.
 </core_principle>
 
+<selection_process>
+Follow this process explicitly:
+
+Step 1. Identify the principal mission terms from the problem frame.
+These usually come from:
+- the mission objective,
+- the explicitly stated hard KPIs,
+- the hard constraints,
+- named benchmarks or required competitive targets,
+- obvious mission-ending failure conditions.
+
+Examples of principal mission terms may include torque, efficiency, noise,
+size, weight, temperature, safety, latency, yield, lifetime, throughput, etc.
+
+Step 2. Group candidates into contradiction families.
+Treat candidates as belonging to the same family if they express the same core
+trade-off, including:
+- reverse-direction forms of the same trade-off,
+- wording variants with the same engineering logic,
+- root contradiction vs minor wording variant,
+- parameter variants that differ superficially but not strategically.
+
+Step 3. Map candidate families to the principal mission terms.
+Determine which contradiction families directly represent the main bottlenecks
+behind the stated KPIs, hard constraints, and named benchmarks.
+
+Step 4. Rank contradiction families first, not individual candidates.
+A family ranks higher if it is more directly tied to mission success, hard KPI
+satisfaction, hard constraint satisfaction, or benchmark attainment.
+
+Step 5. Within each family, choose the strongest representative.
+Prefer the candidate that most directly expresses the root mission bottleneck.
+Do not prefer a candidate merely because it describes the cost of a specific
+mitigation strategy if a more root-level contradiction in the same family is available.
+
+Step 6. Build the final set.
+Select 2–5 contradictions that collectively cover the major mission-critical
+families. Do not allow one tightly related cluster to occupy too many slots if
+that causes another explicitly important family to disappear.
+
+Step 7. Perform a final coverage check.
+Before finalizing, verify:
+- Are the hardest KPIs represented?
+- Are the hard constraints represented?
+- Are explicitly named benchmarks or critical limits represented?
+- Has any major root contradiction family been replaced by a mitigation-side trade-off?
+- Has one cluster crowded out another equally or more important family?
+
+If a major family is missing, replace a lower-value duplicate, overrepresented-
+family item, or mitigation-side item with a better representative from the
+missing family.
+</selection_process>
+
 <ranking_priority_order>
-Rank contradictions using this priority order:
+Rank contradiction families using this priority order:
 
 1. Mission-criticality
    - Does this contradiction directly determine whether the mission can succeed?
    - If unresolved, would the system fail its core purpose?
 
-2. Directness to hard KPIs or hard constraints
-   - Contradictions directly linking hard KPIs or hard constraints rank higher
-     than contradictions that mainly reflect implementation burden, effort,
-     complexity, controllability, or evaluation inconvenience.
+2. Directness to explicit hard KPIs, hard constraints, or named benchmarks
+   - Contradictions directly linking explicitly stated hard KPIs, hard constraints,
+     or benchmark targets rank higher than contradictions that mainly reflect
+     implementation burden, effort, complexity, controllability, or evaluation inconvenience.
 
 3. Failure impact
    - If unresolved, how severe are the consequences?
-   - Mission-ending or deployment-blocking consequences rank highest.
+   - Mission-ending, deployment-blocking, or benchmark-failing consequences rank highest.
 
-4. Contradiction-family distinctness
+4. Root-bottleneck value
+   - Prefer contradictions that express the primary design bottleneck itself,
+     rather than the secondary cost of one possible mitigation approach.
+
+5. Contradiction-family distinctness
    - Prefer one strongest representative from each major contradiction family.
    - Near-duplicates and reverse-direction formulations should not both be kept
-     unless they clearly expose different actionable design levers.
+     unless they clearly expose different actionable design levers and both are mission-critical.
 
-5. Solution guidance value
+6. Solution guidance value
    - Prefer contradictions that are likely to guide meaningful downstream design
      choices, architecture decisions, control strategies, or solution concepts.
 
-6. Confidence
+7. Confidence
    - Prefer candidates with stronger causal grounding when higher-priority
      factors are otherwise similar.
 
-7. TRIZ mapping quality
+8. TRIZ mapping quality
    - Use mapping quality only as a tie-breaker.
    - Do not reject a mission-critical contradiction solely because its mapping
      is less elegant or less conventional.
 </ranking_priority_order>
-
-<deduplication_rules>
-Before selecting final contradictions, group candidates into contradiction
-families.
-
-Treat candidates as belonging to the same family if they express the same core
-trade-off, including:
-- reverse-direction forms of the same trade-off,
-- wording variants with the same engineering logic,
-- parameter variants that differ superficially but not strategically.
-
-Keep only the strongest representative from each family unless two candidates
-within the same family clearly support different design actions and both are
-mission-critical.
-</deduplication_rules>
 
 <selection_rules>
 1. Select 2–5 final contradictions only.
 
 2. Do not select weak contradictions just to increase diversity.
 
-3. If the most important contradictions are concentrated around the same KPI or
-   system bottleneck, that is acceptable. However, do not allow one tightly
-   related contradiction cluster to occupy too many slots if this causes another
-   major hard-KPI- or hard-constraint-linked contradiction family to be omitted.
+3. The final selected set must collectively cover the major mission-critical
+   contradiction families implied by the hardest KPIs, hard constraints, and
+   explicitly named benchmarks.
 
-4. Contradictions tied directly to mission success should generally outrank
-   contradictions tied mainly to development effort, validation effort, process
-   burden, or secondary optimization.
+4. When strong contradiction families exceed the output limit, do not simply
+   keep the top-N individual candidates. Preserve coverage across the main
+   mission bottlenecks.
 
-5. The final selected set must collectively cover the major mission-critical
-   contradiction families implied by the hardest KPIs and hard constraints.
-   Do not simply keep the top-N individual candidates if this would leave a
-   major KPI or constraint family unrepresented.
+5. A contradiction family directly tied to an explicitly stated hard KPI, hard
+   constraint, or named benchmark should generally outrank a family that is only
+   implicitly important, unless the omitted implicit family would clearly block
+   feasibility or mission success.
 
-6. When the number of strong contradiction families exceeds the output limit,
-   prefer a set that preserves coverage across the main design bottlenecks over
-   a set that over-represents one family while excluding another equally
-   mission-critical family.
+6. Within a contradiction family or bottleneck cluster, prefer the candidate
+   that most directly expresses the root contradiction over one that mainly
+   describes the side effects of a specific mitigation strategy.
 
-7. A candidate with type = null may still be selected if it is clearly
+7. Do not let mitigation-side contradictions replace a root contradiction family
+   if the root family is available and more directly tied to the mission.
+
+8. If the most important contradictions are concentrated around the same system
+   bottleneck, that is acceptable, but do not let one tightly related cluster
+   crowd out another explicitly critical family.
+
+9. A candidate with type = null may still be selected if it is clearly
    mission-critical.
 
-8. Prefer wording that best exposes a real engineering decision lever.
+10. Prefer wording that best exposes a real engineering decision lever.
 </selection_rules>
 
 <instructions>
-1. Read the problem frame carefully to understand:
-   - the mission,
-   - the hardest KPIs,
+1. Read the problem frame carefully and identify:
+   - the mission objective,
+   - the explicitly stated hard KPIs,
    - the hard constraints,
-   - the main failure modes,
-   - the likely engineering actions.
+   - any named benchmark or target product,
+   - the most likely mission-ending bottlenecks.
 
 2. Group the candidates into contradiction families before ranking them.
 
-3. Rank contradiction families first, not just individual candidates.
+3. Rank contradiction families first.
 
-4. Build the final set by selecting the strongest representatives from the
-   highest-priority families while preserving coverage across the major
-   mission-critical KPI/constraint bottlenecks.
+4. Select the strongest representative from each chosen family.
 
-5. Before finalizing the output, perform a coverage check:
-   - Are the hardest KPIs and hard constraints meaningfully represented?
-   - Has one contradiction family or tightly related bottleneck cluster taken
-     too many slots?
-   - Has another major mission-critical family been omitted as a result?
+5. Build a final set of 2–5 contradictions that is strong both:
+   - item-by-item, and
+   - as a set covering the principal mission bottlenecks.
 
-6. If a major hard-KPI- or hard-constraint-linked family is missing, replace a
-   lower-value duplicate, overrepresented-family item, or secondary-importance
-   item with a representative from the missing family.
+6. Before finalizing, check whether any explicitly stated KPI, hard constraint,
+   or named benchmark has no meaningful root-level contradiction representation.
 
-7. For each selected contradiction:
+7. If so, replace a lower-value duplicate, an overrepresented-family candidate,
+   or a mitigation-side candidate with a better representative from the missing family.
+
+8. For each selected contradiction:
    a. keep engineering_statement, type, rationale, improving_param,
       worsening_param, and linked_kpis from the candidate;
    b. you may adjust confidence if justified;
@@ -1414,9 +1463,9 @@ mission-critical.
       more important than omitted alternatives;
    d. add priority as an integer starting from 1.
 
-8. Sort the final output by priority ascending.
+9. Sort the final output by priority ascending.
 
-9. Output ONLY a JSON array matching the output schema.
+10. Output ONLY a JSON array matching the output schema.
    No markdown, no comments, no explanations, no extra keys.
 </instructions>
 

@@ -2413,6 +2413,7 @@ from app.models.schemas import (
     CoverageEntry,
     DirectionCoverageAudit,
     CombinedDirection,
+    BriefContextSnapshot,
 )
 
 
@@ -2671,14 +2672,130 @@ def _pick_top_directions(
 
 
 # ---------------------------------------------------------------------------
-# Step H / Step I: Resolution Coverage helpers
+# Step H / Step I: Resolution Coverage helpers (context-aware)
 # ---------------------------------------------------------------------------
+#
+# The "context-aware coverage audit" refactor (architect plan §三, 方案 A)
+# enriches H-1/H-2 with the project's mission / constraints / KPIs /
+# socratic insights / CLD summary so each direction is judged against
+# the *original problem context*, not the contradiction sentence in
+# isolation. Resolution status is then a 5-state semantic verdict that
+# both the FE renders directly and the ranker uses to demote
+# does_not_resolve / unclear directions.
 
 
-def _decompose_contradiction(natural_description: str) -> list[SubRequirement]:
-    """Step H-1: Decompose contradiction into physical sub-requirements."""
+# ---- Context block formatters -------------------------------------------
+# Each returns a human-readable, deterministic block of text that gets
+# inlined into the H-1 / H-2 prompts. Returning the literal string
+# ``"(未提供)"`` (instead of "") is intentional — it tells the LLM
+# *explicitly* that a context channel is missing, which is much safer
+# than letting the LLM silently fabricate one.
+
+_NOT_PROVIDED = "(未提供)"
+
+
+def _format_mission_block(ctx: BriefContextSnapshot) -> str:
+    """One-line mission statement or '(未提供)'."""
+    return ctx.mission.strip() if ctx.mission and ctx.mission.strip() else _NOT_PROVIDED
+
+
+def _format_constraints_block(ctx: BriefContextSnapshot) -> str:
+    """Bulleted list of constraints with code/type/feasibility tags."""
+    if not ctx.constraints:
+        return _NOT_PROVIDED
+    lines: list[str] = []
+    for c in ctx.constraints:
+        code = c.code or "C?"
+        type_tag = c.type or "hard"
+        feas = f", feasibility={c.feasibility}" if c.feasibility and c.feasibility != "unknown" else ""
+        lines.append(f"- [{code}][{type_tag}{feas}] {c.description or '(no description)'}")
+    return "\n".join(lines)
+
+
+def _format_kpis_block(ctx: BriefContextSnapshot) -> str:
+    """Bulleted list of KPIs with current/target and status."""
+    if not ctx.kpis:
+        return _NOT_PROVIDED
+    lines: list[str] = []
+    for k in ctx.kpis:
+        name = k.name or "(no name)"
+        target = f"{k.target_value} {k.unit}".strip() or "?"
+        current = (
+            f", current={k.current_value or '—'}/{k.current_status}"
+            if k.current_status != "unknown" or k.current_value
+            else ""
+        )
+        lines.append(f"- [{name}] target={target}{current}")
+    return "\n".join(lines)
+
+
+def _format_socratic_block(ctx: BriefContextSnapshot) -> str:
+    """Bulleted Q&A pairs; tagged assumptions are marked [ASSUMPTION]."""
+    if not ctx.socratic_summary:
+        return _NOT_PROVIDED
+    lines: list[str] = []
+    for s in ctx.socratic_summary:
+        tag = "[ASSUMPTION]" if s.is_assumption else f"[{s.category or 'Q'}]"
+        q = (s.question or "").strip()
+        a = (s.answer or "").strip()
+        # One-line each so the LLM can scan quickly; truncate ultra-long
+        # answers so a single chatty insight does not dominate the block.
+        if len(a) > 240:
+            a = a[:240] + "…"
+        lines.append(f"- {tag} Q: {q} → A: {a}")
+    return "\n".join(lines)
+
+
+def _format_cld_block(ctx: BriefContextSnapshot) -> str:
+    """Render CLD as 'nodes' + 'edges' + 'leverage_points' sections."""
+    cld = ctx.cld_summary
+    if not cld.nodes and not cld.edges:
+        return _NOT_PROVIDED
+    parts: list[str] = []
+    if cld.leverage_points:
+        parts.append("leverage_points: " + ", ".join(cld.leverage_points))
+    if cld.nodes:
+        node_lines = [
+            f"- {n.label}" + (" [LEVERAGE]" if n.is_leverage else "")
+            for n in cld.nodes
+        ]
+        parts.append("nodes:\n" + "\n".join(node_lines))
+    if cld.edges:
+        edge_lines = [
+            f"- {e.from_label} --[{e.polarity}]--> {e.to_label}"
+            for e in cld.edges
+        ]
+        parts.append("edges:\n" + "\n".join(edge_lines))
+    return "\n".join(parts)
+
+
+def _empty_context() -> BriefContextSnapshot:
+    """Helper for callers that do not have a context — returns a snapshot
+    where every field is empty so prompt formatters emit '(未提供)'."""
+    return BriefContextSnapshot()
+
+
+# ---- Step H-1: Context-aware decomposition --------------------------------
+
+def _decompose_contradiction(
+    natural_description: str,
+    ctx: BriefContextSnapshot | None = None,
+) -> list[SubRequirement]:
+    """Step H-1: Decompose the contradiction along the 4 semantic axes
+    (desired_improvement / undesired_effect / boundary_condition /
+    mission_outcome), grounded in the supplied :class:`BriefContextSnapshot`.
+
+    When ``ctx`` is omitted the context blocks render as ``"(未提供)"``
+    and the prompt is instructed to skip boundary / mission_outcome
+    kinds rather than fabricate them — matches legacy "physical-only"
+    behaviour.
+    """
+    ctx = ctx or _empty_context()
     prompt = CONTRADICTION_DECOMPOSE_PROMPT.format(
         natural_description=natural_description,
+        mission_block=_format_mission_block(ctx),
+        constraints_block=_format_constraints_block(ctx),
+        kpis_block=_format_kpis_block(ctx),
     )
     try:
         raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt, model=settings.fast_model)
@@ -2687,14 +2804,30 @@ def _decompose_contradiction(natural_description: str) -> list[SubRequirement]:
         logger.warning("_decompose_contradiction LLM failed: %s", exc)
         return []
 
+    # Vocabulary safety: keep LLM output inside the declared Literal sets.
+    # Anything off-list falls back to a safe default rather than blowing
+    # up Pydantic validation.
+    valid_kinds = {
+        "desired_improvement",
+        "undesired_effect",
+        "boundary_condition",
+        "mission_outcome",
+    }
+
     subs: list[SubRequirement] = []
     for item in data.get("sub_requirements", []):
         try:
+            kind = str(item.get("kind") or "desired_improvement").strip()
+            if kind not in valid_kinds:
+                logger.debug("SubRequirement: invalid kind %r, defaulting to desired_improvement", kind)
+                kind = "desired_improvement"
             subs.append(SubRequirement(
-                id=item.get("id", f"SR-{len(subs)+1}"),
-                domain=item.get("domain", ""),
-                description=item.get("description", ""),
-                why_necessary=item.get("why_necessary", ""),
+                id=str(item.get("id") or f"SR-{len(subs)+1}"),
+                domain=str(item.get("domain") or ""),
+                description=str(item.get("description") or ""),
+                why_necessary=str(item.get("why_necessary") or ""),
+                kind=kind,
+                source_ref=str(item.get("source_ref") or ""),
             ))
         except Exception as exc:
             logger.debug("Dropping malformed sub_requirement: %s (%s)", item, exc)
@@ -2704,14 +2837,25 @@ def _decompose_contradiction(natural_description: str) -> list[SubRequirement]:
     return subs
 
 
+# ---- Step H-2: Context-aware coverage audit -------------------------------
+
 def _audit_coverage(
     natural_description: str,
     sub_requirements: list[SubRequirement],
     top_directions: list[DirectionGroup],
+    ctx: BriefContextSnapshot | None = None,
 ) -> list[DirectionCoverageAudit]:
-    """Step H-2: Audit how well each direction covers the sub-requirements."""
+    """Step H-2: Audit each direction against the sub-requirements *and*
+    the project context (mission / constraints / KPIs / socratic / CLD).
+
+    Output carries both the numeric coverage_score (used by the
+    re-ranker) and the 5-state resolution_status (used by the FE badge
+    and by :func:`_apply_coverage_to_scores` for status-based demotion).
+    """
     if not sub_requirements or not top_directions:
         return []
+
+    ctx = ctx or _empty_context()
 
     sr_json = json.dumps(
         [sr.model_dump(mode="json") for sr in sub_requirements],
@@ -2723,6 +2867,11 @@ def _audit_coverage(
                 "direction_id": d.direction_id,
                 "direction_name": d.direction_name,
                 "direction_summary": d.direction_summary,
+                # Affected modules help the LLM reason about constraint /
+                # CLD touch-points concretely instead of by name only.
+                "affected_modules": sorted({
+                    m for s in d.solutions for m in (s.affected_modules or [])
+                }),
             }
             for d in top_directions
         ],
@@ -2733,6 +2882,11 @@ def _audit_coverage(
         natural_description=natural_description,
         sub_requirements_json=sr_json,
         top_directions_json=dirs_json,
+        mission_block=_format_mission_block(ctx),
+        constraints_block=_format_constraints_block(ctx),
+        kpis_block=_format_kpis_block(ctx),
+        socratic_block=_format_socratic_block(ctx),
+        cld_block=_format_cld_block(ctx),
     )
 
     try:
@@ -2742,22 +2896,65 @@ def _audit_coverage(
         logger.warning("_audit_coverage LLM failed: %s", exc)
         return []
 
+    valid_status = {
+        "directly_resolves",
+        "partially_resolves",
+        "conditionally_resolves",
+        "does_not_resolve",
+        "unclear",
+    }
+    valid_layer = {"root_cause", "mechanism", "symptom", "unclear"}
+    valid_verdict = {
+        "directly_solves",
+        "partially_solves",
+        "needs_verify",
+        "violates",
+        "not_addressed",
+        "unclear",
+    }
+
+    def _str_list(raw_val) -> list[str]:
+        """Tolerant list-of-strings parser; drops non-string entries."""
+        if not isinstance(raw_val, list):
+            return []
+        return [str(x).strip() for x in raw_val if isinstance(x, (str, int, float)) and str(x).strip()]
+
     audits: list[DirectionCoverageAudit] = []
     for item in data.get("audits", []):
         try:
-            matrix = [
-                CoverageEntry(
-                    sub_requirement_id=e.get("sub_requirement_id", ""),
-                    score=int(e.get("score", 0)),
-                    rationale=str(e.get("rationale", "")),
-                )
-                for e in item.get("coverage_matrix", [])
-            ]
+            mission_violations = _str_list(item.get("mission_violations"))
+            unresolved_gaps = _str_list(item.get("unresolved_gaps"))
+
+            # Build coverage_matrix with verdict + verdict_zh, falling back
+            # to a deterministic derivation if the LLM omitted them.
+            matrix = _parse_coverage_matrix(
+                raw_entries=item.get("coverage_matrix") or [],
+                mission_violations=mission_violations,
+                unresolved_gaps=unresolved_gaps,
+                valid_verdict=valid_verdict,
+            )
+
+            status = str(item.get("resolution_status") or "unclear").strip()
+            if status not in valid_status:
+                logger.debug("audit: invalid resolution_status %r → unclear", status)
+                status = "unclear"
+
+            layer = str(item.get("addresses_layer") or "unclear").strip()
+            if layer not in valid_layer:
+                logger.debug("audit: invalid addresses_layer %r → unclear", layer)
+                layer = "unclear"
+
             audits.append(DirectionCoverageAudit(
-                direction_id=item.get("direction_id", ""),
+                direction_id=str(item.get("direction_id") or ""),
                 coverage_matrix=matrix,
                 coverage_score=float(item.get("coverage_score", 0.0)),
-                unresolved_gaps=item.get("unresolved_gaps", []),
+                unresolved_gaps=unresolved_gaps,
+                resolution_status=status,
+                key_assumptions=_str_list(item.get("key_assumptions")),
+                mission_violations=mission_violations,
+                cld_side_effects=_str_list(item.get("cld_side_effects")),
+                addresses_layer=layer,
+                gap_summary=str(item.get("gap_summary") or ""),
             ))
         except Exception as exc:
             logger.debug("Dropping malformed coverage audit: %s (%s)", item, exc)
@@ -2765,12 +2962,152 @@ def _audit_coverage(
     return audits
 
 
+# ---- Per-SR verdict derivation --------------------------------------------
+# When the LLM follows the v3 schema it directly emits `verdict` and
+# `verdict_zh` per coverage entry. For legacy LLM output (or partial
+# rollout) we deterministically derive a verdict from the score plus
+# the audit-level mission_violations / unresolved_gaps lists so the
+# SR-grouped UI never sees an "unclear" row when we can do better.
+#
+# Rule order (first match wins):
+#   1. mission_violations mentions this SR  → "violates"
+#   2. unresolved_gaps mentions this SR + score == 0
+#                                            → "not_addressed"
+#   3. score == 2                            → "directly_solves"
+#      (downgrade to "needs_verify" if unresolved_gaps mentions this SR)
+#   4. score == 1                            → "partially_solves"
+#   5. score == 0                            → "not_addressed"
+#   6. anything else                         → "unclear"
+
+# Verdict colour / icon labels rendered as plain Chinese fallbacks
+# when the LLM did not provide verdict_zh. Keeps the UI usable
+# without ever showing an empty cell.
+_VERDICT_ZH_DEFAULT: dict[str, str] = {
+    "directly_solves": "直接解決這條子需求。",
+    "partially_solves": "部分支撐這條，但不是直接解。",
+    "needs_verify": "看起來能解，但有條件要先驗證。",
+    "violates": "與這條子需求衝突或會違反它。",
+    "not_addressed": "這個方向沒有觸及這條。",
+    "unclear": "資訊不足，無法判斷。",
+}
+
+
+def _parse_coverage_matrix(
+    raw_entries: list,
+    *,
+    mission_violations: list[str],
+    unresolved_gaps: list[str],
+    valid_verdict: set[str],
+) -> list[CoverageEntry]:
+    """Parse coverage_matrix entries with safe verdict fallback.
+
+    Args:
+      raw_entries: ``item["coverage_matrix"]`` straight from the LLM
+        response (a list of dicts; may be partially malformed).
+      mission_violations / unresolved_gaps: audit-level lists used to
+        derive ``violates`` / ``not_addressed`` when the LLM did not
+        emit a per-pair verdict.
+      valid_verdict: the literal set, passed in so we don't import the
+        Pydantic Literal here.
+    """
+    out: list[CoverageEntry] = []
+    for e in raw_entries:
+        if not isinstance(e, dict):
+            continue
+        sr_id = str(e.get("sub_requirement_id") or "").strip()
+        try:
+            score = int(e.get("score", 0))
+        except (TypeError, ValueError):
+            score = 0
+        score = max(0, min(2, score))   # clamp into [0, 2]
+        rationale = str(e.get("rationale", "") or "")
+
+        raw_verdict = str(e.get("verdict") or "").strip()
+        verdict_zh = str(e.get("verdict_zh") or "").strip()
+
+        if raw_verdict not in valid_verdict:
+            raw_verdict = _derive_verdict(
+                sr_id, score, mission_violations, unresolved_gaps,
+            )
+
+        if not verdict_zh:
+            verdict_zh = _VERDICT_ZH_DEFAULT.get(raw_verdict, _VERDICT_ZH_DEFAULT["unclear"])
+
+        out.append(CoverageEntry(
+            sub_requirement_id=sr_id,
+            score=score,
+            rationale=rationale,
+            verdict=raw_verdict,
+            verdict_zh=verdict_zh,
+        ))
+    return out
+
+
+def _derive_verdict(
+    sr_id: str,
+    score: int,
+    mission_violations: list[str],
+    unresolved_gaps: list[str],
+) -> str:
+    """Deterministic verdict derivation when the LLM omitted it.
+
+    Looks for the sub_requirement_id substring inside the audit-level
+    lists; if mission_violations names this SR the row is hard
+    ``violates`` regardless of score. unresolved_gaps downgrades a
+    score-2 row to ``needs_verify`` (we cannot fully trust it) and a
+    score-0 row to ``not_addressed``.
+    """
+    sid_lower = sr_id.lower() if sr_id else ""
+
+    if sid_lower and any(sid_lower in str(v).lower() for v in mission_violations):
+        return "violates"
+
+    has_gap = bool(sid_lower) and any(sid_lower in str(g).lower() for g in unresolved_gaps)
+
+    if score == 2:
+        return "needs_verify" if has_gap else "directly_solves"
+    if score == 1:
+        return "partially_solves"
+    # score == 0 or anything weird → not_addressed (or unclear if no SR id)
+    if not sr_id:
+        return "unclear"
+    return "not_addressed"
+
+
+# ---- Status-based ranking penalty -----------------------------------------
+# Multiplier applied to the numeric weighted_total when the 5-state
+# resolution_status says a direction does not really resolve its
+# contradiction. Even a high coverage_score should not push a
+# "does_not_resolve" / "unclear" direction to Top1.
+#
+# Calibration:
+#   directly_resolves     × 1.00 (no demotion)
+#   conditionally_resolves× 0.95 (very mild — assumptions are listed
+#                                 for RD; not a reason to bury the
+#                                 direction)
+#   partially_resolves    × 0.80 (visible drop; still surfaced for RD)
+#   unclear               × 0.50 (push to the bottom but keep visible)
+#   does_not_resolve      × 0.40 (strongest demotion short of removal)
+# Numbers chosen so a strong does_not_resolve (weighted_total 60) sinks
+# below a mediocre directly_resolves (weighted_total 30) — the design
+# rule "5-state verdict overrides the number" from the prompt.
+RESOLUTION_STATUS_MULTIPLIER: dict[str, float] = {
+    "directly_resolves": 1.00,
+    "conditionally_resolves": 0.95,
+    "partially_resolves": 0.80,
+    "unclear": 0.50,
+    "does_not_resolve": 0.40,
+}
+
+
 def _apply_coverage_to_scores(
     scores: list[DirectionScore],
     audits: list[DirectionCoverageAudit],
     directions: list[DirectionGroup],
 ) -> list[DirectionScore]:
-    """Re-compute weighted_total incorporating coverage_score from audits."""
+    """Re-compute weighted_total incorporating coverage_score AND the
+    5-state resolution_status (context-aware demotion).
+    """
     audit_map = {a.direction_id: a for a in audits}
     dir_map = {d.direction_id: d for d in directions}
 
@@ -2778,6 +3115,10 @@ def _apply_coverage_to_scores(
     for s in scores:
         audit = audit_map.get(s.direction_id)
         cov = audit.coverage_score if audit else 0.0
+        status = audit.resolution_status if audit else "unclear"
+        # Default to 1.0 if status string somehow not in the map — should
+        # not happen because _audit_coverage clamps to the Literal set.
+        status_mult = RESOLUTION_STATUS_MULTIPLIER.get(status, 1.0)
 
         # Recalculate penalty from direction counts
         d = dir_map.get(s.direction_id)
@@ -2785,13 +3126,26 @@ def _apply_coverage_to_scores(
         over_cluster = max(0, raw_count - OVER_CLUSTER_THRESHOLD)
         penalty = over_cluster * OVER_CLUSTER_PENALTY
 
-        weighted = (
+        raw_weighted = (
             s.tool_support * WEIGHT_CONSENSUS
             + s.feasibility * WEIGHT_FEASIBILITY
             + s.cost_difficulty * WEIGHT_COST
             + cov * WEIGHT_COVERAGE
             - penalty
         )
+        weighted = raw_weighted * status_mult
+
+        if audit:
+            # Preserve the audit linkage in the rationale so RD can see
+            # WHY a high-coverage direction got demoted to Top3.
+            extra = f" [resolution={status}×{status_mult:.2f}]"
+            if extra not in s.score_rationale:
+                rationale = (s.score_rationale or "") + extra
+            else:
+                rationale = s.score_rationale
+        else:
+            rationale = s.score_rationale
+
         new_scores.append(DirectionScore(
             direction_id=s.direction_id,
             tool_support=s.tool_support,
@@ -2799,7 +3153,7 @@ def _apply_coverage_to_scores(
             cost_difficulty=s.cost_difficulty,
             coverage_score=round(cov, 2),
             weighted_total=round(weighted, 2),
-            score_rationale=s.score_rationale,
+            score_rationale=rationale,
         ))
 
     return new_scores
@@ -2879,6 +3233,35 @@ def solve_triz_directed(req: SolveDirectedRequest) -> SolveDirectedResponse:
                                        → Step I (combined direction if coverage < threshold)
     """
     with phase_timer("solve_triz_directed"):
+        # --- Build the BriefContextSnapshot for context-aware H-1/H-2 ---
+        # When the caller supplied an explicit snapshot (harness / tests),
+        # honour it; otherwise lazy-load from Supabase. Any failure
+        # silently degrades to an empty snapshot — the prompt formatters
+        # render "(未提供)" so the LLM is told explicitly rather than
+        # silently producing a context-blind audit.
+        if req.brief_context is not None:
+            brief_ctx = req.brief_context
+            logger.info(
+                "solve_triz_directed: using request-supplied brief_context "
+                "(mission=%s constraints=%d kpis=%d socratic=%d cld_nodes=%d)",
+                bool(brief_ctx.mission),
+                len(brief_ctx.constraints),
+                len(brief_ctx.kpis),
+                len(brief_ctx.socratic_summary),
+                len(brief_ctx.cld_summary.nodes),
+            )
+        else:
+            try:
+                from app.services.brief_context import fetch_brief_context
+                brief_ctx = fetch_brief_context(req.project_id)
+            except Exception as exc:  # noqa: BLE001 — context is optional
+                logger.warning(
+                    "fetch_brief_context failed for project %s: %s — falling back to empty snapshot",
+                    req.project_id,
+                    exc,
+                )
+                brief_ctx = _empty_context()
+
         # --- Steps A/B/C: TC, PC, SF in parallel via ThreadPoolExecutor ---
         def _do_tc() -> TrizLookupResponse:
             tc_req = TrizLookupRequest(
@@ -2967,13 +3350,13 @@ def solve_triz_directed(req: SolveDirectedRequest) -> SolveDirectedResponse:
         top1, top2, top1_score, top2_score = _pick_top_directions(all_directions, scored_directions)
 
         # --- Step H: Contradiction Decomposition + Coverage Audit ---
-        sub_requirements = _decompose_contradiction(req.natural_description)
+        sub_requirements = _decompose_contradiction(req.natural_description, brief_ctx)
         coverage_audits: list[DirectionCoverageAudit] = []
         combined_direction: CombinedDirection | None = None
 
         if sub_requirements:
             coverage_audits = _audit_coverage(
-                req.natural_description, sub_requirements, all_directions,
+                req.natural_description, sub_requirements, all_directions, brief_ctx,
             )
             if coverage_audits:
                 # Re-rank with coverage scores

@@ -1604,27 +1604,81 @@ IF status == "conflict":
 #            sub-requirements that MUST ALL be satisfied.
 # ---------------------------------------------------------------------------
 
+# Context-aware decomposition — splits the contradiction along the 4
+# axes that matter for "回脈絡驗證" rather than only the physical-domain
+# axis the legacy prompt used. Mission / constraints / KPIs are
+# injected so the LLM cannot decompose in a vacuum.
+#
+# Required template variables:
+#   natural_description, mission_block, constraints_block, kpis_block
+#
+# All four ``*_block`` placeholders accept ``"(未提供)"`` from the
+# caller when the corresponding project data is empty; the LLM is told
+# explicitly to skip kinds it cannot ground in the supplied context.
+
 CONTRADICTION_DECOMPOSE_PROMPT = """\
 <task>
-You are a TRIZ methodology expert and domain engineer.
-Given a technical contradiction, decompose it into its underlying physical
-sub-requirements — the distinct physical phenomena that MUST ALL be satisfied
-for the contradiction to be fully resolved.
+You are a TRIZ methodology expert AND a domain engineer doing
+context-aware contradiction analysis.
+
+Given the original problem context (mission / constraints / KPIs) and a
+specific contradiction, decompose the contradiction into 3-8 distinct
+SUB-REQUIREMENTS along FOUR semantic axes:
+
+  1. desired_improvement   — the thing the contradiction wants MORE of
+                              (the param being optimised / the goal side)
+  2. undesired_effect      — the thing the contradiction wants to KEEP
+                              SUPPRESSED (the worsening side / the pain)
+  3. boundary_condition    — hard limits inside which any valid
+                              solution must stay (constraints, must-hold
+                              physical laws, mission scope edges)
+  4. mission_outcome       — project-level outcomes / KPIs that any
+                              direction claiming "really resolved" must
+                              still satisfy (e.g. cost ceiling, regulatory
+                              certification, top-level success metric)
+
+You are NOT brainstorming solutions. You are extracting the FOUR-AXIS
+DEMAND SURFACE the contradiction lives on, so the next stage can audit
+whether each candidate solution direction truly resolves it in context.
 </task>
 
 <context>
-<contradiction>{natural_description}</contradiction>
+<mission>
+{mission_block}
+</mission>
+
+<constraints>
+{constraints_block}
+</constraints>
+
+<kpis>
+{kpis_block}
+</kpis>
+
+<contradiction>
+{natural_description}
+</contradiction>
 </context>
 
 <instructions>
-- Identify 2-6 physical sub-requirements.
-- Each sub-requirement should map to a distinct physical domain
-  (e.g. thermal, electromagnetic, mechanical, structural, kinematic, material).
-- For each sub-requirement, explain WHY it is a necessary condition for
-  resolving the contradiction.
-- Do NOT list implementation directions or solutions — only the underlying
-  physical demands the system must meet.
-- Use engineering-precise language; avoid vague generalities.
+- Emit between 3 and 8 sub_requirements TOTAL across all kinds combined.
+- Every kind must appear at least once IF the supplied context grounds
+  it. If mission/constraints/KPIs are "(未提供)" you may omit
+  `boundary_condition` and `mission_outcome` rather than fabricate them.
+- For each sub_requirement set `source_ref` to where it came from:
+    "contradiction"   — derived from the contradiction text itself
+    "mission"         — derived from <mission>
+    "constraint:Cx"   — derived from a specific constraint code
+    "kpi:Kx"          — derived from a specific KPI name
+  Use the exact code if you can; otherwise the literal "constraint" /
+  "kpi" string is acceptable.
+- `domain` is the physical/engineering domain hint (thermal, EM,
+  mechanical, structural, control, material, cost, regulatory…).
+  Leave "" if the SR is non-physical (e.g. cost ceiling).
+- `description` is a precise, single-sentence demand. No solutions.
+- `why_necessary` explains why ignoring this SR means the contradiction
+  is NOT truly resolved.
+- Do not duplicate the contradiction text verbatim. Decompose it.
 </instructions>
 
 <output_schema>
@@ -1632,9 +1686,35 @@ for the contradiction to be fully resolved.
   "sub_requirements": [
     {{
       "id": "SR-1",
+      "kind": "desired_improvement",
+      "source_ref": "contradiction",
       "domain": "thermal",
-      "description": "The motor must dissipate enough heat to sustain continuous output without thermal throttling.",
-      "why_necessary": "Continuous torque is thermally limited; if heat cannot be removed the motor derates below the 100 Nm target."
+      "description": "Sustain ≥100 Nm continuous torque without thermal throttling.",
+      "why_necessary": "Continuous torque is the metric the contradiction wants to raise; failing here means the contradiction is unresolved by definition."
+    }},
+    {{
+      "id": "SR-2",
+      "kind": "undesired_effect",
+      "source_ref": "contradiction",
+      "domain": "thermal",
+      "description": "Avoid steady-state winding temperature exceeding 130°C.",
+      "why_necessary": "The worsening side of the contradiction; any direction that boosts torque while overheating windings has not resolved it."
+    }},
+    {{
+      "id": "SR-3",
+      "kind": "boundary_condition",
+      "source_ref": "constraint:C2",
+      "domain": "mechanical",
+      "description": "Total motor mass must remain ≤5 kg.",
+      "why_necessary": "Hard constraint C2; a direction that violates it is not a valid solution regardless of how well it solves the thermal trade-off."
+    }},
+    {{
+      "id": "SR-4",
+      "kind": "mission_outcome",
+      "source_ref": "kpi:K1",
+      "domain": "cost",
+      "description": "BOM cost per unit ≤ NT$8,000 at 1k/year volume.",
+      "why_necessary": "KPI K1; even a perfect thermal/mechanical solution that doubles BOM cost has not delivered the mission outcome."
     }}
   ]
 }}
@@ -1647,16 +1727,79 @@ for the contradiction to be fully resolved.
 #            Top-N direction actually addresses.
 # ---------------------------------------------------------------------------
 
+# Context-aware coverage audit. For every candidate direction the LLM
+# must produce BOTH:
+#   (a) the continuous coverage_score 0–10 (preserved so the re-ranker
+#       can still order directions numerically)
+#   (b) the 5-state semantic verdict resolution_status — the artefact
+#       the FE renders and the ranker uses to demote does_not / unclear
+# plus mission_violations / cld_side_effects / addresses_layer so RD
+# can see EXACTLY why a direction was demoted.
+#
+# Required template variables:
+#   natural_description, sub_requirements_json, top_directions_json,
+#   mission_block, constraints_block, kpis_block,
+#   socratic_block, cld_block
+
 RESOLUTION_COVERAGE_AUDIT_PROMPT = """\
 <task>
-You are auditing whether each proposed solution direction actually resolves
-every physical sub-requirement of the original contradiction.
-For each (direction, sub_requirement) pair, judge honestly whether the
-direction addresses that sub-requirement.
+You are auditing whether each proposed solution direction TRULY resolves
+the original contradiction *in its original problem context* — not just
+in the contradiction sentence in isolation.
+
+For every (direction, sub_requirement) pair score 0/1/2. Then for the
+direction as a whole, decide which of FIVE resolution states applies:
+
+  • directly_resolves       — improves desired side AND suppresses
+                              undesired side AND stays inside every
+                              boundary AND no important mission_outcome
+                              is violated. No essential assumption.
+  • partially_resolves      — fixes only one side (e.g. reduces the
+                              undesired effect but not the desired
+                              improvement), OR fixes only symptoms
+                              while leaving the root cause untouched.
+  • conditionally_resolves  — theoretically valid, but relies on one or
+                              more unproven prerequisites. Enumerate
+                              them in `key_assumptions`. If you list
+                              any assumption you MUST NOT pick
+                              directly_resolves.
+  • does_not_resolve        — the direction's link to the contradiction
+                              is weak / it solves a different problem /
+                              it would violate mission, constraints or
+                              KPIs to a degree that cancels its benefit.
+  • unclear                 — the supplied context lacks enough
+                              information to decide honestly. Prefer
+                              this over guessing.
+
+Be ruthless. A direction that sounds plausible but only touches one
+sub-requirement, or that depends on unverified assumptions, must NOT
+be tagged directly_resolves.
 </task>
 
 <context>
-<contradiction>{natural_description}</contradiction>
+<contradiction>
+{natural_description}
+</contradiction>
+
+<mission>
+{mission_block}
+</mission>
+
+<constraints>
+{constraints_block}
+</constraints>
+
+<kpis>
+{kpis_block}
+</kpis>
+
+<socratic_insights>
+{socratic_block}
+</socratic_insights>
+
+<cld_summary>
+{cld_block}
+</cld_summary>
 
 <sub_requirements>
 {sub_requirements_json}
@@ -1668,17 +1811,69 @@ direction addresses that sub-requirement.
 </context>
 
 <scoring>
-For each (direction, sub_requirement) pair assign an integer score:
-  2 = directly and substantially addresses this sub-requirement
-  1 = partially or indirectly addresses (e.g. a side-effect benefit)
-  0 = does not address at all
+For each (direction, sub_requirement) pair you MUST emit:
+  1. score (int): 2 = directly and substantially addresses,
+                  1 = partially or indirectly addresses,
+                  0 = does not address.
+  2. verdict (one of):
+       "directly_solves"  — score=2 AND no assumption blocks this SR
+       "partially_solves" — score=1 (indirect support / leaning on)
+       "needs_verify"     — score=2 but an unverified assumption gates it
+                            (e.g. mass cap may still be exceeded after
+                             adding the proposed feature — needs FEA)
+       "violates"         — direction breaks this SR
+                            (mass/cost/noise cap exceeded, etc.)
+       "not_addressed"    — score=0 AND this SR is left untouched
+       "unclear"          — context insufficient to decide
+  3. verdict_zh (string, ≤ 40 Chinese characters):
+       ONE plain-language sentence the RD reads to know what THIS
+       direction does for THIS SR. Examples:
+         「直接抽熱，正面解決」
+         「散熱變好讓你敢出更多扭矩，但不直接提升電磁密度」
+         「加熱橋後重量是否還守得住，需要 FEA 驗證」
+         「會讓總成本超出 KPI 上限」
+       Write the sentence in Traditional Chinese unless the SR is
+       written in another language.
 
-coverage_score formula per direction:
+coverage_score formula per direction (unchanged):
   coverage_score = sum_of_pair_scores / (2 × number_of_sub_requirements) × 10
-  (result is 0.0 – 10.0; 10.0 = perfect coverage)
+(result is 0.0 – 10.0; 10.0 = perfect coverage)
 
-Be strict: a direction that only handles ONE domain out of four should NOT
-score above 3.0.
+Calibration:
+- Direction that handles 1 of 4 SRs → coverage_score ≤ 3.0
+- A direction may have coverage_score 7+ AND still be
+  `partially_resolves` if it skips an undesired_effect or
+  boundary_condition SR — the 5-state verdict overrides the number
+  for FE display.
+
+mission_violations — list each clause the direction would break, like
+  "violates constraint C2: total mass > 5kg"
+  "fails KPI K1: BOM cost +40%"
+  Leave the array empty if no clear violation. If you list an item
+  here, the corresponding SR's `verdict` MUST be "violates".
+
+cld_side_effects — only fill if the supplied <cld_summary> implies a
+  new reinforcing loop / amplified vicious cycle introduced by this
+  direction.
+  REQUIRED FORMAT — exactly two parts joined by a space:
+    "<plain-language outcome>. (技術註腳: <CLD path + leverage tag>)"
+  The plain-language outcome MUST be readable by a non-systems-thinker
+  RD: state WHO does WHAT and WHY the problem recurs, NOT a chain of
+  arrows.
+  Examples (do NOT just dump CLD node names):
+    GOOD: "散熱變好之後，使用者會把扭矩開得更大，電流跟著變大，熱問題又回來。(技術註腳: CLD 路徑 散熱能力→連續扭矩→馬達電流→熱負荷，經斷路點「使用情境放大」)"
+    BAD : "散熱能力↑→連續扭矩↑→馬達電流↑→熱負荷↑"
+  Empty array is correct when CLD is "(未提供)" or no implication.
+
+addresses_layer — pick one:
+  root_cause | mechanism | symptom | unclear
+  A direction that masks a symptom must NOT be tagged root_cause.
+
+key_assumptions — REQUIRED when resolution_status =
+  conditionally_resolves. Each item is one prerequisite that must be
+  proven true before the direction can be relied upon, written as a
+  testable statement (not a vague hope). Each assumption SHOULD map
+  to one SR that has verdict="needs_verify" in coverage_matrix.
 </scoring>
 
 <output_schema>
@@ -1687,11 +1882,120 @@ score above 3.0.
     {{
       "direction_id": "DIR-1",
       "coverage_matrix": [
-        {{"sub_requirement_id": "SR-1", "score": 2, "rationale": "..."}},
-        {{"sub_requirement_id": "SR-2", "score": 0, "rationale": "..."}}
+        {{"sub_requirement_id": "SR-1", "score": 2, "verdict": "directly_solves",
+          "verdict_zh": "磁路重設讓連續扭矩直接提升 20%。",
+          "rationale": "Improves continuous torque by 20% via the proposed flux path change."}},
+        {{"sub_requirement_id": "SR-2", "score": 1, "verdict": "partially_solves",
+          "verdict_zh": "繞組熱稍微降，但峰值溫度沒有上限，仍可能過熱。",
+          "rationale": "Reduces winding heat but does not bound peak temperature."}},
+        {{"sub_requirement_id": "SR-3", "score": 0, "verdict": "violates",
+          "verdict_zh": "加 0.8kg 鐵心，會直接超出 5kg 重量上限。",
+          "rationale": "Adds 0.8kg of iron — directly violates the mass cap."}},
+        {{"sub_requirement_id": "SR-4", "score": 0, "verdict": "violates",
+          "verdict_zh": "新疊片等級會讓 BOM 成本超過 NT$8,000 上限。",
+          "rationale": "Increases BOM cost ~12% with new lamination grade."}}
       ],
-      "coverage_score": 5.0,
-      "unresolved_gaps": ["SR-2: mechanical strength — not addressed"]
+      "coverage_score": 3.75,
+      "resolution_status": "does_not_resolve",
+      "key_assumptions": [],
+      "mission_violations": [
+        "violates constraint C2: predicted total mass 5.8kg > 5kg cap",
+        "fails KPI K1: BOM cost +12% breaches NT$8,000 ceiling"
+      ],
+      "cld_side_effects": [],
+      "addresses_layer": "mechanism",
+      "unresolved_gaps": ["SR-3 mass cap", "SR-4 BOM cost ceiling"],
+      "gap_summary": "改善熱裕度但犧牲兩條硬限制，整體不算解決。"
+    }},
+    {{
+      "direction_id": "DIR-2",
+      "coverage_matrix": [
+        {{"sub_requirement_id": "SR-1", "score": 2, "verdict": "directly_solves",
+          "verdict_zh": "冷卻通道倍增，連續扭矩天花板拉高。",
+          "rationale": "Doubles cooling channel area, lifts continuous torque ceiling."}},
+        {{"sub_requirement_id": "SR-2", "score": 2, "verdict": "directly_solves",
+          "verdict_zh": "穩態下繞組溫度降 25°C，直接解。",
+          "rationale": "Drops winding temp by 25°C in steady state."}},
+        {{"sub_requirement_id": "SR-3", "score": 1, "verdict": "needs_verify",
+          "verdict_zh": "重量增 0.2kg，要看殼壁能否薄到 1.2mm 還守 IP65，需 FEA 驗證。",
+          "rationale": "Adds 0.2kg — within mass budget if housing wall thinned to 1.2mm."}},
+        {{"sub_requirement_id": "SR-4", "score": 1, "verdict": "needs_verify",
+          "verdict_zh": "成本 +3%，要看供應商願不願意給 1k/yr 量級報價，需議價驗證。",
+          "rationale": "Cost +3%, fits inside KPI K1 if volume ≥1k/yr negotiated."}}
+      ],
+      "coverage_score": 7.5,
+      "resolution_status": "conditionally_resolves",
+      "key_assumptions": [
+        "殼壁薄到 1.2mm 仍能守住 IP65（需 FEA + 跌落測試）。",
+        "供應商在 1k/yr 量級願意給目標單價（需議價）。"
+      ],
+      "mission_violations": [],
+      "cld_side_effects": [],
+      "addresses_layer": "root_cause",
+      "unresolved_gaps": [],
+      "gap_summary": "扎實的根因修正，但要先驗證薄殼可行與議價成功。"
+    }},
+    {{
+      "direction_id": "DIR-3",
+      "coverage_matrix": [
+        {{"sub_requirement_id": "SR-1", "score": 2, "verdict": "directly_solves",
+          "verdict_zh": "Halbach 陣列直接提升扭矩密度。",
+          "rationale": "Higher torque density via Halbach magnet array."}},
+        {{"sub_requirement_id": "SR-2", "score": 2, "verdict": "directly_solves",
+          "verdict_zh": "銅損下降，發熱跟著少。",
+          "rationale": "Lower copper loss → less heat."}},
+        {{"sub_requirement_id": "SR-3", "score": 2, "verdict": "directly_solves",
+          "verdict_zh": "重量在預算內。",
+          "rationale": "Mass within budget."}},
+        {{"sub_requirement_id": "SR-4", "score": 2, "verdict": "directly_solves",
+          "verdict_zh": "目標量級下成本不變。",
+          "rationale": "Cost neutral at target volume."}}
+      ],
+      "coverage_score": 10.0,
+      "resolution_status": "directly_resolves",
+      "key_assumptions": [],
+      "mission_violations": [],
+      "cld_side_effects": [],
+      "addresses_layer": "root_cause",
+      "unresolved_gaps": [],
+      "gap_summary": "兩面同時解決且不違反邊界。"
+    }},
+    {{
+      "direction_id": "DIR-4",
+      "coverage_matrix": [
+        {{"sub_requirement_id": "SR-1", "score": 1, "verdict": "partially_solves",
+          "verdict_zh": "軟體降載延長連續工作時間，但限制了峰值扭矩。",
+          "rationale": "Software derating extends continuous duty but caps peak."}},
+        {{"sub_requirement_id": "SR-2", "score": 0, "verdict": "not_addressed",
+          "verdict_zh": "根本熱問題沒處理，只是繞過。",
+          "rationale": "Root thermal cause untouched."}}
+      ],
+      "coverage_score": 1.25,
+      "resolution_status": "partially_resolves",
+      "key_assumptions": [],
+      "mission_violations": [],
+      "cld_side_effects": [
+        "降載後使用者會抱怨「感覺很弱」，這會放大客訴循環。(技術註腳: CLD 路徑 降載→peak torque↓→使用者抱怨↑，經斷路點「感官回饋」)"
+      ],
+      "addresses_layer": "symptom",
+      "unresolved_gaps": ["SR-2 根因未處理", "SR-3/SR-4 未觸及"],
+      "gap_summary": "只是症狀緩解，根本熱物理沒變。"
+    }},
+    {{
+      "direction_id": "DIR-5",
+      "coverage_matrix": [
+        {{"sub_requirement_id": "SR-1", "score": 0, "verdict": "unclear",
+          "verdict_zh": "方向描述太抽象，無法判斷。",
+          "rationale": "Direction too abstract."}}
+      ],
+      "coverage_score": 0.0,
+      "resolution_status": "unclear",
+      "key_assumptions": [],
+      "mission_violations": [],
+      "cld_side_effects": [],
+      "addresses_layer": "unclear",
+      "unresolved_gaps": [],
+      "gap_summary": "方向描述太抽象，無法對到任何子需求。"
     }}
   ]
 }}

@@ -1778,30 +1778,225 @@ class DirectionScore(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Brief Context Snapshot (Step H-1 / H-2 input)
+# ---------------------------------------------------------------------------
+# Frozen, project-level upstream context fed into _decompose_contradiction
+# and _audit_coverage so the LLM judges each solution direction against the
+# *original* mission / constraints / KPIs / socratic insights / CLD risks,
+# not just the contradiction string in isolation.
+#
+# Single source of truth for the "回脈絡驗證" pipeline. Built from
+# Supabase tables: briefs / constraints / kpis / socratic_questions /
+# cld_nodes / cld_edges by app.services.brief_context.fetch_brief_context.
+#
+# All fields default to empty so partial/missing project data does not
+# break the pipeline — downstream prompts already render "(未提供)"
+# fallbacks for empty blocks.
+
+class BriefConstraint(BaseModel):
+    """Single hard/soft constraint from the brief stage."""
+    code: str = ""          # e.g. "C1"
+    description: str = ""
+    type: str = "hard"      # "hard" | "soft"
+    feasibility: str = "unknown"
+
+
+class BriefKpi(BaseModel):
+    """Single KPI with optional current value for progress-aware audit."""
+    name: str = ""
+    target_value: str = ""
+    unit: str = ""
+    current_value: str = ""
+    current_status: str = "unknown"   # on_track / at_risk / off_track / unknown
+
+
+class SocraticInsight(BaseModel):
+    """One answered Socratic Q&A pair distilled for context injection.
+
+    Only questions with non-empty answers reach this list; tagged
+    assumptions are surfaced so the LLM can flag direction dependence
+    on the same assumption.
+    """
+    category: str = ""
+    question: str = ""
+    answer: str = ""
+    is_assumption: bool = False
+
+
+class CldNodeSummary(BaseModel):
+    """One CLD variable. `is_leverage=True` flags a breakpoint candidate."""
+    label: str = ""
+    node_type: str = "variable"
+    is_leverage: bool = False
+
+
+class CldEdgeSummary(BaseModel):
+    """One causal arrow (from → to) with polarity."""
+    from_label: str = ""
+    to_label: str = ""
+    polarity: str = "+"     # "+" reinforcing / "-" balancing
+
+
+class CldSummary(BaseModel):
+    """Flattened CLD view used as audit context."""
+    nodes: list[CldNodeSummary] = Field(default_factory=list)
+    edges: list[CldEdgeSummary] = Field(default_factory=list)
+    leverage_points: list[str] = Field(default_factory=list)  # node labels
+
+
+class BriefContextSnapshot(BaseModel):
+    """Project-level upstream context for context-aware coverage audit.
+
+    Built once per /triz/solve-directed call by `fetch_brief_context`,
+    passed as a single object down to Step H-1 (decompose) and Step H-2
+    (audit) so the same context surface is visible to both stages.
+
+    Any field may be empty — the pipeline falls back to "(未提供)" in
+    prompts so the LLM is told explicitly when a context channel is
+    missing rather than silently degrading.
+    """
+    project_id: str = ""
+    mission: str = ""
+    constraints: list[BriefConstraint] = Field(default_factory=list)
+    kpis: list[BriefKpi] = Field(default_factory=list)
+    socratic_summary: list[SocraticInsight] = Field(default_factory=list)
+    cld_summary: CldSummary = Field(default_factory=CldSummary)
+
+
+# ---------------------------------------------------------------------------
 # Step H / Step I: Resolution Coverage models
 # ---------------------------------------------------------------------------
 
+# Resolution status: 5-state semantic verdict for whether a direction
+# actually resolves its contradiction *in the original problem context*.
+# Pure rendering label is the FE concern — backend uses this for sort
+# de-prioritisation (see _apply_coverage_to_scores).
+ResolutionStatus = Literal[
+    "directly_resolves",        # improves desired + suppresses undesired + within boundary
+    "partially_resolves",       # only one of the two sides; or symptom-only
+    "conditionally_resolves",   # theoretically yes IF key_assumptions hold
+    "does_not_resolve",         # weak link to contradiction; no real fix
+    "unclear",                  # not enough info to decide; do not over-confidently judge
+]
+
+# Layer the direction touches in the causal chain. Surfaced so RD can
+# spot "all top picks are symptom-level" failure modes early.
+AddressesLayer = Literal[
+    "root_cause",
+    "mechanism",
+    "symptom",
+    "unclear",
+]
+
+# SubRequirement kind: maps to the user's Step 1 contradiction split.
+# `mission_outcome` is an extra kind for KPI-level goals that are not
+# inside the contradiction text but must still be satisfied by any
+# direction that claims to "really" resolve it.
+SubRequirementKind = Literal[
+    "desired_improvement",
+    "undesired_effect",
+    "boundary_condition",
+    "mission_outcome",
+]
+
+
 class SubRequirement(BaseModel):
-    """矛盾分解出的單一物理子需求 (Step H-1)。"""
+    """矛盾分解出的單一子需求 (Step H-1, context-aware).
+
+    v2 fields (kind, source_ref) are additive — legacy payloads without
+    them deserialize to safe defaults so this model stays backward
+    compatible with rows persisted before the context-aware refactor.
+    """
     id: str = ""            # e.g. "SR-1"
     domain: str = ""        # e.g. "thermal", "electromagnetic", "mechanical"
     description: str = ""
     why_necessary: str = ""
+    # --- v2 additions (context-aware decomposition) ---
+    kind: SubRequirementKind = "desired_improvement"
+    source_ref: str = ""    # e.g. "mission" | "constraint:C1" | "kpi:K2" |
+                            #      "contradiction" | "socratic" | "cld"
+
+
+# Per-SR verdict — UI-friendly 5-state label describing what the
+# direction does for ONE sub-requirement. Derived primarily from the
+# LLM's coverage_matrix score, then upgraded/downgraded by key
+# assumptions / mission violations / unresolved flags so the UI does
+# not need to cross-reference three sections to understand a row.
+#
+#   "directly_solves"  — score=2, no assumption blocks this SR
+#   "partially_solves" — score=1, partial / indirect support
+#   "needs_verify"     — score=2 but an unverified assumption gates it
+#   "violates"         — direction directly breaks this SR (e.g. mass
+#                         cap broken). Emitted when mission_violations
+#                         enumerates this SR.
+#   "not_addressed"    — score=0, the direction does nothing for this
+#   "unclear"          — no audit info available (legacy fallback)
+PerSrVerdict = Literal[
+    "directly_solves",
+    "partially_solves",
+    "needs_verify",
+    "violates",
+    "not_addressed",
+    "unclear",
+]
 
 
 class CoverageEntry(BaseModel):
-    """單一 (方向, 子需求) 配對的覆蓋評分。"""
+    """單一 (方向, 子需求) 配對的覆蓋評分。
+
+    v2 fields (verdict / verdict_zh) carry the human-friendly per-SR
+    state for the new SR-grouped UI. Legacy rows lacking these fields
+    fall back to ``verdict="unclear"`` and the frontend re-derives a
+    label from ``score`` + audit-level assumptions.
+    """
     sub_requirement_id: str = ""
     score: int = 0          # 0 / 1 / 2
     rationale: str = ""
+    # v2 additions for SR-grouped UI
+    verdict: PerSrVerdict = "unclear"
+    verdict_zh: str = ""    # single-sentence plain-language explanation
 
 
 class DirectionCoverageAudit(BaseModel):
-    """單一方向的覆蓋率審計結果 (Step H-2)。"""
+    """單一方向的覆蓋率審計結果 (Step H-2, context-aware).
+
+    v2 fields express the 5-state verdict + boundary/CLD violations so
+    the FE can render a meaningful status badge and so the ranker can
+    push "does_not_resolve" / "unclear" to the bottom regardless of
+    raw coverage_score. Legacy rows missing these fields parse with
+    safe defaults (resolution_status="unclear").
+    """
     direction_id: str = ""
     coverage_matrix: list[CoverageEntry] = Field(default_factory=list)
     coverage_score: float = 0.0   # 0.0–10.0
     unresolved_gaps: list[str] = Field(default_factory=list)
+    # --- v2 additions (context-aware audit) ---
+    resolution_status: ResolutionStatus = "unclear"
+    key_assumptions: list[str] = Field(default_factory=list)
+    # Required when resolution_status == "conditionally_resolves";
+    # validator below auto-promotes that case if assumptions present.
+    mission_violations: list[str] = Field(default_factory=list)
+    # Lines like "violates constraint C2: total weight > 5kg"
+    cld_side_effects: list[str] = Field(default_factory=list)
+    # Lines like "amplifies feedback loop A→B→A via shared node X"
+    addresses_layer: AddressesLayer = "unclear"
+    gap_summary: str = ""
+
+    @model_validator(mode="after")
+    def _promote_conditional_when_assumptions_present(self):
+        """If RD-overridden audit lists key_assumptions but left status
+        as 'directly_resolves', downgrade to 'conditionally_resolves'.
+
+        Prevents the common LLM tic of claiming full resolution while
+        also enumerating prerequisites — those are conditions, not
+        guarantees.
+        """
+        if (
+            self.resolution_status == "directly_resolves"
+            and len(self.key_assumptions) > 0
+        ):
+            self.resolution_status = "conditionally_resolves"
+        return self
 
 
 class CombinedDirection(BaseModel):
@@ -1943,13 +2138,23 @@ class ConsolidationResult(BaseModel):
 
 
 class SolveDirectedRequest(BaseModel):
-    """POST /triz/solve-directed — 單一矛盾方向導向求解。"""
+    """POST /triz/solve-directed — 單一矛盾方向導向求解。
+
+    Context-aware refactor: the request may optionally carry a
+    pre-built `BriefContextSnapshot`. When omitted (None), the
+    pipeline lazily calls `fetch_brief_context(project_id)` so the
+    same /triz/solve-directed contract works for both:
+      • production UI flow (loads project context from Supabase)
+      • harness / unit tests (injects synthetic context directly)
+    """
     project_id: str
     contradiction_id: str
     natural_description: str
     severity: Literal["fatal", "major", "minor", "unknown"] = "unknown"
     improving_param: int | None = None
     worsening_param: int | None = None
+    # Optional override for tests / harness. Production callers may omit.
+    brief_context: BriefContextSnapshot | None = None
 
 
 class SolveDirectedResponse(BaseModel):

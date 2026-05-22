@@ -970,3 +970,94 @@ Step 3 深挖新 TC：
 
 - 時間允許 → 回 Step 3 重新深挖（尋找被動隔熱方案）
 - 出貨壓力 → 記錄為技術債，標記「TC2-TC3 熱耦合 PC 未完全解決」，排入下一代待辦
+
+---
+
+## 7. Context-Aware Coverage Audit（Step H 的 v2 改造）
+
+**設計動機**：先前的 Step H-1（拆矛盾）與 Step H-2（評每個方向是否解到）只看 `natural_description`，**完全沒餵入 mission / constraints / KPIs / socratic_summary / cld_summary**。結果是評分跑在「真空脈絡」裡，會把實際違反 mission 或破壞 CLD 的方向排到 Top1。
+
+這次改造（方案 A）的核心承諾：
+
+- **零新增 LLM call**：H-1 / H-2 仍各跑一次。
+- **只擴充 prompt 與輸出 schema**：把 5 段 context 注入 prompt、輸出多 5 個語意欄位。
+- **5 狀態語意覆蓋連續分數**：排序仍用 `weighted_total`，但 `resolution_status` 對它乘上「狀態係數」，避免高分卻沒真的解到的方向爬上 Top1。
+
+### 7.1 資料流
+
+```
+brief / explore 階段資料
+  ├─ briefs.mission
+  ├─ constraints (C-code / description / hard|soft / feasibility)
+  ├─ kpis (target / unit / current / status)
+  ├─ socratic_questions.answer (已答 Q&A，依 tagged_as_assumption 優先)
+  └─ cld_nodes + cld_edges (含 is_leverage 斷路點)
+       │
+       ▼  fetch_brief_context(project_id)
+BriefContextSnapshot  ─── 一次組好，傳給 H-1 / H-2
+       │
+       ├──→ Step H-1 _decompose_contradiction
+       │        Prompt 多 3 個 block：<mission> <constraints> <kpis>
+       │        輸出 SubRequirement 加 2 個欄位：
+       │          • kind: desired_improvement | undesired_effect
+       │                  | boundary_condition | mission_outcome
+       │          • source_ref: mission | constraint:Cx | kpi:Kx | contradiction
+       │
+       └──→ Step H-2 _audit_coverage
+                Prompt 多 5 個 block：<mission> <constraints> <kpis>
+                                      <socratic_insights> <cld_summary>
+                輸出 DirectionCoverageAudit 加 5 個欄位：
+                  • resolution_status (5 狀態)
+                  • key_assumptions[]      條件成立才必填
+                  • mission_violations[]   違反 mission / KPI 清單
+                  • cld_side_effects[]     CLD 連鎖風險
+                  • addresses_layer (root_cause | mechanism | symptom | unclear)
+```
+
+### 7.2 5 狀態 ResolutionStatus
+
+| status | 判定條件 | 排序係數 |
+|---|---|---:|
+| `directly_resolves` | 改善目標 + 抑制副作用 + 未違反邊界 + 無關鍵假設 | × 1.00 |
+| `conditionally_resolves` | 理論上可行，但依賴 `key_assumptions` 中列出的前提 | × 0.95 |
+| `partially_resolves` | 只解一面 / 只處理症狀（symptom-only） | × 0.80 |
+| `unclear` | 資訊不足，無法可靠判定 | × 0.50 |
+| `does_not_resolve` | 與矛盾關聯弱 / 違反 mission / KPI / 邊界 | × 0.40 |
+
+**安全網**：`DirectionCoverageAudit` 的 `model_validator` 會自動把「`directly_resolves` 同時列出 key_assumptions」降級為 `conditionally_resolves`，防止 LLM 把條件式判定錯標為直接成立。
+
+### 7.3 排序公式（context-aware）
+
+```
+raw = consensus×WEIGHT_CONSENSUS
+    + feasibility×WEIGHT_FEASIBILITY
+    + cost_difficulty×WEIGHT_COST
+    + coverage_score×WEIGHT_COVERAGE
+    - over_cluster_penalty
+
+weighted_total = raw × RESOLUTION_STATUS_MULTIPLIER[status]
+```
+
+排序結果寫進 `score_rationale`（附 `[resolution=<status>×<mult>]`），確保 RD 能在 UI 直接看到「為什麼這個高分方向被推到後段」。
+
+### 7.4 邊界與限制
+
+- **不會新增 LLM call**：H-1 / H-2 仍各跑一次。每段 prompt 多 600–1200 token。
+- **context 截短策略**（[`backend/app/services/brief_context.py`](backend/app/services/brief_context.py:53)）：
+  - Socratic 最多 12 條，tagged_as_assumption 優先保留
+  - CLD 最多 30 nodes / 60 edges，leverage 節點優先保留
+  - 邊找不到節點 label 會被丟掉（避免 LLM 看到孤兒參照）
+- **空 snapshot 仍可運作**：所有 context block 為 `"(未提供)"`，prompt 已明確告知 LLM 此頻道缺失。
+- **不向後不相容**：legacy DB row 沒有 `kind / resolution_status` 等欄位 → 預設 `desired_improvement / unclear`，前端與排序仍能跑。
+
+### 7.5 不在這次改造範圍
+
+- **consolidate 之後的最終 mission/KPI gate**：留給下一個迭代。本次只在「每個矛盾」內把脈絡放回去。
+- **Step I（CombinedDirection）的 prompt 也吃 context**：本次未動，combined 仍只看自然描述。
+- **重新訓練 LLM 對 5 狀態的判定一致性**：未做 calibration，prompt 內的 4 個 few-shot 範例是初版。如果未來 status 分布偏離預期，先調 few-shot 例子再考慮微調係數。
+
+### 7.6 後續觀察點
+
+1. **延遲增幅**：若 per-矛盾 wall-clock 增幅 > 2 秒，先壓 `MAX_SOCRATIC_INSIGHTS` 與 `MAX_CLD_NODES`。
+2. **狀態分布**：若 `unclear` 比例 > 30%，代表 context 餵入不足或 prompt 指令不清，調 [`RESOLUTION_COVERAGE_AUDIT_PROMPT`](backend/app/prompts/triz_solver.py)。
+3. **`does_not_resolve` 是否真的被踢到底**：用 [`backend/tests/unit/test_context_aware_audit.py`](backend/tests/unit/test_context_aware_audit.py) 作為迴歸基準；若 RD 抱怨「某個高 coverage 但不該推薦的方向還在 Top2」，調 `RESOLUTION_STATUS_MULTIPLIER`。

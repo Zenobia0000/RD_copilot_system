@@ -1,9 +1,11 @@
 # Environment variables (contains secrets)
+*.env
 .env
 .env.local
 .env.*.local
 backend/.env
 supabase/.env
+supabase/*_config.toml
 
 # Logs
 logs

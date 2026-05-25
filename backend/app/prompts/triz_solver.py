@@ -1616,6 +1616,189 @@ IF status == "conflict":
 # caller when the corresponding project data is empty; the LLM is told
 # explicitly to skip kinds it cannot ground in the supplied context.
 
+# ---------------------------------------------------------------------------
+# Phase 2 — DecisionCard 產出 prompt（per direction）
+# 設計理念見 plans/triz-redesign.md §3.2
+# ---------------------------------------------------------------------------
+
+DECISION_CARD_PROMPT = """\
+<task>
+You are producing a DECISION CARD for ONE TRIZ direction so a R&D
+engineer can decide in 30 seconds whether to PICK or SKIP it.
+
+You are NOT doing full engineering review here — that is done later by
+the VerdictCard against the consolidated plan. Your job is concise,
+service-oriented selling: «what this direction does, which face of the
+contradiction it addresses, and how it combines with the other N-1
+directions on the same contradiction».
+</task>
+
+<contradiction>
+{natural_description}
+</contradiction>
+
+<sub_requirements_brief>
+{sub_requirements_brief}
+</sub_requirements_brief>
+
+<this_direction>
+direction_id: {direction_id}
+direction_name: {direction_name}
+direction_summary: {direction_summary}
+tc_count: {tc_count}
+pc_count: {pc_count}
+sf_count: {sf_count}
+affected_modules: {affected_modules}
+sample_suggestions: {sample_suggestions}
+</this_direction>
+
+<other_directions>
+{other_directions_brief}
+</other_directions>
+
+<resolution_status_hint>
+{resolution_status_hint}
+</resolution_status_hint>
+
+<output_schema>
+{{
+  "one_liner": "≤40 字一句話機制，動詞開頭，不講廢話。例：用 PWM 諧波抑制 + dead-time 補償降低 RMS 電流",
+  "contradiction_face": "improving_side | worsening_side | both | side_effect",
+  "face_badge": "≤8 字 emoji + 短語，例：🌡️ 降熱不擴體積",
+  "resolution_status": "directly_resolves | partially_resolves | conditionally_resolves | does_not_resolve | unclear",
+  "resolution_one_line": "≤60 字，引用 SR-x 說明覆蓋情況。例：降銅損 6-15%，但受限於 motor max 5Nm 無法獨力達 125Nm",
+  "quick_tags": {{
+    "effort": "low | medium | high",
+    "evidence_level": "E0 | E1 | E2 | E3 | E4",
+    "affects_modules": ["最多 4 個受影響模組名稱"]
+  }},
+  "combination_hints": {{
+    "synergy_with": ["可以『1+1>2』搭配的其他方向 ID 或類別簡述，最多 3 條"],
+    "conflict_with": ["會撞同一介入點而互斥的其他方向 ID 或類別簡述，最多 3 條"],
+    "best_paired_with": ["推薦組合的其他方向 ID 或類別簡述，最多 2 條"]
+  }}
+}}
+</output_schema>
+
+<rules>
+- 「effort」: 看 affected_modules 數量 + 是否動結構而定（控制/韌體 only=low，材料/結構=medium，重新拓撲=high）。
+- 「evidence_level」依此規則自評：
+  - E4 已量產驗證 / E3 同類應用測試 / E2 跨領域類比可信 / E1 物理推理 / E0 純臆測
+- 「combination_hints」必須具體 — 不能寫 "good for many directions"；要寫
+  「跟 DIR-X 介入相同位置會衝突」、「跟『改齒箱拓撲類』方向疊加」這種具體線索。
+- 不確定的欄位寧可 unclear / unknown，也不要編造數字。
+</rules>
+"""
+
+
+# ---------------------------------------------------------------------------
+# Phase 1 (S0) — 演算法為骨：SR 生成改為「列舉候選 → 評分 → 篩選 → 改寫」
+# 以下兩個 prompt 取代舊的自由產 3-8 條 CONTRADICTION_DECOMPOSE_PROMPT。
+# 舊 prompt 暫時保留供 v1 回退與比較，未來會由 ADR-009 deprecate。
+# ---------------------------------------------------------------------------
+
+RELEVANCE_SCORING_PROMPT = """\
+<task>
+You are scoring how RELEVANT each pre-enumerated candidate is to the given
+contradiction. You are NOT generating new items. You are NOT merging items.
+You are NOT rewriting items. You ONLY output a score 0-3 for each candidate.
+</task>
+
+<contradiction>
+{natural_description}
+</contradiction>
+
+<candidates>
+{candidates_json}
+</candidates>
+
+<scoring_scale>
+0 = Not relevant — this candidate has no causal or business relation to the
+    contradiction. (e.g. cost ceiling 跟 thermal trade-off 通常無直接關聯)
+1 = Weakly relevant — there is an indirect link but the candidate is not a
+    primary driver of resolving this contradiction. Surfaced as ⚠️ tooltip,
+    not a proper SR.
+2 = Relevant — solving this contradiction must satisfy / respect this
+    candidate; ignoring it makes the resolution incomplete.
+3 = Directly involved — this candidate IS one face of the contradiction or
+    is the dominant boundary / outcome the contradiction is fighting against.
+</scoring_scale>
+
+<scoring_rules>
+- candidate kind = desired_improvement AND source_ref = contradiction
+  → MUST score 3 (this is one face of the contradiction itself)
+- candidate kind = undesired_effect AND source_ref = contradiction
+  → MUST score 3 (this is the other face of the contradiction itself)
+- candidate kind = boundary_condition AND extras.type = "hard"
+  → MUST score >= 1 (hard constraints are never irrelevant; at minimum surface
+    them as ⚠️ tooltip even if not strongly linked)
+- Every other candidate: judge by causal / physical / mission-level relevance.
+- You MUST emit exactly one score per candidate_id (no more, no fewer).
+- You MUST NOT invent new candidate_ids.
+- You MUST NOT merge two candidates into one.
+- You MUST NOT rewrite raw_text.
+- Provide a brief "why" (≤40 chars Chinese) explaining the score.
+</scoring_rules>
+
+<output_schema>
+{{
+  "scores": [
+    {{"candidate_id": 1, "score": 3, "why": "矛盾本身的 improving 面"}},
+    {{"candidate_id": 2, "score": 3, "why": "矛盾本身的 worsening 面"}},
+    {{"candidate_id": 3, "score": 2, "why": "外徑限制直接影響馬達截面"}},
+    {{"candidate_id": 4, "score": 1, "why": "Spindle length 與此矛盾弱相關"}},
+    ...
+  ]
+}}
+</output_schema>
+"""
+
+
+SR_REWRITE_PROMPT = """\
+<task>
+Rewrite ONE pre-classified sub-requirement candidate into a single,
+precise sentence. You are NOT changing its meaning. You are NOT merging
+with anything else. You ONLY produce a clean single-sentence description.
+</task>
+
+<candidate>
+kind: {kind}
+source_ref: {source_ref}
+raw_text: {raw_text}
+</candidate>
+
+<contradiction_context>
+{contradiction_desc}
+</contradiction_context>
+
+<rules>
+- Output 1 sentence, ≤80 Chinese characters (or ≤120 English chars).
+- MUST contain ALL numeric values present in raw_text (literally — copy them).
+- MUST be phrased according to the kind:
+  - desired_improvement → "在 [限制] 內，必須 [動作 + 目標]，使 [結果]"
+  - undesired_effect   → "[行為] 不得導致 [惡化結果]"
+  - boundary_condition → "[屬性] 必須 [運算符] [數值] [單位]"
+  - mission_outcome    → "最終方案仍須滿足 [指標] [運算符] [數值] [單位]"
+- MUST NOT introduce facts not present in raw_text or contradiction_context.
+- Provide why_necessary (≤50 Chinese chars) explaining why this matters
+  to the contradiction.
+- Provide domain hint (thermal / electromagnetic / mechanical / acoustic /
+  structural / cost / regulatory / system / "" if non-physical).
+</rules>
+
+<output_schema>
+{{
+  "description": "在既定封裝下，drive unit 運轉噪聲必須 ≤60 dBA。",
+  "why_necessary": "M3 hard constraint；違反即方案無效。",
+  "domain": "acoustic"
+}}
+</output_schema>
+"""
+
+
+# ---------------------------------------------------------------------------
+# Legacy (v1) — kept for back-compat. Will be removed after Phase 2 lands.
+# ---------------------------------------------------------------------------
 CONTRADICTION_DECOMPOSE_PROMPT = """\
 <task>
 You are a TRIZ methodology expert AND a domain engineer doing
@@ -2060,6 +2243,259 @@ the candidate pool.
     "potential_conflicts": "...",
     "integration_strategy": "..."
   }}
+}}
+</output_schema>
+"""
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — Intra-contradiction multi-pick compatibility
+# ---------------------------------------------------------------------------
+# 對同一條矛盾下使用者勾選的多個方向，做兩兩相容性檢查。
+# 與 COMPATIBILITY_CHECK_PROMPT 的差別：
+#   - 同一條矛盾、同一場物理約束 → 衝突門檻較低
+#   - 「同時動同一個 actuator / 同一個 firmware loop」 視為衝突
+#   - 但「機構 + 控制 + 材料」常常可共存 → 預設 compatible
+
+INTRA_COMPATIBILITY_CHECK_PROMPT = """\
+<task>
+You are a TRIZ methodology expert. The R&D engineer has picked MULTIPLE
+implementation directions UNDER THE SAME contradiction. Decide whether
+these directions can be physically combined as ONE composite solution.
+</task>
+
+<contradiction>
+{contradiction_desc}
+</contradiction>
+
+<picked_directions>
+{directions_block}
+</picked_directions>
+
+<definition_of_incompatible_intra>
+Two directions under the SAME contradiction are INCOMPATIBLE if ANY of:
+  1. They both attempt to modify the SAME physical attribute of the SAME
+     component in mutually exclusive ways (e.g. "thicker wall vs thinner wall"
+     of the same housing rib).
+  2. They both occupy the SAME control loop / firmware path with conflicting
+     algorithms (e.g. two competing PWM-shaping schemes on the same inverter).
+  3. Their TRIZ tool families collide architecturally (e.g. two topology-level
+     redesigns that each require the gear train to be re-laid-out from scratch
+     in incompatible geometries).
+  4. The COMBINED implementation overshoots a hard boundary the contradiction
+     was already trying to respect (e.g. both add mass while the contradiction
+     is about reducing mass).
+
+They are COMPATIBLE if:
+  - They sit at DIFFERENT layers (control vs structure vs material vs topology).
+  - They touch the same module but on orthogonal axes (one geometry, one material).
+  - One acts as an enabler / amplifier of the other (e.g. mechanical change opens
+    headroom that the control change consumes).
+
+Default to COMPATIBLE under the same contradiction unless you can point to a
+specific physical / topological / firmware conflict in one sentence.
+</definition_of_incompatible_intra>
+
+<instructions>
+1. For every unordered pair (A, B) of picked directions, output a CompatibilityResult.
+2. compatible: true | false
+3. reason: ≤1 sentence. If false, name the specific clash; if true, name the layer/axis separation.
+4. conflict_type: one of physical_state | intervention_clash | module_overlap | secondary_loop | none
+5. After pair list, emit a `recommendation` (≤80 字, 繁中) describing the best subset to ship together.
+</instructions>
+
+<output_schema>
+{{
+  "pairs": [
+    {{
+      "direction_a": "DIR-1 ...",
+      "direction_b": "DIR-2 ...",
+      "compatible": true,
+      "conflict_type": "none",
+      "reason": "Different layers (firmware vs gear topology); effects superimpose."
+    }}
+  ],
+  "recommendation": "建議組合 DIR-1 + DIR-2，避免同時加上 DIR-4（與 DIR-1 共用同一 PWM loop）。"
+}}
+</output_schema>
+"""
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — EngineeringVerdictCard Q1–Q8
+# ---------------------------------------------------------------------------
+# 對整併方案做完整工程審判。input 含：
+#   - 整併方案的 adopted_directions (每條矛盾被選方向 + 摘要)
+#   - brief_ctx (mission / constraints / KPIs / cld_summary / socratic_summary)
+#   - 各方向的 sub_requirements (供 Q5 涵蓋率判定)
+# 強制要求：
+#   - Q4 cld_path：直接吃 brief_ctx.cld_summary 全文，由 LLM 沿邊走 1-3 hop
+#   - Q6 verification_plan.socratic_action_links：必須引用 socratic.category=action
+#   - Q7 duty_cycle_verdict：peak / continuous / startup / steady_state 全部都要 verdict
+#   - Q8 boundary_collapse：至少 5 條 falsifiable fail conditions
+
+ENGINEERING_VERDICT_CARD_PROMPT = """\
+<task>
+You are a senior systems engineer doing a final go/no-go review on a
+cross-contradiction CONSOLIDATED solution. Produce a complete Q1–Q8
+engineering verdict. Be brutally honest. Optimistic LLM tendency
+is explicitly forbidden — every section requires concrete falsifiable
+content drawn from the inputs.
+</task>
+
+<inputs>
+<mission>
+{mission_block}
+</mission>
+
+<constraints>
+{constraints_block}
+</constraints>
+
+<kpis>
+{kpis_block}
+</kpis>
+
+<consolidation_plan>
+{plan_block}
+</consolidation_plan>
+
+<sub_requirements>
+{sr_block}
+</sub_requirements>
+
+<cld_summary>
+{cld_block}
+</cld_summary>
+
+<socratic_qa>
+{socratic_block}
+</socratic_qa>
+
+<duty_cycles>
+- peak:         峰值 (短時間瞬間最大負荷)
+- continuous:   連續 (thermal-bound, 較長時間)
+- startup:      啟動 (含 inrush current, 瞬態)
+- steady_state: 穩態 (常駐運轉)
+</duty_cycles>
+</inputs>
+
+<rules>
+GLOBAL:
+- 全部 verdict 文字使用「繁體中文」。Schema keys 維持英文。
+- 不准用「TBD / 待補 / unknown」。每節都要 actionable 結論。
+- 不准只說「需要進一步分析」；要寫出「需要在哪個層級分析什麼」。
+
+Q1 contradiction_face_per_picked:
+- 對 consolidation_plan 中的每條被勾方向，回答它解的是 improving / worsening / 兩面 / 副作用。
+- introduces_new_side_effect: ≥0 條，若無就空 list。
+
+Q2 mechanism_trace:
+- technology_mix: 從 control/structure/material/topology 選 1-4 個
+- delta_chain: 3-6 條條列因果，從介入點走到「解掉矛盾的物理量」
+- assumptions: ≥2 條 (例如「假設 PWM 控制器可承載額外運算負荷」)
+- evidence_level: E0 (純推理) ~ E4 (工程量測)
+
+Q3 feasibility_matrix:
+- 對 constraints + KPIs + 任何 mission spec 中明確列出的「軸」逐項評定
+- verdict 嚴格區分: pass / marginal_pass / bottleneck / not_addressed / not_affected / fail
+- 至少 5 條 axis
+- bottleneck_axes: 從 axes 中挑出 verdict ∈ {{bottleneck, marginal_pass, fail}} 的條目，提供 axis 名稱
+- overall_verdict: pass (全 pass/not_affected) / marginal (有 marginal/bottleneck 但無 fail) / fail (任何 fail)
+
+Q4 side_effects_via_cld:
+- 直接從上方 cld_summary 走 1-3 hop。每條 path 列出實際走過的節點 label。
+- polarity_chain 對應每段邊的 polarity (positive / negative)
+- 至少 2 條 path；若 cld_summary 空或無 affected node，path=[] 並在 socratic_warnings 寫明
+- socratic_warnings: 從 socratic_qa 中 category=counter 的問題抓出對應警示 (≤120 字/條)
+
+Q5 coverage_completeness:
+- 用 sub_requirements 的 SR id (例 SR-1, SR-2, …) 分類到 resolves_fully / resolves_partial / resolves_conditional / does_not_address
+- 每條 SR 只能出現在一個分類
+- open_questions: ≥1 條 (整併方案還沒回答的工程細節)
+
+Q6 verification_plan:
+- steps: ≥3 條，phase 必須跨越 simulation / bench / prototype 至少 2 個階段
+- blocking=true 至少 1 條
+- socratic_action_links: 從 socratic_qa category=action 的問題抽出建議步驟
+
+Q7 duty_cycle_verdict:
+- peak / continuous / startup / steady_state **四欄都必填** addressed / marginal / not_addressed
+- cycle_specific_notes: ≥1 句，明確說明「此方案在 X 工況強，在 Y 工況弱」
+
+Q8 boundary_collapse:
+- **MUST list at least 5** falsifiable fail conditions
+- 每條包含 condition (≤60 字)、failure_mode (≤80 字)、severity (mild/moderate/catastrophic)
+- 不可以全部寫 mild；至少 1 條 catastrophic 或 moderate
+
+FINAL:
+- final_verdict: adopt (整體可採用) / adopt_with_conditions (需附條件) / needs_revision / reject
+- final_rationale: ≤300 字
+- confidence: 0.0-1.0
+</rules>
+
+<output_schema>
+{{
+  "contradiction_face_per_picked": [
+    {{
+      "contradiction_id": "...",
+      "picked_direction_id": "...",
+      "picked_direction_name": "...",
+      "improving_side": "yes|partial|no",
+      "worsening_side": "yes|partial|no",
+      "introduces_new_side_effect": ["..."]
+    }}
+  ],
+  "mechanism_trace": {{
+    "technology_mix": ["control", "structure"],
+    "delta_chain": ["...", "...", "..."],
+    "assumptions": ["...", "..."],
+    "evidence_level": "E2"
+  }},
+  "feasibility_matrix": {{
+    "axes": [
+      {{"axis": "外徑 ≤111mm", "source_ref": "constraint:C-01",
+        "verdict": "pass", "rationale": "...", "quantitative_estimate": "no change"}}
+    ],
+    "overall_verdict": "marginal",
+    "bottleneck_axes": ["motor max torque 5Nm"]
+  }},
+  "side_effects_via_cld": {{
+    "paths": [
+      {{"cld_path": ["馬達電流", "損失", "熱負荷"],
+        "polarity_chain": ["positive", "positive"],
+        "direction_impact": "...", "risk_level": "medium"}}
+    ],
+    "socratic_warnings": ["⚠️ ..."]
+  }},
+  "coverage_completeness": {{
+    "resolves_fully": ["SR-1"],
+    "resolves_partial": ["SR-3"],
+    "resolves_conditional": [],
+    "does_not_address": ["SR-5"],
+    "open_questions": ["..."]
+  }},
+  "verification_plan": {{
+    "steps": [
+      {{"phase": "simulation", "test_description": "...",
+        "expected_outcome": "...", "effort_hours": 16, "blocking": true}}
+    ],
+    "socratic_action_links": ["📋 ..."]
+  }},
+  "duty_cycle_verdict": {{
+    "peak": "marginal",
+    "continuous": "addressed",
+    "startup": "not_addressed",
+    "steady_state": "addressed",
+    "cycle_specific_notes": "..."
+  }},
+  "boundary_collapse": [
+    {{"condition": "...", "failure_mode": "...", "severity": "moderate"}},
+    {{"condition": "...", "failure_mode": "...", "severity": "catastrophic"}}
+  ],
+  "final_verdict": "adopt_with_conditions",
+  "final_rationale": "...",
+  "confidence": 0.7
 }}
 </output_schema>
 """

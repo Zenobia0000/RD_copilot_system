@@ -595,6 +595,21 @@ export type {
   ConsolidationResult,
   ConflictReport,
   CompatibilityResult,
+  // Phase 3 — picks + intra compatibility + EngineeringVerdictCard
+  PickedSelection,
+  IntraContradictionCompatibility,
+  EngineeringVerdictCard,
+  ContradictionFacePerPicked,
+  MechanismTrace,
+  FeasibilityMatrix,
+  FeasibilityVerdict,
+  SideEffectsViaCld,
+  CldSideEffect,
+  CoverageCompleteness,
+  VerificationPlan,
+  VerificationStep,
+  DutyCycleVerdict,
+  BoundaryCollapse,
 } from "@/types/directedTriz";
 
 export function trizSolveDirected(body: SolveDirectedRequest) {

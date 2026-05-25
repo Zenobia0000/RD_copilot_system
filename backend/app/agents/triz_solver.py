@@ -7,6 +7,7 @@ import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field as dc_field
+from typing import Literal
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,14 @@ from app.prompts.triz_solver import (
     DIFFERENTIAL_ANALYSIS_PROMPT,
     SIM_MATRIX_PROMPT,
     COMPLEXITY_CHECK_PROMPT,
+    # Phase 1 (S0) 演算法為骨：SR 生成新流程 prompts
+    RELEVANCE_SCORING_PROMPT,
+    SR_REWRITE_PROMPT,
+    # Phase 2: DecisionCard 產出
+    DECISION_CARD_PROMPT,
+    # Phase 3: 整併三層改造
+    INTRA_COMPATIBILITY_CHECK_PROMPT,
+    ENGINEERING_VERDICT_CARD_PROMPT,
     # Engineering Spec Pipeline
     ENGINEERING_SPEC_SYSTEM,
     ENGINEERING_SPEC_EXPANSION,
@@ -2409,11 +2418,35 @@ from app.models.schemas import (
     SolveDirectedResponse,
     ConsolidateRequest,
     ConsolidateResponse,
+    PersistenceOutcome,
     SubRequirement,
+    SrWeakWarning,
     CoverageEntry,
     DirectionCoverageAudit,
     CombinedDirection,
     BriefContextSnapshot,
+    BriefConstraint,
+    BriefKpi,
+    # Phase 2 DecisionCard
+    DecisionCard,
+    DecisionCardQuickTags,
+    DecisionCardCombinationHints,
+    ContradictionFace,
+    # Phase 3 整併三層改造
+    PickedSelection,
+    IntraContradictionCompatibility,
+    EngineeringVerdictCard,
+    ContradictionFacePerPicked,
+    MechanismTrace,
+    FeasibilityMatrix,
+    FeasibilityVerdict,
+    SideEffectsViaCld,
+    CldSideEffect,
+    CoverageCompleteness,
+    VerificationPlan,
+    VerificationStep,
+    DutyCycleVerdict,
+    BoundaryCollapse,
 )
 
 
@@ -2775,66 +2808,329 @@ def _empty_context() -> BriefContextSnapshot:
     return BriefContextSnapshot()
 
 
-# ---- Step H-1: Context-aware decomposition --------------------------------
+# ===========================================================================
+# Step H-1 (Phase 1 / S0)：演算法為骨、LLM 為皮的 SR 生成流程
+#
+# 取代舊的 _decompose_contradiction 自由產 3-8 條 SR。新流程：
+#   S0a — 純程式列舉候選：2 + |constraints| + |KPIs| 條
+#   S0b — LLM 對每條打 0-3 相關性分（唯一可變決策點）
+#   S0c — 純程式閥值篩選：score>=2 → SR；score==1 → weak warning；score==0 → 丟棄
+#   S0d — LLM 對通過篩選的 SR 改寫單句描述（schema 強制保留 raw_text 數值）
+#
+# 穩定性保證：同 input → SR 結構（哪幾條、kind、source_ref、順序）100% 一致；
+# 描述字句允許 5% 內小差異。詳細設計見 plans/triz-redesign.md §2。
+# ===========================================================================
+
+@dataclass
+class SrCandidate:
+    """純值物件：列舉出來的候選 SR。"""
+    candidate_id: int                       # 從 1 開始的穩定編號
+    kind: str                               # SubRequirementKind 之一
+    source_ref: str                         # "contradiction" | "constraint:Cx" | "kpi:Kx"
+    raw_text: str                           # 原始描述（不被 LLM 改寫）
+    extras: dict = dc_field(default_factory=dict)
+
+
+# ---- S0a: 純函式候選列舉 ---------------------------------------------------
+
+def _enumerate_sr_candidates(
+    natural_description: str,
+    improving_param: int | None,
+    worsening_param: int | None,
+    ctx: BriefContextSnapshot | None,
+) -> list[SrCandidate]:
+    """純函式 — 列舉所有 SR 候選。
+
+    同 input → 同 output，無 LLM 介入。對 N 條 constraints + M 條 KPIs 的
+    project，永遠列出 ``2 + N + M`` 條候選，順序固定（contradiction 2 條
+    在前、constraints 依輸入順序、KPIs 依輸入順序）。
+    """
+    ctx = ctx or _empty_context()
+    cands: list[SrCandidate] = []
+    cid = 1
+
+    # === 1. 矛盾本身的兩面：固定 2 條 ===
+    from app.tools.triz_kb import get_param_name
+    improving_label = get_param_name(improving_param) or "improving side"
+    worsening_label = get_param_name(worsening_param) or "worsening side"
+    cands.append(SrCandidate(
+        candidate_id=cid,
+        kind="desired_improvement",
+        source_ref="contradiction",
+        raw_text=f"想改善：{improving_label}（{natural_description}）",
+        extras={"param_id": improving_param, "param_label": improving_label},
+    ))
+    cid += 1
+    cands.append(SrCandidate(
+        candidate_id=cid,
+        kind="undesired_effect",
+        source_ref="contradiction",
+        raw_text=f"想避免：{worsening_label}（{natural_description}）",
+        extras={"param_id": worsening_param, "param_label": worsening_label},
+    ))
+    cid += 1
+
+    # === 2. 每條 constraint = 1 條 boundary 候選 ===
+    for c in ctx.constraints:
+        if not c.code and not c.description:
+            continue
+        ref_key = c.code if c.code else f"constraint-{cid}"
+        cands.append(SrCandidate(
+            candidate_id=cid,
+            kind="boundary_condition",
+            source_ref=f"constraint:{ref_key}",
+            raw_text=c.description,
+            extras={"type": c.type or "hard", "feasibility": c.feasibility},
+        ))
+        cid += 1
+
+    # === 3. 每條 KPI = 1 條 mission_outcome 候選 ===
+    for k in ctx.kpis:
+        if not k.name:
+            continue
+        # 用 KPI 名稱當 source_ref key — 與 brief 表對齊
+        raw = f"{k.name}".strip()
+        if k.target_value:
+            raw += f" 目標 {k.target_value}"
+        if k.unit:
+            raw += f" {k.unit}".strip()
+        cands.append(SrCandidate(
+            candidate_id=cid,
+            kind="mission_outcome",
+            source_ref=f"kpi:{k.name}",
+            raw_text=raw,
+            extras={
+                "target_value": k.target_value,
+                "unit": k.unit,
+                "current_value": k.current_value,
+                "current_status": k.current_status,
+            },
+        ))
+        cid += 1
+
+    return cands
+
+
+# ---- S0b: LLM 相關性評分（唯一可變決策點） ---------------------------------
+
+def _score_sr_relevance(
+    natural_description: str,
+    candidates: list[SrCandidate],
+) -> dict[int, dict]:
+    """對每條 candidate 打 0-3 相關性分。
+
+    Returns:
+        dict: ``candidate_id`` → ``{"score": int, "why": str}``
+
+    強制規則（程式層補強，避免 LLM 翻面）:
+    - source_ref == "contradiction" → 永遠 score=3
+    - kind == boundary_condition AND extras.type == "hard" → 至少 score=1
+    - 缺漏 candidate → fallback score=1（保守當弱相關，不會丟掉資訊）
+    """
+    if not candidates:
+        return {}
+
+    cand_payload = [{
+        "candidate_id": c.candidate_id,
+        "kind": c.kind,
+        "source_ref": c.source_ref,
+        "raw_text": c.raw_text,
+        "extras": c.extras,
+    } for c in candidates]
+
+    prompt = RELEVANCE_SCORING_PROMPT.format(
+        natural_description=natural_description,
+        candidates_json=json.dumps(cand_payload, ensure_ascii=False, indent=2),
+    )
+
+    scored: dict[int, dict] = {}
+    try:
+        raw = call_llm_json(
+            TRIZ_SOLVER_SYSTEM,
+            prompt,
+            model=settings.fast_model,
+            temperature=0,  # S1: 確定性
+        )
+        data = json.loads(raw) if raw and raw.strip() else {}
+        for item in data.get("scores", []):
+            try:
+                cid = int(item.get("candidate_id"))
+                sc = int(item.get("score", 0))
+                sc = max(0, min(3, sc))  # clamp 0-3
+                scored[cid] = {"score": sc, "why": str(item.get("why") or "").strip()}
+            except (TypeError, ValueError):
+                continue
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("_score_sr_relevance LLM failed: %s — falling back to all score=1", exc)
+
+    # === 程式層補強：強制規則 ===
+    for c in candidates:
+        existing = scored.get(c.candidate_id)
+        # Rule 1: contradiction self → score=3
+        if c.source_ref == "contradiction":
+            scored[c.candidate_id] = {"score": 3,
+                                      "why": (existing or {}).get("why") or "矛盾本身"}
+            continue
+        # Rule 2: hard constraint → score>=1
+        if c.kind == "boundary_condition" and c.extras.get("type") == "hard":
+            if not existing or existing["score"] < 1:
+                scored[c.candidate_id] = {"score": 1,
+                                          "why": (existing or {}).get("why") or "hard constraint 至少弱相關"}
+                continue
+        # Rule 3: 缺漏 fallback
+        if not existing:
+            scored[c.candidate_id] = {"score": 1, "why": "LLM 漏給分，fallback 弱相關"}
+
+    return scored
+
+
+# ---- S0c: 純函式閥值篩選 ---------------------------------------------------
+
+def _filter_by_relevance(
+    candidates: list[SrCandidate],
+    scored: dict[int, dict],
+    threshold_strong: int = 2,
+    threshold_warning: int = 1,
+) -> tuple[list[SrCandidate], list[SrCandidate]]:
+    """純函式 — 用閥值切出正式 SR 與弱相關 warning。
+
+    Returns:
+        (sr_list, weak_warnings)
+        sr_list: score >= threshold_strong 的候選 → 顯示為正式 SR
+        weak_warnings: score == threshold_warning 的候選 → ⚠️ tooltip
+    """
+    sr_list = [c for c in candidates
+               if scored.get(c.candidate_id, {}).get("score", 0) >= threshold_strong]
+    weak_warnings = [c for c in candidates
+                     if scored.get(c.candidate_id, {}).get("score", 0) == threshold_warning]
+    return sr_list, weak_warnings
+
+
+# ---- S0d: LLM 改寫單句描述 -------------------------------------------------
+
+def _rewrite_sr_descriptions(
+    natural_description: str,
+    sr_candidates: list[SrCandidate],
+    scored: dict[int, dict],
+) -> list[SubRequirement]:
+    """對通過篩選的候選逐條改寫為單句描述。
+
+    Schema 強制保留 raw_text 中的數值與 source_ref（見 SR_REWRITE_PROMPT）。
+    任何單條 LLM 改寫失敗 → fallback 用 raw_text 當 description，不影響整體 SR 集合。
+    """
+    out: list[SubRequirement] = []
+    for idx, c in enumerate(sr_candidates, start=1):
+        rel = scored.get(c.candidate_id, {})
+        score = rel.get("score", 0)
+
+        description = c.raw_text  # fallback
+        why_necessary = rel.get("why") or ""
+        domain = ""
+
+        try:
+            prompt = SR_REWRITE_PROMPT.format(
+                kind=c.kind,
+                source_ref=c.source_ref,
+                raw_text=c.raw_text,
+                contradiction_desc=natural_description,
+            )
+            raw = call_llm_json(
+                TRIZ_SOLVER_SYSTEM,
+                prompt,
+                model=settings.fast_model,
+                temperature=0,  # S1: 確定性
+            )
+            data = json.loads(raw) if raw and raw.strip() else {}
+            description = str(data.get("description") or c.raw_text).strip()
+            why_necessary = str(data.get("why_necessary") or why_necessary).strip()
+            domain = str(data.get("domain") or "").strip()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "_rewrite_sr_descriptions failed for candidate_id=%s, using raw_text: %s",
+                c.candidate_id, exc,
+            )
+
+        out.append(SubRequirement(
+            id=f"SR-{idx}",
+            kind=c.kind,
+            source_ref=c.source_ref,
+            description=description,
+            why_necessary=why_necessary,
+            domain=domain,
+            raw_text=c.raw_text,
+            candidate_id=c.candidate_id,
+            relevance_score=score,
+        ))
+    return out
+
+
+# ---- S0 entrypoint: orchestrate four steps --------------------------------
 
 def _decompose_contradiction(
     natural_description: str,
     ctx: BriefContextSnapshot | None = None,
-) -> list[SubRequirement]:
-    """Step H-1: Decompose the contradiction along the 4 semantic axes
-    (desired_improvement / undesired_effect / boundary_condition /
-    mission_outcome), grounded in the supplied :class:`BriefContextSnapshot`.
+    *,
+    improving_param: int | None = None,
+    worsening_param: int | None = None,
+    return_weak_warnings: bool = False,
+) -> list[SubRequirement] | tuple[list[SubRequirement], list[SrWeakWarning]]:
+    """Step H-1 (Phase 1 / S0)：演算法為骨的 SR 生成。
 
-    When ``ctx`` is omitted the context blocks render as ``"(未提供)"``
-    and the prompt is instructed to skip boundary / mission_outcome
-    kinds rather than fabricate them — matches legacy "physical-only"
-    behaviour.
+    四步驟流程：
+      1. _enumerate_sr_candidates — 純程式列舉
+      2. _score_sr_relevance     — LLM 0-3 分（唯一決策點）
+      3. _filter_by_relevance    — 純程式閥值篩選
+      4. _rewrite_sr_descriptions— LLM 改寫單句
+
+    Args:
+        natural_description: 矛盾自然語言描述
+        ctx: BriefContextSnapshot（mission / constraints / KPIs / socratic / cld）
+        improving_param / worsening_param: TRIZ 39 參數 id（用於 contradiction 兩面標籤）
+        return_weak_warnings: True → 回傳 (sr_list, weak_warnings) tuple
+
+    Returns:
+        list[SubRequirement] 或 (list[SubRequirement], list[SrWeakWarning])
     """
     ctx = ctx or _empty_context()
-    prompt = CONTRADICTION_DECOMPOSE_PROMPT.format(
+
+    # 1. 列舉候選
+    candidates = _enumerate_sr_candidates(
         natural_description=natural_description,
-        mission_block=_format_mission_block(ctx),
-        constraints_block=_format_constraints_block(ctx),
-        kpis_block=_format_kpis_block(ctx),
+        improving_param=improving_param,
+        worsening_param=worsening_param,
+        ctx=ctx,
     )
-    try:
-        raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt, model=settings.fast_model)
-        data = json.loads(raw) if raw and raw.strip() else {}
-    except (json.JSONDecodeError, Exception) as exc:
-        logger.warning("_decompose_contradiction LLM failed: %s", exc)
-        return []
+    if not candidates:
+        logger.warning("_decompose_contradiction: no candidates enumerated")
+        return ([], []) if return_weak_warnings else []
 
-    # Vocabulary safety: keep LLM output inside the declared Literal sets.
-    # Anything off-list falls back to a safe default rather than blowing
-    # up Pydantic validation.
-    valid_kinds = {
-        "desired_improvement",
-        "undesired_effect",
-        "boundary_condition",
-        "mission_outcome",
-    }
+    # 2. 相關性評分
+    scored = _score_sr_relevance(natural_description, candidates)
 
-    subs: list[SubRequirement] = []
-    for item in data.get("sub_requirements", []):
-        try:
-            kind = str(item.get("kind") or "desired_improvement").strip()
-            if kind not in valid_kinds:
-                logger.debug("SubRequirement: invalid kind %r, defaulting to desired_improvement", kind)
-                kind = "desired_improvement"
-            subs.append(SubRequirement(
-                id=str(item.get("id") or f"SR-{len(subs)+1}"),
-                domain=str(item.get("domain") or ""),
-                description=str(item.get("description") or ""),
-                why_necessary=str(item.get("why_necessary") or ""),
-                kind=kind,
-                source_ref=str(item.get("source_ref") or ""),
-            ))
-        except Exception as exc:
-            logger.debug("Dropping malformed sub_requirement: %s (%s)", item, exc)
+    # 3. 閥值篩選
+    sr_cands, weak_cands = _filter_by_relevance(candidates, scored)
 
-    if not subs:
-        logger.warning("_decompose_contradiction returned 0 sub-requirements")
-    return subs
+    # 4. 改寫描述
+    sr_list = _rewrite_sr_descriptions(natural_description, sr_cands, scored)
+
+    if not sr_list:
+        logger.warning("_decompose_contradiction returned 0 sub-requirements after S0 pipeline")
+
+    if return_weak_warnings:
+        weak_warnings = [
+            SrWeakWarning(
+                candidate_id=c.candidate_id,
+                kind=c.kind,
+                source_ref=c.source_ref,
+                raw_text=c.raw_text,
+                relevance_score=scored.get(c.candidate_id, {}).get("score", 1),
+                why_weak=scored.get(c.candidate_id, {}).get("why", ""),
+            )
+            for c in weak_cands
+        ]
+        return sr_list, weak_warnings
+
+    return sr_list
 
 
 # ---- Step H-2: Context-aware coverage audit -------------------------------
@@ -3222,6 +3518,232 @@ def _compose_combined_direction(
         return None
 
 
+# ===========================================================================
+# Phase 2: DecisionCard 產出（每條 direction 1 張，給 RD 選購用）
+#
+# 設計理念見 plans/triz-redesign.md §3。產出時機：在所有 directions /
+# scored / SR / coverage_audits 都完成之後，對每條 direction 跑一輪輕量
+# LLM call。並發跑減少總延遲；單條失敗 fallback 為「最低資訊」的 card
+# 不會擋整體流程。
+# ===========================================================================
+
+_DEFAULT_FACE_BADGES = {
+    "improving_side": "📈 推 improving",
+    "worsening_side": "🛡️ 抑 worsening",
+    "both": "⚖️ 兩面兼顧",
+    "side_effect": "🌀 處理副作用",
+}
+
+
+def _generate_decision_card_for_direction(
+    natural_description: str,
+    direction: DirectionGroup,
+    score: DirectionScore | None,
+    sub_requirements: list[SubRequirement],
+    coverage_audit: DirectionCoverageAudit | None,
+    other_directions_brief: str,
+) -> DecisionCard:
+    """為單條 direction 產出 DecisionCard。
+
+    用結構化方式控制 LLM 自由度：
+    - resolution_status 從 coverage_audit 帶入（不讓 LLM 自由選）
+    - effort 從 score.cost_difficulty 規則式映射（不讓 LLM 自由選）
+    - 其餘欄位讓 LLM 填，但 schema 強制
+    """
+    # 1) 規則式預設值
+    if score and score.cost_difficulty:
+        cd = score.cost_difficulty
+        effort: str = "low" if cd >= 8 else "medium" if cd >= 5 else "high"
+    else:
+        effort = "medium"
+
+    resolution_status: str = "unclear"
+    resolution_one_line = ""
+    if coverage_audit:
+        resolution_status = getattr(coverage_audit, "resolution_status", "unclear") or "unclear"
+        resolution_one_line = (
+            getattr(coverage_audit, "gap_summary", "")
+            or getattr(coverage_audit, "rationale", "")
+            or ""
+        )[:60]
+
+    # 2) 準備 prompt 變數
+    sample_suggestions = [s.suggestion[:80] for s in direction.solutions[:3]]
+    affected_modules = list({m for s in direction.solutions for m in s.affected_modules})[:6]
+    sub_req_brief = "\n".join(
+        f"- {sr.id} ({sr.kind}, {sr.source_ref}): {sr.description[:60]}"
+        for sr in sub_requirements
+    ) or "(無)"
+
+    prompt = DECISION_CARD_PROMPT.format(
+        natural_description=natural_description[:300],
+        sub_requirements_brief=sub_req_brief,
+        direction_id=direction.direction_id,
+        direction_name=direction.direction_name,
+        direction_summary=direction.direction_summary[:300],
+        tc_count=direction.tc_count,
+        pc_count=direction.pc_count,
+        sf_count=direction.sf_count,
+        affected_modules=json.dumps(affected_modules, ensure_ascii=False),
+        sample_suggestions=json.dumps(sample_suggestions, ensure_ascii=False),
+        other_directions_brief=other_directions_brief,
+        resolution_status_hint=resolution_status,
+    )
+
+    # 3) LLM call（單條失敗 fallback）
+    one_liner = direction.direction_summary[:40] or direction.direction_name
+    face = "both"
+    face_badge = _DEFAULT_FACE_BADGES[face]
+    evidence_level = "E2"
+    affects_modules_out = affected_modules[:4]
+    synergy_with: list[str] = []
+    conflict_with: list[str] = []
+    best_paired_with: list[str] = []
+
+    try:
+        raw = call_llm_json(
+            TRIZ_SOLVER_SYSTEM, prompt,
+            model=settings.fast_model,
+            temperature=0,
+        )
+        data = json.loads(raw) if raw and raw.strip() else {}
+
+        one_liner = str(data.get("one_liner") or one_liner)[:80]
+        cf_raw = str(data.get("contradiction_face") or "both").strip()
+        if cf_raw in {"improving_side", "worsening_side", "both", "side_effect"}:
+            face = cf_raw
+        face_badge = str(data.get("face_badge") or "").strip() or _DEFAULT_FACE_BADGES[face]
+        face_badge = face_badge[:20]
+
+        rs_raw = str(data.get("resolution_status") or resolution_status).strip()
+        if rs_raw in {
+            "directly_resolves", "partially_resolves",
+            "conditionally_resolves", "does_not_resolve", "unclear",
+        }:
+            resolution_status = rs_raw
+        resolution_one_line = (
+            str(data.get("resolution_one_line") or resolution_one_line)[:120]
+        )
+
+        qt = data.get("quick_tags") or {}
+        effort_raw = str(qt.get("effort") or effort).strip()
+        if effort_raw in {"low", "medium", "high"}:
+            effort = effort_raw
+        ev_raw = str(qt.get("evidence_level") or evidence_level).strip()
+        if ev_raw in {"E0", "E1", "E2", "E3", "E4"}:
+            evidence_level = ev_raw
+        am = qt.get("affects_modules") or affects_modules_out
+        if isinstance(am, list):
+            affects_modules_out = [str(x).strip()[:30] for x in am if x][:4]
+
+        ch = data.get("combination_hints") or {}
+        for k_in, dst in (
+            ("synergy_with", synergy_with),
+            ("conflict_with", conflict_with),
+            ("best_paired_with", best_paired_with),
+        ):
+            arr = ch.get(k_in) or []
+            if isinstance(arr, list):
+                for item in arr[:3]:
+                    if item:
+                        dst.append(str(item).strip()[:60])
+    except Exception as exc:  # noqa: BLE001 — single card failure must not block batch
+        logger.warning(
+            "DecisionCard LLM failed for direction_id=%s: %s — using fallback",
+            direction.direction_id, exc,
+        )
+
+    return DecisionCard(
+        direction_id=direction.direction_id,
+        direction_name=direction.direction_name,
+        one_liner=one_liner,
+        contradiction_face=face,  # type: ignore[arg-type]
+        face_badge=face_badge,
+        resolution_status=resolution_status,  # type: ignore[arg-type]
+        resolution_one_line=resolution_one_line,
+        quick_tags=DecisionCardQuickTags(
+            effort=effort,  # type: ignore[arg-type]
+            evidence_level=evidence_level,  # type: ignore[arg-type]
+            affects_modules=affects_modules_out,
+        ),
+        combination_hints=DecisionCardCombinationHints(
+            synergy_with=synergy_with,
+            conflict_with=conflict_with,
+            best_paired_with=best_paired_with,
+        ),
+        picked=False,
+    )
+
+
+def _generate_decision_cards(
+    natural_description: str,
+    all_directions: list[DirectionGroup],
+    scored_directions: list[DirectionScore],
+    sub_requirements: list[SubRequirement],
+    coverage_audits: list[DirectionCoverageAudit],
+) -> list[DecisionCard]:
+    """並發為每條 direction 產出 DecisionCard。
+
+    用 ThreadPoolExecutor 把單矛盾 N 個方向的 LLM call 並發化（典型 N ≤ 12）。
+    順序由 input order 決定，與 all_directions 對齊。
+    """
+    if not all_directions:
+        return []
+
+    # 預先索引 score / audit
+    score_by_dir = {s.direction_id: s for s in scored_directions}
+    audit_by_dir = {a.direction_id: a for a in coverage_audits}
+
+    # 對「每條 direction」準備一份 other_directions 簡介，方便 combination_hints 評估
+    def _brief_for(skip_id: str) -> str:
+        lines = []
+        for d in all_directions:
+            if d.direction_id == skip_id:
+                continue
+            lines.append(
+                f"- {d.direction_id} {d.direction_name}: "
+                f"{(d.direction_summary or '')[:80]}"
+            )
+        return "\n".join(lines) or "(無其他方向)"
+
+    cards_by_dir: dict[str, DecisionCard] = {}
+    with ThreadPoolExecutor(max_workers=min(6, len(all_directions))) as pool:
+        future_to_dir = {
+            pool.submit(
+                _generate_decision_card_for_direction,
+                natural_description,
+                d,
+                score_by_dir.get(d.direction_id),
+                sub_requirements,
+                audit_by_dir.get(d.direction_id),
+                _brief_for(d.direction_id),
+            ): d
+            for d in all_directions
+        }
+        for fut in as_completed(future_to_dir):
+            d = future_to_dir[fut]
+            try:
+                cards_by_dir[d.direction_id] = fut.result()
+            except Exception as exc:  # noqa: BLE001
+                logger.warning(
+                    "DecisionCard generation failed for direction_id=%s: %s",
+                    d.direction_id, exc,
+                )
+                cards_by_dir[d.direction_id] = DecisionCard(
+                    direction_id=d.direction_id,
+                    direction_name=d.direction_name,
+                    one_liner=(d.direction_summary or d.direction_name)[:40],
+                    contradiction_face="both",
+                    face_badge=_DEFAULT_FACE_BADGES["both"],
+                    resolution_status="unclear",
+                    resolution_one_line="(DecisionCard 生成失敗)",
+                )
+
+    # 按 all_directions 順序輸出
+    return [cards_by_dir[d.direction_id] for d in all_directions
+            if d.direction_id in cards_by_dir]
+
+
 def solve_triz_directed(req: SolveDirectedRequest) -> SolveDirectedResponse:
     """Main entry: Direction-centric TRIZ solver for ONE contradiction.
 
@@ -3350,7 +3872,15 @@ def solve_triz_directed(req: SolveDirectedRequest) -> SolveDirectedResponse:
         top1, top2, top1_score, top2_score = _pick_top_directions(all_directions, scored_directions)
 
         # --- Step H: Contradiction Decomposition + Coverage Audit ---
-        sub_requirements = _decompose_contradiction(req.natural_description, brief_ctx)
+        # Phase 1 (S0): 演算法為骨流程；傳入 improving/worsening 讓 contradiction
+        # 兩面候選帶上參數名稱標籤。同時取得 weak_warnings 帶給前端做 ⚠️ tooltip。
+        sub_requirements, sr_weak_warnings = _decompose_contradiction(
+            req.natural_description,
+            brief_ctx,
+            improving_param=req.improving_param,
+            worsening_param=req.worsening_param,
+            return_weak_warnings=True,
+        )
         coverage_audits: list[DirectionCoverageAudit] = []
         combined_direction: CombinedDirection | None = None
 
@@ -3386,6 +3916,15 @@ def solve_triz_directed(req: SolveDirectedRequest) -> SolveDirectedResponse:
                         combined_direction is not None,
                     )
 
+        # --- Phase 2 (A2): DecisionCard per direction（並發跑減少總延遲）---
+        decision_cards = _generate_decision_cards(
+            natural_description=req.natural_description,
+            all_directions=all_directions,
+            scored_directions=scored_directions,
+            sub_requirements=sub_requirements,
+            coverage_audits=coverage_audits,
+        )
+
         result = ContradictionDirectionResult(
             contradiction_id=req.contradiction_id,
             natural_description=req.natural_description,
@@ -3398,8 +3937,10 @@ def solve_triz_directed(req: SolveDirectedRequest) -> SolveDirectedResponse:
             top1_score=top1_score,
             top2_score=top2_score,
             sub_requirements=sub_requirements,
+            sr_weak_warnings=sr_weak_warnings,
             coverage_audits=coverage_audits,
             combined_direction=combined_direction,
+            decision_cards=decision_cards,
         )
 
         # Persist to DB
@@ -3431,34 +3972,232 @@ def _persist_directed_solution(project_id: str, result: ContradictionDirectionRe
             "sub_requirements": [sr.model_dump(mode="json") for sr in result.sub_requirements] if result.sub_requirements else [],
             "coverage_audits": [ca.model_dump(mode="json") for ca in result.coverage_audits] if result.coverage_audits else [],
             "combined_direction": result.combined_direction.model_dump(mode="json") if result.combined_direction else None,
+            # Phase 2: DecisionCard + Phase 1 S0c SR weak warnings
+            "decision_cards": [dc.model_dump(mode="json") for dc in result.decision_cards] if result.decision_cards else [],
+            "sr_weak_warnings": [w.model_dump(mode="json") for w in result.sr_weak_warnings] if result.sr_weak_warnings else [],
         }
         sb.table("directed_triz_solutions").upsert(payload, on_conflict="id").execute()
     except Exception as exc:
         logger.warning("persist directed_triz_solution failed for %s: %s", result.contradiction_id, exc)
 
 
-def _persist_consolidation_result(project_id: str, result: ConsolidationResult) -> None:
-    """Upsert consolidation result into triz_consolidation_results (migration 012)."""
+def _gc_orphan_directed_solutions(project_id: str) -> int:
+    """Lazy GC: 刪除 `directed_triz_solutions` 中 contradiction_id 已不在
+    `contradictions` 表的孤兒 row。
+
+    為什麼需要：UI 流程允許 RD 在識別出 contradiction 後跑 /triz/solve-directed
+    把 DTS 寫進 DB；之後若 RD 把這條 contradiction 刪了（或它被替換掉），
+    contradictions 表的 row 沒了，但 DTS row 還在 → 變成孤兒，整併會把它撈進來
+    跨矛盾比對，產出無意義結果。此函式在整併入口被呼叫做懶清理。
+
+    回傳被刪掉的 row 數量；任何 Supabase 錯誤都 swallow（GC 不應該擋住整併）。
+    """
     from app.core.supabase import get_supabase
+
+    sb = get_supabase()
+    # 先撈出 alive contradiction IDs，再從 DTS 中找出孤兒（避免 NOT IN 在 PostgREST
+    # 上需要額外語法支援）。
+    alive_resp = (
+        sb.table("contradictions")
+        .select("id")
+        .eq("project_id", project_id)
+        .execute()
+    )
+    alive_ids = {row["id"] for row in (alive_resp.data or [])}
+
+    dts_resp = (
+        sb.table("directed_triz_solutions")
+        .select("id, contradiction_id")
+        .eq("project_id", project_id)
+        .execute()
+    )
+    orphan_pks: list[str] = [
+        row["id"]
+        for row in (dts_resp.data or [])
+        if row.get("contradiction_id") not in alive_ids
+    ]
+
+    if not orphan_pks:
+        return 0
+
+    # Supabase python client 支援 .in_("id", [...]) 來批次刪
+    sb.table("directed_triz_solutions").delete().in_("id", orphan_pks).execute()
+    logger.info(
+        "GC: removed %d orphan directed_triz_solutions for project %s",
+        len(orphan_pks),
+        project_id,
+    )
+    return len(orphan_pks)
+
+
+# Phase 3 / PR2-Lite 欄位名單 — 給 fallback / verify 使用
+_PHASE3_COLUMNS = (
+    "intra_compatibility",
+    "verdict_card",
+    "was_user_picked",
+    "candidate_pools",
+    "exhausted_contradictions",
+    "total_rounds",
+)
+
+# PostgreSQL / PostgREST 「欄位不存在」錯誤的關鍵字（用於辨識 migration 未套用）。
+# psycopg2 拋 UndefinedColumn (SQLSTATE 42703)；PostgREST 透過 supabase-py 通常
+# 把這類錯誤序列化成 dict {"code": "42703", "message": "column ... does not exist", ...}。
+_MISSING_COLUMN_SIGNATURES = (
+    "42703",
+    "does not exist",
+    "column",  # 廣義匹配 PostgREST 訊息
+    "PGRST204",  # PostgREST: column not in schema cache
+    "schema cache",
+)
+
+
+def _looks_like_missing_column_error(exc: Exception) -> bool:
+    """判斷 supabase upsert 拋的 exception 是否屬於『欄位不存在』。
+
+    僅在 message 同時包含 "column" 或 "42703" / "PGRST204" / "schema cache"
+    這類**明確**的 schema 錯誤訊號時才回 True，避免把 network / RLS / JSON
+    encoding 等錯誤誤判為 schema 問題而 silent pop Phase 3 欄位（這正是
+    2026-05 bug 的根因）。
+    """
+    msg = repr(exc).lower() + " " + str(exc).lower()
+    has_column_word = "column" in msg
+    has_signature = any(sig.lower() in msg for sig in ("42703", "pgrst204", "schema cache"))
+    return has_column_word and has_signature
+
+
+def _persist_consolidation_result(
+    project_id: str,
+    result: ConsolidationResult,
+    intra_compatibility: list[IntraContradictionCompatibility] | None = None,
+    verdict_card: EngineeringVerdictCard | None = None,
+) -> "PersistenceOutcome":
+    """Upsert consolidation result into triz_consolidation_results (migration 012).
+
+    Phase 3 (migration 020/021) 寫入 `intra_compatibility` + `verdict_card` +
+    `was_user_picked`；PR2-Lite (migration 022) 寫 `candidate_pools` /
+    `exhausted_contradictions` / `total_rounds`。
+
+    Bug fix (2026-05) — *Fail loud, not silent*：
+      - 舊版用 `except Exception as inner_exc: pop Phase 3 columns and retry`
+        把**任何**錯誤都當成「migration 未套用」處理，結果一旦發生 network /
+        RLS / JSON encoding 等錯誤，就會把 verdict_card / was_user_picked
+        等欄位 silent 清掉，DB 上只剩半殘的 row。重整後使用者就看到舊資料。
+      - 新版只在錯誤明確帶有 column-missing signature (42703 / PGRST204) 時
+        才退回 legacy schema，並回傳 status="partial"；其他錯誤直接回
+        status="failed" 讓 FE 提示重試。
+      - 不再使用最外層 broad except 吞錯。Persist 失敗會透過 PersistenceOutcome
+        傳遞給 caller，而 caller (consolidate_solutions) 會把它塞進 response。
+    """
+    from app.core.supabase import get_supabase
+    from app.models.schemas import PersistenceOutcome
+
     try:
         sb = get_supabase()
-        tcr_id = f"TCR-{project_id[:8]}"
-        payload = {
-            "id": tcr_id,
-            "project_id": project_id,
-            "status": result.status,
-            "adopted_directions": {
-                cid: d.model_dump(mode="json")
-                for cid, d in result.adopted_directions.items()
-            },
-            "conflict_report": result.conflict_report.model_dump(mode="json")
-                               if result.conflict_report else None,
-            "integration_advice": result.integration_advice or "",
-        }
-        sb.table("triz_consolidation_results").upsert(payload, on_conflict="id").execute()
-        logger.info("persisted consolidation result for project %s (status=%s)", project_id, result.status)
     except Exception as exc:
-        logger.warning("persist consolidation_result failed for project %s: %s", project_id, exc)
+        logger.error(
+            "_persist_consolidation_result: get_supabase() failed: %s",
+            exc,
+        )
+        return PersistenceOutcome(
+            status="failed",
+            reason=f"supabase client init failed: {exc}",
+            columns_written=[],
+        )
+
+    tcr_id = f"TCR-{project_id[:8]}"
+    legacy_payload: dict = {
+        "id": tcr_id,
+        "project_id": project_id,
+        "status": result.status,
+        "adopted_directions": {
+            cid: d.model_dump(mode="json")
+            for cid, d in result.adopted_directions.items()
+        },
+        "conflict_report": result.conflict_report.model_dump(mode="json")
+                           if result.conflict_report else None,
+        "integration_advice": result.integration_advice or "",
+    }
+    phase3_payload: dict = {}
+    if intra_compatibility is not None:
+        phase3_payload["intra_compatibility"] = [
+            ic.model_dump(mode="json") for ic in intra_compatibility
+        ]
+    if verdict_card is not None:
+        phase3_payload["verdict_card"] = verdict_card.model_dump(mode="json")
+    if result.was_user_picked is not None:
+        phase3_payload["was_user_picked"] = dict(result.was_user_picked)
+    if result.candidate_pools is not None:
+        phase3_payload["candidate_pools"] = {
+            cid: [d.model_dump(mode="json") for d in pool]
+            for cid, pool in result.candidate_pools.items()
+        }
+    if result.exhausted_contradictions is not None:
+        phase3_payload["exhausted_contradictions"] = list(result.exhausted_contradictions)
+    if result.total_rounds is not None:
+        phase3_payload["total_rounds"] = result.total_rounds
+
+    full_payload = {**legacy_payload, **phase3_payload}
+
+    # ── 第一次嘗試：完整 payload ───────────────────────────────
+    try:
+        sb.table("triz_consolidation_results").upsert(full_payload, on_conflict="id").execute()
+        logger.info(
+            "persisted consolidation result for project %s (status=%s, columns=%d)",
+            project_id, result.status, len(full_payload),
+        )
+        return PersistenceOutcome(
+            status="ok",
+            reason=None,
+            columns_written=list(full_payload.keys()),
+        )
+    except Exception as inner_exc:
+        if _looks_like_missing_column_error(inner_exc):
+            # 真的是 migration 未套用 → fallback legacy
+            logger.warning(
+                "consolidation upsert: detected missing-column error (%s); "
+                "falling back to legacy schema. Phase 3 fields WILL NOT persist — "
+                "please run `node scripts/run-migration.mjs "
+                "supabase/migrations/022_consolidation_candidate_pools.sql` (and 020/021).",
+                inner_exc,
+            )
+            try:
+                sb.table("triz_consolidation_results").upsert(
+                    legacy_payload, on_conflict="id"
+                ).execute()
+                return PersistenceOutcome(
+                    status="partial",
+                    reason=(
+                        "Phase 3 / PR2-Lite columns missing in DB "
+                        "(migration 020/021/022 not applied). "
+                        "verdict_card / was_user_picked / candidate_pools 等欄位將不會持久化，"
+                        "重整後可能丟失工程審判資料。請執行對應 migration 後重試。"
+                    ),
+                    columns_written=list(legacy_payload.keys()),
+                )
+            except Exception as legacy_exc:
+                logger.error(
+                    "consolidation upsert legacy fallback also failed: %s",
+                    legacy_exc,
+                )
+                return PersistenceOutcome(
+                    status="failed",
+                    reason=(
+                        f"legacy fallback failed after missing-column error: {legacy_exc}"
+                    ),
+                    columns_written=[],
+                )
+        else:
+            # 非 schema 錯誤 → 不要 silent pop Phase 3 欄位，直接回 failed
+            logger.error(
+                "consolidation upsert failed (non-schema error): %s",
+                inner_exc,
+            )
+            return PersistenceOutcome(
+                status="failed",
+                reason=f"upsert failed: {inner_exc}",
+                columns_written=[],
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -3527,33 +4266,59 @@ def _check_compatibility(
 def _try_swap_top2(
     results: list[ContradictionDirectionResult],
     conflicts: list[CompatibilityResult],
+    initial_adopted: dict[str, DirectionGroup] | None = None,
+    pinned_cids: set[str] | None = None,
 ) -> tuple[dict[str, DirectionGroup], list[CompatibilityResult]]:
-    """Try swapping conflicting Top1 → Top2 and re-check.
+    """Try swapping conflicting non-pinned directions → Top2 and re-check.
+
+    Phase 3 changes
+    ---------------
+    - `initial_adopted` 可由 caller 傳入 (例如已套用 RD picks 的 map)；不傳則沿用
+       「每條矛盾用 Top1」的舊行為。
+    - `pinned_cids` 是「RD 已勾選、不允許被 swap」的矛盾 ID 集合。
+       若所有衝突方都被 pin 住，這個函式不 swap、直接回傳原 adopted + 原 conflicts，
+       讓 caller 把它落成 status="conflict" 並標註 user_pinned。
 
     Returns (adopted_map, remaining_conflicts).
     """
-    adopted: dict[str, DirectionGroup] = {}
-    for r in results:
-        if r.top1:
-            adopted[r.contradiction_id] = r.top1
+    pinned = pinned_cids or set()
+    if initial_adopted is not None:
+        adopted: dict[str, DirectionGroup] = dict(initial_adopted)
+    else:
+        adopted = {r.contradiction_id: r.top1 for r in results if r.top1}
 
-    # Find contradiction IDs involved in conflicts
-    conflict_cids: set[str] = set()
+    # Find contradiction IDs involved in conflicts — only consider non-pinned
+    # contradictions for swap. If pair (A, B) is in conflict and both pinned,
+    # neither is swappable → conflict stays.
+    swappable_cids: set[str] = set()
     for c in conflicts:
-        if not c.compatible:
-            conflict_cids.add(c.contradiction_b_id)  # swap the "B" side first
+        if c.compatible:
+            continue
+        b = c.contradiction_b_id
+        a = c.contradiction_a_id
+        if b and b not in pinned:
+            swappable_cids.add(b)
+        elif a and a not in pinned:
+            swappable_cids.add(a)
 
-    # Swap Top1 → Top2 for conflicted contradictions
+    if not swappable_cids:
+        # Nothing legal to swap → return as-is so caller can produce a user_pinned conflict
+        return adopted, conflicts
+
+    # Swap Top1 → Top2 for conflicted, non-pinned contradictions
     result_map = {r.contradiction_id: r for r in results}
-    for cid in conflict_cids:
+    for cid in swappable_cids:
         r = result_map.get(cid)
         if r and r.top2:
             adopted[cid] = r.top2
-            logger.info("consolidate: swapped %s Top1→Top2 (%s → %s)",
-                        cid, r.top1.direction_name if r.top1 else "?", r.top2.direction_name)
+            logger.info(
+                "consolidate: swapped %s Top1→Top2 (%s → %s)",
+                cid,
+                r.top1.direction_name if r.top1 else "?",
+                r.top2.direction_name,
+            )
 
     # Re-check compatibility with swapped directions
-    # Build a mini top1_block with swapped values
     top1_block = "\n".join(
         f"- 矛盾 {cid}: 方向「{d.direction_name}」— {d.direction_summary}"
         for cid, d in adopted.items()
@@ -3580,6 +4345,199 @@ def _try_swap_top2(
             continue
 
     return adopted, remaining
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — Intra-contradiction compatibility (同一條矛盾多選)
+# ---------------------------------------------------------------------------
+
+
+def _max_independent_subsets(
+    nodes: list[str],
+    conflict_pairs: list[tuple[str, str]],
+) -> list[list[str]]:
+    """純函式：在「衝突圖」上找出所有 maximum independent sets，最大者排前。
+
+    為避免 2^N 爆炸我們在 caller 處限制 N ≤ 6 (= 64 powersets 上限)。
+    若 conflict_pairs 為空 → 全集本身就是唯一答案，直接 short-circuit。
+    """
+    if not conflict_pairs:
+        return [list(nodes)] if nodes else []
+
+    conflict_set: set[frozenset[str]] = {frozenset((a, b)) for a, b in conflict_pairs if a != b}
+    node_list = list(nodes)
+    n = len(node_list)
+    best_size = 0
+    independent_sets: list[list[str]] = []
+
+    for mask in range(1, 1 << n):
+        subset = [node_list[i] for i in range(n) if mask & (1 << i)]
+        ok = True
+        for i in range(len(subset)):
+            for j in range(i + 1, len(subset)):
+                if frozenset((subset[i], subset[j])) in conflict_set:
+                    ok = False
+                    break
+            if not ok:
+                break
+        if not ok:
+            continue
+        if len(subset) > best_size:
+            best_size = len(subset)
+            independent_sets = [subset]
+        elif len(subset) == best_size:
+            independent_sets.append(subset)
+
+    # 排序使可重現：先按 size 大優先，再按 lexicographic for determinism
+    independent_sets.sort(key=lambda s: (-len(s), s))
+    return independent_sets
+
+
+def _check_intra_contradiction_compatibility(
+    picks: list[PickedSelection],
+    results: list[ContradictionDirectionResult],
+) -> list[IntraContradictionCompatibility]:
+    """對每條 PickedSelection 跑兩兩 LLM 相容性檢查，並用 max-independent-set 找出
+    推薦組合。
+
+    N 上限：6（由 PickedSelection.field_validator 在 schema 層守住，這裡再 defence-in-depth）。
+    若同矛盾僅 1 個方向、或沒有 picks → 回空 list。
+    """
+    if not picks:
+        return []
+
+    result_by_cid = {r.contradiction_id: r for r in results}
+    reports: list[IntraContradictionCompatibility] = []
+
+    def _check_one(pick: PickedSelection) -> IntraContradictionCompatibility:
+        cid = pick.contradiction_id
+        ids = pick.picked_direction_ids
+        # Defence in depth — schema 應該已守住
+        if len(ids) > 6:
+            raise ValueError(f"intra compatibility: {cid} 勾選 {len(ids)} > 6 (應由 schema 擋掉)")
+
+        r = result_by_cid.get(cid)
+        if not r:
+            return IntraContradictionCompatibility(
+                contradiction_id=cid,
+                picked_direction_ids=ids,
+                pairwise_results=[],
+                max_compatible_subsets=[ids] if ids else [],
+                has_conflict=False,
+                recommendation="(找不到對應矛盾的方向清單，跳過相容性檢查)",
+            )
+
+        # Look up DirectionGroup objects from all_directions
+        dir_by_id: dict[str, DirectionGroup] = {
+            d.direction_id: d for d in (r.all_directions or [])
+        }
+        picked_dirs: list[DirectionGroup] = []
+        for did in ids:
+            d = dir_by_id.get(did)
+            if d is not None:
+                picked_dirs.append(d)
+        if len(picked_dirs) <= 1:
+            return IntraContradictionCompatibility(
+                contradiction_id=cid,
+                picked_direction_ids=ids,
+                pairwise_results=[],
+                max_compatible_subsets=[ids] if ids else [],
+                has_conflict=False,
+                recommendation="(僅勾選 1 個方向，無需相容性檢查)",
+            )
+
+        directions_block = "\n".join(
+            f"- {d.direction_id}: {d.direction_name}\n    {d.direction_summary}"
+            for d in picked_dirs
+        )
+        prompt = INTRA_COMPATIBILITY_CHECK_PROMPT.format(
+            contradiction_desc=r.natural_description or "(矛盾描述未提供)",
+            directions_block=directions_block,
+        )
+        pairwise: list[CompatibilityResult] = []
+        recommendation = ""
+        try:
+            raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt, model=settings.fast_model)
+            data = json.loads(raw) if raw and raw.strip() else {}
+            for p in data.get("pairs", []):
+                try:
+                    p.setdefault("contradiction_a_id", cid)
+                    p.setdefault("contradiction_b_id", cid)
+                    pairwise.append(CompatibilityResult.model_validate(p))
+                except Exception:
+                    continue
+            recommendation = str(data.get("recommendation", "")).strip()
+        except Exception as exc:
+            logger.warning(
+                "_check_intra_contradiction_compatibility LLM failed for %s: %s — assuming compatible",
+                cid,
+                exc,
+            )
+
+        # Build conflict-pair list using direction_id (preferred), fallback to name
+        id_lookup_by_name = {d.direction_name: d.direction_id for d in picked_dirs}
+        conflict_pairs: list[tuple[str, str]] = []
+        for pr in pairwise:
+            if pr.compatible:
+                continue
+            # The LLM may have used direction_name in direction_a/_b; resolve back to ids.
+            a_id = id_lookup_by_name.get(pr.direction_a, pr.direction_a)
+            b_id = id_lookup_by_name.get(pr.direction_b, pr.direction_b)
+            if a_id in ids and b_id in ids:
+                conflict_pairs.append((a_id, b_id))
+
+        has_conflict = len(conflict_pairs) > 0
+        subsets = _max_independent_subsets(ids, conflict_pairs)
+        if not recommendation:
+            if not has_conflict:
+                recommendation = f"勾選的 {len(ids)} 個方向兩兩相容，可一起整併。"
+            elif subsets:
+                recommendation = (
+                    f"勾選的 {len(ids)} 個方向有衝突；建議組合：{', '.join(subsets[0])}"
+                )
+            else:
+                recommendation = "勾選的方向彼此衝突，建議重新挑選。"
+
+        return IntraContradictionCompatibility(
+            contradiction_id=cid,
+            picked_direction_ids=ids,
+            pairwise_results=pairwise,
+            max_compatible_subsets=subsets,
+            has_conflict=has_conflict,
+            recommendation=recommendation,
+        )
+
+    # 並發處理多條矛盾 (各自獨立 LLM call)
+    if len(picks) == 1:
+        reports.append(_check_one(picks[0]))
+    else:
+        with ThreadPoolExecutor(max_workers=min(4, len(picks))) as ex:
+            futures = {ex.submit(_check_one, p): p for p in picks}
+            for fut in as_completed(futures):
+                try:
+                    reports.append(fut.result())
+                except Exception as exc:
+                    p = futures[fut]
+                    logger.warning(
+                        "intra compat check failed for %s: %s", p.contradiction_id, exc
+                    )
+                    reports.append(
+                        IntraContradictionCompatibility(
+                            contradiction_id=p.contradiction_id,
+                            picked_direction_ids=p.picked_direction_ids,
+                            pairwise_results=[],
+                            max_compatible_subsets=[p.picked_direction_ids]
+                            if p.picked_direction_ids
+                            else [],
+                            has_conflict=False,
+                            recommendation="(相容性檢查暫時失敗，預設視為相容)",
+                        )
+                    )
+
+    # 保持與 picks 同順序，方便前端對應
+    order = {p.contradiction_id: i for i, p in enumerate(picks)}
+    reports.sort(key=lambda r: order.get(r.contradiction_id, 9999))
+    return reports
 
 
 def _generate_conflict_report(
@@ -3630,59 +4588,569 @@ def _generate_conflict_report(
     return report, integration_advice
 
 
-def consolidate_solutions(req: ConsolidateRequest) -> ConsolidateResponse:
-    """Cross-contradiction consolidation (§三).
+# ---------------------------------------------------------------------------
+# Phase 3 — EngineeringVerdictCard Q1–Q8 generation
+# ---------------------------------------------------------------------------
 
-    1. Collect Top1 from each contradiction.
-    2. Check pairwise compatibility.
-    3. If all compatible → output plan.
-    4. If conflict → swap Top1→Top2 for conflicting side, re-check.
-    5. If still conflict → output conflict report.
+
+def _format_brief_ctx_for_verdict(ctx: BriefContextSnapshot) -> dict[str, str]:
+    """Format BriefContextSnapshot into prompt-ready text blocks for VerdictCard."""
+    if not ctx:
+        return {
+            "mission_block": "(未提供)",
+            "constraints_block": "(未提供)",
+            "kpis_block": "(未提供)",
+            "cld_block": "(未提供)",
+            "socratic_block": "(未提供)",
+        }
+    mission_block = ctx.mission or "(未提供)"
+    constraints_block = "\n".join(
+        f"- [{c.code or '?'} / {c.type or 'soft'}] {c.description}"
+        for c in (ctx.constraints or [])
+    ) or "(未提供)"
+    kpis_block = "\n".join(
+        f"- {k.name} {getattr(k, 'operator', '') or '='} {k.target_value} {getattr(k, 'unit', '') or ''}"
+        for k in (ctx.kpis or [])
+    ) or "(未提供)"
+    if ctx.cld_summary and (ctx.cld_summary.nodes or ctx.cld_summary.edges):
+        nodes_line = ", ".join(n.label for n in ctx.cld_summary.nodes)
+        edges_lines = "\n".join(
+            f"- {e.from_label} --[{e.polarity}]--> {e.to_label}"
+            for e in ctx.cld_summary.edges
+        )
+        leverage = ", ".join(ctx.cld_summary.leverage_points or [])
+        cld_block = (
+            f"nodes: {nodes_line}\n"
+            f"edges:\n{edges_lines}\n"
+            f"leverage_points: {leverage or '(none)'}"
+        )
+    else:
+        cld_block = "(未提供)"
+    if ctx.socratic_summary:
+        socratic_block = "\n".join(
+            f"- [{getattr(q, 'category', '?')}] Q: {getattr(q, 'question', '')} → A: {getattr(q, 'answer', '')}"
+            for q in ctx.socratic_summary
+        )
+    else:
+        socratic_block = "(未提供)"
+    return {
+        "mission_block": mission_block,
+        "constraints_block": constraints_block,
+        "kpis_block": kpis_block,
+        "cld_block": cld_block,
+        "socratic_block": socratic_block,
+    }
+
+
+def _generate_engineering_verdict_card(
+    project_id: str,
+    consolidation: ConsolidationResult,
+    results: list[ContradictionDirectionResult],
+    brief_ctx: BriefContextSnapshot | None,
+    consolidation_id: str = "",
+) -> EngineeringVerdictCard:
+    """對整併方案做 Q1–Q8 完整工程審判 (Phase 3 §B4)。
+
+    1. 將 brief_ctx (mission/constraints/KPIs/cld/socratic) 全部塞進 prompt
+    2. 將整併後 adopted_directions + 每條矛盾的 sub_requirements 塞進 prompt
+    3. 一次 LLM call 產出八節結構化 verdict
+    4. LLM 失敗 → 回傳保留結構的空殼 (final_verdict=needs_revision)，
+       避免阻斷主流程
+    """
+    blocks = _format_brief_ctx_for_verdict(brief_ctx or _empty_context())
+
+    # 整併方案描述
+    plan_lines: list[str] = []
+    for cid, d in (consolidation.adopted_directions or {}).items():
+        plan_lines.append(
+            f"- 矛盾 {cid}: {d.direction_id} {d.direction_name}\n"
+            f"    摘要: {d.direction_summary}"
+        )
+    plan_block = "\n".join(plan_lines) or "(整併方案為空)"
+
+    # 從各 result 收集 sub_requirements
+    sr_lines: list[str] = []
+    for r in results:
+        for sr in (r.sub_requirements or []):
+            sr_lines.append(
+                f"- [{sr.id} / {sr.kind} / {sr.source_ref}] {sr.description}"
+            )
+    sr_block = "\n".join(sr_lines) or "(無 SR)"
+
+    prompt = ENGINEERING_VERDICT_CARD_PROMPT.format(
+        mission_block=blocks["mission_block"],
+        constraints_block=blocks["constraints_block"],
+        kpis_block=blocks["kpis_block"],
+        plan_block=plan_block,
+        sr_block=sr_block,
+        cld_block=blocks["cld_block"],
+        socratic_block=blocks["socratic_block"],
+    )
+
+    # default fallback used both on LLM failure & on validation failure
+    fallback = EngineeringVerdictCard(
+        project_id=project_id,
+        consolidation_id=consolidation_id,
+        final_verdict="needs_revision",
+        final_rationale="VerdictCard 自動產出失敗，請手動審查整併方案。",
+        confidence=0.0,
+    )
+
+    try:
+        raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt, model=settings.fast_model)
+        data = json.loads(raw) if raw and raw.strip() else {}
+    except Exception as exc:
+        logger.warning("_generate_engineering_verdict_card LLM failed: %s", exc)
+        return fallback
+
+    try:
+        # Inject project_id + consolidation_id (LLM is not asked to produce them)
+        data.setdefault("project_id", project_id)
+        data.setdefault("consolidation_id", consolidation_id)
+        card = EngineeringVerdictCard.model_validate(data)
+    except Exception as exc:
+        logger.warning("EngineeringVerdictCard schema validation failed: %s", exc)
+        return fallback
+
+    # Defence in depth — enforce Q8 boundary_collapse ≥5 / Q7 four-cycle present.
+    if len(card.boundary_collapse) < 5:
+        logger.warning(
+            "VerdictCard Q8 boundary_collapse < 5 (got %d) — padding placeholders",
+            len(card.boundary_collapse),
+        )
+        while len(card.boundary_collapse) < 5:
+            card.boundary_collapse.append(
+                BoundaryCollapse(
+                    condition=f"(待補 #{len(card.boundary_collapse) + 1})",
+                    failure_mode="LLM 未列出，須由 RD 補上具體失效條件",
+                    severity="moderate",
+                )
+            )
+
+    return card
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — main consolidation entry point (picks-aware)
+# ---------------------------------------------------------------------------
+
+
+def _build_candidate_pool(
+    pick: PickedSelection | None,
+    result: ContradictionDirectionResult,
+    intra_report: IntraContradictionCompatibility | None,
+) -> list[DirectionGroup]:
+    """PR2-Lite (語意 3)：將使用者勾的方向組成「候選池」，依分數降冪排序。
+
+    池規則：
+      - **空 picks** → 回 fallback 池 = [top1, top2] 中可用的部分（**僅**用於
+        single-contradiction local 路徑或測試；正常多矛盾流程上層應拒絕空 picks）
+      - **有 picks** → 池 = 使用者勾的方向，依 scored_directions.weighted_total
+        降冪排序；同分時保持 picked_direction_ids 的原序
+      - **intra_report 有衝突** → 池順序以 max_compatible_subsets[0] 為優先，
+        其餘 picks 排在後面（仍依分數）。這樣演算法在跨矛盾衝突時優先嘗試
+        「同矛盾內也相容」的方向組合
+      - 找不到對應 DirectionGroup 的 id 直接略過
+
+    Args:
+        pick: 該矛盾的 PickedSelection（picked_direction_ids 可能為空）；
+              傳 None 等同於 picked_direction_ids 為空
+        result: 該矛盾的 ContradictionDirectionResult (含 all_directions / scored_directions)
+        intra_report: 該矛盾的同矛盾相容性報告（可選）
+
+    Returns:
+        list[DirectionGroup]：依分數降冪 + 同矛盾相容性優先的候選池。
+        若連 fallback 都拿不到（top1/top2 都 None），可能回空 list；caller 自行處理。
+    """
+    dir_by_id = {d.direction_id: d for d in (result.all_directions or [])}
+    score_by_id = {s.direction_id: s.weighted_total for s in (result.scored_directions or [])}
+
+    ids = pick.picked_direction_ids if pick else []
+    if not ids:
+        # Fallback 池（單矛盾 / 測試路徑用）
+        pool: list[DirectionGroup] = []
+        if result.top1 is not None:
+            pool.append(result.top1)
+        if result.top2 is not None and (
+            result.top1 is None or result.top2.direction_id != result.top1.direction_id
+        ):
+            pool.append(result.top2)
+        return pool
+
+    # 把 picked ids 對應的 DirectionGroup 找出來
+    picked_dirs: list[tuple[DirectionGroup, float, int]] = []  # (dir, score, orig_idx)
+    for idx, did in enumerate(ids):
+        d = dir_by_id.get(did)
+        if d is None:
+            continue
+        picked_dirs.append((d, score_by_id.get(did, 0.0), idx))
+
+    # 預設：分數降冪、同分用 orig_idx 升冪
+    picked_dirs.sort(key=lambda x: (-x[1], x[2]))
+
+    # Intra-conflict 優先排序：若 intra_report 有衝突且有 max_compatible_subset，
+    # 把該 subset 的方向「整組」提到前面（內部仍依分數排）。
+    if (
+        intra_report
+        and intra_report.has_conflict
+        and intra_report.max_compatible_subsets
+    ):
+        preferred_ids = set(intra_report.max_compatible_subsets[0])
+        preferred = [t for t in picked_dirs if t[0].direction_id in preferred_ids]
+        rest = [t for t in picked_dirs if t[0].direction_id not in preferred_ids]
+        picked_dirs = preferred + rest
+
+    # 去重（保險，理論上 picked_direction_ids 已是 unique）
+    seen: set[str] = set()
+    pool_out: list[DirectionGroup] = []
+    for d, _score, _idx in picked_dirs:
+        if d.direction_id in seen:
+            continue
+        seen.add(d.direction_id)
+        pool_out.append(d)
+    return pool_out
+
+
+def _score_for_direction(
+    result: ContradictionDirectionResult,
+    direction_id: str,
+) -> float:
+    """查找特定 direction 在 scored_directions 內的 weighted_total，找不到回 0.0。"""
+    for s in result.scored_directions or []:
+        if s.direction_id == direction_id:
+            return float(s.weighted_total)
+    return 0.0
+
+
+def _score_loss_optimized_swap(
+    candidate_pools: dict[str, list[DirectionGroup]],
+    results_by_cid: dict[str, ContradictionDirectionResult],
+    max_rounds: int | None = None,
+) -> tuple[
+    dict[str, DirectionGroup],
+    list["CompatibilityResult"],
+    set[str],
+    int,
+]:
+    """PR2-Lite 核心：分數損失最小化候選池演算法。
+
+    每輪策略：
+      1. 用當前 assignment 跑 _check_compatibility(LLM)
+      2. 若無衝突 → 返回 (assignment, [], exhausted=set(), rounds)
+      3. 若有衝突 → collect 衝突涉及的 cids，對每個 cid 計算「換到池內下一名的
+         score loss」，選最小者執行 swap
+      4. 該 cid 池已用盡 → 加入 exhausted；若所有衝突方都 exhausted → 終止
+      5. 偵測 cycle (visited assignment hash) 防死循環
+
+    Args:
+        candidate_pools: contradiction_id → 池（依分數降冪）
+        results_by_cid: 給 _check_compatibility 用的完整 result（top1 在每輪會被
+                        shallow-clone 為當前 assignment[cid]）
+        max_rounds: 最大輪次，預設 N + 5
+
+    Returns:
+        (final_assignment, remaining_conflicts, exhausted_cids, rounds_executed)
+        - rounds_executed: 至少 1（初始 check 也算）
+    """
+    n = len(candidate_pools)
+    if max_rounds is None:
+        max_rounds = n + 5
+
+    # 初始 assignment = 每池首位
+    pool_idx: dict[str, int] = {cid: 0 for cid in candidate_pools}
+    assignment: dict[str, DirectionGroup] = {
+        cid: pool[0] for cid, pool in candidate_pools.items() if pool
+    }
+    exhausted: set[str] = set()
+    visited_signatures: set[frozenset] = set()
+    rounds_executed = 0
+
+    # 過濾 pools 為空的 cid（理論上不應發生，但 defence-in-depth）
+    for cid, pool in candidate_pools.items():
+        if not pool:
+            exhausted.add(cid)
+
+    for _round in range(max_rounds):
+        rounds_executed = _round + 1
+
+        # Step 1：用當前 assignment 跑 LLM 相容性檢查
+        # 把 result.top1 替換為當前 assignment 的方向
+        synthetic_results: list[ContradictionDirectionResult] = []
+        for cid, current_dir in assignment.items():
+            r = results_by_cid.get(cid)
+            if r is None:
+                continue
+            synthetic_results.append(r.model_copy(update={"top1": current_dir}))
+
+        compat = _check_compatibility(synthetic_results)
+        conflicts = [c for c in compat if not c.compatible]
+
+        if not conflicts:
+            return assignment, [], exhausted, rounds_executed
+
+        # Step 2：collect 衝突涉及的 cids
+        conflict_cids: set[str] = set()
+        for c in conflicts:
+            if c.contradiction_a_id:
+                conflict_cids.add(c.contradiction_a_id)
+            if c.contradiction_b_id:
+                conflict_cids.add(c.contradiction_b_id)
+
+        # Step 3：對每個非 exhausted 的衝突 cid 計算 score loss（換池內下一名）
+        swap_candidates: list[tuple[str, int, float]] = []  # (cid, new_idx, loss)
+        for cid in conflict_cids:
+            if cid in exhausted:
+                continue
+            pool = candidate_pools.get(cid, [])
+            cur_idx = pool_idx.get(cid, 0)
+            next_idx = cur_idx + 1
+            if next_idx >= len(pool):
+                # 此池用盡
+                exhausted.add(cid)
+                continue
+            cur_score = _score_for_direction(results_by_cid[cid], pool[cur_idx].direction_id)
+            next_score = _score_for_direction(results_by_cid[cid], pool[next_idx].direction_id)
+            loss = cur_score - next_score
+            swap_candidates.append((cid, next_idx, loss))
+
+        if not swap_candidates:
+            # 所有衝突方都用盡 → 卡住
+            logger.info(
+                "score_loss_optimized_swap: all conflict cids exhausted after round %d",
+                rounds_executed,
+            )
+            return assignment, conflicts, exhausted, rounds_executed
+
+        # Step 4：選 loss 最小者執行 swap（同 loss 取 cid 字母序最小，確保決定性）
+        swap_candidates.sort(key=lambda t: (t[2], t[0]))
+        chosen_cid, new_idx, chosen_loss = swap_candidates[0]
+        old_dir = assignment[chosen_cid]
+        new_dir = candidate_pools[chosen_cid][new_idx]
+        assignment[chosen_cid] = new_dir
+        pool_idx[chosen_cid] = new_idx
+        logger.info(
+            "score_loss_optimized_swap: round %d swapped %s (%s → %s, loss=%.2f)",
+            rounds_executed,
+            chosen_cid,
+            old_dir.direction_name,
+            new_dir.direction_name,
+            chosen_loss,
+        )
+
+        # Step 5：cycle 偵測
+        sig = frozenset((cid, pool_idx[cid]) for cid in candidate_pools)
+        if sig in visited_signatures:
+            logger.warning(
+                "score_loss_optimized_swap: cycle detected at round %d, terminating",
+                rounds_executed,
+            )
+            return assignment, conflicts, exhausted, rounds_executed
+        visited_signatures.add(sig)
+
+    # 超過 max_rounds — 回傳當下狀態與最後偵測到的衝突
+    logger.warning(
+        "score_loss_optimized_swap: exceeded max_rounds=%d, terminating", max_rounds
+    )
+    # 跑最後一次 check 確認 final conflicts
+    synthetic_results = [
+        results_by_cid[cid].model_copy(update={"top1": d})
+        for cid, d in assignment.items()
+        if cid in results_by_cid
+    ]
+    final_conflicts = [
+        c for c in _check_compatibility(synthetic_results) if not c.compatible
+    ]
+    return assignment, final_conflicts, exhausted, rounds_executed
+
+
+def consolidate_solutions(req: ConsolidateRequest) -> ConsolidateResponse:
+    """Cross-contradiction consolidation (§三) — PR2-Lite 分數損失最小化候選池演算法.
+
+    流程 (語意 3：勾選 = 候選池，演算法選代表)：
+      A. GC 孤兒 DTS rows
+      B. 若 req.picks 非空 → 跑 intra_compatibility（同矛盾內衝突檢查）
+      C. 為每條矛盾用 _build_candidate_pool 建池（picks 為主，沒勾的 fallback top1+top2）
+      D. 跑 _score_loss_optimized_swap：初始用各池首位，衝突時換池內下一名（loss 最小者優先）
+      E. 整併後跑 _generate_engineering_verdict_card 產出 Q1–Q8 工程審判卡
+      F. 寫入 candidate_pools / exhausted_contradictions / total_rounds 給前端
+
+    Status 語意（PR2-Lite 重新詮釋）：
+      - "compatible"          → 各池首位天然相容，演算法 1 輪通過
+      - "resolved_with_swap"  → 至少一條非 pinned 矛盾被 swap 到池內非首位才相容
+      - "conflict"            → 池用盡 / 超過 max_rounds 仍卡住
     """
     results = req.results
+    picks = req.picks or []
 
-    # Step 1: Check compatibility
-    compatibility = _check_compatibility(results)
-    incompatible = [c for c in compatibility if not c.compatible]
+    # Lazy GC: 啟動時清掉孤兒 DTS rows（contradiction_id 已不存在 contradictions 表中）。
+    try:
+        _gc_orphan_directed_solutions(req.project_id)
+    except Exception as exc:
+        logger.warning("consolidate: orphan DTS GC failed (non-fatal): %s", exc)
 
-    if not incompatible:
-        # All compatible — build adopted map + integration advice
-        adopted = {r.contradiction_id: r.top1 for r in results if r.top1}
-        _, integration_advice = _generate_conflict_report([], results, status="compatible")
+    # --- A. 同矛盾相容性檢查（picks 為主，沒勾就空）---
+    intra_compat: list[IntraContradictionCompatibility] = []
+    if picks:
+        intra_compat = _check_intra_contradiction_compatibility(picks, results)
+    intra_by_cid = {ic.contradiction_id: ic for ic in intra_compat}
+
+    # --- B. 構建 candidate_pools + 追蹤 user_picked / pinned ---
+    result_by_cid = {r.contradiction_id: r for r in results}
+    pick_by_cid: dict[str, PickedSelection] = {p.contradiction_id: p for p in picks}
+    candidate_pools: dict[str, list[DirectionGroup]] = {}
+    pinned_cids: set[str] = set()
+    was_user_picked: dict[str, str] = {}
+
+    for r in results:
+        cid = r.contradiction_id
+        pick = pick_by_cid.get(cid)
+        pool = _build_candidate_pool(pick, r, intra_by_cid.get(cid))
+        if not pool:
+            # 連 top1/top2 fallback 都拿不到 → 跳過此矛盾（已 log warning at solve-directed）
+            logger.warning("consolidate: empty candidate pool for %s, skipping", cid)
+            continue
+        candidate_pools[cid] = pool
+        # 追蹤這條矛盾的「初始代表方向」是否來自使用者勾選
+        if pick and pick.picked_direction_ids:
+            pinned_cids.add(cid)
+            was_user_picked[cid] = pool[0].direction_id
+
+    if not candidate_pools:
+        # 沒有任何可用池 → 直接回空 conflict（保護性 fallback）
+        consolidation = ConsolidationResult(
+            status="conflict",
+            adopted_directions={},
+            conflict_report=None,
+            integration_advice="沒有可用的候選方向，請先執行方向導向分析或重新勾選。",
+            was_user_picked={},
+            candidate_pools={},
+            exhausted_contradictions=[],
+            total_rounds=0,
+        )
+        persistence = _persist_consolidation_result(
+            req.project_id, consolidation, intra_compat, None
+        )
+        return ConsolidateResponse(
+            consolidation=consolidation,
+            intra_compatibility=intra_compat,
+            verdict_card=None,
+            # 防呆：unit tests 可能 mock _persist_consolidation_result 為 None，
+            # 此時退回預設 PersistenceOutcome(status="ok")。Production 路徑永遠
+            # 拿得到完整 PersistenceOutcome。
+            persistence=persistence or PersistenceOutcome(),
+        )
+
+    # --- C. Build BriefContextSnapshot for VerdictCard (best-effort) ---
+    brief_ctx: BriefContextSnapshot | None = None
+    try:
+        from app.services.brief_context import fetch_brief_context
+        brief_ctx = fetch_brief_context(req.project_id)
+    except Exception as exc:
+        logger.warning(
+            "consolidate: fetch_brief_context failed for project %s: %s — VerdictCard will run with empty ctx",
+            req.project_id,
+            exc,
+        )
+
+    consolidation_id = f"TCR-{req.project_id[:8]}"
+    initial_assignment = {cid: pool[0] for cid, pool in candidate_pools.items()}
+
+    # --- D. Single-contradiction fast path（不需要跨矛盾相容性比對）---
+    if len(candidate_pools) <= 1:
         consolidation = ConsolidationResult(
             status="compatible",
-            adopted_directions=adopted,
+            adopted_directions=dict(initial_assignment),
             conflict_report=None,
-            integration_advice=integration_advice,
+            integration_advice=(
+                f"唯一矛盾的採納方向：{next(iter(initial_assignment.values())).direction_name}"
+                if initial_assignment else ""
+            ),
+            was_user_picked=was_user_picked,
+            candidate_pools=candidate_pools,
+            exhausted_contradictions=[],
+            total_rounds=0,
         )
-        _persist_consolidation_result(req.project_id, consolidation)
-        return ConsolidateResponse(consolidation=consolidation)
-
-    # Step 2: Try swap
-    adopted, remaining = _try_swap_top2(results, incompatible)
-
-    if not remaining:
-        # Swap resolved the conflict
-        _, integration_advice = _generate_conflict_report([], results, status="resolved_with_swap")
-        consolidation = ConsolidationResult(
-            status="resolved_with_swap",
-            adopted_directions=adopted,
-            conflict_report=None,
-            integration_advice=integration_advice,
+        verdict = _generate_engineering_verdict_card(
+            req.project_id, consolidation, results, brief_ctx, consolidation_id
         )
-        _persist_consolidation_result(req.project_id, consolidation)
-        return ConsolidateResponse(consolidation=consolidation)
+        persistence = _persist_consolidation_result(
+            req.project_id, consolidation, intra_compat, verdict
+        )
+        return ConsolidateResponse(
+            consolidation=consolidation,
+            intra_compatibility=intra_compat,
+            verdict_card=verdict,
+            persistence=persistence or PersistenceOutcome(),
+        )
 
-    # Step 3: Still conflicting — generate report
-    report, integration_advice = _generate_conflict_report(remaining, results, status="conflict")
-    consolidation = ConsolidationResult(
-        status="conflict",
-        adopted_directions=adopted,
-        conflict_report=report,
-        integration_advice=integration_advice,
+    # --- E. 跑分數損失最小化演算法 ---
+    final_assignment, remaining_conflicts, exhausted_cids, rounds_executed = (
+        _score_loss_optimized_swap(candidate_pools, result_by_cid)
     )
-    _persist_consolidation_result(req.project_id, consolidation)
-    return ConsolidateResponse(consolidation=consolidation)
+
+    # 計算演算法是否「真的 swap 過」
+    swapped_any = any(
+        final_assignment.get(cid, None) is not None
+        and final_assignment[cid].direction_id != initial_assignment[cid].direction_id
+        for cid in final_assignment.keys()
+    )
+
+    # --- F. 判斷最終 status + 產 conflict_report / advice ---
+    if not remaining_conflicts:
+        final_status: Literal["compatible", "resolved_with_swap", "conflict"] = (
+            "resolved_with_swap" if swapped_any else "compatible"
+        )
+        _, integration_advice = _generate_conflict_report(
+            [], results, status=final_status
+        )
+        consolidation = ConsolidationResult(
+            status=final_status,
+            adopted_directions=final_assignment,
+            conflict_report=None,
+            integration_advice=integration_advice,
+            was_user_picked=was_user_picked,
+            candidate_pools=candidate_pools,
+            exhausted_contradictions=sorted(exhausted_cids),
+            total_rounds=rounds_executed,
+        )
+    else:
+        # 卡住 — 標 exhausted；若衝突涉及 pinned cid 加 user_pinned advice
+        user_pinned_blocked = any(
+            (c.contradiction_a_id in pinned_cids or c.contradiction_b_id in pinned_cids)
+            for c in remaining_conflicts
+        )
+        report, integration_advice = _generate_conflict_report(
+            remaining_conflicts, results, status="conflict"
+        )
+        if user_pinned_blocked:
+            integration_advice = (
+                "⚠️ 衝突涉及您已勾選的方向，系統未對勾選方向 swap。"
+                "請考慮加勾該矛盾的其他候選方向或取消部分勾選。\n"
+                + (integration_advice or "")
+            )
+        consolidation = ConsolidationResult(
+            status="conflict",
+            adopted_directions=final_assignment,
+            conflict_report=report,
+            integration_advice=integration_advice,
+            was_user_picked=was_user_picked,
+            candidate_pools=candidate_pools,
+            exhausted_contradictions=sorted(exhausted_cids),
+            total_rounds=rounds_executed,
+        )
+
+    verdict = _generate_engineering_verdict_card(
+        req.project_id, consolidation, results, brief_ctx, consolidation_id
+    )
+    persistence = _persist_consolidation_result(
+        req.project_id, consolidation, intra_compat, verdict
+    )
+    return ConsolidateResponse(
+        consolidation=consolidation,
+        intra_compatibility=intra_compat,
+        verdict_card=verdict,
+        persistence=persistence or PersistenceOutcome(),
+    )
 
 
 def scamper_transform(req: ScamperRequest) -> ScamperResponse:

@@ -6,6 +6,9 @@
  *   - Scored directions with weighted totals
  *   - Top1 (highlighted) + Top2 (secondary)
  *   - Expandable solution details per direction
+ *
+ * 所有徽章標籤、顏色、Sort / Filter / Severity 文案都從 `directionTerms.ts`
+ * 取，跟 DirectionTermsGlossary 共用一份資料源，加新狀態時只要動一個檔。
  */
 
 import { useState } from 'react';
@@ -21,6 +24,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   ChevronDown,
   ChevronUp,
   Trophy,
@@ -30,6 +38,8 @@ import {
   Wrench,
   FlaskConical,
   ArrowUpDown,
+  BookOpen,
+  HelpCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type {
@@ -42,125 +52,25 @@ import type {
   SubRequirement,
   CoverageEntry,
   PerSrVerdict,
+  IntraContradictionCompatibility,
 } from '@/types/directedTriz';
-
-// ---------------------------------------------------------------------------
-// Severity badge config
-// ---------------------------------------------------------------------------
-const SEVERITY_BADGE: Record<string, { label: string; variant: 'destructive' | 'default' | 'secondary' | 'outline' }> = {
-  fatal: { label: '致命', variant: 'destructive' },
-  major: { label: '主要', variant: 'default' },
-  minor: { label: '次要', variant: 'secondary' },
-  unknown: { label: '未知', variant: 'outline' },
-};
-
-// ---------------------------------------------------------------------------
-// Resolution status badge config (context-aware coverage audit, 方案 A)
-// ---------------------------------------------------------------------------
-// 5-state semantic verdict for whether a direction truly resolves the
-// contradiction in its original problem context. See:
-//   backend/app/agents/triz_solver.py::RESOLUTION_STATUS_MULTIPLIER
-//   backend/app/prompts/triz_solver.py::RESOLUTION_COVERAGE_AUDIT_PROMPT
-//
-// Colour mapping mirrors the architect plan (directly=green / partially=yellow
-// / conditionally=orange / does_not=red / unclear=gray). All Tailwind
-// classes here are static strings so the JIT picks them up correctly.
-const RESOLUTION_STATUS_BADGE: Record<
-  ResolutionStatus,
-  { label: string; className: string; tooltip: string }
-> = {
-  directly_resolves: {
-    label: '✓ 直接解決',
-    className: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-950 dark:text-green-200',
-    tooltip: '同時改善目標、抑制副作用，未明顯違反邊界',
-  },
-  partially_resolves: {
-    label: '◐ 部分解決',
-    className: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-950 dark:text-yellow-200',
-    tooltip: '只解到一面，或只處理症狀而非根因',
-  },
-  conditionally_resolves: {
-    label: '⚠ 條件成立',
-    className: 'bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950 dark:text-orange-200',
-    tooltip: '理論上可行，但依賴尚未證明的關鍵假設',
-  },
-  does_not_resolve: {
-    label: '✗ 未解到',
-    className: 'bg-red-100 text-red-800 border-red-300 dark:bg-red-950 dark:text-red-200',
-    tooltip: '與矛盾關聯弱，或違反 mission/KPI/邊界',
-  },
-  unclear: {
-    label: '? 資訊不足',
-    className: 'bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-900 dark:text-gray-300',
-    tooltip: '資訊不足，無法可靠判定',
-  },
-};
-
-const ADDRESSES_LAYER_LABEL: Record<string, string> = {
-  root_cause: '解根因',
-  mechanism: '解機制',
-  symptom: '解症狀',
-  unclear: '層級不明',
-};
-
-// ---------------------------------------------------------------------------
-// Per-SR verdict UI config (SR-grouped audit, RD-friendly rewrite)
-// ---------------------------------------------------------------------------
-// Each entry tells the SR row what icon / colour / one-liner to show
-// when this direction's stance on THIS specific SR is X. Keeps the row
-// scannable for a non-systems-thinker RD: see icon + 1 sentence.
-const VERDICT_BADGE: Record<
-  PerSrVerdict,
-  { icon: string; label: string; className: string; dotClass: string }
-> = {
-  directly_solves: {
-    icon: '✓',
-    label: '直接解',
-    className: 'text-green-700 dark:text-green-300',
-    dotClass: 'bg-green-500',
-  },
-  partially_solves: {
-    icon: '◐',
-    label: '部分支撐',
-    className: 'text-yellow-700 dark:text-yellow-300',
-    dotClass: 'bg-yellow-500',
-  },
-  needs_verify: {
-    icon: '⚠',
-    label: '要驗證',
-    className: 'text-orange-700 dark:text-orange-300',
-    dotClass: 'bg-orange-500',
-  },
-  violates: {
-    icon: '✗',
-    label: '違反',
-    className: 'text-red-700 dark:text-red-300',
-    dotClass: 'bg-red-500',
-  },
-  not_addressed: {
-    icon: '·',
-    label: '未觸及',
-    className: 'text-muted-foreground',
-    dotClass: 'bg-gray-400',
-  },
-  unclear: {
-    icon: '?',
-    label: '不清楚',
-    className: 'text-muted-foreground',
-    dotClass: 'bg-gray-400',
-  },
-};
-
-// SR kind labels — the LLM tags every "達成目標" with one of 4 kinds.
-// Labels intentionally avoid the word 「目標」 inside the tag because
-// the wrapping section is already called 「達成目標」; using the same
-// word again would clash visually and conceptually.
-const SR_KIND_TAG: Record<string, { tag: string; tagDescription: string }> = {
-  desired_improvement: { tag: '想改善', tagDescription: '矛盾想要更多更好的東西' },
-  undesired_effect: { tag: '想避免', tagDescription: '矛盾想要擋住別變更糟的東西' },
-  boundary_condition: { tag: '不可違反', tagDescription: '硬限制 / 一旦違反整個方案就無效' },
-  mission_outcome: { tag: '驗收標準', tagDescription: 'KPI 等級的最終承諾' },
-};
+import { Checkbox } from '@/components/ui/checkbox';
+import { ContradictionManifest } from '@/components/create/DecisionCardPanel';
+import {
+  RESOLUTION_STATUS_TERMS,
+  ADDRESSES_LAYER_TERMS,
+  VERDICT_TERMS,
+  SR_KIND_TERMS,
+  SCORE_COLUMN_TERMS,
+  SORT_OPTIONS,
+  FILTER_OPTIONS,
+  SEVERITY_TERMS,
+  getSortValue,
+  type SortMode,
+  type FilterMode,
+  type GlossarySectionId,
+} from './directionTerms';
+import { DirectionTermsGlossary } from './DirectionTermsGlossary';
 
 /** Pull the sub_requirement_id out of an entry regardless of legacy/new shape. */
 function entrySrId(e: CoverageEntry): string {
@@ -182,45 +92,6 @@ function formatSourceRef(ref?: string): string {
   if (r.startsWith('constraint:')) return `約束 ${r.slice('constraint:'.length)}`;
   if (r.startsWith('kpi:')) return `KPI ${r.slice('kpi:'.length)}`;
   return r;
-}
-
-// ---------------------------------------------------------------------------
-// Filter mode config — RD-facing shortcuts for the 5-state verdict
-// ---------------------------------------------------------------------------
-type FilterMode =
-  | 'all'
-  | 'directly_only'
-  | 'hide_does_not'
-  | 'with_assumptions';
-
-const FILTER_OPTIONS: { value: FilterMode; label: string }[] = [
-  { value: 'all', label: '全部' },
-  { value: 'directly_only', label: '只看直接解決' },
-  { value: 'hide_does_not', label: '藏掉未解到' },
-  { value: 'with_assumptions', label: '只看條件解 (依賴假設)' },
-];
-
-// ---------------------------------------------------------------------------
-// Sort mode config
-// ---------------------------------------------------------------------------
-type SortMode = 'tool_support' | 'feasibility' | 'cost_difficulty' | 'coverage';
-
-const SORT_OPTIONS: { value: SortMode; label: string }[] = [
-  { value: 'tool_support', label: '工具共識優先' },
-  { value: 'feasibility', label: '可行性優先' },
-  { value: 'cost_difficulty', label: '成本難度優先' },
-  { value: 'coverage', label: '覆蓋率優先' },
-];
-
-/** Return the score value for a given sort mode. cost_difficulty is ascending (lower = better). */
-function getSortValue(score: DirectionScore | undefined, mode: SortMode): number {
-  if (!score) return mode === 'cost_difficulty' ? Infinity : -Infinity;
-  switch (mode) {
-    case 'tool_support': return score.tool_support;
-    case 'feasibility': return score.feasibility;
-    case 'cost_difficulty': return -score.cost_difficulty; // negate so ascending sort = lower cost first
-    case 'coverage': return score.coverage_score;
-  }
 }
 
 // Path icon helper
@@ -279,10 +150,59 @@ function SolutionItem({ sol }: { sol: DirectionSolution }) {
 }
 
 // ---------------------------------------------------------------------------
+// Tooltip helper for glossary-linked help icons
+// ---------------------------------------------------------------------------
+function GlossaryHelp({
+  description,
+  onOpenGlossary,
+  sectionId,
+  size = 'sm',
+}: {
+  description: string;
+  onOpenGlossary: (section: GlossarySectionId) => void;
+  sectionId: GlossarySectionId;
+  size?: 'sm' | 'xs';
+}) {
+  const sizeCls = size === 'xs' ? 'h-3 w-3' : 'h-3.5 w-3.5';
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenGlossary(sectionId);
+          }}
+          className="text-muted-foreground hover:text-foreground transition-colors cursor-help shrink-0"
+          aria-label="開啟名詞說明"
+        >
+          <HelpCircle className={sizeCls} />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+        <p>{description}</p>
+        <p className="text-[10px] text-muted-foreground mt-1">點擊查看完整說明</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 export interface DirectionResultCardProps {
   result: ContradictionDirectionResult;
+  /**
+   * Phase 3 (E4)：父元件 (Create.tsx) 可選擇接管 pickedSet 以便在整併按鈕
+   * 收集所有矛盾的勾選結果送進 backend.picks。
+   * 若未提供 → 元件自行維護內部 state（向後相容）。
+   */
+  pickedSet?: Set<string>;
+  onPickedChange?: (next: Set<string>) => void;
+  /**
+   * Phase 3 (E5)：當該矛盾完成同矛盾相容性檢查後傳入，顯示警示條。
+   */
+  intraCompatibility?: IntraContradictionCompatibility | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -294,6 +214,9 @@ function DirectionBlock({
   audit,
   subRequirements,
   rank,
+  picked,
+  onPickChange,
+  onOpenGlossary,
 }: {
   direction: DirectionGroup;
   score?: DirectionScore;
@@ -307,6 +230,12 @@ function DirectionBlock({
    */
   subRequirements: SubRequirement[];
   rank: 'top1' | 'top2' | 'other';
+  /** RD 是否已勾選此方向（為跨矛盾整併準備）。 */
+  picked: boolean;
+  /** 勾選狀態變更回呼。 */
+  onPickChange: (picked: boolean) => void;
+  /** 開啟 Glossary 並跳到指定節。 */
+  onOpenGlossary: (section: GlossarySectionId) => void;
 }) {
   const [open, setOpen] = useState(rank === 'top1');
 
@@ -319,76 +248,131 @@ function DirectionBlock({
   // Resolution status fallback to 'unclear' so legacy rows without
   // context-aware audit still render a deterministic badge.
   const statusKey: ResolutionStatus = audit?.resolution_status ?? 'unclear';
-  const statusConfig = RESOLUTION_STATUS_BADGE[statusKey];
-  const layerLabel = audit?.addresses_layer
-    ? ADDRESSES_LAYER_LABEL[audit.addresses_layer] ?? audit.addresses_layer
-    : null;
+  const statusTerm = RESOLUTION_STATUS_TERMS[statusKey];
+  const layerKey = audit?.addresses_layer ?? null;
+  const layerTerm = layerKey ? ADDRESSES_LAYER_TERMS[layerKey] : null;
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <Card className={cn('border', borderClass)}>
-        <CollapsibleTrigger asChild>
-          <CardHeader className="p-3 cursor-pointer hover:bg-accent/30 transition-colors">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 flex-wrap min-w-0">
-                {rank === 'top1' && <Trophy className="h-4 w-4 text-yellow-500 shrink-0" />}
-                {rank === 'top2' && <Medal className="h-4 w-4 text-blue-400 shrink-0" />}
-                <CardTitle className="text-sm font-semibold">
-                  {direction.direction_name}
-                </CardTitle>
-                {/* 5-state resolution status badge (context-aware audit) */}
-                <Badge
-                  variant="outline"
-                  className={cn('text-[10px] border', statusConfig.className)}
-                  title={statusConfig.tooltip}
-                >
-                  {statusConfig.label}
-                </Badge>
-                {layerLabel && (
+        <CardHeader className="p-3 hover:bg-accent/30 transition-colors">
+          <div className="flex items-center gap-2">
+            {/* Phase 2 (A3): 勾選 checkbox — 不在 CollapsibleTrigger 內，
+                免得點 checkbox 同時展開 / 收合 */}
+            <Checkbox
+              checked={picked}
+              onCheckedChange={(c) => onPickChange(c === true)}
+              aria-label={`勾選方向 ${direction.direction_name}`}
+              className="shrink-0"
+            />
+
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex flex-col items-stretch gap-1 flex-1 min-w-0 text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                  {rank === 'top1' && <Trophy className="h-4 w-4 text-yellow-500 shrink-0" />}
+                  {rank === 'top2' && <Medal className="h-4 w-4 text-blue-400 shrink-0" />}
+                  <CardTitle className="text-sm font-semibold">
+                    {direction.direction_name}
+                  </CardTitle>
+
+                  {/* Resolution Status badge — wrapped in Tooltip with description. */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge
+                        variant="outline"
+                        className={cn('text-[10px] border cursor-help', statusTerm.className)}
+                      >
+                        {statusTerm.label}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+                      {statusTerm.description}
+                    </TooltipContent>
+                  </Tooltip>
+
+                  {/* Addresses Layer badge — newly tooltipped. */}
+                  {layerTerm && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge
+                          variant="outline"
+                          className={cn('text-[10px] border cursor-help', layerTerm.className)}
+                        >
+                          {layerTerm.label}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+                        {layerTerm.description}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+
                   <Badge variant="outline" className="text-[10px]">
-                    {layerLabel}
+                    TC:{direction.tc_count} PC:{direction.pc_count} SF:{direction.sf_count}
                   </Badge>
-                )}
-                <Badge variant="outline" className="text-[10px]">
-                  TC:{direction.tc_count} PC:{direction.pc_count} SF:{direction.sf_count}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {score && (
-                  <span className="text-xs text-muted-foreground">
-                    總分 {score.weighted_total.toFixed(1)}
-                  </span>
-                )}
-                {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {direction.direction_summary}
-            </p>
-          </CardHeader>
-        </CollapsibleTrigger>
+                  <span className="flex-1" />
+                  {score && (
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      總分 {score.weighted_total.toFixed(1)}
+                    </span>
+                  )}
+                  {open ? <ChevronUp className="h-3 w-3 shrink-0" /> : <ChevronDown className="h-3 w-3 shrink-0" />}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {direction.direction_summary}
+                </p>
+              </button>
+            </CollapsibleTrigger>
+          </div>
+        </CardHeader>
 
         <CollapsibleContent>
           <CardContent className="p-3 pt-0 space-y-2">
-            {/* Score details */}
+            {/* Score details — each cell wrapped in Tooltip pulling from
+                directionTerms.ts so the wording is identical to the
+                Glossary's "4 個分數欄位" section.                       */}
             {score && (
               <div className="grid grid-cols-4 gap-2 text-[11px]">
-                <div className="bg-muted/50 rounded p-1.5 text-center">
-                  <div className="text-muted-foreground">工具支持</div>
-                  <div className="font-bold">{score.tool_support}</div>
-                </div>
-                <div className="bg-muted/50 rounded p-1.5 text-center">
-                  <div className="text-muted-foreground">可行性</div>
-                  <div className="font-bold">{score.feasibility.toFixed(1)}</div>
-                </div>
-                <div className="bg-muted/50 rounded p-1.5 text-center">
-                  <div className="text-muted-foreground">成本難度</div>
-                  <div className="font-bold">{score.cost_difficulty.toFixed(1)}</div>
-                </div>
-                <div className="bg-muted/50 rounded p-1.5 text-center">
-                  <div className="text-muted-foreground">覆蓋率</div>
-                  <div className="font-bold">{score.coverage_score?.toFixed(1) ?? '—'}</div>
-                </div>
+                {SCORE_COLUMN_TERMS.map((col) => {
+                  const value =
+                    col.key === 'tool_support'
+                      ? score.tool_support
+                      : col.key === 'feasibility'
+                        ? score.feasibility
+                        : col.key === 'cost_difficulty'
+                          ? score.cost_difficulty
+                          : score.coverage_score;
+                  const display =
+                    col.key === 'tool_support'
+                      ? value
+                      : (value as number | undefined)?.toFixed?.(1) ?? '—';
+                  return (
+                    <Tooltip key={col.key}>
+                      <TooltipTrigger asChild>
+                        <div className="bg-muted/50 rounded p-1.5 text-center cursor-help">
+                          <div className="text-muted-foreground">{col.label}</div>
+                          <div className="font-bold">{display}</div>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+                        <p>{col.description}</p>
+                        <button
+                          type="button"
+                          className="text-[10px] text-primary underline mt-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenGlossary('score_columns');
+                          }}
+                        >
+                          查看 4 個分數欄位的完整說明 →
+                        </button>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
               </div>
             )}
             {score?.score_rationale && (
@@ -400,16 +384,9 @@ function DirectionBlock({
             {/* SR-grouped audit (context-aware, RD-friendly rewrite).
                 Every SR gets one row. The row shows what THIS direction
                 does for THAT SR using a 5-state verdict + a single
-                plain-language sentence. Replaces the old 3-section
-                layout (依賴假設 / 違反 / 未涵蓋) that forced RD to
-                cross-reference. */}
+                plain-language sentence. */}
             {audit && subRequirements.length > 0 && (
               <div className="space-y-1.5 border-t border-dashed pt-2">
-                {/* Direction-level 局勢彙總 — single-glance count of how
-                    many "達成目標" this direction handles vs leaves to
-                    verification vs ignores. Computed inline so it
-                    stays in sync with the rows below without a useMemo
-                    dance (subRequirements is short).                  */}
                 {(() => {
                   const entries = audit.coverage_matrix ?? audit.entries ?? [];
                   const counts: Record<PerSrVerdict, number> = {
@@ -436,8 +413,16 @@ function DirectionBlock({
                   if (counts.unclear) parts.push(`? ${counts.unclear} 條不清楚`);
                   return (
                     <div className="text-[11px] bg-muted/40 rounded p-2 space-y-0.5">
-                      <div className="font-medium text-foreground/80">
-                        這個矛盾要算解掉，下面 {subRequirements.length} 個達成目標必須全部成立：
+                      <div className="flex items-center gap-1 font-medium text-foreground/80">
+                        <span>
+                          這條矛盾的 {subRequirements.length} 個需求面向（閱讀背景，不是驗收條件）：
+                        </span>
+                        <GlossaryHelp
+                          description="這些 SR 子需求只是「閱讀背景」，幫你看懂矛盾在說什麼；真正驗收要等跨矛盾整併後的 VerdictCard。"
+                          onOpenGlossary={onOpenGlossary}
+                          sectionId="why_not_verdict"
+                          size="xs"
+                        />
                       </div>
                       <div className="text-foreground/90">
                         本方向局勢：{parts.join('　')}
@@ -456,21 +441,18 @@ function DirectionBlock({
                     const entry = (audit.coverage_matrix ?? audit.entries ?? []).find(
                       (e) => entrySrId(e) === sr.id,
                     );
-                    // No entry for this SR → treat as not_addressed so
-                    // the row is still visible (a missing entry is
-                    // itself information: the direction ignored this SR).
                     const verdictKey: PerSrVerdict =
                       (entry?.verdict as PerSrVerdict | undefined) ??
                       (entry ? 'unclear' : 'not_addressed');
-                    const vb = VERDICT_BADGE[verdictKey];
+                    const vTerm = VERDICT_TERMS[verdictKey];
                     const verdictSentence =
                       entry?.verdict_zh ||
                       entry?.rationale ||
                       entry?.note ||
                       (entry
                         ? '（這個方向對這條沒給出明確判斷）'
-                        : '這個方向沒有觸及這條達成目標。');
-                    const kindTag = sr.kind ? SR_KIND_TAG[sr.kind] : undefined;
+                        : '這個方向沒有觸及這條需求面向。');
+                    const kindTerm = sr.kind ? SR_KIND_TERMS[sr.kind] : undefined;
                     const sourceLabel = formatSourceRef(sr.source_ref);
 
                     return (
@@ -478,34 +460,50 @@ function DirectionBlock({
                         key={sr.id}
                         className="flex items-start gap-2 text-[11px] bg-muted/30 rounded p-2"
                       >
-                        <span
-                          className={cn('inline-block w-1.5 h-1.5 rounded-full mt-1.5 shrink-0', vb.dotClass)}
-                          aria-hidden
-                        />
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span
+                              className={cn(
+                                'inline-block w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 cursor-help',
+                                vTerm.dotClass,
+                              )}
+                              aria-label={vTerm.label}
+                            />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+                            <span className={cn('font-medium', vTerm.className)}>
+                              {vTerm.icon} {vTerm.label}
+                            </span>
+                            <span> — {vTerm.description}</span>
+                          </TooltipContent>
+                        </Tooltip>
                         <div className="flex-1 min-w-0 space-y-1">
                           {/* TOP HALF: the GOAL itself (what must be true). */}
                           <div className="space-y-0.5">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="font-semibold text-foreground">
-                                達成目標 {idx + 1}
+                                需求 {idx + 1}
                               </span>
-                              {kindTag && (
-                                <Badge
-                                  variant="outline"
-                                  className="text-[9px] px-1 py-0"
-                                  title={kindTag.tagDescription}
-                                >
-                                  {kindTag.tag}
-                                </Badge>
+                              {kindTerm && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge
+                                      variant="outline"
+                                      className={cn('text-[9px] px-1 py-0 cursor-help border-0', kindTerm.tone)}
+                                    >
+                                      {kindTerm.tag}
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+                                    {kindTerm.description}
+                                  </TooltipContent>
+                                </Tooltip>
                               )}
                               {sourceLabel && (
                                 <span className="text-[9px] text-muted-foreground">
                                   （{sourceLabel}）
                                 </span>
                               )}
-                              {/* Internal id kept for cross-talk/searches
-                                  but visually weak so first-time readers
-                                  do not get distracted by SR-x codes. */}
                               <span className="text-[9px] text-muted-foreground/60 ml-auto">
                                 {sr.id}
                               </span>
@@ -514,13 +512,11 @@ function DirectionBlock({
                               {sr.description}
                             </div>
                           </div>
-                          {/* Divider — visually separates the GOAL (题目)
-                              from this direction's RESULT (this方案的成績). */}
                           <hr className="border-t border-dashed border-foreground/15 my-1" />
                           {/* BOTTOM HALF: this direction's verdict on the goal. */}
-                          <div className={cn('flex items-baseline gap-1', vb.className)}>
+                          <div className={cn('flex items-baseline gap-1 flex-wrap', vTerm.className)}>
                             <span className="font-medium shrink-0">
-                              本方案：{vb.icon} {vb.label}
+                              本方案：{vTerm.icon} {vTerm.label}
                             </span>
                             <span className="text-foreground/80">{verdictSentence}</span>
                           </div>
@@ -530,20 +526,13 @@ function DirectionBlock({
                   })}
                 </div>
 
-                {/* Side-effect warning — separate block because it is a
-                    direction-level concern, not per-SR. */}
+                {/* Side-effect warning — direction-level concern. */}
                 {audit.cld_side_effects && audit.cld_side_effects.length > 0 && (
                   <div className="text-[11px] bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 rounded p-1.5 space-y-1">
                     <div className="font-medium text-amber-800 dark:text-amber-200">
                       ⚠️ 副作用警示
                     </div>
                     {audit.cld_side_effects.map((effect, i) => {
-                      // The prompt asks the LLM to emit two parts:
-                      //   "<白話結果>. (技術註腳: <CLD 路徑>)"
-                      // Split on the literal "(技術註腳" tag so the
-                      // technical detail lives in a smaller, italic
-                      // tail — RD reads the plain-language sentence
-                      // first, only digs into the trace when needed.
                       const noteMarker = '(技術註腳';
                       const idx = effect.indexOf(noteMarker);
                       const plain = idx >= 0 ? effect.slice(0, idx).trim() : effect;
@@ -585,15 +574,40 @@ function DirectionBlock({
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
-export function DirectionResultCard({ result }: DirectionResultCardProps) {
+export function DirectionResultCard({
+  result,
+  pickedSet: pickedSetProp,
+  onPickedChange,
+  intraCompatibility,
+}: DirectionResultCardProps) {
   const [cardOpen, setCardOpen] = useState(true);
   const [sortMode, setSortMode] = useState<SortMode>('tool_support');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
-  const sev = SEVERITY_BADGE[result.severity] ?? SEVERITY_BADGE.unknown;
+
+  // Glossary state — opened on demand by the 📖 button or any inline ? icon.
+  const [glossaryOpen, setGlossaryOpen] = useState(false);
+  const [glossarySection, setGlossarySection] = useState<GlossarySectionId | undefined>(undefined);
+  const openGlossary = (section: GlossarySectionId) => {
+    setGlossarySection(section);
+    setGlossaryOpen(true);
+  };
+
+  // Phase 2 (A3) → Phase 3 (E4):
+  //   - 若父元件 (Create.tsx) 接管 pickedSet，這條 state 不會被讀；
+  //   - 否則 fallback 為自管 state 以保持元件可單獨使用。
+  const [internalPickedSet, setInternalPickedSet] = useState<Set<string>>(new Set());
+  const pickedSet = pickedSetProp ?? internalPickedSet;
+  const setPickedSet = (updater: (prev: Set<string>) => Set<string>) => {
+    if (onPickedChange) {
+      onPickedChange(updater(pickedSet));
+    } else {
+      setInternalPickedSet(updater);
+    }
+  };
+
+  const sev = SEVERITY_TERMS[result.severity] ?? SEVERITY_TERMS.unknown;
   const scoreMap = new Map(result.scored_directions.map((s) => [s.direction_id, s]));
   // Coverage audits indexed by direction_id for O(1) lookup in the loop.
-  // Legacy rows without audits silently fall through to `undefined` so
-  // DirectionBlock uses the 'unclear' fallback rather than crashing.
   const auditMap = new Map(
     (result.coverage_audits ?? []).map((a) => [a.direction_id, a]),
   );
@@ -632,7 +646,7 @@ export function DirectionResultCard({ result }: DirectionResultCardProps) {
   const sorted = [...filtered].sort((a, b) => {
     const sa = getSortValue(scoreMap.get(a.direction_id), sortMode);
     const sb = getSortValue(scoreMap.get(b.direction_id), sortMode);
-    return sb - sa; // descending (getSortValue already negates cost_difficulty)
+    return sb - sa; // descending
   });
 
   // Count by status for the header chip — gives RD instant signal of
@@ -652,21 +666,66 @@ export function DirectionResultCard({ result }: DirectionResultCardProps) {
     },
   );
 
+  // Tooltips for the currently-selected sort/filter
+  const currentSortDesc = SORT_OPTIONS.find((o) => o.value === sortMode)?.description ?? '';
+  const currentFilterDesc = FILTER_OPTIONS.find((o) => o.value === filterMode)?.description ?? '';
+
   return (
-    <Collapsible open={cardOpen} onOpenChange={setCardOpen}>
-      <Card className="border">
-        <CollapsibleTrigger asChild>
-          <CardHeader className="p-3 pb-2 cursor-pointer hover:bg-accent/30 transition-colors">
+    <>
+      <Collapsible open={cardOpen} onOpenChange={setCardOpen}>
+        <Card className="border">
+          <CardHeader className="p-3 pb-2">
             <div className="flex items-center justify-between gap-2">
-              <CardTitle className="text-sm flex items-center gap-2 min-w-0">
-                <Zap className="h-4 w-4 text-primary shrink-0" />
-                <span className="line-clamp-2">
-                  {result.natural_description || result.contradiction_id}
-                </span>
-              </CardTitle>
-              <div className="flex items-center gap-2 shrink-0">
-                <Badge variant={sev.variant}>{sev.label}</Badge>
-                {cardOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              <CollapsibleTrigger asChild>
+                <button
+                  type="button"
+                  className="flex-1 min-w-0 text-left cursor-pointer hover:bg-accent/30 transition-colors rounded -mx-1 px-1 py-0.5"
+                >
+                  <CardTitle className="text-sm flex items-center gap-2 min-w-0">
+                    <Zap className="h-4 w-4 text-primary shrink-0" />
+                    <span className="line-clamp-2">
+                      {result.natural_description || result.contradiction_id}
+                    </span>
+                  </CardTitle>
+                </button>
+              </CollapsibleTrigger>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {/* Severity badge — tooltipped */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant={sev.variant} className="cursor-help">
+                      {sev.label}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+                    {sev.description}
+                  </TooltipContent>
+                </Tooltip>
+
+                {/* 📖 名詞說明 button — opens the Glossary sheet. */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-[11px] gap-1"
+                      onClick={() => openGlossary('manifest')}
+                    >
+                      <BookOpen className="h-3.5 w-3.5" />
+                      名詞說明
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+                    開啟「📖 名詞說明」拉桿，逐節解釋徽章、評語、Sort/Filter 等所有術語。
+                  </TooltipContent>
+                </Tooltip>
+
+                <CollapsibleTrigger asChild>
+                  <button type="button" className="text-muted-foreground hover:text-foreground">
+                    {cardOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  </button>
+                </CollapsibleTrigger>
               </div>
             </div>
             <div className="flex gap-3 text-[11px] text-muted-foreground mt-1 flex-wrap">
@@ -689,101 +748,149 @@ export function DirectionResultCard({ result }: DirectionResultCardProps) {
               )}
             </div>
           </CardHeader>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <CardContent className="p-3 pt-0 space-y-2">
-            {/* Sort + filter selectors */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
-                <SelectTrigger className="h-7 w-[160px] text-[11px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SORT_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value} className="text-[11px]">
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={filterMode} onValueChange={(v) => setFilterMode(v as FilterMode)}>
-                <SelectTrigger className="h-7 w-[180px] text-[11px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {FILTER_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value} className="text-[11px]">
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <CollapsibleContent>
+            <CardContent className="p-3 pt-0 space-y-2">
+              {/* Sort + filter selectors — both gain ? icons that open the
+                  Glossary directly to the "Sort / Filter 用法" section. */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <div className="flex items-center gap-1">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
+                          <SelectTrigger className="h-7 w-[160px] text-[11px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SORT_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value} className="text-[11px]">
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+                      <p className="font-medium mb-0.5">目前排序：</p>
+                      <p>{currentSortDesc}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <GlossaryHelp
+                    description="共 4 種排序方式 — 點擊查看完整說明與適用場景。"
+                    onOpenGlossary={openGlossary}
+                    sectionId="sort_filter"
+                  />
+                </div>
 
-            {/* Sub-requirement overview (context-aware audit, 方案 A).
-                Shows EVERY SR for the contradiction once, up-front, so
-                the RD knows what "SR-3" means before scanning per-
-                direction verdicts below. Collapsed by default to keep
-                the card density manageable. */}
-            {subRequirements.length > 0 && (
-              <details className="text-[11px] border border-dashed rounded p-2">
-                <summary className="cursor-pointer font-medium text-muted-foreground">
-                  這個矛盾要算解掉，下面 {subRequirements.length} 個達成目標必須全部成立（點開看）
-                </summary>
-                <ol className="space-y-1 mt-2 list-decimal pl-5">
-                  {subRequirements.map((sr) => {
-                    const kindTag = sr.kind ? SR_KIND_TAG[sr.kind] : undefined;
-                    const sourceLabel = formatSourceRef(sr.source_ref);
-                    return (
-                      <li key={sr.id} className="flex items-start gap-1.5 flex-wrap">
-                        {kindTag && (
-                          <Badge variant="outline" className="text-[9px] px-1 py-0 shrink-0" title={kindTag.tagDescription}>
-                            {kindTag.tag}
-                          </Badge>
-                        )}
-                        <span className="text-foreground/90 flex-1 min-w-[200px]">{sr.description}</span>
-                        {sourceLabel && (
-                          <span className="text-[10px] text-muted-foreground shrink-0">
-                            （{sourceLabel}）
-                          </span>
-                        )}
-                        <span className="text-[9px] text-muted-foreground/60 shrink-0">
-                          {sr.id}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ol>
-                <p className="text-[10px] text-muted-foreground mt-2 leading-snug">
-                  標籤說明：
-                  「<b>想改善</b>」=矛盾想要更多更好的東西；
-                  「<b>想避免</b>」=矛盾想要擋住別變更糟的東西；
-                  「<b>不可違反</b>」=硬限制，一旦違反整個方案就無效；
-                  「<b>驗收標準</b>」=KPI 等級的最終承諾。
-                </p>
-              </details>
-            )}
-
-            {sorted.length === 0 && (
-              <div className="text-[11px] text-muted-foreground italic p-3 text-center">
-                目前篩選條件沒有符合的方向
+                <div className="flex items-center gap-1">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <Select value={filterMode} onValueChange={(v) => setFilterMode(v as FilterMode)}>
+                          <SelectTrigger className="h-7 w-[180px] text-[11px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {FILTER_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value} className="text-[11px]">
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs text-xs leading-relaxed">
+                      <p className="font-medium mb-0.5">目前篩選：</p>
+                      <p>{currentFilterDesc}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <GlossaryHelp
+                    description="共 4 種篩選方式 — 點擊查看完整說明與適用場景。"
+                    onOpenGlossary={openGlossary}
+                    sectionId="sort_filter"
+                  />
+                </div>
               </div>
-            )}
 
-            {sorted.map((dir) => (
-              <DirectionBlock
-                key={dir.direction_id}
-                direction={dir}
-                score={scoreMap.get(dir.direction_id)}
-                audit={auditMap.get(dir.direction_id)}
+              {/* Phase 1 (A0): 矛盾說明書 — 取代舊「必須全部成立」宣告。 */}
+              <ContradictionManifest
+                contradictionDescription={result.natural_description}
                 subRequirements={subRequirements}
-                rank={getRank(dir)}
+                weakWarnings={result.sr_weak_warnings ?? []}
               />
-            ))}
-          </CardContent>
-        </CollapsibleContent>
-      </Card>
-    </Collapsible>
+
+              {/* Phase 3 (E5): 同矛盾多選相容性警示 — 整併後產出 */}
+              {intraCompatibility &&
+                intraCompatibility.picked_direction_ids.length >= 2 && (
+                  <div
+                    className={cn(
+                      'rounded-md border text-[11px] p-2 space-y-1',
+                      intraCompatibility.has_conflict
+                        ? 'border-orange-300 bg-orange-50 dark:bg-orange-950/30 dark:border-orange-700'
+                        : 'border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 dark:border-emerald-700'
+                    )}
+                  >
+                    <div className="font-medium">
+                      {intraCompatibility.has_conflict
+                        ? `⚠️ 同矛盾勾選衝突：${
+                            intraCompatibility.pairwise_results.filter((p) => !p.compatible).length
+                          } 對方向有衝突`
+                        : `✅ 同矛盾勾選相容：${intraCompatibility.picked_direction_ids.length} 個方向可一起整併`}
+                    </div>
+                    {intraCompatibility.has_conflict &&
+                      intraCompatibility.max_compatible_subsets.length > 0 && (
+                        <div>
+                          推薦組合：
+                          <span className="font-mono ml-1">
+                            {intraCompatibility.max_compatible_subsets[0].join(' + ')}
+                          </span>
+                        </div>
+                      )}
+                    {intraCompatibility.recommendation && (
+                      <div className="text-muted-foreground">{intraCompatibility.recommendation}</div>
+                    )}
+                  </div>
+                )}
+
+              {sorted.length === 0 && (
+                <div className="text-[11px] text-muted-foreground italic p-3 text-center">
+                  目前篩選條件沒有符合的方向
+                </div>
+              )}
+              {sorted.map((dir) => (
+                <DirectionBlock
+                  key={dir.direction_id}
+                  direction={dir}
+                  score={scoreMap.get(dir.direction_id)}
+                  audit={auditMap.get(dir.direction_id)}
+                  subRequirements={subRequirements}
+                  rank={getRank(dir)}
+                  picked={pickedSet.has(dir.direction_id)}
+                  onPickChange={(picked) => {
+                    setPickedSet((prev) => {
+                      const next = new Set(prev);
+                      if (picked) next.add(dir.direction_id);
+                      else next.delete(dir.direction_id);
+                      return next;
+                    });
+                  }}
+                  onOpenGlossary={openGlossary}
+                />
+              ))}
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
+      {/* Glossary Sheet — single instance per card. */}
+      <DirectionTermsGlossary
+        open={glossaryOpen}
+        onOpenChange={setGlossaryOpen}
+        defaultSectionId={glossarySection}
+      />
+    </>
   );
 }

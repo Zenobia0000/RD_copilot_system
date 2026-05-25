@@ -1906,6 +1906,10 @@ class SubRequirement(BaseModel):
     v2 fields (kind, source_ref) are additive — legacy payloads without
     them deserialize to safe defaults so this model stays backward
     compatible with rows persisted before the context-aware refactor.
+
+    v3 fields (raw_text, candidate_id, relevance_score) added by Phase 1
+    (S0 演算法為骨重構) for traceability back to the enumerated candidate
+    pool. They default to empty so older rows stay valid.
     """
     id: str = ""            # e.g. "SR-1"
     domain: str = ""        # e.g. "thermal", "electromagnetic", "mechanical"
@@ -1915,6 +1919,20 @@ class SubRequirement(BaseModel):
     kind: SubRequirementKind = "desired_improvement"
     source_ref: str = ""    # e.g. "mission" | "constraint:C1" | "kpi:K2" |
                             #      "contradiction" | "socratic" | "cld"
+    # --- v3 additions (S0 演算法為骨重構) ---
+    raw_text: str = ""              # 原始 candidate.raw_text 保留為 ground truth
+    candidate_id: int = 0           # 對應 _enumerate_sr_candidates 的 candidate_id
+    relevance_score: int = 0        # LLM 給的 0-3 相關性分
+
+
+class SrWeakWarning(BaseModel):
+    """A candidate with score==1 — surfaced as ⚠️ tooltip in UI, not as a proper SR."""
+    candidate_id: int = 0
+    kind: SubRequirementKind = "desired_improvement"
+    source_ref: str = ""
+    raw_text: str = ""
+    relevance_score: int = 1
+    why_weak: str = ""
 
 
 # Per-SR verdict — UI-friendly 5-state label describing what the
@@ -2010,6 +2028,76 @@ class CombinedDirection(BaseModel):
     integration_strategy: str = ""
 
 
+# ---------------------------------------------------------------------------
+# Phase 2 — DecisionCard：每條 direction 1 張，給 RD 選購用
+# ---------------------------------------------------------------------------
+# 設計理念見 plans/triz-redesign.md §3。產出時機：solve_triz_directed
+# 跑完 all_directions 之後（在 _persist_directed_solution 之前），對每條
+# direction 跑一輪輕量 LLM call 產出。
+#
+# 對使用者的承諾：「5 秒判斷不適合 / 30 秒判斷值得細看 / 看到組合衝突提示」。
+# 真正的工程審判由整併後的 VerdictCard (Phase 3) 提供。
+
+ContradictionFace = Literal[
+    "improving_side",   # 主要解決矛盾的 improving 那一面
+    "worsening_side",   # 主要抑制 worsening 那一面
+    "both",             # 同時解到兩面
+    "side_effect",      # 主要在處理次生副作用
+]
+
+EffortLevel = Literal["low", "medium", "high"]
+
+
+class DecisionCardQuickTags(BaseModel):
+    """採用成本 / 風險速覽。"""
+    effort: EffortLevel = "medium"
+    evidence_level: Literal["E0", "E1", "E2", "E3", "E4"] = "E2"
+    affects_modules: list[str] = Field(default_factory=list)
+
+
+class DecisionCardCombinationHints(BaseModel):
+    """跨矛盾整併相容性提示（服務後續整併工作流的關鍵欄位）。"""
+    synergy_with: list[str] = Field(default_factory=list)
+    conflict_with: list[str] = Field(default_factory=list)
+    best_paired_with: list[str] = Field(default_factory=list)
+
+
+class DecisionCard(BaseModel):
+    """每條 TRIZ direction 產出 1 張，給 RD 選購用。
+
+    5 欄結構，對應 plans/triz-redesign.md §3.1：
+      1. one_liner            — ≤40 字一句話機制
+      2. contradiction_face   — 解矛盾的哪一面 + 中文 emoji badge
+      3. resolution_*         — 對「此矛盾」的解決度（沿用 5-state）
+      4. quick_tags           — 採用成本 / 證據 / 受影響模組
+      5. combination_hints    — 跨矛盾整併線索（synergy / conflict / best_pair）
+    """
+    direction_id: str
+    direction_name: str
+
+    # 第 1 欄
+    one_liner: str = ""
+
+    # 第 2 欄
+    contradiction_face: ContradictionFace = "both"
+    face_badge: str = ""   # 例如 "🌡️ 降熱不擴體積"
+
+    # 第 3 欄 — 沿用 ResolutionStatus（已有定義）
+    resolution_status: ResolutionStatus = "unclear"
+    resolution_one_line: str = ""
+
+    # 第 4 欄
+    quick_tags: DecisionCardQuickTags = Field(default_factory=DecisionCardQuickTags)
+
+    # 第 5 欄
+    combination_hints: DecisionCardCombinationHints = Field(
+        default_factory=DecisionCardCombinationHints
+    )
+
+    # 中介資訊 — RD 勾選狀態（前端會直接 mutate 這個欄位）
+    picked: bool = False
+
+
 class ContradictionDirectionResult(BaseModel):
     """單一矛盾的完整方向分析結果（§二 輸出）。"""
     contradiction_id: str
@@ -2024,8 +2112,11 @@ class ContradictionDirectionResult(BaseModel):
     top2_score: DirectionScore | None = None
     # Step H/I: Resolution Coverage
     sub_requirements: list[SubRequirement] = Field(default_factory=list)
+    sr_weak_warnings: list["SrWeakWarning"] = Field(default_factory=list)
     coverage_audits: list[DirectionCoverageAudit] = Field(default_factory=list)
     combined_direction: CombinedDirection | None = None
+    # Phase 2: DecisionCard per direction（每條 direction 1 張）
+    decision_cards: list[DecisionCard] = Field(default_factory=list)
 
 
 # ---- Conflict type enum (locked vocabulary for compat check) ----
@@ -2130,11 +2221,42 @@ class ConflictReport(BaseModel):
 
 
 class ConsolidationResult(BaseModel):
-    """跨矛盾整併結果(§三 輸出)。"""
+    """跨矛盾整併結果(§三 輸出)。
+
+    Phase 3 bugfix: 加入 `was_user_picked` 區分「RD 直接勾選」與「系統 swap Top2」。
+
+    PR2-Lite (語意 3 — 分數損失最小化候選池演算法)：
+      - 使用者在 DecisionCard 勾的多個方向 = 該矛盾的「候選池」（依分數降冪）
+      - 演算法從各池首位開始，衝突時換池內下一名（單條換、損失最小者優先）
+      - `adopted_directions[cid]` 仍只記**一個**最終代表方向
+      - `candidate_pools[cid]` 是這條矛盾的整池（含未被採用的 fallback）
+      - `exhausted_contradictions` 是「候選池已用盡仍卡住」的矛盾 ID list
+      - `total_rounds` 是演算法跑了幾輪（含初始檢查）
+
+    Status 語意（重要）：
+      - "compatible"          → 採用方向（不論是 Top1 還是 RD 勾的）兩兩相容，無需 swap。
+      - "resolved_with_swap"  → 「至少一條非 pinned 矛盾被系統從 Top1 → Top2 swap」
+                                才會回此 status。RD 勾的方向「剛好不是 Top1」**不算**
+                                swap，那是 user_picked。
+      - "conflict"            → 衝突無法靠 swap 解掉。
+    """
     status: Literal["compatible", "resolved_with_swap", "conflict"] = "compatible"
     adopted_directions: dict[str, DirectionGroup] = Field(default_factory=dict)
     conflict_report: ConflictReport | None = None
     integration_advice: str = ""
+    # Phase 3 bugfix: contradiction_id → direction_id where RD explicitly picked it
+    # (vs system-chosen Top1 or system-swapped Top2). Frontend uses this to label
+    # the badge as「使用您勾選的方向」rather than「Top2 替換」.
+    was_user_picked: dict[str, str] = Field(default_factory=dict)
+    # PR2-Lite 新增欄位 ────────────────────────────────────────────
+    # contradiction_id → list[DirectionGroup]（依分數降冪），可選；
+    # 舊資料 / 單矛盾 fallback / 還沒勾選的場景可能為 {}。
+    candidate_pools: dict[str, list[DirectionGroup]] = Field(default_factory=dict)
+    # 演算法跑完後仍卡住、池已用盡的矛盾 IDs。conflict 時才會有值；
+    # 用於前端 PR1-8 conflict UI 的「卡點分析」區塊。
+    exhausted_contradictions: list[str] = Field(default_factory=list)
+    # 演算法執行的輪次數（含初始 LLM 檢查）。0 = 沒跑演算法（如單矛盾 fallback）。
+    total_rounds: int = 0
 
 
 class SolveDirectedRequest(BaseModel):
@@ -2162,15 +2284,226 @@ class SolveDirectedResponse(BaseModel):
     result: ContradictionDirectionResult
 
 
+# ---------------------------------------------------------------------------
+# Phase 3 — Picked selections + intra-contradiction compatibility
+# ---------------------------------------------------------------------------
+# 設計理念見 plans/triz-redesign.md §A：使用者可在同一條矛盾下勾選多個方向，
+# 我們對同矛盾多選跑兩兩相容性檢查，再用 max independent set 推薦最大相容子集；
+# 跨矛盾整併則保留勾選方向，僅 swap「未被勾的 Top1」以解衝突。
+
+
+class PickedSelection(BaseModel):
+    """前端傳來的單一矛盾使用者勾選結果。
+
+    `picked_direction_ids` 來自 DecisionCard checkbox。為避免 LLM 兩兩比對爆炸，
+    後端在處理時對單一矛盾的多選數量上限 = 6（超過會回 422）。
+    """
+    contradiction_id: str
+    picked_direction_ids: list[str] = Field(default_factory=list)
+
+    @field_validator("picked_direction_ids")
+    @classmethod
+    def _enforce_max_six(cls, v: list[str]) -> list[str]:
+        if len(v) > 6:
+            raise ValueError(
+                f"同一條矛盾最多可勾選 6 個方向；目前勾了 {len(v)} 個，請收斂到 6 個以內"
+            )
+        return v
+
+
+class IntraContradictionCompatibility(BaseModel):
+    """同一條矛盾下多選方向的相容性報告。
+
+    pairwise_results: N×(N-1)/2 個兩兩比較
+    max_compatible_subsets: 排序後的最大相容子集，最大優先 (用 max independent set 找出)
+    has_conflict: 是否存在 ≥1 對衝突 pair
+    recommendation: ≤80 字推薦組合一句話
+    """
+    contradiction_id: str
+    picked_direction_ids: list[str] = Field(default_factory=list)
+    pairwise_results: list[CompatibilityResult] = Field(default_factory=list)
+    max_compatible_subsets: list[list[str]] = Field(default_factory=list)
+    has_conflict: bool = False
+    recommendation: str = ""
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — EngineeringVerdictCard Q1–Q8
+# ---------------------------------------------------------------------------
+# 設計理念見 plans/triz-redesign.md §4。對整併方案做 8 節完整工程審判：
+#   Q1 contradiction_face_per_picked  每條被勾的 direction 解的是哪一面
+#   Q2 mechanism_trace                整體機制因果鏈
+#   Q3 feasibility_matrix             逐軸可行性判定
+#   Q4 side_effects_via_cld           CLD multi-hop 副作用
+#   Q5 coverage_completeness          對所有 SR 的涵蓋率
+#   Q6 verification_plan              採用前必要驗證
+#   Q7 duty_cycle_verdict             peak/continuous/startup/steady_state
+#   Q8 boundary_collapse              ≥5 條失效條件
+
+
+class ContradictionFacePerPicked(BaseModel):
+    """Q1：每條被勾的方向解的是哪一面 (improving / worsening)。"""
+    contradiction_id: str
+    picked_direction_id: str
+    picked_direction_name: str
+    improving_side: Literal["yes", "partial", "no"] = "no"
+    worsening_side: Literal["yes", "partial", "no"] = "no"
+    introduces_new_side_effect: list[str] = Field(default_factory=list)
+
+
+class MechanismTrace(BaseModel):
+    """Q2：整併方案的整體機制因果鏈。"""
+    technology_mix: list[Literal["control", "structure", "material", "topology"]] = Field(
+        default_factory=list
+    )
+    delta_chain: list[str] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
+    evidence_level: Literal["E0", "E1", "E2", "E3", "E4"] = "E2"
+
+
+class FeasibilityVerdict(BaseModel):
+    """Q3：對單一軸 (constraint / KPI / mission spec) 的可行性判定。"""
+    axis: str
+    source_ref: str = ""
+    verdict: Literal[
+        "pass", "marginal_pass", "bottleneck",
+        "not_addressed", "not_affected", "fail",
+    ] = "not_addressed"
+    rationale: str = ""
+    quantitative_estimate: str = ""
+
+
+class FeasibilityMatrix(BaseModel):
+    """Q3：整併方案對每個 relevant axis 的逐項判定。"""
+    axes: list[FeasibilityVerdict] = Field(default_factory=list)
+    overall_verdict: Literal["pass", "marginal", "fail"] = "marginal"
+    bottleneck_axes: list[str] = Field(default_factory=list)
+
+
+class CldSideEffect(BaseModel):
+    """Q4：沿 CLD edges traversal 找出的單條副作用鏈。"""
+    cld_path: list[str] = Field(default_factory=list)
+    polarity_chain: list[Literal["positive", "negative"]] = Field(default_factory=list)
+    direction_impact: str = ""
+    risk_level: Literal["low", "medium", "high"] = "low"
+
+
+class SideEffectsViaCld(BaseModel):
+    """Q4：CLD multi-hop side-effect paths + socratic counter warnings。"""
+    paths: list[CldSideEffect] = Field(default_factory=list)
+    socratic_warnings: list[str] = Field(default_factory=list)
+
+
+class CoverageCompleteness(BaseModel):
+    """Q5：整併方案對「所有 relevant SR + 弱相關」的涵蓋率。"""
+    resolves_fully: list[str] = Field(default_factory=list)
+    resolves_partial: list[str] = Field(default_factory=list)
+    resolves_conditional: list[str] = Field(default_factory=list)
+    does_not_address: list[str] = Field(default_factory=list)
+    open_questions: list[str] = Field(default_factory=list)
+
+
+class VerificationStep(BaseModel):
+    """Q6：採用前必須跑的驗證實驗單步驟。"""
+    phase: Literal[
+        "simulation", "bench", "thermal_soak", "prototype", "pilot", "field"
+    ] = "simulation"
+    test_description: str = ""
+    expected_outcome: str = ""
+    effort_hours: int = 0
+    blocking: bool = False
+
+
+class VerificationPlan(BaseModel):
+    """Q6：完整驗證計畫，含對應 socratic.action 的引用。"""
+    steps: list[VerificationStep] = Field(default_factory=list)
+    socratic_action_links: list[str] = Field(default_factory=list)
+
+
+class DutyCycleVerdict(BaseModel):
+    """Q7：在 peak / continuous / startup / steady_state 四工況下成立度。"""
+    peak: Literal["addressed", "marginal", "not_addressed"] = "not_addressed"
+    continuous: Literal["addressed", "marginal", "not_addressed"] = "not_addressed"
+    startup: Literal["addressed", "marginal", "not_addressed"] = "not_addressed"
+    steady_state: Literal["addressed", "marginal", "not_addressed"] = "not_addressed"
+    cycle_specific_notes: str = ""
+
+
+class BoundaryCollapse(BaseModel):
+    """Q8：失效條件 (至少 5 條)。"""
+    condition: str
+    failure_mode: str = ""
+    severity: Literal["mild", "moderate", "catastrophic"] = "moderate"
+
+
+class EngineeringVerdictCard(BaseModel):
+    """對整併方案做 Q1–Q8 完整工程審判 (Phase 3 核心輸出)。"""
+    project_id: str
+    consolidation_id: str = ""
+
+    contradiction_face_per_picked: list[ContradictionFacePerPicked] = Field(
+        default_factory=list
+    )
+    mechanism_trace: MechanismTrace = Field(default_factory=MechanismTrace)
+    feasibility_matrix: FeasibilityMatrix = Field(default_factory=FeasibilityMatrix)
+    side_effects_via_cld: SideEffectsViaCld = Field(default_factory=SideEffectsViaCld)
+    coverage_completeness: CoverageCompleteness = Field(default_factory=CoverageCompleteness)
+    verification_plan: VerificationPlan = Field(default_factory=VerificationPlan)
+    duty_cycle_verdict: DutyCycleVerdict = Field(default_factory=DutyCycleVerdict)
+    boundary_collapse: list[BoundaryCollapse] = Field(default_factory=list)
+
+    final_verdict: Literal[
+        "adopt", "adopt_with_conditions", "needs_revision", "reject"
+    ] = "needs_revision"
+    final_rationale: str = ""
+    confidence: float = 0.5
+
+
 class ConsolidateRequest(BaseModel):
-    """POST /triz/consolidate — 跨矛盾整併。"""
+    """POST /triz/consolidate — 跨矛盾整併。
+
+    Phase 3 新增 `picks` 欄位：若提供，後端會：
+      1. 對每條 PickedSelection 做同矛盾相容性檢查 → intra_compatibility
+      2. 跨矛盾整併時尊重勾選方向 (而非 fallback 到 Top1)
+      3. _try_swap_to_top2 只能 swap 未被勾的方向
+    若未提供 picks 則 fallback 到「每條矛盾用 top1」(向後相容)。
+    """
     project_id: str
     results: list[ContradictionDirectionResult]
+    picks: list[PickedSelection] = Field(default_factory=list)
+
+
+class PersistenceOutcome(BaseModel):
+    """Backend → FE persistence reporting (2026-05 hardening).
+
+    `_persist_consolidation_result` 把寫 DB 的結果用此結構回報，避免「靜默吞掉
+    例外」導致前端誤以為 DB 也寫成功、但其實只有 in-memory response 有完整資料、
+    DB 卻是殘缺的 row（這正是 Phase 3 / PR2-Lite 欄位漏寫的根因）。
+
+    狀態語意：
+      - "ok"      → 完整 payload（含 verdict_card / was_user_picked /
+                    intra_compatibility / candidate_pools / ...）寫入成功
+      - "partial" → 偵測到 column 不存在（migration 未套用），退回 legacy
+                    schema 只寫舊欄位。FE 必須警告使用者：重整後會丟失 Phase 3 資料
+      - "failed"  → 寫入完全失敗（network / RLS / 其他）。FE 必須提示「請重試」
+                    且**不能**把 in-memory response 寫進 React Query cache，
+                    否則 stale 會被當成 truth、後續 refetch 又會被舊 DB row 覆蓋
+
+    `columns_written` 紀錄實際寫入 DB 的欄位名單，用於 debug / observability。
+    """
+    status: Literal["ok", "partial", "failed"] = "ok"
+    reason: str | None = None
+    columns_written: list[str] = Field(default_factory=list)
 
 
 class ConsolidateResponse(BaseModel):
     """POST /triz/consolidate — 回傳。"""
     consolidation: ConsolidationResult
+    # Phase 3 新增
+    intra_compatibility: list[IntraContradictionCompatibility] = Field(default_factory=list)
+    verdict_card: EngineeringVerdictCard | None = None
+    # 2026-05 hardening：DB persist 狀態回報。預設 "ok" 兼容老測試。
+    persistence: PersistenceOutcome = Field(default_factory=PersistenceOutcome)
 
 
 # ---------------------------------------------------------------------------

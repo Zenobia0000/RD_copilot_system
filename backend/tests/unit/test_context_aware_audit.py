@@ -243,47 +243,37 @@ def test_missing_audit_treated_as_unclear():
 # (d) LLM-touching helpers — call_llm_json monkey-patched
 # ---------------------------------------------------------------------------
 
+# Phase 1 (S0) — 演算法為骨重構：以下兩個測試針對舊「LLM 自由產 SR」流程，
+# 在新流程下 contradiction 兩面永遠由程式列舉（不是 LLM 從 sub_requirements
+# 欄位產出），所以這兩個 fallback / clamping 行為不再相關。
+#
+# 新的穩定性測試見 backend/tests/integration/test_sr_stability.py
+# - TestEnumerateSrCandidates / TestFilterByRelevance / TestScoreSrRelevance
+# - TestSrStability10Runs：連跑 10 次 SR 結構穩定性
+
+import pytest
+
+
+@pytest.mark.skip(reason="Phase 1 S0 deprecated this fallback path; "
+                         "see test_sr_stability.py for new behaviour")
 def test_decompose_contradiction_tolerant_when_kind_missing(monkeypatch):
-    """Legacy LLM output (no `kind` field) still parses with safe default."""
+    """[DEPRECATED] 舊 LLM 自由產 SR 流程的容錯行為。
 
-    def fake_llm(_system, _prompt, **_kw):
-        return json.dumps({
-            "sub_requirements": [
-                {
-                    "id": "SR-1",
-                    "domain": "thermal",
-                    "description": "dissipate heat",
-                    "why_necessary": "thermal envelope",
-                    # no `kind`, no `source_ref`
-                }
-            ]
-        })
-
-    monkeypatch.setattr(triz_solver, "call_llm_json", fake_llm)
-    subs = _decompose_contradiction("test contradiction", BriefContextSnapshot())
-    assert len(subs) == 1
-    assert subs[0].kind == "desired_improvement"  # safe default
-    assert subs[0].source_ref == ""
+    在 Phase 1 S0 重構後，SR 由程式列舉候選 + LLM 評分 + 改寫產生，
+    舊的「LLM 給空 kind」場景不存在了。
+    """
+    pass
 
 
+@pytest.mark.skip(reason="Phase 1 S0 deprecated this fallback path; "
+                         "see test_sr_stability.py for new behaviour")
 def test_decompose_contradiction_clamps_invalid_kind(monkeypatch):
-    """An off-vocab kind from a misbehaving LLM is clamped, not crashing."""
+    """[DEPRECATED] 舊 LLM 自由產 SR 流程的 invalid kind clamping。
 
-    def fake_llm(_system, _prompt, **_kw):
-        return json.dumps({
-            "sub_requirements": [
-                {
-                    "id": "SR-1",
-                    "kind": "kind_that_does_not_exist",
-                    "description": "x",
-                    "why_necessary": "y",
-                }
-            ]
-        })
-
-    monkeypatch.setattr(triz_solver, "call_llm_json", fake_llm)
-    subs = _decompose_contradiction("test contradiction", BriefContextSnapshot())
-    assert subs[0].kind == "desired_improvement"
+    新流程的 kind 由 _enumerate_sr_candidates 程式決定，LLM 無法產出
+    invalid kind，所以這個 clamping 路徑不再需要。
+    """
+    pass
 
 
 def test_audit_coverage_parses_full_v2_payload(monkeypatch):

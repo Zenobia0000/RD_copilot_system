@@ -80,8 +80,8 @@ import {
 } from "@/hooks/api";
 import { useContradictions } from "@/hooks/api/useContradictions";
 import { useLayeredTrizSolutions } from "@/hooks/api/useLayeredTrizSolutions";
-import { useDirectedTrizSolutions } from "@/hooks/api/useDirectedTrizSolutions";
-import { useTrizConsolidationResult, upsertConsolidationResult } from "@/hooks/api/useTrizConsolidationResult";
+import { useDirectedTrizSolutions, resetDirectedAnalysisDb } from "@/hooks/api/useDirectedTrizSolutions";
+import { useTrizConsolidationResult } from "@/hooks/api/useTrizConsolidationResult";
 import type { Contradiction } from "@/types/contradiction";
 import type { Json } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
@@ -89,11 +89,18 @@ import { useTrackAssumptions } from "@/hooks/api/useTrack";
 import { useBrief, useConstraints, useKpis } from "@/hooks/api/useBrief";
 import { antiAnchorGenerate, trizSolveLayered, trizSolveDirected, trizConsolidate, riskAnalyze, mustEvaluate, validationPassportGenerate, getApiErrorMessage } from "@/lib/api";
 import type { LayeredTrizSolution, TrizSeverity, AdoptedLayerId } from "@/types/layeredTriz";
-import type { ContradictionDirectionResult, ConsolidationResult } from "@/types/directedTriz";
+import type {
+  ContradictionDirectionResult,
+  ConsolidationResult,
+  IntraContradictionCompatibility,
+  EngineeringVerdictCard,
+  PickedSelection,
+} from "@/types/directedTriz";
 import { LayeredSolutionCard } from "@/components/create/LayeredSolutionCard";
 import type { AdoptionMode } from "@/components/create/LayeredSolutionCard";
 import { DirectionResultCard } from "@/components/create/DirectionResultCard";
 import { ConsolidationPanel } from "@/components/create/ConsolidationPanel";
+import { VerdictCardPanel } from "@/components/create/VerdictCardPanel";
 import type { LayeredConceptRouteMeta, LayeredLayerSnapshot } from "@/types/conceptRoute";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/hooks/api/useQueryConfig";
@@ -288,23 +295,61 @@ export default function Create() {
   }, [layeredQuery.data]);
   // v8: Hydrate directed TRIZ results from DB on mount / refetch.
   // Local optimistic updates (from in-flight solve) win via `...prev` last.
+  //
+  // Phase 3 bugfix (Bug 1a)：DB 可能存有已刪 contradiction 的「孤兒 DTS row」
+  // （contradiction 被 RD 刪掉但 directed_triz_solutions 沒同步清）。此處用
+  // alive contradictions 過濾，避免 directedResults 帶進孤兒、汙染整併比對。
   useEffect(() => {
     if (directedQuery.data && Object.keys(directedQuery.data).length > 0) {
-      setDirectedResults((prev) => ({ ...directedQuery.data, ...prev }));
+      const aliveIds = new Set(
+        (contradictionsQuery.data ?? []).map((c) => c.id),
+      );
+      const filtered: Record<string, ContradictionDirectionResult> = {};
+      for (const [cid, r] of Object.entries(directedQuery.data)) {
+        // 若 contradictions 還沒 hydrate (size=0)，先全保留；等 contradictions 進來
+        // 再 re-run effect 過濾。這避免初次 mount 時誤殺。
+        if (aliveIds.size === 0 || aliveIds.has(cid)) {
+          filtered[cid] = r;
+        }
+      }
+      setDirectedResults((prev) => ({ ...filtered, ...prev }));
       // Mark DB-loaded results as 'done' in status map (don't overwrite in-flight states)
       setDirectedStatusMap((prev) => {
         const next = { ...prev };
-        for (const cid of Object.keys(directedQuery.data!)) {
+        for (const cid of Object.keys(filtered)) {
           if (!next[cid]) next[cid] = 'done';
         }
         return next;
       });
     }
-  }, [directedQuery.data]);
+    // 依賴 contradictionsQuery.data：等 alive set 進來才能過濾乾淨。
+  }, [directedQuery.data, contradictionsQuery.data]);
   // v8: Hydrate consolidation result from DB on mount / refetch.
+  //
+  // Bug fix (2026-05)：改為 DB-wins。
+  //   舊版用 `prev ?? db` (prev-wins)，邏輯是「不要覆蓋剛跑完的結果」，
+  //   但這在「使用者重整頁面 → state 重置為 null → cache 給的是上次結果」
+  //   的情境下，會讓畫面停在「上次跑的整併」而不是真實的 DB 最新值。
+  //
+  //   現在的流程：
+  //   1. 跑整併成功 → `handleConsolidateOnly` 立即 `setQueryData` 把
+  //      response（含 verdict_card / intra_compatibility）push 進 cache
+  //   2. hook `useTrizConsolidationResult` 的 `refetchOnMount='always'`
+  //      會在重整時強制再從 DB 拿一次最新值
+  //   3. 這個 useEffect 直接用 query.data（DB 真實值）覆蓋 state，
+  //      確保畫面 = DB。Race 在步驟 1 + 2 已經完全擋住，這層用 DB-wins
+  //      就不會留尾巴。
   useEffect(() => {
-    if (consolidationQuery.data) {
-      setConsolidationResult((prev) => prev ?? consolidationQuery.data);
+    if (!consolidationQuery.data) return;
+    setConsolidationResult(consolidationQuery.data);
+    setVerdictCard(consolidationQuery.data.verdict_card ?? null);
+    const intra = consolidationQuery.data.intra_compatibility;
+    if (intra && intra.length > 0) {
+      const m: Record<string, IntraContradictionCompatibility> = {};
+      for (const ic of intra) m[ic.contradiction_id] = ic;
+      setIntraCompatByContradiction(m);
+    } else {
+      setIntraCompatByContradiction({});
     }
   }, [consolidationQuery.data]);
   // 9.2.4: Per-contradiction independent loading state
@@ -318,6 +363,12 @@ export default function Create() {
   const [directedStatusMap, setDirectedStatusMap] = useState<Record<string, 'pending' | 'solving' | 'done' | 'failed'>>({});
   const [directedErrors, setDirectedErrors] = useState<Record<string, string>>({});
   const [directedConsolidating, setDirectedConsolidating] = useState(false);
+  // Phase 3 (E4): RD 在 DirectionResultCard 勾選的方向，依 contradiction_id 分桶。
+  const [pickedByContradiction, setPickedByContradiction] = useState<Record<string, Set<string>>>({});
+  // Phase 3 (E5): 整併後的同矛盾相容性報告 (依 contradiction_id 索引)
+  const [intraCompatByContradiction, setIntraCompatByContradiction] = useState<Record<string, IntraContradictionCompatibility>>({});
+  // Phase 3 (E3): 整併後的 EngineeringVerdictCard
+  const [verdictCard, setVerdictCard] = useState<EngineeringVerdictCard | null>(null);
 
   // v9: Concept Architecture Pack local state
   const [conceptTemplateId, setConceptTemplateId] = useState("generic_product");
@@ -332,8 +383,47 @@ export default function Create() {
     }
   }, [engSpecDraftPackQuery.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // v8: Directed TRIZ — solve only top-level TC contradictions
-  // PC and SF are derived internally by the backend from each TC
+  // Phase 3 (E4) helper：把目前 RD 勾選的方向序列化成 PickedSelection[]，
+  // 用來餵給 backend.picks。空 Set / 沒勾的矛盾不送 → backend 自動 fallback Top1。
+  // 同矛盾最多 6 個 (超過 schema 422，FE 也提示)。
+  const buildPicksPayload = (): PickedSelection[] => {
+    const out: PickedSelection[] = [];
+    for (const [cid, ids] of Object.entries(pickedByContradiction)) {
+      if (!ids || ids.size === 0) continue;
+      if (ids.size > 6) {
+        toast.warning(`同矛盾最多勾 6 個方向（${cid} 已勾 ${ids.size}），整併會被後端拒絕`);
+      }
+      out.push({ contradiction_id: cid, picked_direction_ids: Array.from(ids) });
+    }
+    return out;
+  };
+
+  // Phase 3 helper: 統一處理整併 response → 寫回 verdict / intra-compat。
+  const applyConsolidateResponse = (resp: {
+    consolidation: ConsolidationResult;
+    intra_compatibility?: IntraContradictionCompatibility[];
+    verdict_card?: EngineeringVerdictCard | null;
+  }) => {
+    setConsolidationResult(resp.consolidation);
+    const intraMap: Record<string, IntraContradictionCompatibility> = {};
+    for (const ic of resp.intra_compatibility ?? []) {
+      intraMap[ic.contradiction_id] = ic;
+    }
+    setIntraCompatByContradiction(intraMap);
+    setVerdictCard(resp.verdict_card ?? null);
+  };
+
+  // v8 (PR1)：方向導向分析 — 純跑方向分析，整併改為手動觸發
+  // ---------------------------------------------------------------
+  // PR1 重大流程變更：
+  //   1. 按下「重新執行方向導向分析」會把畫面清空（含 verdict_card /
+  //      intra_compatibility / pickedByContradiction / consolidationResult）
+  //   2. 同步刪掉 DB 的 directed_triz_solutions / triz_consolidation_results
+  //      避免 React Query 重整頁面時又 hydrate 出舊資料
+  //   3. 跑完方向分析後**不**自動 consolidate；使用者要在 DecisionCard
+  //      勾選方向後，按下「跨矛盾方向整併」鈕才會走 handleConsolidateOnly。
+  //   4. Single contradiction 情境同樣不自動產出；整併按鈕仍可用，由
+  //      handleConsolidateOnly 內部走 single-contradiction local path。
   const handleDirectedSolveAll = async () => {
     if (!id) return;
     // Only process top-level TC contradictions (no parentContradictionId)
@@ -343,15 +433,29 @@ export default function Create() {
       return;
     }
     setAiLoading((p) => ({ ...p, directedTriz: true }));
-    // Initialize all as pending; clear previous results
+
+    // ── PR1-2：清前端 state 全套（包含整併後的 verdict / intra / picks） ──
     const initStatus: Record<string, 'pending' | 'solving' | 'done' | 'failed'> = {};
     contrs.forEach(c => { initStatus[c.id] = 'pending'; });
     setDirectedStatusMap(initStatus);
     setDirectedErrors({});
     setDirectedResults({});
     setConsolidationResult(null);
+    setVerdictCard(null);
+    setIntraCompatByContradiction({});
+    setPickedByContradiction({});
 
-    const results: ContradictionDirectionResult[] = [];
+    // ── PR1-3：同步清空 DB 殘留，避免重整後又 hydrate 舊整併結果 ──
+    try {
+      await resetDirectedAnalysisDb(id);
+    } catch (err) {
+      console.warn('resetDirectedAnalysisDb failed (non-fatal):', err);
+    }
+    queryClient.invalidateQueries({ queryKey: queryKeys.directed_triz_solutions.byProject(id) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.triz_consolidation_results.byProject(id) });
+
+    // ── 跑每條 TC 的方向分析 ──
+    let okCount = 0;
     for (const c of contrs) {
       try {
         setDirectedStatusMap((prev) => ({ ...prev, [c.id]: 'solving' }));
@@ -365,7 +469,7 @@ export default function Create() {
         });
         setDirectedResults((prev) => ({ ...prev, [c.id]: resp.result }));
         setDirectedStatusMap((prev) => ({ ...prev, [c.id]: 'done' }));
-        results.push(resp.result);
+        okCount++;
       } catch (err) {
         console.error(`directed solve failed for ${c.id}:`, err);
         const msg = err instanceof Error ? err.message : String(err);
@@ -374,106 +478,164 @@ export default function Create() {
       }
     }
 
-    // Auto-consolidate if we have ≥2 results
-    if (results.length >= 2) {
-      try {
-        setDirectedConsolidating(true);
-        const consResp = await trizConsolidate({ project_id: id, results });
-        setConsolidationResult(consResp.consolidation);
-        toast.success(`跨矛盾整併完成：${consResp.consolidation.status === 'compatible' ? '全部相容 ✓' : consResp.consolidation.status === 'resolved_with_swap' ? '替換後相容' : '存在衝突'}`);
-      } catch (err) {
-        console.error('consolidation failed:', err);
-        toast.error(getApiErrorMessage(err, '跨矛盾整併'));
-      } finally {
-        setDirectedConsolidating(false);
-      }
-    } else if (results.length === 1) {
-      // Single contradiction: build a local ConsolidationResult so the panel renders
-      const singleResult = results[0];
-      const singleConsolidation: ConsolidationResult = {
-        status: 'compatible',
-        adopted_directions: singleResult.top1
-          ? { [singleResult.contradiction_id]: singleResult.top1 }
-          : {},
-        conflict_report: null,
-        integration_advice: singleResult.top1
-          ? `唯一矛盾「${singleResult.natural_description}」的首選方向：${singleResult.top1.direction_name}。`
-          : '',
-      };
-      setConsolidationResult(singleConsolidation);
-      // Persist to DB so page reload also shows the panel
-      upsertConsolidationResult(id, singleConsolidation).catch((err) =>
-        console.warn('persist single-contradiction consolidation failed:', err),
-      );
-      toast.success('已為 1 條矛盾產出方向分析');
-    } else {
+    // ── PR1-1：不再自動 consolidate / 不再自動產 single-contradiction 結果 ──
+    if (okCount === 0) {
       toast.error('方向求解全部失敗');
+    } else if (okCount < contrs.length) {
+      toast.warning(`${okCount}/${contrs.length} 條矛盾完成方向分析，請於 DecisionCard 勾選後手動執行「跨矛盾方向整併」`);
+    } else {
+      toast.success(`已產出 ${okCount} 條矛盾的方向分析，請於 DecisionCard 勾選後執行「跨矛盾方向整併」`);
     }
-    // Invalidate React Query caches so navigating away and back rehydrates from DB
+
+    // Invalidate so 重整也能 hydrate 出剛存好的 directed_triz_solutions
     queryClient.invalidateQueries({ queryKey: queryKeys.directed_triz_solutions.byProject(id) });
-    queryClient.invalidateQueries({ queryKey: queryKeys.triz_consolidation_results.byProject(id) });
     setAiLoading((p) => ({ ...p, directedTriz: false }));
   };
 
-  // v8: Consolidate-only — skip solving, just re-run cross-contradiction consolidation
+  // v8 (PR1-6 / 1-7) → 修復版：Consolidate-only — 手動觸發整併（含驗證可行性 VerdictCard）。
+  //
+  // 重要修正（2026-05）：
+  //   舊版本對 doneResults.length < 2 走「local fallback」，完全跳過 backend
+  //   `/triz/consolidate`，導致 VerdictCard (Q1–Q8) 永遠是 null，使用者反映
+  //   「按下整併沒跑出驗證可行性」。Backend 早就有 single-contradiction fast
+  //   path（triz_solver.consolidate_solutions line 4951），會跳過跨矛盾比對
+  //   但仍跑 _generate_engineering_verdict_card —— 所以 FE 不應該自作主張跳過。
+  //
+  // 流程設計（語意 3：勾的是候選池，演算法選代表方向）：
+  //   1. 必須先有「done」狀態的方向分析結果
+  //   2. 多矛盾 (≥2)：未勾任何方向 → 擋下（演算法沒候選池可挑）
+  //   3. 單矛盾 (==1)：未勾允許走 backend Top1 fallback，但提示先勾再按
+  //   4. 不分單/多矛盾，一律呼叫 backend trizConsolidate 以取得 verdict_card
   const handleConsolidateOnly = async () => {
     if (!id) return;
     // Collect results that are already 'done'
+    // Bug 1b：用 alive contradiction set 過濾掉孤兒 (contradiction 已被刪但 DTS row 還在)。
+    const aliveContradictionIds = new Set(
+      (contradictionsQuery.data ?? []).map((c) => c.id),
+    );
     const doneResults = Object.entries(directedStatusMap)
       .filter(([, s]) => s === 'done')
       .map(([cid]) => directedResults[cid])
-      .filter(Boolean);
+      .filter((r): r is ContradictionDirectionResult => Boolean(r))
+      .filter((r) => aliveContradictionIds.has(r.contradiction_id));
 
     if (doneResults.length === 0) {
       toast.warning('尚無已完成的方向分析結果，請先執行方向導向分析');
       return;
     }
 
+    // PR1-6：多矛盾未勾任何方向 → 直接擋下（演算法沒候選池可挑）。
+    // 單矛盾未勾 → 不擋，僅提示；讓 backend fallback 用 Top1 並產 verdict_card。
+    const totalPicked = Object.values(pickedByContradiction)
+      .reduce((sum, set) => sum + (set?.size ?? 0), 0);
+    if (totalPicked === 0 && doneResults.length >= 2) {
+      toast.warning('請先在各 DecisionCard 勾選您認可的方向，再執行跨矛盾整併', {
+        description: '未勾選任何方向時，演算法沒有候選池可挑選。',
+      });
+      return;
+    }
+    if (totalPicked === 0 && doneResults.length === 1) {
+      toast.info('未勾任何方向，將以系統 Top1 為代表跑驗證可行性', {
+        description: '若想驗證自己挑的方向，請先在 DecisionCard 勾選後再按一次整併。',
+      });
+    }
+
     // Clear previous consolidation display
     setConsolidationResult(null);
+    setVerdictCard(null);
+    setIntraCompatByContradiction({});
 
-    if (doneResults.length >= 2) {
-      try {
-        setDirectedConsolidating(true);
-        const consResp = await trizConsolidate({ project_id: id, results: doneResults });
-        setConsolidationResult(consResp.consolidation);
-        // Persist to DB
-        upsertConsolidationResult(id, consResp.consolidation).catch(err =>
-          console.warn('persist consolidation failed:', err),
+    try {
+      setDirectedConsolidating(true);
+      // Backend `consolidate_solutions` 對 len(results)==1 已有 fast path：
+      // 跳過跨矛盾 swap 但仍跑 _generate_engineering_verdict_card，所以
+      // FE 不論單/多矛盾一律走後端，verdict_card 才會回來。
+      const consResp = await trizConsolidate({
+        project_id: id,
+        results: doneResults,
+        picks: buildPicksPayload(),
+      });
+      applyConsolidateResponse(consResp);
+
+      // 2026-05 hardening：依後端 persistence 回報決定 cache / toast 行為。
+      //
+      // 背景：之前 `_persist_consolidation_result` 用 broad `except Exception`
+      // 把任何 DB 錯誤都當成「migration 未套用」處理 → silent pop Phase 3
+      // 欄位 → 結果 in-memory response 完整但 DB 半殘。使用者重整後就看到
+      // 殘缺資料（VerdictCard 顯示舊值、was_user_picked 漏寫 → 誤標 Top2 替換）。
+      //
+      // 修復後 backend 把 persist 結果用 `consResp.persistence` 顯式回報：
+      //   - "ok"      → 完整寫入成功 → 寫 cache + 顯示成功 toast
+      //   - "partial" → 偵測到 schema 缺欄位（migration 未套用）→ 警告使用者；
+      //                 **不**寫 cache，避免下次 mount 用樂觀 snapshot 蓋過 DB 殘缺 row
+      //   - "failed"  → 完全寫入失敗 → 紅色錯誤 + 不寫 cache，請使用者重試
+      // 若是舊版後端沒送 persistence 欄位（兼容性 fallback）→ 視為 "ok"。
+      const persistStatus = consResp.persistence?.status ?? 'ok';
+      const persistReason = consResp.persistence?.reason ?? '';
+      if (persistStatus === 'failed') {
+        console.error('[consolidation] DB persist failed:', consResp.persistence);
+        toast.error('整併結果寫入資料庫失敗，請重試', {
+          description:
+            (persistReason && `原因：${persistReason.slice(0, 200)}`) ||
+            '網路或 DB 暫時無法寫入；重整後可能會看到舊資料。',
+          duration: 8000,
+        });
+        // 故意不 setQueryData → 重整時 refetchOnMount 會從 DB 拿到真實狀態
+      } else if (persistStatus === 'partial') {
+        console.warn('[consolidation] DB persist partial:', consResp.persistence);
+        toast.warning('整併結果僅部分欄位寫入 DB（migration 未套用）', {
+          description:
+            persistReason ||
+            'Phase 3 / PR2-Lite 欄位寫入失敗，重整後可能丟失工程審判資料。請通知工程師執行 supabase/migrations/020-022。',
+          duration: 8000,
+        });
+        // 同樣不寫 cache：DB 殘缺，cache 樂觀寫入會導致與 DB 不一致
+      } else {
+        // OK — 立即把完整 snapshot push 進 React Query cache。
+        // 切走再回來時不必等 refetch 也有正確畫面；refetchOnMount: 'always'
+        // 接著從 DB refetch 真實值做最終校正（此時 backend upsert 早已 commit）。
+        const cachedSnapshot: ConsolidationResult = {
+          ...consResp.consolidation,
+          verdict_card: consResp.verdict_card ?? null,
+          intra_compatibility: consResp.intra_compatibility ?? [],
+        };
+        queryClient.setQueryData(
+          queryKeys.triz_consolidation_results.byProject(id),
+          cachedSnapshot,
         );
-        toast.success(`跨矛盾整併完成：${
-          consResp.consolidation.status === 'compatible' ? '全部相容 ✓'
-          : consResp.consolidation.status === 'resolved_with_swap' ? '替換後相容'
-          : '存在衝突'
-        }`);
-      } catch (err) {
-        console.error('consolidation failed:', err);
-        toast.error(getApiErrorMessage(err, '跨矛盾整併'));
-      } finally {
-        setDirectedConsolidating(false);
       }
-    } else {
-      // Single contradiction — build local ConsolidationResult
-      const singleResult = doneResults[0];
-      const singleConsolidation: ConsolidationResult = {
-        status: 'compatible',
-        adopted_directions: singleResult.top1
-          ? { [singleResult.contradiction_id]: singleResult.top1 }
-          : {},
-        conflict_report: null,
-        integration_advice: singleResult.top1
-          ? `唯一矛盾「${singleResult.natural_description}」的首選方向：${singleResult.top1.direction_name}。`
-          : '',
-      };
-      setConsolidationResult(singleConsolidation);
-      upsertConsolidationResult(id, singleConsolidation).catch(err =>
-        console.warn('persist single-contradiction consolidation failed:', err),
-      );
-      toast.success('已為 1 條矛盾產出方向整併');
+      // 刻意不 invalidateQueries — backend upsert 是非同步 PostgREST HTTP,
+      // 立刻 refetch 會在 commit 完成前抓到舊 row 反而蓋掉新值。setQueryData
+      // 已把最新 snapshot 放進 cache；下次 mount/重整時 refetchOnMount='always'
+      // 自然會校正成 DB 真實值。
+
+      const statusLabel =
+        consResp.consolidation.status === 'compatible' ? '全部相容 ✓'
+        : consResp.consolidation.status === 'resolved_with_swap' ? '替換後相容'
+        : '存在衝突';
+      const hasVerdict = consResp.verdict_card != null;
+      const verdictSuffix = hasVerdict ? '，已產出驗證可行性 Q1–Q8' : '（驗證可行性產生失敗）';
+      // partial / failed 已自帶警告 toast，只有 ok 才顯示綠色成功，
+      // 避免使用者誤以為 DB 有完整資料。
+      if (persistStatus === 'ok') {
+        if (doneResults.length === 1) {
+          toast.success(`已為 1 條矛盾完成整併（無跨矛盾衝突）${verdictSuffix}`);
+        } else {
+          toast.success(`已為 ${doneResults.length} 條矛盾完成整併：${statusLabel}${verdictSuffix}`);
+        }
+      }
+    } catch (err) {
+      console.error('consolidation failed:', err);
+      toast.error(getApiErrorMessage(err, '跨矛盾整併'));
+    } finally {
+      setDirectedConsolidating(false);
     }
   };
 
-  // v8: Per-contradiction retry for directed TRIZ solving
+  // v8 (PR1-4)：單條矛盾方向分析重試。
+  // 變更：重試後**不再**自動 re-consolidate；整併一律由「跨矛盾方向整併」
+  // 按鈕手動觸發。這是因為自動整併會把 stale picks 帶進去、產生過時
+  // verdict_card 殘留在畫面下方，造成使用者誤判。
   const handleDirectedSolveSingle = async (contradictionId: string) => {
     if (!id) return;
     const c = (contradictionsQuery.data ?? []).find(x => x.id === contradictionId);
@@ -492,28 +654,14 @@ export default function Create() {
         worsening_param: c.worseningParam ?? undefined,
       });
 
-      // Collect all done results for re-consolidation
-      let allResults: ContradictionDirectionResult[] = [];
-      setDirectedResults((prev) => {
-        const next = { ...prev, [c.id]: resp.result };
-        allResults = Object.values(next);
-        return next;
-      });
+      setDirectedResults((prev) => ({ ...prev, [c.id]: resp.result }));
       setDirectedStatusMap((prev) => ({ ...prev, [c.id]: 'done' }));
       toast.success(`${(c.naturalDescription || c.id).slice(0, 30)} 重試成功`);
 
-      // Auto re-consolidate if ≥2 done results
-      if (allResults.length >= 2) {
-        try {
-          setDirectedConsolidating(true);
-          setConsolidationResult(null);
-          const consResp = await trizConsolidate({ project_id: id, results: allResults });
-          setConsolidationResult(consResp.consolidation);
-        } catch (err) {
-          console.error('re-consolidation failed:', err);
-        } finally {
-          setDirectedConsolidating(false);
-        }
+      // PR1-4：移除自動 re-consolidate。若使用者已有整併結果，
+      // 提示需手動重跑整併，因為重試後的方向 pool 已變。
+      if (consolidationResult) {
+        toast.info('此矛盾方向已更新，請重新執行「跨矛盾方向整併」以反映變化');
       }
     } catch (err) {
       console.error(`directed solve retry failed for ${c.id}:`, err);
@@ -2104,7 +2252,7 @@ export default function Create() {
               <h3 className="text-sm font-semibold">🎯 方向導向分析（TC → PC → SF → 方向分群 → 評分 → 整併）</h3>
               <p className="text-xs text-muted-foreground">
                 對每條矛盾執行 TC/PC/SF 三路求解，合併所有解法後用 LLM 分群為「實現方向」，
-                評分選出 Top1/Top2，最後跨矛盾檢查方向相容性。
+                最後跨矛盾檢查方向相容性。
               </p>
             </div>
           </div>
@@ -2159,7 +2307,17 @@ export default function Create() {
                       )}
                     </div>
                     {status === 'done' && result && (
-                      <DirectionResultCard result={result} />
+                      <DirectionResultCard
+                        result={result}
+                        pickedSet={pickedByContradiction[c.id] ?? new Set<string>()}
+                        onPickedChange={(next) => {
+                          setPickedByContradiction((prev) => ({
+                            ...prev,
+                            [c.id]: next,
+                          }));
+                        }}
+                        intraCompatibility={intraCompatByContradiction[c.id] ?? null}
+                      />
                     )}
                     {status === 'failed' && error && (
                       <p className="text-xs text-red-500 px-3 pb-1">{error}</p>
@@ -2180,8 +2338,41 @@ export default function Create() {
                   consolidation={consolidationResult}
                   contradictionLabels={Object.fromEntries(contradictionMap)}
                   directedResults={directedResults}
+                  pickedByContradiction={pickedByContradiction}
                 />
               )}
+              {verdictCard && (
+                <VerdictCardPanel card={verdictCard} />
+              )}
+
+              {/* PR1-5：流程引導 — 已產出方向但尚未整併時提示使用者下一步 */}
+              {(() => {
+                const doneCount = Object.values(directedStatusMap).filter(s => s === 'done').length;
+                const totalPicked = Object.values(pickedByContradiction)
+                  .reduce((sum, set) => sum + (set?.size ?? 0), 0);
+                const needsConsolidate = doneCount > 0 && !consolidationResult;
+                const needsPicks = needsConsolidate && totalPicked === 0 && doneCount >= 2;
+                if (!needsConsolidate) return null;
+                return (
+                  <div className={cn(
+                    "rounded-md border px-3 py-2 text-xs",
+                    needsPicks
+                      ? "border-amber-400/40 bg-amber-50/40 text-amber-700 dark:bg-amber-950/20 dark:text-amber-300"
+                      : "border-blue-400/40 bg-blue-50/40 text-blue-700 dark:bg-blue-950/20 dark:text-blue-300"
+                  )}>
+                    {needsPicks ? (
+                      <>
+                        ⚠️ 已產出 {doneCount} 條矛盾的方向分析。請於上方各 DecisionCard 勾選您認可的解法方向後，按下「跨矛盾方向整併」。
+                      </>
+                    ) : (
+                      <>
+                        ✓ 已產出 {doneCount} 條矛盾的方向分析（目前已勾選 {totalPicked} 個方向）。
+                        在 DecisionCard 勾完想採納的方向後，按「跨矛盾方向整併」執行最終決策。
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div className="flex items-center gap-2">
                 <AiButton
@@ -2764,7 +2955,11 @@ export default function Create() {
     const toggleCompare = (altId: string) => {
       setComparedAltIds((prev) => {
         const next = new Set(prev);
-        next.has(altId) ? next.delete(altId) : next.add(altId);
+        if (next.has(altId)) {
+          next.delete(altId);
+        } else {
+          next.add(altId);
+        }
         return next;
       });
     };
@@ -2774,7 +2969,7 @@ export default function Create() {
     const radarAlts = comparedAlts.length > 0 ? comparedAlts : eligible;
 
     const radarData = PRECAD_DIMENSIONS.map((d) => {
-      const entry: Record<string, any> = { subject: d.label, fullMark: 5 };
+      const entry: Record<string, string | number> = { subject: d.label, fullMark: 5 };
       radarAlts.forEach((a) => {
         entry[a.id] = a.preCadScores[d.key as keyof typeof a.preCadScores] ?? 0;
       });

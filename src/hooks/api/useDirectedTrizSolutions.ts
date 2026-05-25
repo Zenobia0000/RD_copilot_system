@@ -90,3 +90,35 @@ export function useDirectedTrizSolutions(projectId: string | undefined) {
     ...defaultQueryOptions,
   });
 }
+
+/**
+ * PR1-3：清空本專案所有方向導向分析的 DB 殘留。
+ *
+ * 用於「重新執行方向導向分析」按下時，讓 DB / 前端 React Query 兩端都
+ * 真的回到「未跑過」的狀態，避免下次 hydrate 又把舊的 verdict_card /
+ * adopted_directions 撈回來蓋掉新流程。
+ *
+ * 範圍：
+ *   - `directed_triz_solutions`         所有 row（依 project_id）
+ *   - `triz_consolidation_results`      整併結果 row（依 project_id）
+ *
+ * 不會碰 `layered_triz_solutions`（那是 v7 舊路徑）或 `contradictions`。
+ */
+export async function resetDirectedAnalysisDb(projectId: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabase as any;
+  const dtsRes = await sb
+    .from('directed_triz_solutions')
+    .delete()
+    .eq('project_id', projectId);
+  if (dtsRes.error) {
+    console.warn('resetDirectedAnalysisDb: directed_triz_solutions delete failed:', dtsRes.error);
+  }
+  const tcrRes = await sb
+    .from('triz_consolidation_results')
+    .delete()
+    .eq('project_id', projectId);
+  if (tcrRes.error) {
+    console.warn('resetDirectedAnalysisDb: triz_consolidation_results delete failed:', tcrRes.error);
+  }
+}

@@ -19,6 +19,7 @@ from app.models.schemas import (
     ConceptArchitecturePack,
     ConceptArchitecturePackRequest,
     ConceptArchitecturePackResponse,
+    ContradictionSolutionPair,
     UpstreamArtifactSummary,
 )
 from app.prompts.concept_architecture import (
@@ -50,19 +51,25 @@ def generate_concept_architecture_pack(
     req: ConceptArchitecturePackRequest,
 ) -> ConceptArchitecturePackResponse:
     """生成概念架構包 — 整合上游產出物，透過 LLM 產出概念級架構."""
+    log.debug(
+        "generate_concept_architecture_pack req: project_id=%s template_id=%s pairs=%d",
+        req.project_id,
+        req.template_id,
+        len(req.upstream.contradiction_solution_pairs),
+    )
     with phase_timer("generate_concept_architecture_pack", project_id=req.project_id):
         # 1. 選擇模板
         template_text = format_template_for_prompt(req.template_id)
 
-        # 2. 組裝 prompt（upstream 欄位皆為 list[str]，需 join 為文字）
+        # 2. 組裝 prompt（upstream 純字串欄位 join；pairs 結構化展開）
         upstream = req.upstream
+        pairs_text = _format_pairs_for_prompt(upstream.contradiction_solution_pairs)
         user_prompt = CONCEPT_ARCHITECTURE_PACK_PROMPT.format(
             mission=upstream.mission or "(未提供)",
             constraints_text="\n".join(upstream.constraints) if upstream.constraints else "(未提供)",
             kpis_text="\n".join(upstream.kpis) if upstream.kpis else "(未提供)",
             socratic_text="\n".join(upstream.socratic_insights) if upstream.socratic_insights else "(未提供)",
-            contradiction_text="\n".join(upstream.contradiction_summaries) if upstream.contradiction_summaries else "(未提供)",
-            triz_text="\n".join(upstream.triz_solution_summaries) if upstream.triz_solution_summaries else "(未提供)",
+            pairs_text=pairs_text,
             cld_text="\n".join(upstream.cld_summary) if upstream.cld_summary else "(未提供)",
             template_subsystems=template_text,
         )
@@ -119,7 +126,50 @@ def fetch_latest_pack(project_id: str) -> ConceptArchitecturePackResponse | None
 # ---------------------------------------------------------------------------
 
 _KPI_TAG_RE = re.compile(r"^\[KPI-\d+\]")
-_CT_TAG_RE = re.compile(r"^\[CT-\d+\]")
+
+
+def _format_pairs_for_prompt(pairs: list[ContradictionSolutionPair]) -> str:
+    """把成對的「矛盾 + 採用方向 + 完整 solutions」格式化成 LLM-friendly 結構化字串.
+
+    輸出範例（每個 pair 一個 ``<pair>`` 區塊）::
+
+        <pair id="CT-1">
+          <contradiction>提高 motor torque density 改善輸出扭矩...</contradiction>
+          <adopted_direction name="電磁損耗最小化控制">透過 PWM/電流指令層...</adopted_direction>
+          <solutions>
+            - [TC] Local Quality (#3) | 分離: 條件分離 | 模組: [motor, controller] | 建議: ...
+            - [PC] Asymmetry (#4) | 分離: 結構分離 | 模組: [controller] | 建議: ...
+          </solutions>
+        </pair>
+    """
+    if not pairs:
+        return "    (未提供 — 請先完成 explore→consolidation 步驟)"
+
+    lines: list[str] = []
+    for pair in pairs:
+        lines.append(f'    <pair id="{pair.contradiction_id}">')
+        lines.append(f"      <contradiction>{pair.contradiction_text}</contradiction>")
+        adopted = pair.adopted_direction
+        adopted_body = adopted.direction_summary or "(無摘要)"
+        lines.append(
+            f'      <adopted_direction name="{adopted.direction_name}">{adopted_body}</adopted_direction>'
+        )
+        if pair.solutions:
+            lines.append("      <solutions>")
+            for sol in pair.solutions:
+                principle = sol.principle_name or "(未命名)"
+                num = f" (#{sol.principle_number})" if sol.principle_number is not None else ""
+                sep = sol.separation_principle or "-"
+                mods = ", ".join(sol.affected_modules) if sol.affected_modules else "-"
+                suggestion = (sol.suggestion or "").strip().replace("\n", " ")
+                lines.append(
+                    f"        - [{sol.path}] {principle}{num} | 分離: {sep} | 模組: [{mods}] | 建議: {suggestion}"
+                )
+            lines.append("      </solutions>")
+        else:
+            lines.append("      <solutions>(無)</solutions>")
+        lines.append("    </pair>")
+    return "\n".join(lines)
 
 
 def _sanitize_mapped_ids(
@@ -128,8 +178,9 @@ def _sanitize_mapped_ids(
 ) -> ConceptArchitecturePack:
     """過濾 LLM 發明的無效 mapped_kpis / mapped_contradictions 標籤.
 
-    只保留上游 kpis / contradiction_summaries 中帶有 [KPI-N] / [CT-N] 前綴
-    的有效標籤。例如上游有 ``[KPI-1] 效率: >90% %``，則 ``KPI-1`` 合法。
+    - 有效 KPI 標籤：來自 ``upstream.kpis`` 中帶 ``[KPI-N]`` 前綴者
+    - 有效矛盾標籤：直接取自 ``upstream.contradiction_solution_pairs[].contradiction_id``
+      （不再從字串解析，因為 pair id 是結構化欄位）
     """
     valid_kpi_tags: set[str] = set()
     for s in (upstream.kpis or []):
@@ -137,11 +188,11 @@ def _sanitize_mapped_ids(
         if m:
             valid_kpi_tags.add(m.group(0).strip("[]"))
 
-    valid_ct_tags: set[str] = set()
-    for s in (upstream.contradiction_summaries or []):
-        m = _CT_TAG_RE.match(s)
-        if m:
-            valid_ct_tags.add(m.group(0).strip("[]"))
+    valid_ct_tags: set[str] = {
+        pair.contradiction_id
+        for pair in (upstream.contradiction_solution_pairs or [])
+        if pair.contradiction_id
+    }
 
     changed = False
     for ss in pack.subsystems:
@@ -160,13 +211,14 @@ def _sanitize_mapped_ids(
 
 def _compute_source_badges(upstream: UpstreamArtifactSummary) -> dict[str, bool]:
     """根據上游產出物的可用性計算 source badges (dict[str, bool])."""
+    has_pairs = bool(upstream.contradiction_solution_pairs)
     return {
         "brief": bool(upstream.mission),
         "constraints": bool(upstream.constraints),
         "kpis": bool(upstream.kpis),
         "socratic": bool(upstream.socratic_insights),
-        "contradictions": bool(upstream.contradiction_summaries),
-        "triz": bool(upstream.triz_solution_summaries),
+        "contradictions": has_pairs,
+        "triz": has_pairs,
         "cld": bool(upstream.cld_summary),
     }
 

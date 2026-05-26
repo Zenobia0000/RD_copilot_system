@@ -247,12 +247,45 @@ export default function Create() {
       .filter(Boolean),
     [contradictionsQuery.data],
   );
+  // backend contradiction uuid → 對應的 [CT-N] 標籤（依 contradictionsQuery 的順序）。
+  // 用於把 consolidationResult.adopted_directions 的 cid key 對回前端 CT-N。
+  const contradictionIdToCtTag = useMemo(() => {
+    const map = new Map<string, string>();
+    (contradictionsQuery.data || []).forEach((c, i) => {
+      map.set(c.id, `CT-${i + 1}`);
+    });
+    return map;
+  }, [contradictionsQuery.data]);
+  // 同上，附帶純文字描述（移除 [CT-N] 前綴），給概念架構 pair payload 用。
+  const contradictionIdToText = useMemo(() => {
+    const map = new Map<string, string>();
+    (contradictionsQuery.data || []).forEach((c) => {
+      const desc = c.engineeringStatement || c.naturalDescription || '';
+      if (desc) map.set(c.id, desc);
+    });
+    return map;
+  }, [contradictionsQuery.data]);
   const socraticQaStrings = useMemo(
     () => socraticQuestions
       .filter((q) => q.answer && q.answer.trim().length > 0)
       .map((q) => `[${q.category}] Q: ${q.text} → A: ${q.answer}`),
     [socraticQuestions],
   );
+  // B2：給概念架構步驟使用的精簡蘇格拉底列表。
+  //   1) 剔除「無法具體回答 / 無法回答 / 無法理解」這類 sentinel 答案
+  //   2) 只保留 [assumption] 與 [counter] 兩類（架構假設挑戰 + 既有案例反駁）
+  //   3) 上限 3 條，避免稀釋其他訊號
+  // 不動其他流程的 socraticQaStrings，避免副作用。
+  const socraticForConcept = useMemo(() => {
+    const SENTINEL_RE = /(無法具體回答|無法回答|無法理解)/;
+    const ALLOWED_CATEGORIES = new Set(['assumption', 'counter']);
+    return socraticQuestions
+      .filter((q) => q.answer && q.answer.trim().length > 0)
+      .filter((q) => !SENTINEL_RE.test(q.answer))
+      .filter((q) => ALLOWED_CATEGORIES.has((q.category || '').toLowerCase()))
+      .slice(0, 3)
+      .map((q) => `[${q.category}] Q: ${q.text} → A: ${q.answer}`);
+  }, [socraticQuestions]);
   const cldSummaryStrings = useMemo(() => {
     const nodeLabels = cldNodes.map((n) => n.label);
     const edgeDescs = cldEdges.map((e) => {
@@ -1632,21 +1665,51 @@ export default function Create() {
       }
     });
 
+    // 前置守衛：必須跑完 explore→consolidation 才能生概念架構包。
+    // adopted_directions 是「每條矛盾整併後唯一採用的方向」，沒它就湊不出 pair。
+    const adoptedEntries = Object.entries(consolidationResult?.adopted_directions ?? {});
+    const consolidationReady = adoptedEntries.length > 0;
+
     const handleGeneratePack = () => {
       if (!id) return;
-      const trizSolutionSummaries = consolidationResult?.adopted_directions
-        ? Object.values(consolidationResult.adopted_directions).map(d => d.direction_summary)
-        : Object.values(directedResults)
-            .filter((r) => r.top1)
-            .map((r) => r.top1!.direction_summary);
+      if (!consolidationReady) {
+        toast.error("請先完成『跨矛盾方向整併』步驟");
+        return;
+      }
+      // 把 backend uuid → [CT-N] 標籤，並附帶完整 solutions（含 principle_name /
+      // separation_principle / affected_modules / suggestion）給概念架構 LLM 用。
+      const contradictionSolutionPairs = adoptedEntries
+        .map(([cid, dir]) => {
+          const ctTag = contradictionIdToCtTag.get(cid);
+          const text = contradictionIdToText.get(cid);
+          if (!ctTag || !text) return null;  // 孤兒方向（矛盾已刪），略過
+          return {
+            contradiction_id: ctTag,
+            contradiction_text: text,
+            adopted_direction: {
+              direction_id: dir.direction_id,
+              direction_name: dir.direction_name,
+              direction_summary: dir.direction_summary,
+            },
+            solutions: (dir.solutions || []).map((s) => ({
+              path: s.path,
+              principle_number: s.principle_number,
+              principle_name: s.principle_name,
+              separation_principle: s.separation_principle,
+              suggestion: s.suggestion,
+              affected_modules: s.affected_modules ?? [],
+            })),
+          };
+        })
+        .filter((x): x is NonNullable<typeof x> => x !== null);
+
       generatePackMutation.mutate({
         upstream: {
           mission: briefMission,
           constraints: constraintStrings,
           kpis: kpiStrings,
-          socratic_insights: socraticQaStrings,
-          contradiction_summaries: contradictionDescs,
-          triz_solution_summaries: trizSolutionSummaries,
+          socratic_insights: socraticForConcept,
+          contradiction_solution_pairs: contradictionSolutionPairs,
           cld_summary: cldSummaryStrings,
         },
         templateId: conceptTemplateId,
@@ -1701,16 +1764,35 @@ export default function Create() {
               </Select>
             </div>
 
-            {/* Generate button */}
-            <AiButton
-              onClick={handleGeneratePack}
-              loading={generatePackMutation.isPending}
-              disabled={generatePackMutation.isPending}
-              className="w-full sm:w-auto"
-            >
-              <Sparkles className="w-4 h-4 mr-1" />
-              生成概念架構包
-            </AiButton>
+            {/* Generate button — 缺整併時 disabled + tooltip 提示 */}
+            {consolidationReady ? (
+              <AiButton
+                onClick={handleGeneratePack}
+                loading={generatePackMutation.isPending}
+                disabled={generatePackMutation.isPending}
+                className="w-full sm:w-auto"
+              >
+                <Sparkles className="w-4 h-4 mr-1" />
+                生成概念架構包
+              </AiButton>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <AiButton
+                      disabled
+                      className="w-full sm:w-auto opacity-50 cursor-not-allowed"
+                    >
+                      <Sparkles className="w-4 h-4 mr-1" />
+                      生成概念架構包
+                    </AiButton>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">請先完成「跨矛盾方向整併」步驟</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
 
             {generatePackMutation.isError && (
               <p className="text-xs text-destructive">

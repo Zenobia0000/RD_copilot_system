@@ -2828,14 +2828,48 @@ class ConceptArchitecturePack(BaseModel):
     coverage_summary: str = ""   # 對上游產出物的覆蓋摘要
 
 
+class DirectionSolutionRef(BaseModel):
+    """單一 TC/PC/SF 解法在 concept-architecture 上下文裡的精簡引用.
+
+    來源：``DirectionGroup.solutions`` 內的 ``DirectionSolution``；僅取下游
+    架構規劃需要看到的欄位（principle / separation / 影響模組 / 具體建議）。
+    """
+    path: str  # "TC" | "PC" | "SF"
+    principle_number: int | None = None
+    principle_name: str = ""
+    separation_principle: str = ""
+    suggestion: str = ""
+    affected_modules: list[str] = Field(default_factory=list)
+
+
+class AdoptedDirectionRef(BaseModel):
+    """整併後對某條矛盾採用的方向（DirectionGroup 的精簡引用）."""
+    direction_id: str
+    direction_name: str
+    direction_summary: str = ""
+
+
+class ContradictionSolutionPair(BaseModel):
+    """一條矛盾 + 整併後採用的方向 + 該方向所有 TC/PC/SF solutions.
+
+    這是「正向分析→概念架構」步驟下游 LLM 看到的主要結構，取代舊版兩條
+    無關聯的純字串 list（``contradiction_summaries`` / ``triz_solution_summaries``）。
+    """
+    contradiction_id: str       # 對應 FE [CT-N] 標籤，例如 "CT-1"
+    contradiction_text: str     # 矛盾完整描述（不含 [CT-N] 前綴）
+    adopted_direction: AdoptedDirectionRef
+    solutions: list[DirectionSolutionRef] = Field(default_factory=list)
+
+
 class UpstreamArtifactSummary(BaseModel):
     """上游產出物快照 — 送入 LLM 的上下文."""
     mission: str = ""
     constraints: list[str] = Field(default_factory=list)
     kpis: list[str] = Field(default_factory=list)
     socratic_insights: list[str] = Field(default_factory=list)
-    contradiction_summaries: list[str] = Field(default_factory=list)
-    triz_solution_summaries: list[str] = Field(default_factory=list)
+    # 矛盾與整併後採用之 TRIZ 解法以「成對」結構提供給 LLM；
+    # 必須在 explore→consolidation 步驟跑完後才會有值。
+    contradiction_solution_pairs: list[ContradictionSolutionPair] = Field(default_factory=list)
     cld_summary: list[str] = Field(default_factory=list)
 
 

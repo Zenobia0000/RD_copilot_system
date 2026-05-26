@@ -303,10 +303,11 @@ export interface ConsolidationResult {
    */
   was_user_picked?: Record<string, string>;
   /**
-   * Phase 3：整併方案的 Q1–Q8 工程審判卡。Backend 失敗時為 null；
-   * 舊資料 row 沒此欄位時為 undefined。
+   * VerdictLite：對照 brief 任務的精簡審判（取代舊 Q1–Q8 verdict_card）。
+   * 設計理念見 plans/triz-verdict-card-simplification.md。
+   * Backend 失敗時為 null；舊資料 row 沒此欄位時為 undefined。
    */
-  verdict_card?: EngineeringVerdictCard | null;
+  verdict_lite?: EngineeringVerdictLite | null;
   /**
    * Phase 3：同矛盾多選相容性報告（依 contradiction_id 索引）。
    * 為了向後相容，rows 沒此欄位時為 undefined。
@@ -373,112 +374,109 @@ export interface IntraContradictionCompatibility {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 3 — EngineeringVerdictCard Q1–Q8
+// EngineeringVerdictLite — 對照 Brief 任務的精簡審判 (v0.5 / v3)
 // ---------------------------------------------------------------------------
+// 設計理念見 plans/triz-verdict-card-simplification.md §14–§20。
+//
+// 取代舊 Q1–Q8 EngineeringVerdictCard。使用者讀起來就是「我 brief 寫的每件
+// 事，這方案有沒有達成」，不再出現 contradiction_face / duty_cycle /
+// boundary_collapse 等 TRIZ 術語。
+//
+// v0.5 (v3) 結構性精簡：
+//   - 移除 sr_checks / socratic_checks / cld_checks 三個 list 欄位
+//     （sub_requirement 是 backend 內部產物會撞 ID；socratic 是 brief 階段
+//      該收完的歷史紀錄；cld 改成 explore_health.cld_warning 健檢徽章）
+//   - 新增 explore_health 健檢徽章物件（contradiction_coverage + cld_warning）
+//   - BriefItemCheck.item_kind Literal 從 6 種縮為 3 種
 
-export interface ContradictionFacePerPicked {
-  contradiction_id: string;
-  picked_direction_id: string;
-  picked_direction_name: string;
-  improving_side: 'yes' | 'partial' | 'no';
-  worsening_side: 'yes' | 'partial' | 'no';
-  introduces_new_side_effect: string[];
-}
+export type CheckStatus =
+  | 'met'           // ✅ 達成
+  | 'partial'       // 🟡 部分達成
+  | 'at_risk'       // ⚠️ 有條件 / 有風險
+  | 'unmet'         // 🛑 沒達成 / 撞紅線
+  | 'not_relevant'; // ⚫ 與本方案無關
 
-export interface MechanismTrace {
-  technology_mix: Array<'control' | 'structure' | 'material' | 'topology'>;
-  delta_chain: string[];
-  assumptions: string[];
-  evidence_level: 'E0' | 'E1' | 'E2' | 'E3' | 'E4';
-}
-
-export interface FeasibilityVerdict {
-  axis: string;
-  source_ref: string;
-  verdict:
-    | 'pass'
-    | 'marginal_pass'
-    | 'bottleneck'
-    | 'not_addressed'
-    | 'not_affected'
-    | 'fail';
+export interface BriefItemCheck {
+  /** v0.5 (v3): 從 6 種縮為 3 種；舊三 kind 已移到 explore_health 徽章。 */
+  item_kind: 'mission' | 'constraint' | 'kpi';
+  item_id: string;
+  item_label: string;
+  status: CheckStatus;
   rationale: string;
-  quantitative_estimate: string;
+  contributing_directions: string[];
+  /** 可選；如「預估超出預算 15%」 */
+  quantitative_estimate?: string;
 }
 
-export interface FeasibilityMatrix {
-  axes: FeasibilityVerdict[];
-  overall_verdict: 'pass' | 'marginal' | 'fail';
-  bottleneck_axes: string[];
+export interface NextAction {
+  action: string;
+  why?: string;
+  /** True = 不做不能進下一階段（UI 上只渲染 blocking=true 的條目） */
+  blocking?: boolean;
+  effort_hint?: 'small' | 'medium' | 'large' | 'unknown';
+  related_item_ids?: string[];
 }
 
-export interface CldSideEffect {
-  cld_path: string[];
-  polarity_chain: Array<'positive' | 'negative'>;
-  direction_impact: string;
-  risk_level: 'low' | 'medium' | 'high';
+// ---------------------------------------------------------------------------
+// v0.5 (v3) 新增：Explore 階段健檢徽章
+// ---------------------------------------------------------------------------
+// 平時 UI 摺疊，只顯示徽章顏色點 + 一行 label；點開才展開 details。
+
+export interface CoverageStatus {
+  /** backend 程式級覆寫（不信任 LLM 算術） */
+  level: 'green' | 'yellow' | 'red';
+  /** 顯示用，例「3 / 3 條已對應方向」 */
+  label: string;
+  /** 點開時顯示的個別矛盾條目（人話，LLM 寫的） */
+  details?: string[];
 }
 
-export interface SideEffectsViaCld {
-  paths: CldSideEffect[];
-  socratic_warnings: string[];
+export interface CldChain {
+  /** 人話因果鏈，例「殼體增剛 → 殼壁變厚 → 軸向變長 → 撞 C-2」 */
+  chain: string;
+  /** 觸發此鏈的勾選方向 (picked_direction_id) */
+  source_direction_id: string;
+  /** 撞到的 brief item id（必須對得回任一 BriefItemCheck） */
+  related_brief_item_id: string;
+  /** info=沒撞到 / warn=撞 at_risk / blocker=撞 unmet */
+  severity?: 'info' | 'warn' | 'blocker';
 }
 
-export interface CoverageCompleteness {
-  resolves_fully: string[];
-  resolves_partial: string[];
-  resolves_conditional: string[];
-  does_not_address: string[];
-  open_questions: string[];
+export interface CldWarningSummary {
+  /** 有 blocker → red / 有 warn → yellow / 否則 green */
+  level: 'green' | 'yellow' | 'red';
+  /** 勾選方向動到的 CLD 節點數 */
+  nodes_touched: number;
+  /** 只放 severity != 'info' 的鏈條，最多 5 條 */
+  side_effects: CldChain[];
 }
 
-export interface VerificationStep {
-  phase:
-    | 'simulation'
-    | 'bench'
-    | 'thermal_soak'
-    | 'prototype'
-    | 'pilot'
-    | 'field';
-  test_description: string;
-  expected_outcome: string;
-  effort_hours: number;
-  blocking: boolean;
+export interface ExploreHealthSummary {
+  contradiction_coverage: CoverageStatus;
+  /** None / null = 沒動到任何 CLD 節點；UI 此時不渲染此徽章那一行 */
+  cld_warning?: CldWarningSummary | null;
 }
 
-export interface VerificationPlan {
-  steps: VerificationStep[];
-  socratic_action_links: string[];
-}
-
-export interface DutyCycleVerdict {
-  peak: 'addressed' | 'marginal' | 'not_addressed';
-  continuous: 'addressed' | 'marginal' | 'not_addressed';
-  startup: 'addressed' | 'marginal' | 'not_addressed';
-  steady_state: 'addressed' | 'marginal' | 'not_addressed';
-  cycle_specific_notes: string;
-}
-
-export interface BoundaryCollapse {
-  condition: string;
-  failure_mode: string;
-  severity: 'mild' | 'moderate' | 'catastrophic';
-}
-
-export interface EngineeringVerdictCard {
+export interface EngineeringVerdictLite {
   project_id: string;
   consolidation_id: string;
-  contradiction_face_per_picked: ContradictionFacePerPicked[];
-  mechanism_trace: MechanismTrace;
-  feasibility_matrix: FeasibilityMatrix;
-  side_effects_via_cld: SideEffectsViaCld;
-  coverage_completeness: CoverageCompleteness;
-  verification_plan: VerificationPlan;
-  duty_cycle_verdict: DutyCycleVerdict;
-  boundary_collapse: BoundaryCollapse[];
-  final_verdict: 'adopt' | 'adopt_with_conditions' | 'needs_revision' | 'reject';
-  final_rationale: string;
+  /** adopt / adopt_with_conditions / needs_revision / reject */
+  overall_verdict: 'adopt' | 'adopt_with_conditions' | 'needs_revision' | 'reject';
+  /** ≤120 字白話總結 */
+  overall_headline: string;
+  /** 0.0–1.0 */
   confidence: number;
+
+  // 對照 brief 三件事的逐條檢核（v3：從 6 種降為 3 種）
+  mission_check?: BriefItemCheck | null;
+  constraint_checks: BriefItemCheck[];
+  kpi_checks: BriefItemCheck[];
+
+  /** v0.5 (v3) 新增：Explore 階段健檢徽章；舊 v0.4 資料缺席時為 undefined */
+  explore_health?: ExploreHealthSummary | null;
+
+  /** 採用前要做的事；至少 1 條 blocking=true，UI 只渲染 blocking=true 的條目 */
+  next_actions: NextAction[];
 }
 
 export interface ConsolidateRequest {
@@ -490,8 +488,8 @@ export interface ConsolidateRequest {
 
 /**
  * 2026-05 hardening：後端寫 DB 結果的回報。
- *  - "ok"      → 完整 payload (含 verdict_card / was_user_picked / ...) 寫成功
- *  - "partial" → 偵測到 migration 未套用，退回 legacy schema；重整後會丟 Phase 3 資料
+ *  - "ok"      → 完整 payload (含 verdict_lite / was_user_picked / ...) 寫成功
+ *  - "partial" → 偵測到 migration 未套用，退回 legacy schema；重整後會丟新版資料
  *  - "failed"  → 寫入完全失敗；FE 應顯示錯誤、勿把回傳寫進 React Query cache
  */
 export interface PersistenceOutcome {
@@ -504,8 +502,8 @@ export interface ConsolidateResponse {
   consolidation: ConsolidationResult;
   /** Phase 3：同矛盾多選相容性報告 (與 request.picks 同順序) */
   intra_compatibility?: IntraContradictionCompatibility[];
-  /** Phase 3：整併方案的 Q1–Q8 工程審判卡，LLM 失敗時為 null */
-  verdict_card?: EngineeringVerdictCard | null;
+  /** VerdictLite：對照 brief 任務的精簡審判（取代舊 Q1–Q8），LLM 失敗時為 null */
+  verdict_lite?: EngineeringVerdictLite | null;
   /**
    * 2026-05 hardening：DB persist 狀態。後端保證一定回傳；
    * 舊版後端的 response 沒此欄位時前端視為 status='ok' 兼容（見 handleConsolidateOnly）。

@@ -9,7 +9,7 @@
  * that backend just wrote.
  *
  * Phase 3 bugfix (migration 020)：
- *   多讀 `verdict_card` 與 `intra_compatibility` 兩欄並回傳；舊 row 沒這兩欄
+ *   多讀 `verdict_lite` 與 `intra_compatibility` 兩欄並回傳；舊 row 沒這兩欄
  *   也不會 crash（undefined fallback）。
  *
  * Bug fix (2026-05)：refetchOnMount: 'always'
@@ -20,8 +20,8 @@
  *
  * Bug fix (2026-05)：upsertConsolidationResult 改 select-merge
  *   Supabase JS upsert 預設 `defaultToNull: true`，payload 缺欄位會把該欄位
- *   **改回 NULL**。舊版 FE upsert 缺 verdict_card → 蓋掉 backend 剛寫好的
- *   verdict_card。新版先 select 整 row、merge 新欄位、再 upsert，避免
+ *   **改回 NULL**。舊版 FE upsert 缺 verdict_lite → 蓋掉 backend 剛寫好的
+ *   verdict_lite。新版先 select 整 row、merge 新欄位、再 upsert，避免
  *   無意覆寫任何 backend-managed 欄位。
  */
 
@@ -33,7 +33,7 @@ import type {
   ConsolidationStatus,
   DirectionGroup,
   ConflictReport,
-  EngineeringVerdictCard,
+  EngineeringVerdictLite,
   IntraContradictionCompatibility,
 } from '@/types/directedTriz';
 
@@ -45,7 +45,7 @@ interface TrizConsolidationRow {
   conflict_report: unknown | null;
   integration_advice: string;
   // Phase 3 (migration 020) — 可能為 undefined（舊 row）或 null（從未填過）
-  verdict_card?: unknown | null;
+  verdict_lite?: unknown | null;
   intra_compatibility?: unknown;
   was_user_picked?: unknown;
   // PR2-Lite (migration 022) — 可能為 undefined（舊 row）或 default 空容器
@@ -63,8 +63,8 @@ const mapRow = (r: TrizConsolidationRow): ConsolidationResult => ({
   adopted_directions: (r.adopted_directions ?? {}) as Record<string, DirectionGroup>,
   conflict_report: (r.conflict_report ?? null) as ConflictReport | null,
   integration_advice: r.integration_advice ?? '',
-  // Phase 3 bugfix — 讀 verdict_card / intra_compatibility / was_user_picked
-  verdict_card: (r.verdict_card ?? null) as EngineeringVerdictCard | null,
+  // Phase 3 bugfix — 讀 verdict_lite / intra_compatibility / was_user_picked
+  verdict_lite: (r.verdict_lite ?? null) as EngineeringVerdictLite | null,
   intra_compatibility: Array.isArray(r.intra_compatibility)
     ? (r.intra_compatibility as IntraContradictionCompatibility[])
     : undefined,
@@ -117,7 +117,7 @@ export function useTrizConsolidationResult(projectId: string | undefined) {
  * Directly upsert a ConsolidationResult into `triz_consolidation_results`.
  *
  * **Use sparingly** — backend `/triz/consolidate` already persists the full
- * row including `verdict_card` / `intra_compatibility`. This helper exists
+ * row including `verdict_lite` / `intra_compatibility`. This helper exists
  * only for legacy / dev-seed paths.
  *
  * Bug fix (2026-05): 改成 select-then-merge 模式。
@@ -127,7 +127,7 @@ export function useTrizConsolidationResult(projectId: string | undefined) {
  *     1. 先 select 既有 row（如存在），拿到完整欄位
  *     2. 用呼叫端提供的 result 物件「淺合併」進去
  *     3. 再 upsert 整個 merged payload
- *   這樣即使呼叫端 result 沒帶 verdict_card，DB 上已有的 verdict_card 也會
+ *   這樣即使呼叫端 result 沒帶 verdict_lite，DB 上已有的 verdict_lite 也會
  *   一起被寫回，永遠不會弄丟欄位。
  */
 export async function upsertConsolidationResult(
@@ -160,7 +160,7 @@ export async function upsertConsolidationResult(
     conflict_report: result.conflict_report,
     integration_advice: result.integration_advice ?? '',
   };
-  if (result.verdict_card !== undefined) merged.verdict_card = result.verdict_card;
+  if (result.verdict_lite !== undefined) merged.verdict_lite = result.verdict_lite;
   if (result.intra_compatibility !== undefined) merged.intra_compatibility = result.intra_compatibility;
   if (result.was_user_picked !== undefined) merged.was_user_picked = result.was_user_picked;
   if (result.candidate_pools !== undefined) merged.candidate_pools = result.candidate_pools;

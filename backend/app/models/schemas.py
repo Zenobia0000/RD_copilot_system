@@ -2328,135 +2328,171 @@ class IntraContradictionCompatibility(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Phase 3 — EngineeringVerdictCard Q1–Q8
+# VerdictLite — 對照 Brief 任務的精簡審判（取代舊 Q1–Q8 工程審判卡）
 # ---------------------------------------------------------------------------
-# 設計理念見 plans/triz-redesign.md §4。對整併方案做 8 節完整工程審判：
-#   Q1 contradiction_face_per_picked  每條被勾的 direction 解的是哪一面
-#   Q2 mechanism_trace                整體機制因果鏈
-#   Q3 feasibility_matrix             逐軸可行性判定
-#   Q4 side_effects_via_cld           CLD multi-hop 副作用
-#   Q5 coverage_completeness          對所有 SR 的涵蓋率
-#   Q6 verification_plan              採用前必要驗證
-#   Q7 duty_cycle_verdict             peak/continuous/startup/steady_state
-#   Q8 boundary_collapse              ≥5 條失效條件
+# 設計理念見 plans/triz-verdict-card-simplification.md。
+# 使用者只想知道三件事：
+#   1. 我勾的方向組合能不能達成 brief 任務（mission / constraints / KPI / SR）？
+#   2. 哪些 brief 元素沒解 / 撞紅線 / 撞到 socratic 擔憂 / 撞 CLD 副作用？
+#   3. 採用前我要先做什麼？
+#
+# 因此 Schema 直接抄 brief 的結構，逐條檢核每個 brief 元素，不再用 TRIZ
+# 視角切「Q1 contradiction_face」「Q7 duty_cycle」「Q8 boundary_collapse」
+# 等使用者看不懂的術語切法。
+#
+# v0.5 (v3) 結構性精簡 — 2026-05-26：
+#   - 移除 sr_checks / socratic_checks / cld_checks 三個 list 欄位
+#     （sub_requirement 是 backend 拆矛盾的內部產物，造成 SR-4 撞 ID bug，
+#      RD 不該看；socratic_concern 是 brief 階段該收斂完的歷史紀錄，再列
+#      是雜訊）
+#   - CLD 副作用降級為 explore_health.cld_warning 健檢徽章（平時摺疊，
+#     有風險時自動曝光）
+#   - 新增 explore_health.contradiction_coverage 健檢徽章，回答使用者
+#     「我有沒有解到 explore 階段挖出來的矛盾」
+#
+# 與舊版 EngineeringVerdictCard 的差異：
+#   - 舊版 8 大節 (Q1–Q8) → 新版 mission / constraints / kpis + explore_health
+#   - 舊版術語暴露在 UI → 新版只用 brief 自帶的詞彙
+#   - 舊版 LLM 必填 30+ 欄位 → 新版約 8 種欄位，token / 時間皆降低 60%+
+#   - 下游無消費者 (pre-cad / concept arch / spec drafts 都沒讀)，可放心改
+
+# 對單一 brief 元素的檢核狀態。
+CheckStatus = Literal[
+    "met",            # ✅ 達成
+    "partial",        # 🟡 部分達成
+    "at_risk",        # ⚠️ 有條件 / 有風險
+    "unmet",          # 🛑 沒達成 / 撞紅線
+    "not_relevant",   # ⚫ 與本方案無關
+]
 
 
-class ContradictionFacePerPicked(BaseModel):
-    """Q1：每條被勾的方向解的是哪一面 (improving / worsening)。"""
-    contradiction_id: str
-    picked_direction_id: str
-    picked_direction_name: str
-    improving_side: Literal["yes", "partial", "no"] = "no"
-    worsening_side: Literal["yes", "partial", "no"] = "no"
-    introduces_new_side_effect: list[str] = Field(default_factory=list)
+class BriefItemCheck(BaseModel):
+    """對 brief 中單一元素的檢核結果。
+
+    v0.5 (v3): item_kind Literal 從 6 種縮為 3 種（mission/constraint/kpi）。
+    sub_requirement / socratic_concern / cld_side_effect 三種 kind 已移除：
+    SR 是 backend 內部產物會撞 ID、socratic 是 brief 階段該收完的、
+    cld 改成 explore_health.cld_warning 徽章呈現。
+
+    `contributing_directions` 用 picked_direction_id 連回是哪幾條方向
+    幫忙達成或造成衝突，前端可在 UI 上把方向 ID 反查成方向名稱。
+    """
+    item_kind: Literal[
+        "mission",
+        "constraint",
+        "kpi",
+    ]
+    item_id: str = ""           # 例: "C1" / "K2" / "mission"
+    item_label: str = ""        # 使用者在 brief 寫的原文（≤120 字）
+    status: CheckStatus
+    rationale: str = ""         # 為什麼是這個 status（≤120 字、白話）
+    contributing_directions: list[str] = Field(default_factory=list)
+    quantitative_estimate: str = ""   # 可選；如 "預估超出預算 15%"
 
 
-class MechanismTrace(BaseModel):
-    """Q2：整併方案的整體機制因果鏈。"""
-    technology_mix: list[Literal["control", "structure", "material", "topology"]] = Field(
-        default_factory=list
-    )
-    delta_chain: list[str] = Field(default_factory=list)
-    assumptions: list[str] = Field(default_factory=list)
-    evidence_level: Literal["E0", "E1", "E2", "E3", "E4"] = "E2"
+class NextAction(BaseModel):
+    """採用前要做的事（驗證 / 補 brief / 找供應商 / 再評估皆可）。
+
+    取代舊 Q6 verification_plan + Q5 open_questions + Q2 assumptions
+    三節分散的「下一步」，全收進一個 list。
+
+    v0.5 (v3): UI 只渲染 blocking=true 的條目（非 blocking 的存在 DB 但不顯示）。
+    """
+    action: str                       # 一句白話描述（≤80 字）
+    why: str = ""                     # 為什麼要做（連回哪個 BriefItemCheck）
+    blocking: bool = False            # True = 不做不能進下一階段
+    effort_hint: Literal["small", "medium", "large", "unknown"] = "unknown"
+    related_item_ids: list[str] = Field(default_factory=list)
 
 
-class FeasibilityVerdict(BaseModel):
-    """Q3：對單一軸 (constraint / KPI / mission spec) 的可行性判定。"""
-    axis: str
-    source_ref: str = ""
-    verdict: Literal[
-        "pass", "marginal_pass", "bottleneck",
-        "not_addressed", "not_affected", "fail",
-    ] = "not_addressed"
-    rationale: str = ""
-    quantitative_estimate: str = ""
+# ---------------------------------------------------------------------------
+# v0.5 (v3) 新增：Explore 階段健檢徽章
+# ---------------------------------------------------------------------------
+# 回應使用者「我這組整併方向有沒有解到 explore 階段挖出來的矛盾、有沒有踩到
+# CLD 副作用」的問題。UI 上預設摺疊，只顯示兩個徽章；點開才看細節。
+
+class CoverageStatus(BaseModel):
+    """矛盾覆蓋率徽章。
+
+    backend 落地時用程式級覆寫 level / label（不信任 LLM 的算術）；
+    details 保留 LLM 寫的人話描述。
+    """
+    level: Literal["green", "yellow", "red"]
+    label: str                          # 顯示用，例「3 / 3 條已對應方向」
+    details: list[str] = Field(default_factory=list)
+    # ↑ 點開時顯示的個別矛盾條目，例「C-1 齒輪 vs 軸向 → DIR-5 ✓」
 
 
-class FeasibilityMatrix(BaseModel):
-    """Q3：整併方案對每個 relevant axis 的逐項判定。"""
-    axes: list[FeasibilityVerdict] = Field(default_factory=list)
-    overall_verdict: Literal["pass", "marginal", "fail"] = "marginal"
-    bottleneck_axes: list[str] = Field(default_factory=list)
+class CldChain(BaseModel):
+    """單條 CLD 副作用鏈條。
+
+    severity 由 LLM 依據「鏈條尾端的 brief item 狀態」推論：
+      - info    = 沒撞到任何 brief item，僅供參考
+      - warn    = 撞到 at_risk brief item
+      - blocker = 撞到 unmet brief item
+    """
+    chain: str                          # 例「殼體增剛 → 殼壁變厚 → 軸向變長 → 撞 C-2」
+    source_direction_id: str            # 觸發此鏈的勾選方向 (例 DIR-4)
+    related_brief_item_id: str          # 連回的 brief item id (例 C-2)
+    severity: Literal["info", "warn", "blocker"] = "warn"
 
 
-class CldSideEffect(BaseModel):
-    """Q4：沿 CLD edges traversal 找出的單條副作用鏈。"""
-    cld_path: list[str] = Field(default_factory=list)
-    polarity_chain: list[Literal["positive", "negative"]] = Field(default_factory=list)
-    direction_impact: str = ""
-    risk_level: Literal["low", "medium", "high"] = "low"
+class CldWarningSummary(BaseModel):
+    """CLD 副作用整體徽章 + 個別鏈條清單。
+
+    level 規則：有 blocker → red / 有 warn → yellow / 全 info 或 nodes_touched=0 → green。
+    side_effects 只放有風險的鏈（severity != "info"），無風險時為空 list。
+    """
+    level: Literal["green", "yellow", "red"]
+    nodes_touched: int                  # 勾選方向動到的 CLD 節點數
+    side_effects: list[CldChain] = Field(default_factory=list)
 
 
-class SideEffectsViaCld(BaseModel):
-    """Q4：CLD multi-hop side-effect paths + socratic counter warnings。"""
-    paths: list[CldSideEffect] = Field(default_factory=list)
-    socratic_warnings: list[str] = Field(default_factory=list)
+class ExploreHealthSummary(BaseModel):
+    """Explore 階段的健康度健檢（v0.5 / v3 新增）。
+
+    取代 v0.4 的 sr_checks / cld_checks 兩個冗長 list。
+    UI 上預設摺疊，只顯示兩個徽章；點開才看細節。
+
+    cld_warning = None 代表「沒動到任何 CLD 節點」(例如 brief 沒給 CLD)，
+    UI 此時不渲染 CLD 徽章那一行。
+    """
+    contradiction_coverage: CoverageStatus
+    cld_warning: CldWarningSummary | None = None
 
 
-class CoverageCompleteness(BaseModel):
-    """Q5：整併方案對「所有 relevant SR + 弱相關」的涵蓋率。"""
-    resolves_fully: list[str] = Field(default_factory=list)
-    resolves_partial: list[str] = Field(default_factory=list)
-    resolves_conditional: list[str] = Field(default_factory=list)
-    does_not_address: list[str] = Field(default_factory=list)
-    open_questions: list[str] = Field(default_factory=list)
+class EngineeringVerdictLite(BaseModel):
+    """對照 brief 任務的精簡審判（取代舊 EngineeringVerdictCard）。
 
+    產出時機與舊版相同：跨矛盾整併完成後，後端跑一次 LLM 產出此卡。
+    寫入欄位：`triz_consolidation_results.verdict_lite` (migration 023)。
 
-class VerificationStep(BaseModel):
-    """Q6：採用前必須跑的驗證實驗單步驟。"""
-    phase: Literal[
-        "simulation", "bench", "thermal_soak", "prototype", "pilot", "field"
-    ] = "simulation"
-    test_description: str = ""
-    expected_outcome: str = ""
-    effort_hours: int = 0
-    blocking: bool = False
-
-
-class VerificationPlan(BaseModel):
-    """Q6：完整驗證計畫，含對應 socratic.action 的引用。"""
-    steps: list[VerificationStep] = Field(default_factory=list)
-    socratic_action_links: list[str] = Field(default_factory=list)
-
-
-class DutyCycleVerdict(BaseModel):
-    """Q7：在 peak / continuous / startup / steady_state 四工況下成立度。"""
-    peak: Literal["addressed", "marginal", "not_addressed"] = "not_addressed"
-    continuous: Literal["addressed", "marginal", "not_addressed"] = "not_addressed"
-    startup: Literal["addressed", "marginal", "not_addressed"] = "not_addressed"
-    steady_state: Literal["addressed", "marginal", "not_addressed"] = "not_addressed"
-    cycle_specific_notes: str = ""
-
-
-class BoundaryCollapse(BaseModel):
-    """Q8：失效條件 (至少 5 條)。"""
-    condition: str
-    failure_mode: str = ""
-    severity: Literal["mild", "moderate", "catastrophic"] = "moderate"
-
-
-class EngineeringVerdictCard(BaseModel):
-    """對整併方案做 Q1–Q8 完整工程審判 (Phase 3 核心輸出)。"""
+    v0.5 (v3) 結構性精簡：
+      - 移除 sr_checks / socratic_checks / cld_checks 三個 list 欄位
+      - 新增 explore_health 健檢徽章物件
+      - DB JSONB schema 不需要 migration，舊資料 Pydantic v2 會 ignore
+        unknown fields（保留向下相容）
+    """
     project_id: str
     consolidation_id: str = ""
 
-    contradiction_face_per_picked: list[ContradictionFacePerPicked] = Field(
-        default_factory=list
-    )
-    mechanism_trace: MechanismTrace = Field(default_factory=MechanismTrace)
-    feasibility_matrix: FeasibilityMatrix = Field(default_factory=FeasibilityMatrix)
-    side_effects_via_cld: SideEffectsViaCld = Field(default_factory=SideEffectsViaCld)
-    coverage_completeness: CoverageCompleteness = Field(default_factory=CoverageCompleteness)
-    verification_plan: VerificationPlan = Field(default_factory=VerificationPlan)
-    duty_cycle_verdict: DutyCycleVerdict = Field(default_factory=DutyCycleVerdict)
-    boundary_collapse: list[BoundaryCollapse] = Field(default_factory=list)
-
-    final_verdict: Literal[
+    # 整體判斷
+    overall_verdict: Literal[
         "adopt", "adopt_with_conditions", "needs_revision", "reject"
     ] = "needs_revision"
-    final_rationale: str = ""
-    confidence: float = 0.5
+    overall_headline: str = ""   # ≤120 字白話總結
+    confidence: float = 0.5      # 0.0–1.0
+
+    # 對照 brief 三件事的逐條檢核（v3：從 6 種降為 3 種）
+    mission_check: BriefItemCheck | None = None
+    constraint_checks: list[BriefItemCheck] = Field(default_factory=list)
+    kpi_checks: list[BriefItemCheck] = Field(default_factory=list)
+
+    # Explore 階段健檢（v3 新增；取代舊 sr_checks / socratic_checks / cld_checks）
+    explore_health: ExploreHealthSummary | None = None
+
+    # 採用前要做的事
+    next_actions: list[NextAction] = Field(default_factory=list)
 
 
 class ConsolidateRequest(BaseModel):
@@ -2481,10 +2517,10 @@ class PersistenceOutcome(BaseModel):
     DB 卻是殘缺的 row（這正是 Phase 3 / PR2-Lite 欄位漏寫的根因）。
 
     狀態語意：
-      - "ok"      → 完整 payload（含 verdict_card / was_user_picked /
+      - "ok"      → 完整 payload（含 verdict_lite / was_user_picked /
                     intra_compatibility / candidate_pools / ...）寫入成功
       - "partial" → 偵測到 column 不存在（migration 未套用），退回 legacy
-                    schema 只寫舊欄位。FE 必須警告使用者：重整後會丟失 Phase 3 資料
+                    schema 只寫舊欄位。FE 必須警告使用者：重整後會丟失新版資料
       - "failed"  → 寫入完全失敗（network / RLS / 其他）。FE 必須提示「請重試」
                     且**不能**把 in-memory response 寫進 React Query cache，
                     否則 stale 會被當成 truth、後續 refetch 又會被舊 DB row 覆蓋
@@ -2499,9 +2535,9 @@ class PersistenceOutcome(BaseModel):
 class ConsolidateResponse(BaseModel):
     """POST /triz/consolidate — 回傳。"""
     consolidation: ConsolidationResult
-    # Phase 3 新增
     intra_compatibility: list[IntraContradictionCompatibility] = Field(default_factory=list)
-    verdict_card: EngineeringVerdictCard | None = None
+    # VerdictLite — 取代舊 Q1–Q8 EngineeringVerdictCard（plans/triz-verdict-card-simplification.md）
+    verdict_lite: EngineeringVerdictLite | None = None
     # 2026-05 hardening：DB persist 狀態回報。預設 "ok" 兼容老測試。
     persistence: PersistenceOutcome = Field(default_factory=PersistenceOutcome)
 

@@ -415,8 +415,8 @@ export const GLOSSARY_SECTIONS: GlossarySectionMeta[] = [
   {
     id: 'why_not_verdict',
     title: '為什麼這裡不是「驗收」',
-    blurb: '單一方向解掉幾條 SR ≠ 矛盾被解。真正驗收在「跨矛盾整併」後的 VerdictCard。',
-    uiAnchor: '對應頁面下方「跨矛盾整併」按鈕產出的 EngineeringVerdictCard (Q1–Q8)。',
+    blurb: '單一方向解掉幾條 SR ≠ 矛盾被解。真正驗收在「跨矛盾整併」後的 Brief 任務檢核。',
+    uiAnchor: '對應頁面下方「跨矛盾整併」按鈕產出的 Brief 任務檢核 (VerdictLite)。',
   },
 ];
 

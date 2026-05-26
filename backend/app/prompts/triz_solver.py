@@ -2322,25 +2322,37 @@ specific physical / topological / firmware conflict in one sentence.
 
 
 # ---------------------------------------------------------------------------
-# Phase 3 — EngineeringVerdictCard Q1–Q8
+# EngineeringVerdictLite — 對照 Brief 任務的精簡審判（v0.5 / v3）
 # ---------------------------------------------------------------------------
-# 對整併方案做完整工程審判。input 含：
-#   - 整併方案的 adopted_directions (每條矛盾被選方向 + 摘要)
-#   - brief_ctx (mission / constraints / KPIs / cld_summary / socratic_summary)
-#   - 各方向的 sub_requirements (供 Q5 涵蓋率判定)
-# 強制要求：
-#   - Q4 cld_path：直接吃 brief_ctx.cld_summary 全文，由 LLM 沿邊走 1-3 hop
-#   - Q6 verification_plan.socratic_action_links：必須引用 socratic.category=action
-#   - Q7 duty_cycle_verdict：peak / continuous / startup / steady_state 全部都要 verdict
-#   - Q8 boundary_collapse：至少 5 條 falsifiable fail conditions
+# 設計理念見 plans/triz-verdict-card-simplification.md §14–§20。
+#
+# v0.5 (v3) 結構性精簡：
+#   - 拿掉 sub_requirements / socratic_qa 兩個輸入區塊（內部產物 / 已收斂的歷史紀錄）
+#   - 拿掉輸出的 sr_checks / socratic_checks / cld_checks 三個 list 欄位
+#   - 新增 contradictions 輸入區塊（提供 LLM 算「Explore 矛盾覆蓋率」）
+#   - 新增 explore_health 輸出物件（contradiction_coverage + cld_warning 兩個徽章）
+#
+# 與舊 Q1–Q8 工程審判卡的差異：
+#   - 結構改成「直接對照 brief 的三件事」(mission / constraints / KPIs)
+#     + Explore 健檢徽章
+#   - **禁止 TRIZ 術語**：不准出現 contradiction face / improving side /
+#     duty cycle / boundary collapse / mechanism trace 等專業詞彙
+#   - 強制最低條數變成「跟著 brief 真實條數」而非硬性 ≥5
+#   - 把舊的 Q6 verification_plan + Q5 open_questions + Q2 assumptions
+#     合併成 next_actions list（UI 只渲染 blocking=true）
 
-ENGINEERING_VERDICT_CARD_PROMPT = """\
+ENGINEERING_VERDICT_LITE_PROMPT = """\
 <task>
-You are a senior systems engineer doing a final go/no-go review on a
-cross-contradiction CONSOLIDATED solution. Produce a complete Q1–Q8
-engineering verdict. Be brutally honest. Optimistic LLM tendency
-is explicitly forbidden — every section requires concrete falsifiable
-content drawn from the inputs.
+你是一位資深 R&D 工程師，幫使用者做最後判斷：
+**「我勾選的這組方向加起來，能不能完成 brief 任務？哪裡卡住？採用前要先做什麼？」**
+
+請直接對照 brief 中的 mission / constraints / KPIs 逐條檢核，
+並順帶健檢「Explore 階段挖出來的矛盾有沒有被勾選方向涵蓋」、
+「勾選方向沿 CLD 走會不會撞到 brief 紅線」兩件事（產出 explore_health 徽章）。
+
+**嚴格禁止使用 TRIZ 術語**：contradiction、improving side、worsening side、
+duty cycle、boundary collapse、mechanism trace、feasibility matrix 等
+專業詞彙都不准出現在面向使用者的文案中。只用使用者在 brief 寫過的詞彙。
 </task>
 
 <inputs>
@@ -2356,146 +2368,171 @@ content drawn from the inputs.
 {kpis_block}
 </kpis>
 
-<consolidation_plan>
-{plan_block}
-</consolidation_plan>
-
-<sub_requirements>
-{sr_block}
-</sub_requirements>
-
 <cld_summary>
 {cld_block}
 </cld_summary>
 
-<socratic_qa>
-{socratic_block}
-</socratic_qa>
+<contradictions>
+{contradictions_block}
+</contradictions>
 
-<duty_cycles>
-- peak:         峰值 (短時間瞬間最大負荷)
-- continuous:   連續 (thermal-bound, 較長時間)
-- startup:      啟動 (含 inrush current, 瞬態)
-- steady_state: 穩態 (常駐運轉)
-</duty_cycles>
+<picked_directions>
+{plan_block}
+</picked_directions>
 </inputs>
 
 <rules>
-GLOBAL:
-- 全部 verdict 文字使用「繁體中文」。Schema keys 維持英文。
-- 不准用「TBD / 待補 / unknown」。每節都要 actionable 結論。
-- 不准只說「需要進一步分析」；要寫出「需要在哪個層級分析什麼」。
+GLOBAL — 語言／受眾：
+- **受眾是 RD 工程師（非 LLM 開發者）**，每條都要當作對 RD 一對一講話的口吻。
+- 全部 rationale / headline 文字使用「**繁體中文**」。Schema keys 維持英文。
+- **嚴格禁止下列英文工程詞混在中文裡**；若必須提到，後面用括弧附上中文翻譯：
+    - winding-end-turn-shaft → 繞組端部→軸（繞組端部到軸的熱路徑）
+    - heat pipe → 導熱管
+    - vapor chamber → 均熱板
+    - remote exchanger → 外部散熱器
+    - free load → 無負載
+    - inrush current → 啟動瞬間電流
+    - duty cycle → 工況
+    - coaxial → 同軸
+    - mid-mounted drive unit → 中置驅動單元
+    - peak / continuous / startup / steady_state → 峰值／連續／啟動／穩態
+  其它類似工程詞一律比照辦理：先寫原文後立刻寫括弧中文。
+- 不准用「TBD / 待補 / unknown / 需要進一步分析」等空話；每條要 actionable。
+- 不准出現 TRIZ 內部術語：contradiction、improving、worsening、duty cycle、
+  boundary collapse、mechanism trace、feasibility matrix 等不准單獨出現
+  （翻成「矛盾／好的那面／壞的那面／工況／失效情境／因果鏈／可行性」）。
+- 每條 rationale ≤120 字，**人話**講清楚「為什麼」+「對哪個 brief 條目的影響」。
+- status 只能用：met / partial / at_risk / unmet / not_relevant。
 
-Q1 contradiction_face_per_picked:
-- 對 consolidation_plan 中的每條被勾方向，回答它解的是 improving / worsening / 兩面 / 副作用。
-- introduces_new_side_effect: ≥0 條，若無就空 list。
+GLOBAL — item_label 必須包含原文（給 RD 一眼看出對應的是哪條 brief 條目）：
+- **item_label 一律寫「代號 + 原文（縮 50 字內）」**，例：
+    - "C-01 產品最大徑向尺寸 ≤ 111mm"
+    - "K2 馬達效率 ≥ 85%"
+  **不可以只寫代號**（例「C-01」「K2」）— 那種會逼 RD 自己回頭查 brief。
+- mission_check.item_label 寫 mission 原文（截 120 字內）。
 
-Q2 mechanism_trace:
-- technology_mix: 從 control/structure/material/topology 選 1-4 個
-- delta_chain: 3-6 條條列因果，從介入點走到「解掉矛盾的物理量」
-- assumptions: ≥2 條 (例如「假設 PWM 控制器可承載額外運算負荷」)
-- evidence_level: E0 (純推理) ~ E4 (工程量測)
+mission_check：
+- 對 mission 整體做一條評估。
+- item_id 固定為 "mission"。
 
-Q3 feasibility_matrix:
-- 對 constraints + KPIs + 任何 mission spec 中明確列出的「軸」逐項評定
-- verdict 嚴格區分: pass / marginal_pass / bottleneck / not_addressed / not_affected / fail
-- 至少 5 條 axis
-- bottleneck_axes: 從 axes 中挑出 verdict ∈ {{bottleneck, marginal_pass, fail}} 的條目，提供 axis 名稱
-- overall_verdict: pass (全 pass/not_affected) / marginal (有 marginal/bottleneck 但無 fail) / fail (任何 fail)
+constraint_checks：
+- brief 中**每一條** constraint 都要一條（即使 not_relevant 也要寫，讓使用者知道有檢查過）。
+- item_id 用 constraint 的 code（例 "C-01"）；item_label 一律附原文。
+- quantitative_estimate：若可能超紅線，寫量化估計（例「預估超出 15%」）。
 
-Q4 side_effects_via_cld:
-- 直接從上方 cld_summary 走 1-3 hop。每條 path 列出實際走過的節點 label。
-- polarity_chain 對應每段邊的 polarity (positive / negative)
-- 至少 2 條 path；若 cld_summary 空或無 affected node，path=[] 並在 socratic_warnings 寫明
-- socratic_warnings: 從 socratic_qa 中 category=counter 的問題抓出對應警示 (≤120 字/條)
+kpi_checks：
+- brief 中**每一條** KPI 都要一條。
+- item_id 用 KPI name（例 "馬達效率"）；item_label 一律附 target+unit。
+- quantitative_estimate：對齊 target + unit 寫出估計值（例「估 4.5 Nm < target 5 Nm」）。
 
-Q5 coverage_completeness:
-- 用 sub_requirements 的 SR id (例 SR-1, SR-2, …) 分類到 resolves_fully / resolves_partial / resolves_conditional / does_not_address
-- 每條 SR 只能出現在一個分類
-- open_questions: ≥1 條 (整併方案還沒回答的工程細節)
+explore_health.contradiction_coverage：
+- 看 <contradictions> 區塊：每一行代表一條 Explore 階段挖出來的矛盾
+  + 該矛盾有沒有對應到 adopted direction。
+- 算法：總共 M 條矛盾，其中 N 條有 adopted direction → 覆蓋率 = N / M。
+- level：100% = "green" / 50-99% = "yellow" / <50% = "red"。
+- label：寫「N / M 條已對應方向」（M = 0 時寫「（本專案無矛盾）」level=green）。
+- details：每條矛盾一行，格式「{{contradiction_label}} → {{direction_id}} ✓」
+  或「{{contradiction_label}} → 未對應 ✗」，最多 8 條。
+- 注意：backend 會在落地時用程式級驗算覆寫 level / label，所以 details
+  最重要 — 請把人話寫清楚。
 
-Q6 verification_plan:
-- steps: ≥3 條，phase 必須跨越 simulation / bench / prototype 至少 2 個階段
-- blocking=true 至少 1 條
-- socratic_action_links: 從 socratic_qa category=action 的問題抽出建議步驟
+explore_health.cld_warning（若 <cld_summary> 為空就回 null）：
+- 看勾選方向會動到 CLD 上幾個節點 → 填 nodes_touched。
+- 沿邊 1-2 hop 找出「會撞到 brief 條目」的鏈條 → 寫成 side_effects 清單。
+- severity 規則：
+    - 對到 status=at_risk 的 brief item → "warn"
+    - 對到 status=unmet 的 brief item → "blocker"
+    - 沒撞到任何 brief item → "info"（不要放進 side_effects）
+- level 規則：有 blocker → "red"；有 warn → "yellow"；
+  全 info 或 nodes_touched=0 → "green"。
+- side_effects 只列 severity != "info" 的鏈條，最多 5 條。
+- CldChain.chain：人話因果鏈，例「殼體增剛 → 殼壁變厚 → 軸向變長 → 撞 C-2」。
+- CldChain.source_direction_id：觸發此鏈的勾選方向（picked_direction_id）。
+- CldChain.related_brief_item_id：撞到的 brief item 的 item_id（必須對得回上面任一 check）。
 
-Q7 duty_cycle_verdict:
-- peak / continuous / startup / steady_state **四欄都必填** addressed / marginal / not_addressed
-- cycle_specific_notes: ≥1 句，明確說明「此方案在 X 工況強，在 Y 工況弱」
+next_actions：
+- **至少 1 條 blocking=true**。
+- 每條 related_item_ids 必須連回上面任一 BriefItemCheck 的 item_id。
+- 用「動詞 + 對象」起手，例「跑軸向堆疊圖確認 C-2 不超 153mm」。
+- effort_hint：small (< 4h) / medium (4-24h) / large (>24h) / unknown。
+- 注意：UI 上只渲染 blocking=true 的條目（非 blocking 的存在 DB 但不顯示），
+  所以「真的擋住採用的事」才標 blocking=true。
 
-Q8 boundary_collapse:
-- **MUST list at least 5** falsifiable fail conditions
-- 每條包含 condition (≤60 字)、failure_mode (≤80 字)、severity (mild/moderate/catastrophic)
-- 不可以全部寫 mild；至少 1 條 catastrophic 或 moderate
-
-FINAL:
-- final_verdict: adopt (整體可採用) / adopt_with_conditions (需附條件) / needs_revision / reject
-- final_rationale: ≤300 字
+overall_verdict / overall_headline / confidence：
+- overall_verdict: adopt / adopt_with_conditions / needs_revision / reject
+- overall_headline ≤120 字白話總結。
+  例：「方案能達成扭矩 KPI，但成本 C-03 與軸向 C-2 還沒解，建議先做兩件事。」
 - confidence: 0.0-1.0
 </rules>
 
 <output_schema>
 {{
-  "contradiction_face_per_picked": [
+  "overall_verdict": "adopt_with_conditions",
+  "overall_headline": "...",
+  "confidence": 0.65,
+  "mission_check": {{
+    "item_kind": "mission",
+    "item_id": "mission",
+    "item_label": "<mission 原文截短>",
+    "status": "partial",
+    "rationale": "...",
+    "contributing_directions": ["dir-A", "dir-B"],
+    "quantitative_estimate": ""
+  }},
+  "constraint_checks": [
     {{
-      "contradiction_id": "...",
-      "picked_direction_id": "...",
-      "picked_direction_name": "...",
-      "improving_side": "yes|partial|no",
-      "worsening_side": "yes|partial|no",
-      "introduces_new_side_effect": ["..."]
+      "item_kind": "constraint",
+      "item_id": "C-01",
+      "item_label": "C-01 產品最大徑向尺寸 ≤ 111mm",
+      "status": "met",
+      "rationale": "方向 A 不動外徑",
+      "contributing_directions": ["dir-A"],
+      "quantitative_estimate": ""
     }}
   ],
-  "mechanism_trace": {{
-    "technology_mix": ["control", "structure"],
-    "delta_chain": ["...", "...", "..."],
-    "assumptions": ["...", "..."],
-    "evidence_level": "E2"
-  }},
-  "feasibility_matrix": {{
-    "axes": [
-      {{"axis": "外徑 ≤111mm", "source_ref": "constraint:C-01",
-        "verdict": "pass", "rationale": "...", "quantitative_estimate": "no change"}}
-    ],
-    "overall_verdict": "marginal",
-    "bottleneck_axes": ["motor max torque 5Nm"]
-  }},
-  "side_effects_via_cld": {{
-    "paths": [
-      {{"cld_path": ["馬達電流", "損失", "熱負荷"],
-        "polarity_chain": ["positive", "positive"],
-        "direction_impact": "...", "risk_level": "medium"}}
-    ],
-    "socratic_warnings": ["⚠️ ..."]
-  }},
-  "coverage_completeness": {{
-    "resolves_fully": ["SR-1"],
-    "resolves_partial": ["SR-3"],
-    "resolves_conditional": [],
-    "does_not_address": ["SR-5"],
-    "open_questions": ["..."]
-  }},
-  "verification_plan": {{
-    "steps": [
-      {{"phase": "simulation", "test_description": "...",
-        "expected_outcome": "...", "effort_hours": 16, "blocking": true}}
-    ],
-    "socratic_action_links": ["📋 ..."]
-  }},
-  "duty_cycle_verdict": {{
-    "peak": "marginal",
-    "continuous": "addressed",
-    "startup": "not_addressed",
-    "steady_state": "addressed",
-    "cycle_specific_notes": "..."
-  }},
-  "boundary_collapse": [
-    {{"condition": "...", "failure_mode": "...", "severity": "moderate"}},
-    {{"condition": "...", "failure_mode": "...", "severity": "catastrophic"}}
+  "kpi_checks": [
+    {{
+      "item_kind": "kpi",
+      "item_id": "扭矩",
+      "item_label": "扭矩 ≥ 5 Nm",
+      "status": "met",
+      "rationale": "方向 B 加大磁路，估 5.2 Nm",
+      "contributing_directions": ["dir-B"],
+      "quantitative_estimate": "5.2 Nm ≥ 5 Nm"
+    }}
   ],
-  "final_verdict": "adopt_with_conditions",
-  "final_rationale": "...",
-  "confidence": 0.7
+  "explore_health": {{
+    "contradiction_coverage": {{
+      "level": "yellow",
+      "label": "2 / 3 條已對應方向",
+      "details": [
+        "齒輪減速比 vs 軸向長度 → DIR-5 ✓",
+        "扭矩密度 vs 成本 → DIR-10 ✓",
+        "散熱面積 vs 殼體剛性 → 未對應 ✗"
+      ]
+    }},
+    "cld_warning": {{
+      "level": "yellow",
+      "nodes_touched": 2,
+      "side_effects": [
+        {{
+          "chain": "殼體增剛 → 殼壁變厚 → 軸向變長 → 撞 C-2",
+          "source_direction_id": "DIR-4",
+          "related_brief_item_id": "C-2",
+          "severity": "warn"
+        }}
+      ]
+    }}
+  }},
+  "next_actions": [
+    {{
+      "action": "跑軸向堆疊圖確認 C-2 不超 153mm",
+      "why": "CLD 顯示殼體增剛會牽到軸向變長",
+      "blocking": true,
+      "effort_hint": "medium",
+      "related_item_ids": ["C-2"]
+    }}
+  ]
 }}
 </output_schema>
 """

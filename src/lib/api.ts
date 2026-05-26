@@ -595,21 +595,15 @@ export type {
   ConsolidationResult,
   ConflictReport,
   CompatibilityResult,
-  // Phase 3 — picks + intra compatibility + EngineeringVerdictCard
+  // Phase 3 — picks + intra compatibility
   PickedSelection,
   IntraContradictionCompatibility,
-  EngineeringVerdictCard,
-  ContradictionFacePerPicked,
-  MechanismTrace,
-  FeasibilityMatrix,
-  FeasibilityVerdict,
-  SideEffectsViaCld,
-  CldSideEffect,
-  CoverageCompleteness,
-  VerificationPlan,
-  VerificationStep,
-  DutyCycleVerdict,
-  BoundaryCollapse,
+  // VerdictLite (取代舊 Q1–Q8 EngineeringVerdictCard)
+  // 設計理念見 plans/triz-verdict-card-simplification.md
+  EngineeringVerdictLite,
+  BriefItemCheck,
+  NextAction,
+  CheckStatus,
 } from "@/types/directedTriz";
 
 export function trizSolveDirected(body: SolveDirectedRequest) {

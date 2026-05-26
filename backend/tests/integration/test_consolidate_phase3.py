@@ -7,8 +7,15 @@
 2. PickedSelection 的 N>6 在 Pydantic 層被擋下 (ValueError)。
 3. `consolidate_solutions` 帶 picks 時，跨矛盾 swap 不會動到「已勾的方向」，
    並在仍衝突時把 status=conflict + integration_advice 加上 user_pinned 標註。
-4. `_generate_engineering_verdict_card` 用 mock LLM 跑完後，八節都有實際內容
-   （Q8 boundary_collapse ≥5；Q7 四工況全有 verdict）。
+4. `_generate_engineering_verdict_lite` 用 mock LLM 跑完後，回傳結構
+   正確（mission_check / constraint_checks / kpi_checks / explore_health /
+   next_actions，其中 next_actions ≥1 blocking、explore_health 含程式級
+   覆寫的 contradiction_coverage）。
+
+VerdictLite v0.5 (v3) 結構性精簡 (plans/triz-verdict-card-simplification.md
+§14–§20) 後，舊 sr_checks / socratic_checks / cld_checks 三個 list 欄位已
+移除，改為 explore_health.contradiction_coverage + cld_warning 兩個健檢徽章。
+本檔 mock payload 同步刪除這三個欄位。
 """
 
 from unittest.mock import patch
@@ -19,7 +26,7 @@ from pydantic import ValidationError
 from app.agents.triz_solver import (
     _max_independent_subsets,
     _check_intra_contradiction_compatibility,
-    _generate_engineering_verdict_card,
+    _generate_engineering_verdict_lite,
     _build_candidate_pool,
     _score_loss_optimized_swap,
     consolidate_solutions,
@@ -34,7 +41,7 @@ from app.models.schemas import (
     ContradictionDirectionResult,
     DirectionGroup,
     DirectionScore,
-    EngineeringVerdictCard,
+    EngineeringVerdictLite,
     IntraContradictionCompatibility,
     PickedSelection,
 )
@@ -257,7 +264,7 @@ class TestConsolidateSwapHonorsPicks:
         #   1. compat check — DIR-1 vs DIR-3 conflict.
         #   2. swap re-check (after C-2 swapped to DIR-4) — all compat.
         #   3. conflict_report (status=resolved_with_swap) — empty.
-        #   4. verdict_card LLM — minimal valid card.
+        #   4. verdict_lite LLM — minimal valid card.
         import json as _json
 
         responses = iter(
@@ -284,71 +291,33 @@ class TestConsolidateSwapHonorsPicks:
                 _json.dumps(
                     {"suggestions": [], "integration_advice": "swap resolved"}
                 ),
-                # 4. verdict_card
+                # 4. verdict_lite (取代舊 Q1–Q8 verdict_card)
                 _json.dumps(
                     {
-                        "contradiction_face_per_picked": [],
-                        "mechanism_trace": {
-                            "technology_mix": ["control"],
-                            "delta_chain": ["a", "b", "c"],
-                            "assumptions": ["x", "y"],
-                            "evidence_level": "E2",
-                        },
-                        "feasibility_matrix": {
-                            "axes": [
-                                {
-                                    "axis": f"ax{i}",
-                                    "source_ref": "",
-                                    "verdict": "pass",
-                                    "rationale": "...",
-                                    "quantitative_estimate": "",
-                                }
-                                for i in range(5)
-                            ],
-                            "overall_verdict": "pass",
-                            "bottleneck_axes": [],
-                        },
-                        "side_effects_via_cld": {
-                            "paths": [],
-                            "socratic_warnings": [],
-                        },
-                        "coverage_completeness": {
-                            "resolves_fully": [],
-                            "resolves_partial": [],
-                            "resolves_conditional": [],
-                            "does_not_address": [],
-                            "open_questions": ["open?"],
-                        },
-                        "verification_plan": {
-                            "steps": [
-                                {
-                                    "phase": "simulation",
-                                    "test_description": "t1",
-                                    "expected_outcome": "ok",
-                                    "effort_hours": 4,
-                                    "blocking": True,
-                                }
-                            ],
-                            "socratic_action_links": [],
-                        },
-                        "duty_cycle_verdict": {
-                            "peak": "addressed",
-                            "continuous": "addressed",
-                            "startup": "marginal",
-                            "steady_state": "addressed",
-                            "cycle_specific_notes": "ok",
-                        },
-                        "boundary_collapse": [
-                            {
-                                "condition": f"c{i}",
-                                "failure_mode": "f",
-                                "severity": "moderate",
-                            }
-                            for i in range(5)
-                        ],
-                        "final_verdict": "adopt_with_conditions",
-                        "final_rationale": "ok",
+                        "overall_verdict": "adopt_with_conditions",
+                        "overall_headline": "swap 後相容，仍需驗證 1 件事。",
                         "confidence": 0.7,
+                        "mission_check": None,
+                        "constraint_checks": [],
+                        "kpi_checks": [],
+                        # v0.5 (v3) — explore_health 取代 sr/socratic/cld
+                        "explore_health": {
+                            "contradiction_coverage": {
+                                "level": "green",
+                                "label": "2 / 2 條已對應方向",
+                                "details": [],
+                            },
+                            "cld_warning": None,
+                        },
+                        "next_actions": [
+                            {
+                                "action": "驗證 swap 後的方向組合在實機上可行",
+                                "why": "由 LLM 推論，需實驗確認",
+                                "blocking": True,
+                                "effort_hint": "medium",
+                                "related_item_ids": [],
+                            }
+                        ],
                     }
                 ),
             ]
@@ -376,8 +345,8 @@ class TestConsolidateSwapHonorsPicks:
         # Status must be resolved_with_swap (swap did succeed because C-2 was swappable)
         assert cons.status == "resolved_with_swap"
         # VerdictCard should be present
-        assert resp.verdict_card is not None
-        assert resp.verdict_card.final_verdict == "adopt_with_conditions"
+        assert resp.verdict_lite is not None
+        assert resp.verdict_lite.overall_verdict == "adopt_with_conditions"
 
 
 # ===========================================================================
@@ -387,77 +356,46 @@ class TestConsolidateSwapHonorsPicks:
 # 回歸測試：保護 src/pages/Create.tsx handleConsolidateOnly 的修復
 # （移除 FE local fallback、單矛盾也呼叫 backend）。背景是使用者反映：
 #   「正向分析只有 1 條矛盾、勾完方向按下跨矛盾方向整併，
-#    只看到 toast『已為 1 條矛盾產出方向整併』，VerdictCard 沒出。」
+#    只看到 toast『已為 1 條矛盾產出方向整併』，VerdictLite 沒出。」
 # 根因：FE 走自己的 local fallback、跳過 backend。修復後 FE 一律打後端，
 # 因此我們得在 backend 這頭確保：len(results)==1 一樣會回 verdict_card。
 # 對應 backend 程式碼 triz_solver.consolidate_solutions line 4951 fast path。
 
 
-class TestConsolidateSingleContradictionVerdictCard:
-    """單矛盾 fast path：不跑跨矛盾 swap，但仍要產 verdict_card。"""
+class TestConsolidateSingleContradictionVerdictLite:
+    """單矛盾 fast path：不跑跨矛盾 swap，但仍要產 verdict_lite。"""
 
     def _verdict_payload(self) -> dict:
-        """Minimal valid Q1–Q8 payload for _generate_engineering_verdict_card LLM."""
+        """Minimal valid EngineeringVerdictLite payload for LLM mock.
+
+        VerdictLite v0.5 (v3) 結構性精簡後 (plans/triz-verdict-card-simplification.md
+        §14–§20)，sr_checks / socratic_checks / cld_checks 三個 list 欄位移除，
+        改為 explore_health 健檢徽章。
+        """
         return {
-            "contradiction_face_per_picked": [],
-            "mechanism_trace": {
-                "technology_mix": ["structure"],
-                "delta_chain": ["a", "b", "c"],
-                "assumptions": ["x"],
-                "evidence_level": "E2",
-            },
-            "feasibility_matrix": {
-                "axes": [
-                    {
-                        "axis": f"ax{i}",
-                        "source_ref": "",
-                        "verdict": "pass",
-                        "rationale": "...",
-                        "quantitative_estimate": "",
-                    }
-                    for i in range(5)
-                ],
-                "overall_verdict": "pass",
-                "bottleneck_axes": [],
-            },
-            "side_effects_via_cld": {"paths": [], "socratic_warnings": []},
-            "coverage_completeness": {
-                "resolves_fully": [],
-                "resolves_partial": [],
-                "resolves_conditional": [],
-                "does_not_address": [],
-                "open_questions": ["open?"],
-            },
-            "verification_plan": {
-                "steps": [
-                    {
-                        "phase": "simulation",
-                        "test_description": "t1",
-                        "expected_outcome": "ok",
-                        "effort_hours": 4,
-                        "blocking": True,
-                    }
-                ],
-                "socratic_action_links": [],
-            },
-            "duty_cycle_verdict": {
-                "peak": "addressed",
-                "continuous": "addressed",
-                "startup": "marginal",
-                "steady_state": "addressed",
-                "cycle_specific_notes": "ok",
-            },
-            "boundary_collapse": [
-                {
-                    "condition": f"c{i}",
-                    "failure_mode": "f",
-                    "severity": "moderate",
-                }
-                for i in range(5)
-            ],
-            "final_verdict": "adopt",
-            "final_rationale": "single contradiction adopted",
+            "overall_verdict": "adopt",
+            "overall_headline": "單矛盾整併採用，方案 brief 任務皆達成。",
             "confidence": 0.8,
+            "mission_check": None,
+            "constraint_checks": [],
+            "kpi_checks": [],
+            "explore_health": {
+                "contradiction_coverage": {
+                    "level": "green",
+                    "label": "1 / 1 條已對應方向",
+                    "details": [],
+                },
+                "cld_warning": None,
+            },
+            "next_actions": [
+                {
+                    "action": "驗證所選方向在實機上的效果",
+                    "why": "LLM 推論，需實驗確認",
+                    "blocking": True,
+                    "effort_hint": "medium",
+                    "related_item_ids": [],
+                }
+            ],
         }
 
     def test_single_contradiction_no_picks_returns_verdict_card(self):
@@ -510,19 +448,18 @@ class TestConsolidateSingleContradictionVerdictCard:
         # 沒 swap → exhausted_contradictions 空、total_rounds=0
         assert cons.exhausted_contradictions == []
         assert cons.total_rounds == 0
-        # 關鍵承諾：verdict_card 不可為 None
-        assert resp.verdict_card is not None
-        assert resp.verdict_card.final_verdict == "adopt"
-        # 八節都應該有實際內容 — sanity check
-        assert len(resp.verdict_card.feasibility_matrix.axes) == 5
-        assert len(resp.verdict_card.boundary_collapse) == 5
+        # 關鍵承諾：verdict_lite 不可為 None，且包含對照 brief 的 next_actions
+        assert resp.verdict_lite is not None
+        assert resp.verdict_lite.overall_verdict == "adopt"
+        # next_actions 至少 1 條 blocking（_generate_engineering_verdict_lite 防呆）
+        assert any(a.blocking for a in resp.verdict_lite.next_actions)
 
     def test_single_contradiction_with_pick_honors_user_selection(self):
         """單矛盾 + 勾 DIR-2 (非 top1) → adopted 應為 DIR-2、was_user_picked 標註。
 
         這正是使用者抱怨「畫面看起來還是用其他的矛盾解法」的場景：
         FE 應該把 RD 勾的方向送進來，backend 應在 was_user_picked 標出，
-        verdict_card 也必須產出。
+        verdict_lite 也必須產出。
         """
         import json as _json
 
@@ -571,19 +508,28 @@ class TestConsolidateSingleContradictionVerdictCard:
         assert cons.was_user_picked == {"C-only": "DIR-2"}
         # status compatible（單矛盾無跨矛盾衝突）
         assert cons.status == "compatible"
-        # verdict_card 必須有
-        assert resp.verdict_card is not None
-        assert resp.verdict_card.final_verdict == "adopt"
+        # verdict_lite 必須有
+        assert resp.verdict_lite is not None
+        assert resp.verdict_lite.overall_verdict == "adopt"
 
 
 # ===========================================================================
-# E. _generate_engineering_verdict_card — 八節都有內容
+# E. _generate_engineering_verdict_lite — Brief 對照結構
 # ===========================================================================
+#
+# VerdictLite v0.5 (v3) 結構性精簡 (plans/triz-verdict-card-simplification.md
+# §14–§20) 後：
+#   - 舊「Q1–Q8 八節都有內容」測試已失效（不再有 feasibility_matrix /
+#     boundary_collapse / duty_cycle_verdict 等欄位）
+#   - v0.4 的 sr_checks / socratic_checks / cld_checks 三個 list 欄位也移除，
+#     改為 explore_health.contradiction_coverage + cld_warning 健檢徽章
+#   - backend 程式級覆寫 contradiction_coverage.level / label (不信 LLM 算術)
+# 新測試確認 lite 結構三件事 + explore_health + next_actions blocking 防呆。
 
 
-class TestVerdictCardEightSections:
-
-    def test_all_eight_sections_populated(self):
+class TestVerdictLiteBriefItemChecks:
+    def test_lite_payload_populates_brief_checks(self):
+        """LLM 回完整 v3 lite payload → mission / constraint / kpi / explore_health 都被讀入。"""
         import json as _json
 
         consolidation = ConsolidationResult(
@@ -597,95 +543,77 @@ class TestVerdictCardEightSections:
             _mk_result(cid="C-1", direction_ids=["DIR-1", "DIR-2"], top1="DIR-1"),
         ]
 
-        # LLM payload covering all 8 sections with realistic content.
         payload = {
-            "contradiction_face_per_picked": [
+            "overall_verdict": "adopt_with_conditions",
+            "overall_headline": "方案達成大部分 brief 任務，但成本與啟動瞬態還沒解。",
+            "confidence": 0.65,
+            "mission_check": {
+                "item_kind": "mission",
+                "item_id": "mission",
+                "item_label": "縮小馬達體積同時維持扭矩",
+                "status": "partial",
+                "rationale": "扭矩達成但體積仍需驗證",
+                "contributing_directions": ["DIR-1"],
+                "quantitative_estimate": "",
+            },
+            "constraint_checks": [
                 {
-                    "contradiction_id": "C-1",
-                    "picked_direction_id": "DIR-1",
-                    "picked_direction_name": "Direction One",
-                    "improving_side": "yes",
-                    "worsening_side": "partial",
-                    "introduces_new_side_effect": ["new noise"],
+                    "item_kind": "constraint",
+                    "item_id": "C1",
+                    "item_label": "外徑 ≤ 111mm",
+                    "status": "met",
+                    "rationale": "DIR-1 不動外徑",
+                    "contributing_directions": ["DIR-1"],
+                    "quantitative_estimate": "",
                 }
             ],
-            "mechanism_trace": {
-                "technology_mix": ["control", "material"],
-                "delta_chain": ["s1", "s2", "s3"],
-                "assumptions": ["a1", "a2"],
-                "evidence_level": "E3",
-            },
-            "feasibility_matrix": {
-                "axes": [
-                    {
-                        "axis": f"axis-{i}",
-                        "source_ref": "",
-                        "verdict": "pass",
-                        "rationale": "ok",
-                        "quantitative_estimate": "no change",
-                    }
-                    for i in range(5)
-                ],
-                "overall_verdict": "pass",
-                "bottleneck_axes": [],
-            },
-            "side_effects_via_cld": {
-                "paths": [
-                    {
-                        "cld_path": ["A", "B", "C"],
-                        "polarity_chain": ["positive", "negative"],
-                        "direction_impact": "loop reinforces",
-                        "risk_level": "medium",
-                    }
-                ],
-                "socratic_warnings": ["⚠️ watch out"],
-            },
-            "coverage_completeness": {
-                "resolves_fully": ["SR-1"],
-                "resolves_partial": ["SR-2"],
-                "resolves_conditional": [],
-                "does_not_address": [],
-                "open_questions": ["q1"],
-            },
-            "verification_plan": {
-                "steps": [
-                    {
-                        "phase": "simulation",
-                        "test_description": "FEA",
-                        "expected_outcome": "stress < limit",
-                        "effort_hours": 16,
-                        "blocking": True,
-                    },
-                    {
-                        "phase": "bench",
-                        "test_description": "torque rig",
-                        "expected_outcome": "125Nm ok",
-                        "effort_hours": 40,
-                        "blocking": False,
-                    },
-                ],
-                "socratic_action_links": ["📋 bring up next review"],
-            },
-            "duty_cycle_verdict": {
-                "peak": "addressed",
-                "continuous": "marginal",
-                "startup": "not_addressed",
-                "steady_state": "addressed",
-                "cycle_specific_notes": "peak ok, startup weak",
-            },
-            "boundary_collapse": [
-                {"condition": f"cond-{i}", "failure_mode": "fail", "severity": "moderate"}
-                for i in range(5)
+            "kpi_checks": [
+                {
+                    "item_kind": "kpi",
+                    "item_id": "扭矩",
+                    "item_label": "扭矩 ≥ 5 Nm",
+                    "status": "met",
+                    "rationale": "DIR-1 加大磁路",
+                    "contributing_directions": ["DIR-1"],
+                    "quantitative_estimate": "5.2 Nm ≥ 5 Nm",
+                }
             ],
-            "final_verdict": "adopt_with_conditions",
-            "final_rationale": "Most axes pass.",
-            "confidence": 0.65,
+            # v0.5 (v3): 新增 explore_health 取代 sr / socratic / cld 三 list
+            "explore_health": {
+                "contradiction_coverage": {
+                    # 故意給錯 level / label，驗證 backend 程式級覆寫
+                    "level": "red",
+                    "label": "LLM 偽造的錯誤覆蓋率",
+                    "details": ["C-1 contradiction → DIR-1 ✓"],
+                },
+                "cld_warning": {
+                    "level": "yellow",
+                    "nodes_touched": 2,
+                    "side_effects": [
+                        {
+                            "chain": "電流升 → 損失升 → 熱升",
+                            "source_direction_id": "DIR-1",
+                            "related_brief_item_id": "扭矩",
+                            "severity": "warn",
+                        }
+                    ],
+                },
+            },
+            "next_actions": [
+                {
+                    "action": "跑熱模擬確認連續運轉",
+                    "why": "散熱未處理",
+                    "blocking": True,
+                    "effort_hint": "medium",
+                    "related_item_ids": ["扭矩"],
+                }
+            ],
         }
 
         with patch(
             "app.agents.triz_solver.call_llm_json", return_value=_json.dumps(payload)
         ):
-            card = _generate_engineering_verdict_card(
+            card = _generate_engineering_verdict_lite(
                 project_id="proj-x",
                 consolidation=consolidation,
                 results=results,
@@ -693,78 +621,72 @@ class TestVerdictCardEightSections:
                 consolidation_id="TCR-x",
             )
 
-        assert isinstance(card, EngineeringVerdictCard)
-        # Q1
-        assert len(card.contradiction_face_per_picked) == 1
-        # Q2
-        assert card.mechanism_trace.technology_mix
-        assert card.mechanism_trace.evidence_level == "E3"
-        # Q3
-        assert len(card.feasibility_matrix.axes) >= 5
-        assert card.feasibility_matrix.overall_verdict == "pass"
-        # Q4
-        assert card.side_effects_via_cld.paths
-        # Q5
-        assert "SR-1" in card.coverage_completeness.resolves_fully
-        # Q6
-        assert len(card.verification_plan.steps) >= 2
-        # Q7 — all four cycle phases must be filled
-        assert card.duty_cycle_verdict.peak in {"addressed", "marginal", "not_addressed"}
-        assert card.duty_cycle_verdict.continuous in {"addressed", "marginal", "not_addressed"}
-        assert card.duty_cycle_verdict.startup in {"addressed", "marginal", "not_addressed"}
-        assert card.duty_cycle_verdict.steady_state in {"addressed", "marginal", "not_addressed"}
-        # Q8 — at least 5 fail conditions
-        assert len(card.boundary_collapse) >= 5
-        # Final
-        assert card.final_verdict in {
-            "adopt", "adopt_with_conditions", "needs_revision", "reject"
-        }
+        assert isinstance(card, EngineeringVerdictLite)
+        # mission_check
+        assert card.mission_check is not None
+        assert card.mission_check.item_id == "mission"
+        # constraint / kpi 各 1 條
+        assert len(card.constraint_checks) == 1
+        assert card.constraint_checks[0].item_id == "C1"
+        assert len(card.kpi_checks) == 1
+        assert card.kpi_checks[0].item_id == "扭矩"
+        # explore_health：contradiction_coverage 由 backend 程式級覆寫（覆蓋率 1/1 = green）
+        assert card.explore_health is not None
+        assert card.explore_health.contradiction_coverage.level == "green"
+        assert card.explore_health.contradiction_coverage.label == "1 / 1 條已對應方向"
+        # details 保留 LLM 寫的人話
+        assert card.explore_health.contradiction_coverage.details == [
+            "C-1 contradiction → DIR-1 ✓"
+        ]
+        # cld_warning 維持 LLM 給的內容
+        assert card.explore_health.cld_warning is not None
+        assert card.explore_health.cld_warning.level == "yellow"
+        assert len(card.explore_health.cld_warning.side_effects) == 1
+        # next_actions：至少 1 條 blocking（LLM 給的就符合）
+        assert any(a.blocking for a in card.next_actions)
+        # overall
+        assert card.overall_verdict == "adopt_with_conditions"
+        assert "成本" in card.overall_headline or "啟動" in card.overall_headline
+        # v0.5 (v3) 確認舊欄位已不存在於新 schema 上
+        assert not hasattr(card, "sr_checks")
+        assert not hasattr(card, "socratic_checks")
+        assert not hasattr(card, "cld_checks")
 
-    def test_fallback_pads_q8_to_five(self):
-        """LLM 給少於 5 條 boundary_collapse → 後端應補滿到 5。"""
+    def test_fallback_pads_blocking_next_action(self):
+        """LLM 漏給 blocking 行動 → backend 補一條 placeholder。"""
         import json as _json
 
         partial = {
-            "contradiction_face_per_picked": [],
-            "mechanism_trace": {
-                "technology_mix": [],
-                "delta_chain": [],
-                "assumptions": [],
-                "evidence_level": "E0",
-            },
-            "feasibility_matrix": {
-                "axes": [],
-                "overall_verdict": "marginal",
-                "bottleneck_axes": [],
-            },
-            "side_effects_via_cld": {"paths": [], "socratic_warnings": []},
-            "coverage_completeness": {
-                "resolves_fully": [],
-                "resolves_partial": [],
-                "resolves_conditional": [],
-                "does_not_address": [],
-                "open_questions": [],
-            },
-            "verification_plan": {"steps": [], "socratic_action_links": []},
-            "duty_cycle_verdict": {
-                "peak": "not_addressed",
-                "continuous": "not_addressed",
-                "startup": "not_addressed",
-                "steady_state": "not_addressed",
-                "cycle_specific_notes": "",
-            },
-            "boundary_collapse": [
-                {"condition": "only one", "failure_mode": "...", "severity": "mild"}
-            ],
-            "final_verdict": "needs_revision",
-            "final_rationale": "",
+            "overall_verdict": "needs_revision",
+            "overall_headline": "",
             "confidence": 0.3,
+            "mission_check": None,
+            "constraint_checks": [],
+            "kpi_checks": [],
+            "explore_health": {
+                "contradiction_coverage": {
+                    "level": "green",
+                    "label": "（本專案無矛盾）",
+                    "details": [],
+                },
+                "cld_warning": None,
+            },
+            "next_actions": [
+                {
+                    "action": "做個小事",
+                    "why": "",
+                    "blocking": False,
+                    "effort_hint": "small",
+                    "related_item_ids": [],
+                }
+            ],
         }
 
         with patch(
-            "app.agents.triz_solver.call_llm_json", return_value=_json.dumps(partial)
+            "app.agents.triz_solver.call_llm_json",
+            return_value=_json.dumps(partial),
         ):
-            card = _generate_engineering_verdict_card(
+            card = _generate_engineering_verdict_lite(
                 project_id="proj-y",
                 consolidation=ConsolidationResult(),
                 results=[],
@@ -772,8 +694,199 @@ class TestVerdictCardEightSections:
                 consolidation_id="TCR-y",
             )
 
-        # Padding rule: at least 5 boundary conditions
-        assert len(card.boundary_collapse) >= 5
+        # 防呆：至少 1 條 blocking
+        assert any(a.blocking for a in card.next_actions)
+
+    # ------------------------------------------------------------------
+    # v0.5 (v3) 新增測試：覆蓋率三種 level + LLM 沒給 explore_health + 舊資料相容
+    # ------------------------------------------------------------------
+
+    def test_zero_contradiction_returns_green_no_matter_what(self):
+        """0 條矛盾 → 程式級覆寫 level=green / label=「（本專案無矛盾）」。"""
+        import json as _json
+
+        payload = {
+            "overall_verdict": "adopt",
+            "overall_headline": "ok",
+            "confidence": 0.9,
+            "mission_check": None,
+            "constraint_checks": [],
+            "kpi_checks": [],
+            "explore_health": {
+                "contradiction_coverage": {
+                    "level": "red",  # LLM 偽造
+                    "label": "wrong",
+                    "details": [],
+                },
+                "cld_warning": None,
+            },
+            "next_actions": [
+                {
+                    "action": "驗證",
+                    "blocking": True,
+                    "effort_hint": "small",
+                    "related_item_ids": [],
+                }
+            ],
+        }
+
+        with patch(
+            "app.agents.triz_solver.call_llm_json",
+            return_value=_json.dumps(payload),
+        ):
+            card = _generate_engineering_verdict_lite(
+                project_id="proj-0",
+                consolidation=ConsolidationResult(),
+                results=[],
+                brief_ctx=EMPTY_CTX,
+                consolidation_id="TCR-0",
+            )
+
+        assert card.explore_health is not None
+        cov = card.explore_health.contradiction_coverage
+        assert cov.level == "green"
+        assert cov.label == "（本專案無矛盾）"
+
+    def test_partial_coverage_yellow_and_red(self):
+        """3 條矛盾、其中 2 條 adopted → yellow；1 條 adopted → red。"""
+        import json as _json
+
+        def _run(adopted_count: int) -> str:
+            cons = ConsolidationResult(
+                status="compatible",
+                adopted_directions={
+                    f"C-{i+1}": _mk_dir(f"DIR-{i+1}") for i in range(adopted_count)
+                },
+            )
+            res = [
+                _mk_result(cid=f"C-{i+1}", direction_ids=[f"DIR-{i+1}"])
+                for i in range(3)
+            ]
+            payload = {
+                "overall_verdict": "adopt_with_conditions",
+                "overall_headline": "x",
+                "confidence": 0.5,
+                "mission_check": None,
+                "constraint_checks": [],
+                "kpi_checks": [],
+                "explore_health": {
+                    "contradiction_coverage": {
+                        "level": "green",  # LLM 偽造，會被覆寫
+                        "label": "wrong",
+                        "details": [],
+                    },
+                    "cld_warning": None,
+                },
+                "next_actions": [
+                    {
+                        "action": "x",
+                        "blocking": True,
+                        "effort_hint": "small",
+                        "related_item_ids": [],
+                    }
+                ],
+            }
+            with patch(
+                "app.agents.triz_solver.call_llm_json",
+                return_value=_json.dumps(payload),
+            ):
+                card = _generate_engineering_verdict_lite(
+                    project_id="proj-cov",
+                    consolidation=cons,
+                    results=res,
+                    brief_ctx=EMPTY_CTX,
+                    consolidation_id="TCR-cov",
+                )
+            assert card.explore_health is not None
+            return card.explore_health.contradiction_coverage.level
+
+        # 3/3 = green / 2/3 = yellow / 1/3 = red
+        assert _run(3) == "green"
+        assert _run(2) == "yellow"
+        assert _run(1) == "red"
+
+    def test_llm_omits_explore_health_backend_fills_in(self):
+        """LLM 完全沒給 explore_health → backend 補一個只含 coverage 的物件。"""
+        import json as _json
+
+        payload = {
+            "overall_verdict": "adopt",
+            "overall_headline": "ok",
+            "confidence": 0.7,
+            "mission_check": None,
+            "constraint_checks": [],
+            "kpi_checks": [],
+            # 故意省略 explore_health
+            "next_actions": [
+                {
+                    "action": "驗證",
+                    "blocking": True,
+                    "effort_hint": "small",
+                    "related_item_ids": [],
+                }
+            ],
+        }
+        cons = ConsolidationResult(
+            status="compatible",
+            adopted_directions={"C-1": _mk_dir("DIR-1")},
+        )
+        res = [_mk_result(cid="C-1", direction_ids=["DIR-1"])]
+
+        with patch(
+            "app.agents.triz_solver.call_llm_json",
+            return_value=_json.dumps(payload),
+        ):
+            card = _generate_engineering_verdict_lite(
+                project_id="proj-omit",
+                consolidation=cons,
+                results=res,
+                brief_ctx=EMPTY_CTX,
+                consolidation_id="TCR-omit",
+            )
+
+        assert card.explore_health is not None
+        assert card.explore_health.contradiction_coverage.level == "green"
+        assert card.explore_health.contradiction_coverage.label == "1 / 1 條已對應方向"
+        # 沒給 cld_warning → 預設 None
+        assert card.explore_health.cld_warning is None
+
+    def test_backwards_compat_v04_row_with_legacy_fields_loads(self):
+        """v0.4 舊 row（含 sr_checks / socratic_checks / cld_checks）能被 v0.5 讀取且不報錯。
+
+        DB JSONB 是 schemaless；Pydantic v2 預設 ignore unknown fields，
+        所以舊欄位會被靜默忽略，新欄位（explore_health）若缺則為 None。
+        對應規格文件 §15.3 向下相容策略。
+        """
+        legacy_payload = {
+            "project_id": "proj-legacy",
+            "consolidation_id": "TCR-legacy",
+            "overall_verdict": "adopt_with_conditions",
+            "overall_headline": "v0.4 舊資料",
+            "confidence": 0.6,
+            "mission_check": None,
+            "constraint_checks": [],
+            "kpi_checks": [],
+            # ↓ 舊欄位（v0.5 已移除），Pydantic 應該 ignore
+            "sr_checks": [
+                {
+                    "item_kind": "sub_requirement",
+                    "item_id": "SR-1",
+                    "item_label": "舊資料",
+                    "status": "met",
+                    "rationale": "x",
+                    "contributing_directions": [],
+                }
+            ],
+            "socratic_checks": [],
+            "cld_checks": [],
+            "next_actions": [],
+        }
+
+        card = EngineeringVerdictLite.model_validate(legacy_payload)
+        # 舊欄位 ignored；新欄位 explore_health 缺 → None
+        assert card.overall_verdict == "adopt_with_conditions"
+        assert not hasattr(card, "sr_checks")
+        assert card.explore_health is None
 
 
 # ===========================================================================
@@ -781,55 +894,40 @@ class TestVerdictCardEightSections:
 # ===========================================================================
 
 
-# 最小 verdict_card JSON (符合 schema)，用於 mock LLM 回應。
-def _minimal_verdict_card_json() -> str:
+# 最小 verdict_lite JSON (符合 schema)，用於 mock LLM 回應。
+def _minimal_verdict_lite_json() -> str:
+    """Minimal valid EngineeringVerdictLite JSON for mock LLM responses.
+
+    v0.5 (v3) 結構性精簡後：mission/constraint/kpi 三個 list +
+    explore_health 健檢徽章 + 1 條 blocking 行動。
+    舊 sr_checks / socratic_checks / cld_checks 已移除。
+    """
     import json as _json
     return _json.dumps(
         {
-            "contradiction_face_per_picked": [],
-            "mechanism_trace": {
-                "technology_mix": ["control"],
-                "delta_chain": ["a", "b", "c"],
-                "assumptions": ["x", "y"],
-                "evidence_level": "E2",
-            },
-            "feasibility_matrix": {
-                "axes": [
-                    {
-                        "axis": f"ax{i}",
-                        "source_ref": "",
-                        "verdict": "pass",
-                        "rationale": "...",
-                        "quantitative_estimate": "",
-                    }
-                    for i in range(5)
-                ],
-                "overall_verdict": "pass",
-                "bottleneck_axes": [],
-            },
-            "side_effects_via_cld": {"paths": [], "socratic_warnings": []},
-            "coverage_completeness": {
-                "resolves_fully": [],
-                "resolves_partial": [],
-                "resolves_conditional": [],
-                "does_not_address": [],
-                "open_questions": [],
-            },
-            "verification_plan": {"steps": [], "socratic_action_links": []},
-            "duty_cycle_verdict": {
-                "peak": "addressed",
-                "continuous": "addressed",
-                "startup": "addressed",
-                "steady_state": "addressed",
-                "cycle_specific_notes": "",
-            },
-            "boundary_collapse": [
-                {"condition": f"c{i}", "failure_mode": "f", "severity": "moderate"}
-                for i in range(5)
-            ],
-            "final_verdict": "adopt",
-            "final_rationale": "ok",
+            "overall_verdict": "adopt",
+            "overall_headline": "minimal",
             "confidence": 0.7,
+            "mission_check": None,
+            "constraint_checks": [],
+            "kpi_checks": [],
+            "explore_health": {
+                "contradiction_coverage": {
+                    "level": "green",
+                    "label": "（minimal）",
+                    "details": [],
+                },
+                "cld_warning": None,
+            },
+            "next_actions": [
+                {
+                    "action": "驗證採用方案",
+                    "why": "",
+                    "blocking": True,
+                    "effort_hint": "small",
+                    "related_item_ids": [],
+                }
+            ],
         }
     )
 
@@ -861,13 +959,13 @@ class TestPickedDirectionNotMistakenAsSwap:
         )
 
         # 單條矛盾不會跑 cross-compat (len(adopted)==1) → _check_compatibility 直接回
-        # 空 list；不會觸發 swap。但 verdict_card LLM 仍會跑一次。
+        # 空 list；不會觸發 swap。但 verdict_lite LLM 仍會跑一次。
         responses = iter(
             [
                 # 1. initial compat (但 _check_compatibility 對單條只回空)
                 _json.dumps({"pairs": []}),
-                # 2. verdict_card
-                _minimal_verdict_card_json(),
+                # 2. verdict_lite
+                _minimal_verdict_lite_json(),
             ]
         )
 
@@ -922,8 +1020,8 @@ class TestPickedDirectionNotMistakenAsSwap:
             [
                 # 1. compat check: DIR-2 vs DIR-4 → compatible (no pairs)
                 _json.dumps({"pairs": []}),
-                # 2. verdict_card
-                _minimal_verdict_card_json(),
+                # 2. verdict_lite
+                _minimal_verdict_lite_json(),
             ]
         )
 
@@ -996,8 +1094,8 @@ class TestPickedDirectionNotMistakenAsSwap:
                 _json.dumps(
                     {"suggestions": [], "integration_advice": "swap resolved"}
                 ),
-                # 4. verdict_card
-                _minimal_verdict_card_json(),
+                # 4. verdict_lite
+                _minimal_verdict_lite_json(),
             ]
         )
 

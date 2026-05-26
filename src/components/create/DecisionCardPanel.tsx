@@ -9,7 +9,7 @@
  *   4. quick_tags (effort / evidence / affects_modules)
  *   5. combination_hints (跨矛盾整併相容性)
  *
- * 真正的工程審判由整併後的 VerdictCard 提供，不在這層做。
+ * 真正的工程審判由整併後的 Brief 任務檢核 提供，不在這層做。
  */
 
 import { Badge } from "@/components/ui/badge";
@@ -302,7 +302,7 @@ export function ContradictionManifest({
     <div className="border border-dashed rounded-md p-3 bg-muted/30 space-y-2 text-[11px]">
       <div className="flex items-center gap-1.5">
         <span className="font-medium text-foreground/80">
-          矛盾說明書（閱讀背景，不是驗收條件 — 真正驗證見整併後 VerdictCard）
+          矛盾說明書（閱讀背景，不是驗收條件 — 真正驗證見整併後 Brief 任務檢核）
         </span>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -311,7 +311,7 @@ export function ContradictionManifest({
           <TooltipContent className="max-w-sm text-xs leading-relaxed">
             這份清單描述「這條矛盾在說什麼」，給你在挑方向前先看背景。
             單一方向解掉幾條 SR 不等於矛盾被解；真正驗證是
-            RD 勾完方向、按下「跨矛盾整併」之後產出的 VerdictCard。
+            RD 勾完方向、按下「跨矛盾整併」之後產出的 Brief 任務檢核。
           </TooltipContent>
         </Tooltip>
       </div>
@@ -366,7 +366,7 @@ export function ContradictionManifest({
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs text-xs leading-relaxed">
                   {w.why_weak ||
-                    "此條目與此矛盾僅弱相關（相關性評分=1），不列為正式 SR，但 RD 可在 VerdictCard 階段重新檢查。"}
+                    "此條目與此矛盾僅弱相關（相關性評分=1），不列為正式 SR，但 RD 可在 Brief 任務檢核 階段重新檢查。"}
                 </TooltipContent>
               </Tooltip>
             ))}

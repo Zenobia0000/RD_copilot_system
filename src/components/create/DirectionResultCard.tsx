@@ -418,7 +418,7 @@ function DirectionBlock({
                           這條矛盾的 {subRequirements.length} 個需求面向（閱讀背景，不是驗收條件）：
                         </span>
                         <GlossaryHelp
-                          description="這些 SR 子需求只是「閱讀背景」，幫你看懂矛盾在說什麼；真正驗收要等跨矛盾整併後的 VerdictCard。"
+                          description="這些 SR 子需求只是「閱讀背景」，幫你看懂矛盾在說什麼；真正驗收要等跨矛盾整併後的 Brief 任務檢核。"
                           onOpenGlossary={onOpenGlossary}
                           sectionId="why_not_verdict"
                           size="xs"

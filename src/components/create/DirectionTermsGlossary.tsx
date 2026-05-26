@@ -95,7 +95,7 @@ function ManifestSection() {
         每張方向卡頂端那段虛線框就是「矛盾說明書」 — 它把矛盾拆成 4 種
         類別的<strong>子需求 (Sub-Requirement, SR)</strong>，讓你在挑方向
         前先把背景讀過一次。注意：<strong>它不是驗收條件</strong>，真正
-        驗收要等「跨矛盾整併」後的 VerdictCard。
+        驗收要等「跨矛盾整併」後的 Brief 任務檢核。
       </p>
       <div className="space-y-1.5 mt-2">
         {Object.entries(SR_KIND_TERMS).map(([key, term]) => (
@@ -310,16 +310,16 @@ function WhyNotVerdictSection() {
       </p>
       <div className="text-foreground/90">
         真正驗收要等 RD 勾完方向後、按下「跨矛盾整併」產出的
-        <strong> EngineeringVerdictCard (Q1–Q8) </strong>
+        <strong> Brief 任務檢核 (VerdictLite) </strong>
         — 它會檢查 8 個工程維度：矛盾兩面的覆蓋、機制溯源、可行性矩陣、
         CLD 副作用、覆蓋完整度、驗證計畫、duty cycle、邊界塌陷。
       </div>
       <div className="text-[11px] mt-2 px-2 py-1.5 rounded bg-muted/50 border border-dashed">
         🎯 設計哲學：方向 ≠ 解；方向是「值得花力氣往這個方向想」的提示，
-        真正解一定要做完整併 + VerdictCard。
+        真正解一定要做完整併 + Brief 任務檢核。
       </div>
       <UiAnchorBox>
-        對應頁面下方「跨矛盾整併」按鈕產出的 EngineeringVerdictCard 區塊。
+        對應頁面下方「跨矛盾整併」按鈕產出的 Brief 任務檢核 區塊。
       </UiAnchorBox>
     </div>
   );

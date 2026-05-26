@@ -93,14 +93,14 @@ import type {
   ContradictionDirectionResult,
   ConsolidationResult,
   IntraContradictionCompatibility,
-  EngineeringVerdictCard,
+  EngineeringVerdictLite,
   PickedSelection,
 } from "@/types/directedTriz";
 import { LayeredSolutionCard } from "@/components/create/LayeredSolutionCard";
 import type { AdoptionMode } from "@/components/create/LayeredSolutionCard";
 import { DirectionResultCard } from "@/components/create/DirectionResultCard";
 import { ConsolidationPanel } from "@/components/create/ConsolidationPanel";
-import { VerdictCardPanel } from "@/components/create/VerdictCardPanel";
+import { VerdictLitePanel } from "@/components/create/VerdictLitePanel";
 import type { LayeredConceptRouteMeta, LayeredLayerSnapshot } from "@/types/conceptRoute";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/hooks/api/useQueryConfig";
@@ -333,7 +333,7 @@ export default function Create() {
   //
   //   現在的流程：
   //   1. 跑整併成功 → `handleConsolidateOnly` 立即 `setQueryData` 把
-  //      response（含 verdict_card / intra_compatibility）push 進 cache
+  //      response（含 verdict_lite / intra_compatibility）push 進 cache
   //   2. hook `useTrizConsolidationResult` 的 `refetchOnMount='always'`
   //      會在重整時強制再從 DB 拿一次最新值
   //   3. 這個 useEffect 直接用 query.data（DB 真實值）覆蓋 state，
@@ -342,7 +342,7 @@ export default function Create() {
   useEffect(() => {
     if (!consolidationQuery.data) return;
     setConsolidationResult(consolidationQuery.data);
-    setVerdictCard(consolidationQuery.data.verdict_card ?? null);
+    setVerdictLite(consolidationQuery.data.verdict_lite ?? null);
     const intra = consolidationQuery.data.intra_compatibility;
     if (intra && intra.length > 0) {
       const m: Record<string, IntraContradictionCompatibility> = {};
@@ -367,8 +367,8 @@ export default function Create() {
   const [pickedByContradiction, setPickedByContradiction] = useState<Record<string, Set<string>>>({});
   // Phase 3 (E5): 整併後的同矛盾相容性報告 (依 contradiction_id 索引)
   const [intraCompatByContradiction, setIntraCompatByContradiction] = useState<Record<string, IntraContradictionCompatibility>>({});
-  // Phase 3 (E3): 整併後的 EngineeringVerdictCard
-  const [verdictCard, setVerdictCard] = useState<EngineeringVerdictCard | null>(null);
+  // Phase 3 (E3): 整併後的 EngineeringVerdictLite
+  const [verdictLite, setVerdictLite] = useState<EngineeringVerdictLite | null>(null);
 
   // v9: Concept Architecture Pack local state
   const [conceptTemplateId, setConceptTemplateId] = useState("generic_product");
@@ -402,7 +402,7 @@ export default function Create() {
   const applyConsolidateResponse = (resp: {
     consolidation: ConsolidationResult;
     intra_compatibility?: IntraContradictionCompatibility[];
-    verdict_card?: EngineeringVerdictCard | null;
+    verdict_lite?: EngineeringVerdictLite | null;
   }) => {
     setConsolidationResult(resp.consolidation);
     const intraMap: Record<string, IntraContradictionCompatibility> = {};
@@ -410,13 +410,13 @@ export default function Create() {
       intraMap[ic.contradiction_id] = ic;
     }
     setIntraCompatByContradiction(intraMap);
-    setVerdictCard(resp.verdict_card ?? null);
+    setVerdictLite(resp.verdict_lite ?? null);
   };
 
   // v8 (PR1)：方向導向分析 — 純跑方向分析，整併改為手動觸發
   // ---------------------------------------------------------------
   // PR1 重大流程變更：
-  //   1. 按下「重新執行方向導向分析」會把畫面清空（含 verdict_card /
+  //   1. 按下「重新執行方向導向分析」會把畫面清空（含 verdict_lite /
   //      intra_compatibility / pickedByContradiction / consolidationResult）
   //   2. 同步刪掉 DB 的 directed_triz_solutions / triz_consolidation_results
   //      避免 React Query 重整頁面時又 hydrate 出舊資料
@@ -441,7 +441,7 @@ export default function Create() {
     setDirectedErrors({});
     setDirectedResults({});
     setConsolidationResult(null);
-    setVerdictCard(null);
+    setVerdictLite(null);
     setIntraCompatByContradiction({});
     setPickedByContradiction({});
 
@@ -492,20 +492,20 @@ export default function Create() {
     setAiLoading((p) => ({ ...p, directedTriz: false }));
   };
 
-  // v8 (PR1-6 / 1-7) → 修復版：Consolidate-only — 手動觸發整併（含驗證可行性 VerdictCard）。
+  // v8 (PR1-6 / 1-7) → 修復版：Consolidate-only — 手動觸發整併（含驗證可行性 VerdictLite）。
   //
   // 重要修正（2026-05）：
   //   舊版本對 doneResults.length < 2 走「local fallback」，完全跳過 backend
-  //   `/triz/consolidate`，導致 VerdictCard (Q1–Q8) 永遠是 null，使用者反映
+  //   `/triz/consolidate`，導致 VerdictLite (Q1–Q8) 永遠是 null，使用者反映
   //   「按下整併沒跑出驗證可行性」。Backend 早就有 single-contradiction fast
   //   path（triz_solver.consolidate_solutions line 4951），會跳過跨矛盾比對
-  //   但仍跑 _generate_engineering_verdict_card —— 所以 FE 不應該自作主張跳過。
+  //   但仍跑 _generate_engineering_verdict_lite —— 所以 FE 不應該自作主張跳過。
   //
   // 流程設計（語意 3：勾的是候選池，演算法選代表方向）：
   //   1. 必須先有「done」狀態的方向分析結果
   //   2. 多矛盾 (≥2)：未勾任何方向 → 擋下（演算法沒候選池可挑）
   //   3. 單矛盾 (==1)：未勾允許走 backend Top1 fallback，但提示先勾再按
-  //   4. 不分單/多矛盾，一律呼叫 backend trizConsolidate 以取得 verdict_card
+  //   4. 不分單/多矛盾，一律呼叫 backend trizConsolidate 以取得 verdict_lite
   const handleConsolidateOnly = async () => {
     if (!id) return;
     // Collect results that are already 'done'
@@ -525,7 +525,7 @@ export default function Create() {
     }
 
     // PR1-6：多矛盾未勾任何方向 → 直接擋下（演算法沒候選池可挑）。
-    // 單矛盾未勾 → 不擋，僅提示；讓 backend fallback 用 Top1 並產 verdict_card。
+    // 單矛盾未勾 → 不擋，僅提示；讓 backend fallback 用 Top1 並產 verdict_lite。
     const totalPicked = Object.values(pickedByContradiction)
       .reduce((sum, set) => sum + (set?.size ?? 0), 0);
     if (totalPicked === 0 && doneResults.length >= 2) {
@@ -542,14 +542,14 @@ export default function Create() {
 
     // Clear previous consolidation display
     setConsolidationResult(null);
-    setVerdictCard(null);
+    setVerdictLite(null);
     setIntraCompatByContradiction({});
 
     try {
       setDirectedConsolidating(true);
       // Backend `consolidate_solutions` 對 len(results)==1 已有 fast path：
-      // 跳過跨矛盾 swap 但仍跑 _generate_engineering_verdict_card，所以
-      // FE 不論單/多矛盾一律走後端，verdict_card 才會回來。
+      // 跳過跨矛盾 swap 但仍跑 _generate_engineering_verdict_lite，所以
+      // FE 不論單/多矛盾一律走後端，verdict_lite 才會回來。
       const consResp = await trizConsolidate({
         project_id: id,
         results: doneResults,
@@ -562,7 +562,7 @@ export default function Create() {
       // 背景：之前 `_persist_consolidation_result` 用 broad `except Exception`
       // 把任何 DB 錯誤都當成「migration 未套用」處理 → silent pop Phase 3
       // 欄位 → 結果 in-memory response 完整但 DB 半殘。使用者重整後就看到
-      // 殘缺資料（VerdictCard 顯示舊值、was_user_picked 漏寫 → 誤標 Top2 替換）。
+      // 殘缺資料（VerdictLite 顯示舊值、was_user_picked 漏寫 → 誤標 Top2 替換）。
       //
       // 修復後 backend 把 persist 結果用 `consResp.persistence` 顯式回報：
       //   - "ok"      → 完整寫入成功 → 寫 cache + 顯示成功 toast
@@ -596,7 +596,7 @@ export default function Create() {
         // 接著從 DB refetch 真實值做最終校正（此時 backend upsert 早已 commit）。
         const cachedSnapshot: ConsolidationResult = {
           ...consResp.consolidation,
-          verdict_card: consResp.verdict_card ?? null,
+          verdict_lite: consResp.verdict_lite ?? null,
           intra_compatibility: consResp.intra_compatibility ?? [],
         };
         queryClient.setQueryData(
@@ -613,8 +613,8 @@ export default function Create() {
         consResp.consolidation.status === 'compatible' ? '全部相容 ✓'
         : consResp.consolidation.status === 'resolved_with_swap' ? '替換後相容'
         : '存在衝突';
-      const hasVerdict = consResp.verdict_card != null;
-      const verdictSuffix = hasVerdict ? '，已產出驗證可行性 Q1–Q8' : '（驗證可行性產生失敗）';
+      const hasVerdict = consResp.verdict_lite != null;
+      const verdictSuffix = hasVerdict ? '，已產出 Brief 任務檢核' : '（驗證可行性產生失敗）';
       // partial / failed 已自帶警告 toast，只有 ok 才顯示綠色成功，
       // 避免使用者誤以為 DB 有完整資料。
       if (persistStatus === 'ok') {
@@ -635,7 +635,7 @@ export default function Create() {
   // v8 (PR1-4)：單條矛盾方向分析重試。
   // 變更：重試後**不再**自動 re-consolidate；整併一律由「跨矛盾方向整併」
   // 按鈕手動觸發。這是因為自動整併會把 stale picks 帶進去、產生過時
-  // verdict_card 殘留在畫面下方，造成使用者誤判。
+  // verdict_lite 殘留在畫面下方，造成使用者誤判。
   const handleDirectedSolveSingle = async (contradictionId: string) => {
     if (!id) return;
     const c = (contradictionsQuery.data ?? []).find(x => x.id === contradictionId);
@@ -2341,8 +2341,12 @@ export default function Create() {
                   pickedByContradiction={pickedByContradiction}
                 />
               )}
-              {verdictCard && (
-                <VerdictCardPanel card={verdictCard} />
+              {verdictLite && (
+                <VerdictLitePanel
+                  card={verdictLite}
+                  consolidation={consolidationResult}
+                  directedResults={directedResults}
+                />
               )}
 
               {/* PR1-5：流程引導 — 已產出方向但尚未整併時提示使用者下一步 */}

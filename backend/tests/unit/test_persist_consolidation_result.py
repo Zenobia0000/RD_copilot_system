@@ -2,10 +2,17 @@
 
 Background：原版 `_persist_consolidation_result` 用 `except Exception` 把任何
 DB 錯誤都當成「migration 未套用」處理 → silent pop Phase 3 欄位 → 結果 DB 半殘、
-前端重整後出現 VerdictCard 殘留、Top2 替換徽章誤標等問題。
+前端重整後出現 verdict 殘留、Top2 替換徽章誤標等問題。
 
 新版改成顯式回傳 `PersistenceOutcome`，並只在錯誤訊息明確帶有 column-missing
 signature (42703 / PGRST204 / 'column does not exist' 等) 時才退回 legacy schema。
+
+VerdictLite 改造（plans/triz-verdict-card-simplification.md）後，
+`verdict_card` 欄位被 `verdict_lite` 取代；本檔測試已同步換用新欄位名稱。
+
+v0.5 (v3) 結構性精簡（§14–§20）：sr_checks / socratic_checks / cld_checks
+三個 list 欄位移除，改用 explore_health (contradiction_coverage + cld_warning)
+健檢徽章。本檔 `_make_verdict_lite()` mock 同步更新成 v3 結構。
 
 這個檔案驗證三種情境：
   1. 完整 payload upsert 成功 → status="ok"
@@ -26,8 +33,10 @@ from app.agents.triz_solver import (
 )
 from app.models.schemas import (
     ConsolidationResult,
+    CoverageStatus,
     DirectionGroup,
-    EngineeringVerdictCard,
+    EngineeringVerdictLite,
+    ExploreHealthSummary,
     PersistenceOutcome,
 )
 
@@ -61,13 +70,24 @@ def _make_consolidation_result() -> ConsolidationResult:
     )
 
 
-def _make_verdict_card() -> EngineeringVerdictCard:
-    return EngineeringVerdictCard(
+def _make_verdict_lite() -> EngineeringVerdictLite:
+    """v0.5 (v3) 最小有效 VerdictLite mock。
+
+    - 移除舊 sr_checks / socratic_checks / cld_checks（schema 已拿掉）
+    - 補 explore_health 健檢徽章（v3 新增；可選但補上更貼近真實）
+    """
+    return EngineeringVerdictLite(
         project_id="proj-abc",
         consolidation_id="TCR-proj-abc",
-        final_verdict="adopt_with_conditions",
-        final_rationale="採用，但需驗證熱循環。",
+        overall_verdict="adopt_with_conditions",
+        overall_headline="採用，但需驗證熱循環。",
         confidence=0.7,
+        explore_health=ExploreHealthSummary(
+            contradiction_coverage=CoverageStatus(
+                level="green",
+                label="1 / 1 條已對應方向",
+            ),
+        ),
     )
 
 
@@ -82,10 +102,10 @@ class TestLooksLikeMissingColumnError:
     @pytest.mark.parametrize(
         "msg",
         [
-            'column "verdict_card" does not exist (SQLSTATE 42703)',
+            'column "verdict_lite" does not exist (SQLSTATE 42703)',
             "PGRST204: column 'candidate_pools' not in schema cache",
             "ERROR 42703: column total_rounds does not exist",
-            "Could not find the 'verdict_card' column of 'triz_consolidation_results' in the schema cache",
+            "Could not find the 'verdict_lite' column of 'triz_consolidation_results' in the schema cache",
         ],
     )
     def test_recognizes_schema_errors(self, msg: str) -> None:
@@ -129,16 +149,16 @@ class TestPersistConsolidationResult:
                 project_id="proj-abc-12345678",
                 result=_make_consolidation_result(),
                 intra_compatibility=[],
-                verdict_card=_make_verdict_card(),
+                verdict_lite=_make_verdict_lite(),
             )
 
         # Assert
         assert isinstance(outcome, PersistenceOutcome)
         assert outcome.status == "ok"
         assert outcome.reason is None
-        # 確認所有 Phase 3 欄位都進了 payload
+        # 確認所有 Phase 3 / VerdictLite 欄位都進了 payload
         actual_payload = mock_table.upsert.call_args[0][0]
-        assert "verdict_card" in actual_payload
+        assert "verdict_lite" in actual_payload
         assert "was_user_picked" in actual_payload
         assert actual_payload["was_user_picked"] == {"TC-1": "DIR-1"}
         assert "candidate_pools" in actual_payload
@@ -147,7 +167,7 @@ class TestPersistConsolidationResult:
         assert "intra_compatibility" in actual_payload
         # outcome.columns_written 應記錄這些欄位
         for col in [
-            "verdict_card",
+            "verdict_lite",
             "was_user_picked",
             "candidate_pools",
             "intra_compatibility",
@@ -160,7 +180,7 @@ class TestPersistConsolidationResult:
         # Arrange — 第一次 upsert 拋「column does not exist」，第二次 (legacy) 成功
         first_call = MagicMock(
             side_effect=Exception(
-                "ERROR: column \"verdict_card\" does not exist (SQLSTATE 42703)"
+                "ERROR: column \"verdict_lite\" does not exist (SQLSTATE 42703)"
             )
         )
         second_call = MagicMock(return_value=MagicMock(data=[{"id": "TCR-proj-abc"}]))
@@ -180,7 +200,7 @@ class TestPersistConsolidationResult:
                 project_id="proj-abc-12345678",
                 result=_make_consolidation_result(),
                 intra_compatibility=[],
-                verdict_card=_make_verdict_card(),
+                verdict_lite=_make_verdict_lite(),
             )
 
         # Assert — partial + reason 提示要跑 migration
@@ -189,9 +209,9 @@ class TestPersistConsolidationResult:
         assert "migration" in outcome.reason.lower() or "phase 3" in outcome.reason.lower()
         # 確認 upsert 被呼叫了 2 次（full + legacy）
         assert mock_table.upsert.call_count == 2
-        # 第二次的 payload 應該不包含 Phase 3 欄位
+        # 第二次的 payload 應該不包含 Phase 3 / VerdictLite 欄位
         legacy_payload = mock_table.upsert.call_args_list[1][0][0]
-        assert "verdict_card" not in legacy_payload
+        assert "verdict_lite" not in legacy_payload
         assert "was_user_picked" not in legacy_payload
         assert "candidate_pools" not in legacy_payload
         # 但仍包含 legacy 欄位
@@ -218,7 +238,7 @@ class TestPersistConsolidationResult:
                 project_id="proj-abc-12345678",
                 result=_make_consolidation_result(),
                 intra_compatibility=[],
-                verdict_card=_make_verdict_card(),
+                verdict_lite=_make_verdict_lite(),
             )
 
         # Assert
@@ -227,11 +247,11 @@ class TestPersistConsolidationResult:
         assert "connection refused" in outcome.reason.lower()
         assert outcome.columns_written == []
         # 關鍵：upsert 只被呼叫 1 次（沒退到 legacy fallback）
-        # 這證明非 schema 錯誤不會 silent pop Phase 3 columns
+        # 這證明非 schema 錯誤不會 silent pop Phase 3 / VerdictLite columns
         assert mock_table.upsert.call_count == 1
-        # 第一次 payload 包含 Phase 3 欄位（原本就是要寫進去的）
+        # 第一次 payload 包含 Phase 3 / VerdictLite 欄位（原本就是要寫進去的）
         first_payload = mock_table.upsert.call_args_list[0][0][0]
-        assert "verdict_card" in first_payload
+        assert "verdict_lite" in first_payload
         assert "was_user_picked" in first_payload
 
     def test_supabase_client_init_failure_returns_failed(self) -> None:
@@ -244,7 +264,7 @@ class TestPersistConsolidationResult:
                 project_id="proj-abc-12345678",
                 result=_make_consolidation_result(),
                 intra_compatibility=[],
-                verdict_card=_make_verdict_card(),
+                verdict_lite=_make_verdict_lite(),
             )
 
         assert outcome.status == "failed"

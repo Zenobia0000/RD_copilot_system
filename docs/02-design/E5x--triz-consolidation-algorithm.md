@@ -171,7 +171,8 @@ def score_loss_optimized_swap(candidate_pools, results_by_cid):
 
 前端 UI 已透過：
 - `ConsolidationPanel` ⓘ tooltip
-- `VerdictCardPanel` disclaimer
+- `VerdictLitePanel` disclaimer（取代舊 `VerdictCardPanel`，見
+  [`plans/triz-verdict-card-simplification.md`](../../plans/triz-verdict-card-simplification.md)）
 
 明確揭露此限制。
 
@@ -216,7 +217,7 @@ def score_loss_optimized_swap(candidate_pools, results_by_cid):
 try:
     sb.table("triz_consolidation_results").upsert(full_payload).execute()
 except Exception:                       # 寬鬆過頭！
-    # pop 掉 verdict_card / was_user_picked / candidate_pools / ...
+    # pop 掉 verdict_lite / was_user_picked / candidate_pools / ...
     # 再用 legacy 欄位重試
 ```
 
@@ -224,12 +225,12 @@ except Exception:                       # 寬鬆過頭！
 
 - 線上 Supabase 缺 migration 022 的三個欄位 (`candidate_pools` / `exhausted_contradictions` / `total_rounds`)。
 - 每次整併都拋 `column ... does not exist` → fallback 觸發。
-- 但 fallback 順手把 **migration 020/021 的 `verdict_card` / `was_user_picked`** 也 pop 掉。
+- 但 fallback 順手把 **migration 020/021 的 `verdict_lite` / `was_user_picked`**（VerdictLite 改造後）也 pop 掉。
 - DB 寫進去的是「只有舊欄位」的半殘 row。
 - 使用者第一次跑 OK（看的是 in-memory response）。
 - 重整後 React Query `refetchOnMount: 'always'` 從 DB hydrate → 撈到半殘 row →
   - `was_user_picked = {}` → UI 誤把 RD 勾選的方向標成「Top2 替換」徽章
-  - `verdict_card = null` 或更舊的殘值 → Q1–Q8 工程審判顯示錯誤
+  - `verdict_lite = null` 或更舊的殘值 → Brief 任務檢核顯示錯誤
 
 ### 7.5.2 修復原則：**fail loud, not silent**
 
@@ -289,11 +290,12 @@ DB-wins useEffect 會把 cache 的舊值塞進 state；當 DB 上其實是殘缺
 
 ```
 status, adopted_directions, conflict_report, integration_advice,
-intra_compatibility, verdict_card, was_user_picked,           ← migration 020/021
-candidate_pools, exhausted_contradictions, total_rounds       ← migration 022
+intra_compatibility, was_user_picked,                         ← migration 020/021
+candidate_pools, exhausted_contradictions, total_rounds,      ← migration 022
+verdict_lite                                                  ← migration 023 (取代舊 verdict_card)
 ```
 
-若缺任一欄位，整併會走 `partial` fallback，但所有 Phase 3 / PR2-Lite 功能都會降級。
+若缺任一欄位，整併會走 `partial` fallback，但所有 Phase 3 / PR2-Lite / VerdictLite 功能都會降級。
 
 ---
 

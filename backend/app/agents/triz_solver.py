@@ -33,7 +33,7 @@ from app.prompts.triz_solver import (
     DECISION_CARD_PROMPT,
     # Phase 3: 整併三層改造
     INTRA_COMPATIBILITY_CHECK_PROMPT,
-    ENGINEERING_VERDICT_CARD_PROMPT,
+    ENGINEERING_VERDICT_LITE_PROMPT,
     # Engineering Spec Pipeline
     ENGINEERING_SPEC_SYSTEM,
     ENGINEERING_SPEC_EXPANSION,
@@ -2432,21 +2432,15 @@ from app.models.schemas import (
     DecisionCardQuickTags,
     DecisionCardCombinationHints,
     ContradictionFace,
-    # Phase 3 整併三層改造
+    # Phase 3 整併三層 + VerdictLite (取代舊 Q1–Q8 工程審判卡)
     PickedSelection,
     IntraContradictionCompatibility,
-    EngineeringVerdictCard,
-    ContradictionFacePerPicked,
-    MechanismTrace,
-    FeasibilityMatrix,
-    FeasibilityVerdict,
-    SideEffectsViaCld,
-    CldSideEffect,
-    CoverageCompleteness,
-    VerificationPlan,
-    VerificationStep,
-    DutyCycleVerdict,
-    BoundaryCollapse,
+    EngineeringVerdictLite,
+    BriefItemCheck,
+    NextAction,
+    # v0.5 (v3) Explore 健檢徽章
+    ExploreHealthSummary,
+    CoverageStatus,
 )
 
 
@@ -4030,10 +4024,10 @@ def _gc_orphan_directed_solutions(project_id: str) -> int:
     return len(orphan_pks)
 
 
-# Phase 3 / PR2-Lite 欄位名單 — 給 fallback / verify 使用
+# Phase 3 / PR2-Lite / VerdictLite 欄位名單 — 給 fallback / verify 使用
 _PHASE3_COLUMNS = (
     "intra_compatibility",
-    "verdict_card",
+    "verdict_lite",            # ← 取代舊 verdict_card (Q1–Q8)，migration 023
     "was_user_picked",
     "candidate_pools",
     "exhausted_contradictions",
@@ -4070,18 +4064,19 @@ def _persist_consolidation_result(
     project_id: str,
     result: ConsolidationResult,
     intra_compatibility: list[IntraContradictionCompatibility] | None = None,
-    verdict_card: EngineeringVerdictCard | None = None,
+    verdict_lite: EngineeringVerdictLite | None = None,
 ) -> "PersistenceOutcome":
     """Upsert consolidation result into triz_consolidation_results (migration 012).
 
-    Phase 3 (migration 020/021) 寫入 `intra_compatibility` + `verdict_card` +
-    `was_user_picked`；PR2-Lite (migration 022) 寫 `candidate_pools` /
-    `exhausted_contradictions` / `total_rounds`。
+    Phase 3 (migration 020/021) 寫入 `intra_compatibility` + `was_user_picked`；
+    PR2-Lite (migration 022) 寫 `candidate_pools` / `exhausted_contradictions` /
+    `total_rounds`；VerdictLite (migration 023) 寫 `verdict_lite`（取代舊 Q1–Q8
+    `verdict_card` 欄位）。
 
     Bug fix (2026-05) — *Fail loud, not silent*：
       - 舊版用 `except Exception as inner_exc: pop Phase 3 columns and retry`
         把**任何**錯誤都當成「migration 未套用」處理，結果一旦發生 network /
-        RLS / JSON encoding 等錯誤，就會把 verdict_card / was_user_picked
+        RLS / JSON encoding 等錯誤，就會把 verdict_lite / was_user_picked
         等欄位 silent 清掉，DB 上只剩半殘的 row。重整後使用者就看到舊資料。
       - 新版只在錯誤明確帶有 column-missing signature (42703 / PGRST204) 時
         才退回 legacy schema，並回傳 status="partial"；其他錯誤直接回
@@ -4123,8 +4118,8 @@ def _persist_consolidation_result(
         phase3_payload["intra_compatibility"] = [
             ic.model_dump(mode="json") for ic in intra_compatibility
         ]
-    if verdict_card is not None:
-        phase3_payload["verdict_card"] = verdict_card.model_dump(mode="json")
+    if verdict_lite is not None:
+        phase3_payload["verdict_lite"] = verdict_lite.model_dump(mode="json")
     if result.was_user_picked is not None:
         phase3_payload["was_user_picked"] = dict(result.was_user_picked)
     if result.candidate_pools is not None:
@@ -4168,10 +4163,10 @@ def _persist_consolidation_result(
                 return PersistenceOutcome(
                     status="partial",
                     reason=(
-                        "Phase 3 / PR2-Lite columns missing in DB "
-                        "(migration 020/021/022 not applied). "
-                        "verdict_card / was_user_picked / candidate_pools 等欄位將不會持久化，"
-                        "重整後可能丟失工程審判資料。請執行對應 migration 後重試。"
+                        "Phase 3 / PR2-Lite / VerdictLite columns missing in DB "
+                        "(migration 020/021/022/023 not applied). "
+                        "verdict_lite / was_user_picked / candidate_pools 等欄位將不會持久化，"
+                        "重整後可能丟失審判資料。請執行對應 migration 後重試。"
                     ),
                     columns_written=list(legacy_payload.keys()),
                 )
@@ -4589,12 +4584,21 @@ def _generate_conflict_report(
 
 
 # ---------------------------------------------------------------------------
-# Phase 3 — EngineeringVerdictCard Q1–Q8 generation
+# EngineeringVerdictLite — 對照 Brief 任務的精簡審判 (取代舊 Q1–Q8)
 # ---------------------------------------------------------------------------
+# 設計理念見 plans/triz-verdict-card-simplification.md。
+#
+# 改名要點：
+#   _generate_engineering_verdict_card → _generate_engineering_verdict_lite
+#   ENGINEERING_VERDICT_CARD_PROMPT    → ENGINEERING_VERDICT_LITE_PROMPT
+#   EngineeringVerdictCard (Q1–Q8)     → EngineeringVerdictLite (對照 brief)
+#
+# 為什麼可以放心改：下游 (pre-cad / concept architecture / engineering spec
+# drafts) 全都沒讀過 verdict_card / Q1–Q8 任何子欄位，pipeline 是死端點。
 
 
 def _format_brief_ctx_for_verdict(ctx: BriefContextSnapshot) -> dict[str, str]:
-    """Format BriefContextSnapshot into prompt-ready text blocks for VerdictCard."""
+    """Format BriefContextSnapshot into prompt-ready text blocks for VerdictLite."""
     if not ctx:
         return {
             "mission_block": "(未提供)",
@@ -4642,19 +4646,67 @@ def _format_brief_ctx_for_verdict(ctx: BriefContextSnapshot) -> dict[str, str]:
     }
 
 
-def _generate_engineering_verdict_card(
+def _compute_contradiction_coverage(
+    consolidation: ConsolidationResult,
+    results: list[ContradictionDirectionResult],
+) -> tuple[Literal["green", "yellow", "red"], str]:
+    """v0.5 (v3) defence-in-depth：程式級計算 Explore 矛盾覆蓋率。
+
+    LLM 算除法常出錯（漏條目、誤把 not_relevant 當未對應），所以由程式
+    覆寫 ``contradiction_coverage.level`` / ``label``；只保留 LLM 寫的
+    ``details`` 當人話描述。
+
+    規則：
+      - 0 矛盾 → green / "（本專案無矛盾）"
+      - 覆蓋率 = 1.0 → green
+      - 0.5 <= 覆蓋率 < 1.0 → yellow
+      - 覆蓋率 < 0.5 → red
+    """
+    adopted_map = consolidation.adopted_directions or {}
+    total = len(results)
+    if total == 0:
+        return "green", "（本專案無矛盾）"
+
+    adopted = sum(1 for r in results if r.contradiction_id in adopted_map)
+    ratio = adopted / total
+    if ratio >= 1.0:
+        level: Literal["green", "yellow", "red"] = "green"
+    elif ratio >= 0.5:
+        level = "yellow"
+    else:
+        level = "red"
+    label = f"{adopted} / {total} 條已對應方向"
+    return level, label
+
+
+def _generate_engineering_verdict_lite(
     project_id: str,
     consolidation: ConsolidationResult,
     results: list[ContradictionDirectionResult],
     brief_ctx: BriefContextSnapshot | None,
     consolidation_id: str = "",
-) -> EngineeringVerdictCard:
-    """對整併方案做 Q1–Q8 完整工程審判 (Phase 3 §B4)。
+) -> EngineeringVerdictLite:
+    """對整併方案做「對照 brief 任務」的精簡審判（v0.5 / v3）。
 
-    1. 將 brief_ctx (mission/constraints/KPIs/cld/socratic) 全部塞進 prompt
-    2. 將整併後 adopted_directions + 每條矛盾的 sub_requirements 塞進 prompt
-    3. 一次 LLM call 產出八節結構化 verdict
-    4. LLM 失敗 → 回傳保留結構的空殼 (final_verdict=needs_revision)，
+    取代舊 `_generate_engineering_verdict_card` (Q1–Q8 工程審判卡)，因為
+    使用者反映 Q1–Q8 結構太複雜、術語太多看不懂；且下游 pipeline (pre-cad /
+    concept architecture / engineering spec drafts) 沒有任何 consumer。
+    詳設計見 plans/triz-verdict-card-simplification.md。
+
+    v0.5 (v3) 結構性精簡：
+      - 拿掉 sr_block / socratic_block 輸入（sub_requirement 是 backend
+        內部產物、socratic 是 brief 階段該收完的歷史紀錄）
+      - 新增 contradictions_block 輸入，給 LLM 算「Explore 矛盾覆蓋率」
+      - 輸出改成 mission_check / constraint_checks / kpi_checks +
+        explore_health (contradiction_coverage + cld_warning) + next_actions
+      - 結束前用 ``_compute_contradiction_coverage`` 做 defence-in-depth：
+        程式級覆寫 ``card.explore_health.contradiction_coverage.level/label``，
+        不信任 LLM 算的覆蓋率比例。
+
+    1. 把 brief_ctx (mission/constraints/KPIs/cld) 塞進 prompt
+    2. 把整併後 adopted_directions + 每條矛盾的對應方向塞進 prompt
+    3. 一次 LLM call 產出 brief 對照版 verdict
+    4. LLM 失敗 → 回傳保留結構的空殼 (overall_verdict=needs_revision)，
        避免阻斷主流程
     """
     blocks = _format_brief_ctx_for_verdict(brief_ctx or _empty_context())
@@ -4668,64 +4720,105 @@ def _generate_engineering_verdict_card(
         )
     plan_block = "\n".join(plan_lines) or "(整併方案為空)"
 
-    # 從各 result 收集 sub_requirements
-    sr_lines: list[str] = []
+    # v0.5 (v3) 新增：contradictions_block —— 讓 LLM 知道有哪些 explore 階段
+    # 挖出來的矛盾，以及每條矛盾是否有 adopted direction 對應，方便算覆蓋率。
+    adopted_map = consolidation.adopted_directions or {}
+    contradictions_lines: list[str] = []
     for r in results:
-        for sr in (r.sub_requirements or []):
-            sr_lines.append(
-                f"- [{sr.id} / {sr.kind} / {sr.source_ref}] {sr.description}"
+        cid = r.contradiction_id
+        label = (r.natural_description or cid).strip().replace("\n", " ")
+        if len(label) > 60:
+            label = label[:60] + "…"
+        adopted = adopted_map.get(cid)
+        if adopted:
+            contradictions_lines.append(
+                f"- {cid}「{label}」 → adopted: {adopted.direction_id} "
+                f"{adopted.direction_name}"
             )
-    sr_block = "\n".join(sr_lines) or "(無 SR)"
+        else:
+            contradictions_lines.append(
+                f"- {cid}「{label}」 → adopted: (未對應)"
+            )
+    contradictions_block = "\n".join(contradictions_lines) or "(本專案無矛盾)"
 
-    prompt = ENGINEERING_VERDICT_CARD_PROMPT.format(
+    prompt = ENGINEERING_VERDICT_LITE_PROMPT.format(
         mission_block=blocks["mission_block"],
         constraints_block=blocks["constraints_block"],
         kpis_block=blocks["kpis_block"],
         plan_block=plan_block,
-        sr_block=sr_block,
         cld_block=blocks["cld_block"],
-        socratic_block=blocks["socratic_block"],
+        contradictions_block=contradictions_block,
     )
 
     # default fallback used both on LLM failure & on validation failure
-    fallback = EngineeringVerdictCard(
+    # v0.5 (v3): fallback 補 explore_health 預設值（程式算的覆蓋率）。
+    fb_level, fb_label = _compute_contradiction_coverage(consolidation, results)
+    fallback = EngineeringVerdictLite(
         project_id=project_id,
         consolidation_id=consolidation_id,
-        final_verdict="needs_revision",
-        final_rationale="VerdictCard 自動產出失敗，請手動審查整併方案。",
+        overall_verdict="needs_revision",
+        overall_headline="自動審判失敗，請手動檢視整併方案是否覆蓋 brief 任務。",
         confidence=0.0,
+        explore_health=ExploreHealthSummary(
+            contradiction_coverage=CoverageStatus(
+                level=fb_level,
+                label=fb_label,
+            ),
+        ),
     )
 
     try:
         raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt, model=settings.fast_model)
         data = json.loads(raw) if raw and raw.strip() else {}
     except Exception as exc:
-        logger.warning("_generate_engineering_verdict_card LLM failed: %s", exc)
+        logger.warning("_generate_engineering_verdict_lite LLM failed: %s", exc)
         return fallback
 
     try:
         # Inject project_id + consolidation_id (LLM is not asked to produce them)
         data.setdefault("project_id", project_id)
         data.setdefault("consolidation_id", consolidation_id)
-        card = EngineeringVerdictCard.model_validate(data)
+        card = EngineeringVerdictLite.model_validate(data)
     except Exception as exc:
-        logger.warning("EngineeringVerdictCard schema validation failed: %s", exc)
+        logger.warning("EngineeringVerdictLite schema validation failed: %s", exc)
         return fallback
 
-    # Defence in depth — enforce Q8 boundary_collapse ≥5 / Q7 four-cycle present.
-    if len(card.boundary_collapse) < 5:
+    # Defence in depth — 確保 next_actions 至少 1 條 blocking。
+    # 若 LLM 偷懶完全沒給或全部 blocking=False，補一條 placeholder 給 RD 對焦。
+    has_blocking = any(a.blocking for a in card.next_actions)
+    if not has_blocking:
         logger.warning(
-            "VerdictCard Q8 boundary_collapse < 5 (got %d) — padding placeholders",
-            len(card.boundary_collapse),
+            "VerdictLite next_actions 缺 blocking 條目 (got %d total) — 補 placeholder",
+            len(card.next_actions),
         )
-        while len(card.boundary_collapse) < 5:
-            card.boundary_collapse.append(
-                BoundaryCollapse(
-                    condition=f"(待補 #{len(card.boundary_collapse) + 1})",
-                    failure_mode="LLM 未列出，須由 RD 補上具體失效條件",
-                    severity="moderate",
-                )
+        card.next_actions.append(
+            NextAction(
+                action="人工檢視審判結果，確認是否有未列出的 blocking 驗證項",
+                why="LLM 未提供 blocking 行動，可能漏判",
+                blocking=True,
+                effort_hint="small",
+                related_item_ids=[],
             )
+        )
+
+    # v0.5 (v3) defence-in-depth：程式級覆寫 contradiction_coverage.level / label。
+    # LLM 算除法常出錯（漏條目、誤把 not_relevant 當未對應），所以由程式重算；
+    # 只保留 LLM 寫的 details 當人話描述。若 LLM 完全沒給 explore_health，
+    # 補一個只含 contradiction_coverage 的最小物件。
+    correct_level, correct_label = _compute_contradiction_coverage(
+        consolidation, results
+    )
+    if card.explore_health is None:
+        card.explore_health = ExploreHealthSummary(
+            contradiction_coverage=CoverageStatus(
+                level=correct_level,
+                label=correct_label,
+            ),
+        )
+    else:
+        card.explore_health.contradiction_coverage.level = correct_level
+        card.explore_health.contradiction_coverage.label = correct_label
+        # details 保留 LLM 寫的（人話描述），不動。
 
     return card
 
@@ -4971,7 +5064,7 @@ def consolidate_solutions(req: ConsolidateRequest) -> ConsolidateResponse:
       B. 若 req.picks 非空 → 跑 intra_compatibility（同矛盾內衝突檢查）
       C. 為每條矛盾用 _build_candidate_pool 建池（picks 為主，沒勾的 fallback top1+top2）
       D. 跑 _score_loss_optimized_swap：初始用各池首位，衝突時換池內下一名（loss 最小者優先）
-      E. 整併後跑 _generate_engineering_verdict_card 產出 Q1–Q8 工程審判卡
+      E. 整併後跑 _generate_engineering_verdict_lite 產出對照 brief 的精簡審判
       F. 寫入 candidate_pools / exhausted_contradictions / total_rounds 給前端
 
     Status 語意（PR2-Lite 重新詮釋）：
@@ -5033,7 +5126,7 @@ def consolidate_solutions(req: ConsolidateRequest) -> ConsolidateResponse:
         return ConsolidateResponse(
             consolidation=consolidation,
             intra_compatibility=intra_compat,
-            verdict_card=None,
+            verdict_lite=None,
             # 防呆：unit tests 可能 mock _persist_consolidation_result 為 None，
             # 此時退回預設 PersistenceOutcome(status="ok")。Production 路徑永遠
             # 拿得到完整 PersistenceOutcome。
@@ -5070,7 +5163,7 @@ def consolidate_solutions(req: ConsolidateRequest) -> ConsolidateResponse:
             exhausted_contradictions=[],
             total_rounds=0,
         )
-        verdict = _generate_engineering_verdict_card(
+        verdict = _generate_engineering_verdict_lite(
             req.project_id, consolidation, results, brief_ctx, consolidation_id
         )
         persistence = _persist_consolidation_result(
@@ -5079,7 +5172,7 @@ def consolidate_solutions(req: ConsolidateRequest) -> ConsolidateResponse:
         return ConsolidateResponse(
             consolidation=consolidation,
             intra_compatibility=intra_compat,
-            verdict_card=verdict,
+            verdict_lite=verdict,
             persistence=persistence or PersistenceOutcome(),
         )
 
@@ -5139,7 +5232,7 @@ def consolidate_solutions(req: ConsolidateRequest) -> ConsolidateResponse:
             total_rounds=rounds_executed,
         )
 
-    verdict = _generate_engineering_verdict_card(
+    verdict = _generate_engineering_verdict_lite(
         req.project_id, consolidation, results, brief_ctx, consolidation_id
     )
     persistence = _persist_consolidation_result(
@@ -5148,7 +5241,7 @@ def consolidate_solutions(req: ConsolidateRequest) -> ConsolidateResponse:
     return ConsolidateResponse(
         consolidation=consolidation,
         intra_compatibility=intra_compat,
-        verdict_card=verdict,
+        verdict_lite=verdict,
         persistence=persistence or PersistenceOutcome(),
     )
 

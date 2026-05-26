@@ -45,3 +45,47 @@ if (!res.ok) {
 const data = await res.json();
 console.log("==== columns of triz_consolidation_results ====");
 console.log(JSON.stringify(data, null, 2));
+
+// 期望欄位檢核：每次 migration 更新都要在這裡加進來，方便部署時偵測缺欄位。
+// migration 020/021: intra_compatibility / was_user_picked
+// migration 022:     candidate_pools / exhausted_contradictions / total_rounds
+// migration 023:     verdict_lite  （取代舊 verdict_card Q1–Q8）
+const EXPECTED_COLUMNS = [
+  "status",
+  "adopted_directions",
+  "conflict_report",
+  "integration_advice",
+  "intra_compatibility",
+  "was_user_picked",
+  "candidate_pools",
+  "exhausted_contradictions",
+  "total_rounds",
+  "verdict_lite",
+];
+
+// Supabase Management API 回傳的 result 可能是 array 或 {result: [...]}.
+const rows = Array.isArray(data?.result)
+  ? data.result
+  : Array.isArray(data)
+    ? data
+    : [];
+const presentNames = new Set(rows.map((r) => r.column_name));
+const missing = EXPECTED_COLUMNS.filter((c) => !presentNames.has(c));
+
+if (missing.length > 0) {
+  console.warn("\n⚠️  缺少以下預期欄位 — 請執行對應 migration：");
+  for (const m of missing) console.warn(`  - ${m}`);
+  console.warn(
+    "  執行：node scripts/run-migration.mjs supabase/migrations/<檔名>.sql\n",
+  );
+  process.exit(2);
+} else {
+  console.log("\n✅ 所有預期欄位皆存在（含 verdict_lite）。");
+}
+
+// 額外提示：若還在的話，verdict_card 是已棄用的舊欄位，未來會 DROP。
+if (presentNames.has("verdict_card")) {
+  console.log(
+    "\nℹ️  注意：DB 仍有舊 `verdict_card` 欄位（Q1–Q8），新版已停用、預計於 migration 024 DROP。",
+  );
+}
